@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import { 
   Upload, 
   Music, 
@@ -53,7 +54,9 @@ const Navigation = ({ isDark, toggleTheme, credits }) => (
         <div className="flex items-center gap-4">
           <CreditBadge credits={credits} isDark={isDark} />
           <ThemeToggle isDark={isDark} toggle={toggleTheme} />
-          <button className="glass-button-primary glass-button">Get Started</button>
+          <Link href="/signup">
+            <button className="glass-button-primary glass-button">Get Started</button>
+          </Link>
         </div>
       </div>
     </div>
