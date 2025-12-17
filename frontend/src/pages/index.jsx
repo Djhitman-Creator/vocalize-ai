@@ -203,9 +203,11 @@ const PricingSection = ({ isDark }) => {
                   </li>
                 ))}
               </ul>
-              <button className={`w-full ${plan.popular ? 'glass-button-primary' : ''} glass-button ${!plan.popular && (isDark ? 'text-white' : 'text-gray-800')}`}>
-                {plan.price === 0 ? 'Get Started' : 'Subscribe'}
-              </button>
+              <Link href={plan.price === 0 ? '/signup' : '/pricing'}>
+                <button className={`w-full ${plan.popular ? 'glass-button-primary' : ''} glass-button ${!plan.popular && (isDark ? 'text-white' : 'text-gray-800')}`}>
+                  {plan.price === 0 ? 'Get Started' : 'Subscribe'}
+                </button>
+              </Link>
             </motion.div>
           ))}
         </div>
