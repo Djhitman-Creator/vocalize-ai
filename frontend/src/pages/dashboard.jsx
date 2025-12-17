@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { 
-  Music, 
-  Upload, 
-  Zap, 
-  Settings, 
-  LogOut, 
+import {
+  Music,
+  Upload,
+  Zap,
+  Settings,
+  LogOut,
   FileVideo,
   Clock,
   CheckCircle,
@@ -36,7 +36,7 @@ export default function DashboardPage() {
   const checkUser = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         router.push('/login');
         return;
@@ -103,21 +103,28 @@ export default function DashboardPage() {
       {/* Navigation */}
       <nav className="border-b border-white/10 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
+          <Link href="/dashboard" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
               <Music className="w-6 h-6 text-white" />
             </div>
             <span className="font-display font-bold text-xl text-gradient">VocalizeAI</span>
           </Link>
-          
-          <div className="flex items-center gap-4">
+
+          <div className="flex items-center gap-6">
+            <Link href="/upload" className="text-gray-400 hover:text-white transition-colors">
+              Upload
+            </Link>
+            <Link href="/pricing" className="text-gray-400 hover:text-white transition-colors">
+              Pricing
+            </Link>
+
             <div className="credit-badge">
               <div className="credit-badge-icon">
                 <Zap className="w-3 h-3 text-white" />
               </div>
               <span className="text-sm text-white">{profile?.credits_remaining || 0} Credits</span>
             </div>
-            
+
             <button
               onClick={handleLogout}
               className="glass-button p-3 rounded-xl text-gray-400 hover:text-white"
@@ -221,7 +228,7 @@ export default function DashboardPage() {
           transition={{ delay: 0.5 }}
         >
           <h2 className="text-xl font-bold text-white mb-4">Recent Projects</h2>
-          
+
           {projects.length === 0 ? (
             <div className="glass-panel p-8 text-center">
               <FileVideo className="w-12 h-12 text-gray-500 mx-auto mb-4" />
