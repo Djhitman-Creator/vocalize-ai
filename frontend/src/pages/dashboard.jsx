@@ -111,12 +111,9 @@ export default function DashboardPage() {
           </Link>
 
           <div className="flex items-center gap-6">
-            <Link href="/upload" className="text-gray-400 hover:text-white transition-colors">
-              Upload
-            </Link>
-            <Link href="/pricing" className="text-gray-400 hover:text-white transition-colors">
-              Pricing
-            </Link>
+            <Link href="/upload" className="text-gray-400 hover:text-white">Upload</Link>
+            <Link href="/pricing" className="text-gray-400 hover:text-white">Pricing</Link>
+            <Link href="/settings" className="text-gray-400 hover:text-white">Settings</Link>
 
             <div className="credit-badge">
               <div className="credit-badge-icon">
