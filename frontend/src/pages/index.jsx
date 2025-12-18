@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useTheme } from '../context/ThemeContext';
 import { 
   Upload, 
   Music, 
@@ -278,12 +279,8 @@ const Footer = ({ isDark }) => (
 );
 
 export default function HomePage() {
-  const [isDark, setIsDark] = useState(true);
+  const { isDark, toggleTheme } = useTheme();
   const [credits, setCredits] = useState(25);
-
-  const toggleTheme = () => {
-    setIsDark(!isDark);
-  };
 
   return (
     <div className={isDark ? 'dark' : ''}>

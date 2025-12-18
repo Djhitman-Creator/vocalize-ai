@@ -13,8 +13,11 @@ import {
   FileVideo,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -28,6 +31,7 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { isDark, toggleTheme } = useTheme();
 
   useEffect(() => {
     checkUser();
@@ -76,7 +80,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-animated-dark flex items-center justify-center">
+      <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'} flex items-center justify-center`}>
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-400">Loading...</p>
@@ -99,7 +103,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-animated-dark">
+    <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
       {/* Navigation */}
       <nav className="border-b border-white/10 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -121,6 +125,13 @@ export default function DashboardPage() {
               </div>
               <span className="text-sm text-white">{profile?.credits_remaining || 0} Credits</span>
             </div>
+
+            <button
+              onClick={toggleTheme}
+              className="glass-button p-3 rounded-xl"
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
 
             <button
               onClick={handleLogout}

@@ -4,19 +4,22 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { 
-  Music, 
-  User, 
-  Mail, 
-  Lock, 
-  Zap, 
-  LogOut, 
+import {
+  Music,
+  User,
+  Mail,
+  Lock,
+  Zap,
+  LogOut,
   ChevronLeft,
   Save,
   AlertCircle,
   CheckCircle,
-  CreditCard
+  CreditCard,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -29,14 +32,15 @@ export default function SettingsPage() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { isDark, toggleTheme } = useTheme();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  
+
   // Form state
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  
+
   // Password change
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -52,7 +56,7 @@ export default function SettingsPage() {
   const checkUser = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         router.push('/login');
         return;
@@ -97,10 +101,10 @@ export default function SettingsPage() {
       });
 
       setSuccess('Profile updated successfully!');
-      
+
       // Update local state
       setProfile({ ...profile, full_name: fullName });
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
@@ -139,7 +143,7 @@ export default function SettingsPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => setPasswordSuccess(''), 3000);
     } catch (err) {
@@ -180,7 +184,7 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-animated-dark flex items-center justify-center">
+      <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'} flex items-center justify-center`}>
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-gray-400">Loading...</p>
@@ -190,7 +194,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-animated-dark">
+    <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
       {/* Navigation */}
       <nav className="border-b border-white/10 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -200,19 +204,26 @@ export default function SettingsPage() {
             </div>
             <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
           </Link>
-          
+
           <div className="flex items-center gap-6">
             <Link href="/dashboard" className="text-gray-400 hover:text-white">Dashboard</Link>
             <Link href="/upload" className="text-gray-400 hover:text-white">Upload</Link>
             <Link href="/pricing" className="text-gray-400 hover:text-white">Pricing</Link>
-            
+
             <div className="credit-badge">
               <div className="credit-badge-icon">
                 <Zap className="w-3 h-3 text-white" />
               </div>
               <span className="text-sm text-white">{profile?.credits_remaining || 0} Credits</span>
             </div>
-            
+
+            <button
+              onClick={toggleTheme}
+              className="glass-button p-3 rounded-xl"
+            >
+              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+            </button>
+
             <button
               onClick={handleLogout}
               className="glass-button p-3 rounded-xl text-gray-400 hover:text-white"
@@ -400,7 +411,7 @@ export default function SettingsPage() {
                   Upgrade Plan
                 </button>
               </Link>
-              
+
               {profile?.stripe_customer_id && (
                 <button
                   onClick={handleManageSubscription}
