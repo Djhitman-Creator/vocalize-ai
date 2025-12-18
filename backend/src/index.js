@@ -22,6 +22,7 @@ const axios = require('axios');
 // ============================================
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3001;
 
 const supabase = createClient(
