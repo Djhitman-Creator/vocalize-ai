@@ -202,6 +202,7 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
     const profile = await getUserProfile(req.user.id);
     res.json(profile);
   } catch (error) {
+    console.error('Stripe checkout error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -217,6 +218,7 @@ app.get('/api/user/credits/history', authMiddleware, async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
+    console.error('Stripe checkout error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -232,6 +234,7 @@ app.get('/api/projects', authMiddleware, async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
+    console.error('Stripe checkout error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -248,6 +251,7 @@ app.get('/api/projects/:id', authMiddleware, async (req, res) => {
     if (!data) return res.status(404).json({ error: 'Project not found' });
     res.json(data);
   } catch (error) {
+    console.error('Stripe checkout error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -357,6 +361,7 @@ app.post('/api/projects/:id/thumbnail', authMiddleware, upload.single('thumbnail
     if (updateError) throw updateError;
     res.json(updated);
   } catch (error) {
+    console.error('Stripe checkout error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -386,6 +391,7 @@ app.get('/api/projects/:id/download', authMiddleware, async (req, res) => {
     
     res.json(urls);
   } catch (error) {
+    console.error('Stripe checkout error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -400,6 +406,7 @@ app.get('/api/plans', async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
+    console.error('Stripe checkout error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -435,6 +442,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
     
     res.json({ url: session.url });
   } catch (error) {
+    console.error('Stripe checkout error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -471,6 +479,7 @@ app.post('/api/stripe/buy-credits', authMiddleware, async (req, res) => {
     
     res.json({ url: session.url });
   } catch (error) {
+    console.error('Stripe checkout error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -490,6 +499,7 @@ app.post('/api/stripe/portal', authMiddleware, async (req, res) => {
     
     res.json({ url: session.url });
   } catch (error) {
+    console.error('Stripe checkout error:', error);
     res.status(500).json({ error: error.message });
   }
 });
