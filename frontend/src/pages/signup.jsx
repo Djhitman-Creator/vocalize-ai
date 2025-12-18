@@ -22,6 +22,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -36,6 +37,12 @@ export default function SignupPage() {
 
     if (password.length < 6) {
       setError('Password must be at least 6 characters');
+      setLoading(false);
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError('You must accept the Terms of Service and Privacy Policy');
       setLoading(false);
       return;
     }
@@ -196,13 +203,22 @@ export default function SignupPage() {
             </button>
           </form>
 
-          {/* Terms */}
-          <p className="text-center text-gray-500 text-sm mt-6">
-            By signing up, you agree to our{' '}
-            <Link href="/terms" className="text-cyan-400 hover:text-cyan-300">Terms</Link>
-            {' '}and{' '}
-            <Link href="/privacy" className="text-cyan-400 hover:text-cyan-300">Privacy Policy</Link>
-          </p>
+          {/* Terms Checkbox */}
+          <div className="flex items-start gap-3 mt-6">
+            <input
+              type="checkbox"
+              id="terms"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-0 cursor-pointer"
+            />
+            <label htmlFor="terms" className="text-sm text-gray-400 cursor-pointer">
+              I agree to the{' '}
+              <Link href="/terms" className="text-cyan-400 hover:text-cyan-300">Terms of Service</Link>
+              {' '}and{' '}
+              <Link href="/privacy" className="text-cyan-400 hover:text-cyan-300">Privacy Policy</Link>
+            </label>
+          </div>
 
           {/* Sign In Link */}
           <p className="text-center text-gray-400 mt-6">
