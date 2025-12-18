@@ -14,7 +14,7 @@ export default function PrivacyPage() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
               <Music className="w-6 h-6 text-white" />
             </div>
-            <span className="font-display font-bold text-xl text-gradient">VocalizeAI</span>
+            <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
           </Link>
         </div>
       </nav>
@@ -36,7 +36,7 @@ export default function PrivacyPage() {
 
           <div className="prose prose-invert max-w-none space-y-6 text-gray-300">
             <p>
-              This Privacy Policy describes how VocalizeAI LLC ("Company," "we," "us," or "our") collects, uses, and discloses information about you when you access or use VocalizeAI ("Service"). By accessing or using the Service, you agree to the collection, use, and disclosure of your information in accordance with this Privacy Policy.
+              This Privacy Policy describes how Karatrack LLC ("Company," "we," "us," or "our") collects, uses, and discloses information about you when you access or use Karatrack Studio ("Service"). By accessing or using the Service, you agree to the collection, use, and disclosure of your information in accordance with this Privacy Policy.
             </p>
 
             <h2 className="text-xl font-semibold text-white mt-8 mb-4">1. Information We Collect</h2>
@@ -117,12 +117,12 @@ export default function PrivacyPage() {
 
             <h2 className="text-xl font-semibold text-white mt-8 mb-4">11. Contact Us</h2>
             <p>
-              If you have any questions or concerns about this Privacy Policy or our data practices, please contact us at: <a href="mailto:privacy@vocalize-ai.com" className="text-cyan-400 hover:text-cyan-300">privacy@vocalize-ai.com</a>
+              If you have any questions or concerns about this Privacy Policy or our data practices, please contact us at: <a href="mailto:privacy@karatrack.com" className="text-cyan-400 hover:text-cyan-300">privacy@karatrack.com</a>
             </p>
 
             <div className="mt-8 p-4 bg-white/5 rounded-xl">
               <p className="text-gray-400">
-                By using VocalizeAI, you acknowledge that you have read, understood, and agreed to the terms of this Privacy Policy.
+                By using Karatrack Studio, you acknowledge that you have read, understood, and agreed to the terms of this Privacy Policy.
               </p>
             </div>
           </div>

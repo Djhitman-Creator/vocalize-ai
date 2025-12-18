@@ -14,7 +14,7 @@ export default function TermsPage() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
               <Music className="w-6 h-6 text-white" />
             </div>
-            <span className="font-display font-bold text-xl text-gradient">VocalizeAI</span>
+            <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
           </Link>
         </div>
       </nav>
@@ -36,12 +36,12 @@ export default function TermsPage() {
 
           <div className="prose prose-invert max-w-none space-y-6 text-gray-300">
             <p>
-              These Terms of Service ("Terms") govern your access to and use of VocalizeAI, a software-as-a-service platform provided by VocalizeAI LLC ("Company", "we", "our", or "us"). By accessing or using VocalizeAI, you agree to be bound by these Terms. If you do not agree to these Terms, do not use VocalizeAI.
+              These Terms of Service ("Terms") govern your access to and use of Karatrack Studio, a software-as-a-service platform provided by Karatrack LLC ("Company", "we", "our", or "us"). By accessing or using Karatrack Studio, you agree to be bound by these Terms. If you do not agree to these Terms, do not use Karatrack Studio.
             </p>
 
             <h2 className="text-xl font-semibold text-white mt-8 mb-4">1. Service Description</h2>
             <p>
-              VocalizeAI ("Service") is a web-based platform that enables users to process audio files using artificial intelligence, including vocal separation, lyric transcription, and video generation with synchronized scrolling lyrics.
+              Karatrack Studio ("Service") is a web-based platform that enables users to process audio files using artificial intelligence, including vocal separation, lyric transcription, and video generation with synchronized scrolling lyrics.
             </p>
 
             <h2 className="text-xl font-semibold text-white mt-8 mb-4">2. User Eligibility</h2>
@@ -91,7 +91,7 @@ export default function TermsPage() {
 
             <h2 className="text-xl font-semibold text-white mt-8 mb-4">11. Limitation of Liability</h2>
             <p>
-              To the maximum extent permitted by law, VocalizeAI LLC shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses, resulting from (a) your use or inability to use the Service; (b) any unauthorized access to or use of our servers and/or any personal information stored therein; (c) any interruption or cessation of transmission to or from the Service; (d) any bugs, viruses, trojan horses, or the like that may be transmitted to or through the Service by any third party; (e) any errors or omissions in any content or for any loss or damage incurred as a result of the use of any content processed through the Service; and/or (f) the defamatory, offensive, or illegal conduct of any third party.
+              To the maximum extent permitted by law, Karatrack LLC shall not be liable for any indirect, incidental, special, consequential, or punitive damages, or any loss of profits or revenues, whether incurred directly or indirectly, or any loss of data, use, goodwill, or other intangible losses, resulting from (a) your use or inability to use the Service; (b) any unauthorized access to or use of our servers and/or any personal information stored therein; (c) any interruption or cessation of transmission to or from the Service; (d) any bugs, viruses, trojan horses, or the like that may be transmitted to or through the Service by any third party; (e) any errors or omissions in any content or for any loss or damage incurred as a result of the use of any content processed through the Service; and/or (f) the defamatory, offensive, or illegal conduct of any third party.
             </p>
 
             <h2 className="text-xl font-semibold text-white mt-8 mb-4">12. Disclaimer of Warranties</h2>
@@ -111,15 +111,15 @@ export default function TermsPage() {
 
             <h2 className="text-xl font-semibold text-white mt-8 mb-4">15. Contact Information</h2>
             <p>
-              For technical support, please contact: <a href="mailto:support@vocalize-ai.com" className="text-cyan-400 hover:text-cyan-300">support@vocalize-ai.com</a>
+              For technical support, please contact: <a href="mailto:support@karatrack.com" className="text-cyan-400 hover:text-cyan-300">support@karatrack.com</a>
             </p>
             <p>
-              For administrative or billing inquiries, please contact: <a href="mailto:billing@vocalize-ai.com" className="text-cyan-400 hover:text-cyan-300">billing@vocalize-ai.com</a>
+              For administrative or billing inquiries, please contact: <a href="mailto:billing@karatrack.com" className="text-cyan-400 hover:text-cyan-300">billing@karatrack.com</a>
             </p>
 
             <div className="mt-8 p-4 bg-white/5 rounded-xl">
               <p className="text-gray-400">
-                By using VocalizeAI, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
+                By using Karatrack Studio, you acknowledge that you have read, understood, and agree to be bound by these Terms of Service.
               </p>
             </div>
           </div>
