@@ -265,9 +265,9 @@ const Footer = ({ isDark }) => (
           <span className="font-display font-bold text-gradient">VocalizeAI</span>
         </div>
         <div className={`flex items-center gap-8 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          <a href="#" className="hover:text-cyan-500 transition-colors">Privacy</a>
-          <a href="#" className="hover:text-cyan-500 transition-colors">Terms</a>
-          <a href="#" className="hover:text-cyan-500 transition-colors">Contact</a>
+          <Link href="/privacy" className="hover:text-cyan-500 transition-colors">Privacy</Link>
+          <Link href="/terms" className="hover:text-cyan-500 transition-colors">Terms</Link>
+          <a href="mailto:support@karatrack.com" className="hover:text-cyan-500 transition-colors">Contact</a>
         </div>
         <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
           © 2024 VocalizeAI. All rights reserved.
