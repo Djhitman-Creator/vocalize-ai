@@ -1,5 +1,5 @@
 /**
- * VocalizeAI Backend API Server
+ * Karatrack Studio Backend API Server
  */
 
 require('dotenv').config();
@@ -692,7 +692,7 @@ app.use((req, res) => {
 
 // START SERVER
 app.listen(PORT, () => {
-  console.log(`🚀 VocalizeAI API running on port ${PORT}`);
+  console.log(`🚀 Karatrack Studio API running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 

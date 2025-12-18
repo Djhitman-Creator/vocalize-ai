@@ -1,4 +1,4 @@
--- VocalizeAI Database Schema for Supabase
+-- Karatrack Studio Database Schema for Supabase
 -- Run this in the Supabase SQL Editor
 
 -- Enable UUID extension

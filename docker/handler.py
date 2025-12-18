@@ -1,5 +1,5 @@
 """
-VocalizeAI RunPod Handler
+Karatrack Studio RunPod Handler
 Processes audio files: vocal removal, lyrics transcription, video generation
 """
 

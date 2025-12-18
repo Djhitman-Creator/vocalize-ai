@@ -54,14 +54,14 @@ export default function LoginPage() {
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
               <Music className="w-7 h-7 text-white" />
             </div>
-            <span className="font-display font-bold text-2xl text-gradient">VocalizeAI</span>
+            <span className="font-display font-bold text-2xl text-gradient">Karatrack Studio</span>
           </Link>
         </div>
 
         {/* Login Form */}
         <div className="glass-panel p-8">
           <h1 className="text-2xl font-bold text-white text-center mb-2">Welcome Back</h1>
-          <p className="text-gray-400 text-center mb-8">Sign in to continue to VocalizeAI</p>
+          <p className="text-gray-400 text-center mb-8">Sign in to continue to Karatrack Studio</p>
 
           {error && (
             <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-6">

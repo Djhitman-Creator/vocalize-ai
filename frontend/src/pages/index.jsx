@@ -44,7 +44,7 @@ const Navigation = ({ isDark, toggleTheme, credits }) => (
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
             <Music className="w-6 h-6 text-white" />
           </div>
-          <span className="font-display font-bold text-xl text-gradient">VocalizeAI</span>
+          <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
         </div>
         <div className="hidden md:flex items-center gap-8">
           <a href="#features" className={`text-sm transition-colors ${isDark ? 'text-gray-300 hover:text-cyan-400' : 'text-gray-600 hover:text-cyan-600'}`}>Features</a>
@@ -262,7 +262,7 @@ const Footer = ({ isDark }) => (
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
             <Music className="w-4 h-4 text-white" />
           </div>
-          <span className="font-display font-bold text-gradient">VocalizeAI</span>
+          <span className="font-display font-bold text-gradient">Karatrack Studio</span>
         </div>
         <div className={`flex items-center gap-8 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
           <Link href="/privacy" className="hover:text-cyan-500 transition-colors">Privacy</Link>
@@ -270,7 +270,7 @@ const Footer = ({ isDark }) => (
           <a href="mailto:support@karatrack.com" className="hover:text-cyan-500 transition-colors">Contact</a>
         </div>
         <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          © 2024 VocalizeAI. All rights reserved.
+          © 2024 Karatrack Studio. All rights reserved.
         </div>
       </div>
     </div>

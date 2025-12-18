@@ -278,7 +278,7 @@ export default function UploadPage() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
               <Music className="w-6 h-6 text-white" />
             </div>
-            <span className="font-display font-bold text-xl text-gradient">VocalizeAI</span>
+            <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
           </Link>
           
           <div className="flex items-center gap-4">

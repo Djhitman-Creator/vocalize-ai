@@ -1,7 +1,7 @@
 {
   "name": "vocalize-ai-backend",
   "version": "1.0.0",
-  "description": "VocalizeAI Backend API",
+  "description": "Karatrack Studio Backend API",
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
