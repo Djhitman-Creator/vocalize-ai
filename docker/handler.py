@@ -1,190 +1,429 @@
 """
-VocalizeAI - RunPod Serverless Handler
+VocalizeAI RunPod Handler
+Processes audio files: vocal removal, lyrics transcription, video generation
 """
 
 import os
-import tempfile
+import json
 import subprocess
+import tempfile
 import requests
-import boto3
+from pathlib import Path
+import runpod
 import torch
 import whisper
 from demucs.pretrained import get_model
 from demucs.apply import apply_model
 import torchaudio
-import runpod
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+import math
 
-# Configuration
-R2_ENDPOINT = os.environ.get('R2_ENDPOINT')
-R2_ACCESS_KEY = os.environ.get('R2_ACCESS_KEY')
-R2_SECRET_KEY = os.environ.get('R2_SECRET_KEY')
-R2_BUCKET = os.environ.get('R2_BUCKET')
-R2_PUBLIC_URL = os.environ.get('R2_PUBLIC_URL')
+# ============================================
+# CONFIGURATION
+# ============================================
 
-s3_client = boto3.client(
-    's3',
-    endpoint_url=R2_ENDPOINT,
-    aws_access_key_id=R2_ACCESS_KEY,
-    aws_secret_access_key=R2_SECRET_KEY,
-)
+SAMPLE_RATE = 44100
+WHISPER_MODEL = "medium"
+DEMUCS_MODEL = "htdemucs"
 
-# Load models globally
-print("Loading Demucs model...")
-demucs_model = get_model('htdemucs')
-demucs_model.to('cuda' if torch.cuda.is_available() else 'cpu')
-demucs_model.eval()
+# Video settings
+VIDEO_WIDTH = 1920
+VIDEO_HEIGHT = 1080
+FPS = 30
+FONT_SIZE_LYRICS = 72
+FONT_SIZE_TITLE = 96
+FONT_SIZE_ARTIST = 64
+FONT_SIZE_TRACK = 48
 
-print("Loading Whisper model...")
-whisper_model = whisper.load_model('medium')
+# Colors (RGB)
+COLOR_BG = (10, 10, 20)
+COLOR_TEXT = (255, 255, 255)
+COLOR_HIGHLIGHT = (0, 255, 255)  # Cyan
+COLOR_UPCOMING = (150, 150, 150)  # Gray
+COLOR_COUNTDOWN = (255, 200, 0)  # Gold
 
-print("Models loaded successfully!")
+# Timing
+INTRO_DURATION = 5  # seconds for title screen
+COUNTDOWN_THRESHOLD = 3  # seconds of silence before showing countdown
+COUNTDOWN_DOTS = 3
 
+# ============================================
+# HELPER FUNCTIONS
+# ============================================
 
-def download_file(url, local_path):
+def download_file(url, destination):
+    """Download file from URL"""
     response = requests.get(url, stream=True)
     response.raise_for_status()
-    with open(local_path, 'wb') as f:
+    with open(destination, 'wb') as f:
         for chunk in response.iter_content(chunk_size=8192):
             f.write(chunk)
-    return local_path
+    return destination
 
 
-def upload_to_r2(local_path, key, content_type='audio/mpeg'):
-    s3_client.upload_file(local_path, R2_BUCKET, key, ExtraArgs={'ContentType': content_type})
-    return f"{R2_PUBLIC_URL}/{key}"
+def upload_file(file_path, upload_url):
+    """Upload file to pre-signed URL or return local path"""
+    if upload_url:
+        with open(file_path, 'rb') as f:
+            requests.put(upload_url, data=f)
+    return file_path
+
+
+def get_font(size):
+    """Get font, fallback to default if custom not available"""
+    try:
+        return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size)
+    except:
+        return ImageFont.load_default()
 
 
 def separate_vocals(audio_path, output_dir):
-    print(f"Separating vocals from: {audio_path}")
+    """Use Demucs to separate vocals from instrumental"""
+    print("🎵 Separating vocals with Demucs...")
     
-    waveform, sample_rate = torchaudio.load(audio_path)
+    model = get_model(DEMUCS_MODEL)
+    model.eval()
     
-    if waveform.shape[0] == 1:
-        waveform = waveform.repeat(2, 1)
+    if torch.cuda.is_available():
+        model.cuda()
     
-    waveform = waveform.unsqueeze(0)
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    waveform = waveform.to(device)
+    wav, sr = torchaudio.load(audio_path)
+    
+    if sr != SAMPLE_RATE:
+        resampler = torchaudio.transforms.Resample(sr, SAMPLE_RATE)
+        wav = resampler(wav)
+    
+    # Ensure stereo
+    if wav.shape[0] == 1:
+        wav = wav.repeat(2, 1)
+    
+    wav = wav.unsqueeze(0)  # Add batch dimension
+    
+    if torch.cuda.is_available():
+        wav = wav.cuda()
     
     with torch.no_grad():
-        sources = apply_model(demucs_model, waveform, device=device)
+        sources = apply_model(model, wav, device=wav.device)[0]
     
-    instrumental = sources[0, :3].sum(dim=0)
-    vocals = sources[0, 3]
+    sources = sources.cpu()
     
-    instrumental_path = os.path.join(output_dir, 'instrumental.wav')
+    # Demucs outputs: drums, bass, other, vocals
+    source_names = ['drums', 'bass', 'other', 'vocals']
+    
     vocals_path = os.path.join(output_dir, 'vocals.wav')
+    instrumental_path = os.path.join(output_dir, 'instrumental.wav')
     
-    torchaudio.save(instrumental_path, instrumental.cpu(), sample_rate)
-    torchaudio.save(vocals_path, vocals.cpu(), sample_rate)
+    # Save vocals
+    vocals = sources[3]  # vocals index
+    torchaudio.save(vocals_path, vocals, SAMPLE_RATE)
     
-    print("Vocal separation complete!")
+    # Save instrumental (drums + bass + other)
+    instrumental = sources[0] + sources[1] + sources[2]
+    torchaudio.save(instrumental_path, instrumental, SAMPLE_RATE)
+    
+    print("✅ Vocal separation complete")
     return instrumental_path, vocals_path
 
 
 def transcribe_lyrics(audio_path):
-    print(f"Transcribing lyrics from: {audio_path}")
+    """Use Whisper to transcribe lyrics with word-level timestamps"""
+    print("📝 Transcribing lyrics with Whisper...")
     
-    result = whisper_model.transcribe(audio_path, word_timestamps=True, language='en')
+    model = whisper.load_model(WHISPER_MODEL)
+    
+    result = model.transcribe(
+        audio_path,
+        word_timestamps=True,
+        language="en"
+    )
     
     lyrics = []
     for segment in result['segments']:
-        lyrics.append({
-            'start': segment['start'],
-            'end': segment['end'],
-            'text': segment['text'].strip(),
-            'words': segment.get('words', [])
-        })
+        if 'words' in segment:
+            for word in segment['words']:
+                lyrics.append({
+                    'word': word['word'].strip(),
+                    'start': word['start'],
+                    'end': word['end']
+                })
+        else:
+            # Fallback if no word-level timestamps
+            lyrics.append({
+                'word': segment['text'].strip(),
+                'start': segment['start'],
+                'end': segment['end']
+            })
     
-    print(f"Transcription complete! Found {len(lyrics)} segments.")
+    print(f"✅ Transcribed {len(lyrics)} words")
     return lyrics
 
 
-def generate_lyrics_video(audio_path, lyrics, thumbnail_path, output_path, quality='720p'):
-    print("Generating video with lyrics...")
+def detect_silence_gaps(lyrics, threshold=COUNTDOWN_THRESHOLD):
+    """Find gaps in lyrics where countdown should appear"""
+    gaps = []
     
-    resolutions = {'720p': (1280, 720), '1080p': (1920, 1080), '4k': (3840, 2160)}
-    width, height = resolutions.get(quality, (1280, 720))
+    if not lyrics:
+        return gaps
     
-    ass_path = output_path.replace('.mp4', '.ass')
-    create_ass_subtitles(lyrics, ass_path, width, height)
+    # Check gap at start
+    if lyrics[0]['start'] > threshold:
+        gaps.append({
+            'start': 0,
+            'end': lyrics[0]['start'],
+            'duration': lyrics[0]['start']
+        })
     
-    if thumbnail_path and os.path.exists(thumbnail_path):
-        cmd = [
-            'ffmpeg', '-y',
-            '-loop', '1', '-i', thumbnail_path,
-            '-i', audio_path,
-            '-vf', f'scale={width}:{height},ass={ass_path}',
-            '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
-            '-c:a', 'aac', '-b:a', '192k',
-            '-shortest', '-movflags', '+faststart',
-            output_path
-        ]
+    # Check gaps between words
+    for i in range(len(lyrics) - 1):
+        gap_start = lyrics[i]['end']
+        gap_end = lyrics[i + 1]['start']
+        gap_duration = gap_end - gap_start
+        
+        if gap_duration >= threshold:
+            gaps.append({
+                'start': gap_start,
+                'end': gap_end,
+                'duration': gap_duration
+            })
+    
+    return gaps
+
+
+def create_frame(width, height, bg_color=COLOR_BG):
+    """Create a blank frame"""
+    img = Image.new('RGB', (width, height), bg_color)
+    return img
+
+
+def draw_centered_text(draw, text, y, font, color, width):
+    """Draw centered text"""
+    bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = bbox[2] - bbox[0]
+    x = (width - text_width) // 2
+    draw.text((x, y), text, font=font, fill=color)
+
+
+def create_intro_frame(track_number, artist, title, frame_num, total_frames):
+    """Create intro screen frame with fade in/out"""
+    img = create_frame(VIDEO_WIDTH, VIDEO_HEIGHT)
+    draw = ImageDraw.Draw(img)
+    
+    # Fonts
+    font_track = get_font(FONT_SIZE_TRACK)
+    font_artist = get_font(FONT_SIZE_ARTIST)
+    font_title = get_font(FONT_SIZE_TITLE)
+    
+    # Fade effect
+    progress = frame_num / total_frames
+    if progress < 0.2:
+        alpha = progress / 0.2
+    elif progress > 0.8:
+        alpha = (1 - progress) / 0.2
     else:
-        cmd = [
-            'ffmpeg', '-y',
-            '-f', 'lavfi', '-i', f'color=c=black:s={width}x{height}:r=30',
-            '-i', audio_path,
-            '-vf', f'ass={ass_path}',
-            '-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
-            '-c:a', 'aac', '-b:a', '192k',
-            '-shortest', '-movflags', '+faststart',
-            output_path
-        ]
+        alpha = 1.0
     
-    subprocess.run(cmd, check=True, capture_output=True)
+    # Apply alpha to colors
+    def apply_alpha(color, a):
+        return tuple(int(c * a) for c in color)
     
-    if os.path.exists(ass_path):
-        os.remove(ass_path)
+    # Draw track number
+    draw_centered_text(draw, track_number, VIDEO_HEIGHT // 2 - 150, 
+                       font_track, apply_alpha(COLOR_COUNTDOWN, alpha), VIDEO_WIDTH)
     
-    print(f"Video generated: {output_path}")
+    # Draw artist
+    draw_centered_text(draw, artist, VIDEO_HEIGHT // 2 - 50, 
+                       font_artist, apply_alpha(COLOR_TEXT, alpha), VIDEO_WIDTH)
+    
+    # Draw title
+    draw_centered_text(draw, title, VIDEO_HEIGHT // 2 + 50, 
+                       font_title, apply_alpha(COLOR_HIGHLIGHT, alpha), VIDEO_WIDTH)
+    
+    return img
+
+
+def create_countdown_frame(dots_remaining, total_dots=COUNTDOWN_DOTS):
+    """Create countdown frame with dots"""
+    img = create_frame(VIDEO_WIDTH, VIDEO_HEIGHT)
+    draw = ImageDraw.Draw(img)
+    
+    font = get_font(FONT_SIZE_LYRICS)
+    
+    # Create dots string: ● ● ● or ● ● or ●
+    dots = " ● " * dots_remaining
+    dots_gray = " ○ " * (total_dots - dots_remaining)
+    
+    full_text = dots_gray + dots
+    
+    draw_centered_text(draw, full_text.strip(), VIDEO_HEIGHT // 2, 
+                       font, COLOR_COUNTDOWN, VIDEO_WIDTH)
+    
+    return img
+
+
+def create_lyrics_frame(current_time, lyrics, current_line_words):
+    """Create frame with scrolling lyrics"""
+    img = create_frame(VIDEO_WIDTH, VIDEO_HEIGHT)
+    draw = ImageDraw.Draw(img)
+    
+    font = get_font(FONT_SIZE_LYRICS)
+    font_small = get_font(FONT_SIZE_LYRICS - 20)
+    
+    # Find current word index
+    current_word_idx = -1
+    for i, word in enumerate(lyrics):
+        if word['start'] <= current_time <= word['end']:
+            current_word_idx = i
+            break
+        elif word['start'] > current_time:
+            current_word_idx = i - 1
+            break
+    
+    if current_word_idx == -1 and lyrics and current_time > lyrics[-1]['end']:
+        current_word_idx = len(lyrics) - 1
+    
+    # Group words into lines (roughly 6-8 words per line)
+    words_per_line = 7
+    lines = []
+    for i in range(0, len(lyrics), words_per_line):
+        line_words = lyrics[i:i + words_per_line]
+        lines.append({
+            'words': line_words,
+            'start_idx': i,
+            'text': ' '.join([w['word'] for w in line_words])
+        })
+    
+    # Find current line
+    current_line_idx = current_word_idx // words_per_line if current_word_idx >= 0 else 0
+    
+    # Draw 3 lines: previous, current, next
+    y_positions = [VIDEO_HEIGHT // 2 - 100, VIDEO_HEIGHT // 2, VIDEO_HEIGHT // 2 + 100]
+    line_indices = [current_line_idx - 1, current_line_idx, current_line_idx + 1]
+    
+    for y, line_idx in zip(y_positions, line_indices):
+        if 0 <= line_idx < len(lines):
+            line = lines[line_idx]
+            
+            if line_idx == current_line_idx:
+                # Current line - highlight current word
+                x = VIDEO_WIDTH // 2
+                total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line['words'])
+                x = (VIDEO_WIDTH - total_width) // 2
+                
+                for word_data in line['words']:
+                    word_idx = lyrics.index(word_data)
+                    word = word_data['word'] + ' '
+                    
+                    if word_idx <= current_word_idx and current_time >= word_data['start']:
+                        color = COLOR_HIGHLIGHT
+                    else:
+                        color = COLOR_TEXT
+                    
+                    draw.text((x, y), word, font=font, fill=color)
+                    x += draw.textbbox((0, 0), word, font=font)[2]
+            else:
+                # Other lines - gray
+                draw_centered_text(draw, line['text'], y, font_small, COLOR_UPCOMING, VIDEO_WIDTH)
+    
+    return img
+
+
+def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality):
+    """Generate video with lyrics and countdown"""
+    print("🎬 Generating video...")
+    
+    # Video dimensions based on quality
+    if video_quality == '4k':
+        width, height = 3840, 2160
+    elif video_quality == '1080p':
+        width, height = 1920, 1080
+    else:
+        width, height = 1280, 720
+    
+    # Get audio duration
+    result = subprocess.run(
+        ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'default=noprint_wrappers=1:nokey=1', audio_path],
+        capture_output=True, text=True
+    )
+    duration = float(result.stdout.strip())
+    
+    total_frames = int((duration + INTRO_DURATION) * FPS)
+    
+    # Create temp directory for frames
+    frames_dir = tempfile.mkdtemp()
+    
+    track_number = track_info.get('track_number', 'KT-01')
+    artist = track_info.get('artist_name', 'Unknown Artist')
+    title = track_info.get('song_title', 'Unknown Title')
+    
+    intro_frames = int(INTRO_DURATION * FPS)
+    
+    for frame_num in range(total_frames):
+        if frame_num < intro_frames:
+            # Intro screen
+            frame = create_intro_frame(track_number, artist, title, frame_num, intro_frames)
+        else:
+            # Main content
+            current_time = (frame_num - intro_frames) / FPS
+            
+            # Check if we're in a countdown gap
+            in_gap = False
+            for gap in gaps:
+                if gap['start'] <= current_time < gap['end']:
+                    in_gap = True
+                    time_until_lyrics = gap['end'] - current_time
+                    dots_remaining = min(COUNTDOWN_DOTS, int(time_until_lyrics) + 1)
+                    frame = create_countdown_frame(dots_remaining)
+                    break
+            
+            if not in_gap:
+                # Lyrics frame
+                frame = create_lyrics_frame(current_time, lyrics, [])
+        
+        # Resize if needed
+        if frame.size != (width, height):
+            frame = frame.resize((width, height), Image.LANCZOS)
+        
+        frame_path = os.path.join(frames_dir, f'frame_{frame_num:06d}.png')
+        frame.save(frame_path)
+        
+        if frame_num % 100 == 0:
+            print(f"  Frame {frame_num}/{total_frames}")
+    
+    # Combine frames with audio using FFmpeg
+    print("🔧 Encoding video with FFmpeg...")
+    
+    ffmpeg_cmd = [
+        'ffmpeg', '-y',
+        '-framerate', str(FPS),
+        '-i', os.path.join(frames_dir, 'frame_%06d.png'),
+        '-i', audio_path,
+        '-c:v', 'libx264',
+        '-preset', 'medium',
+        '-crf', '23',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-pix_fmt', 'yuv420p',
+        '-shortest',
+        output_path
+    ]
+    
+    subprocess.run(ffmpeg_cmd, check=True)
+    
+    # Cleanup frames
+    import shutil
+    shutil.rmtree(frames_dir)
+    
+    print("✅ Video generation complete")
     return output_path
 
 
-def create_ass_subtitles(lyrics, output_path, width, height):
-    ass_content = f"""[Script Info]
-Title: VocalizeAI Lyrics
-ScriptType: v4.00+
-PlayResX: {width}
-PlayResY: {height}
-WrapStyle: 0
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Default,Arial,{int(height/12)},&H00FFFFFF,&H000088EF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,3,2,2,50,50,{int(height/6)},1
-Style: Highlight,Arial,{int(height/10)},&H0000F5FF,&H000088EF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,4,2,2,50,50,{int(height/6)},1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-"""
-    
-    for segment in lyrics:
-        start_time = format_ass_time(segment['start'])
-        end_time = format_ass_time(segment['end'])
-        text = segment['text'].replace('\n', '\\N')
-        ass_content += f"Dialogue: 0,{start_time},{end_time},Highlight,,0,0,0,,{{\\fad(200,200)}}{text}\n"
-    
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(ass_content)
-
-
-def format_ass_time(seconds):
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
-    centiseconds = int((seconds % 1) * 100)
-    return f"{hours}:{minutes:02d}:{secs:02d}.{centiseconds:02d}"
-
-
-def send_callback(callback_url, project_id, status, results=None, error=None):
-    payload = {'project_id': project_id, 'status': status, 'results': results, 'error': error}
-    try:
-        requests.post(callback_url, json=payload, timeout=30)
-    except Exception as e:
-        print(f"Callback failed: {e}")
-
+# ============================================
+# MAIN HANDLER
+# ============================================
 
 def handler(event):
+    """RunPod handler function"""
     try:
         input_data = event['input']
         
@@ -192,93 +431,88 @@ def handler(event):
         audio_url = input_data['audio_url']
         processing_type = input_data.get('processing_type', 'remove_vocals')
         include_lyrics = input_data.get('include_lyrics', True)
-        video_quality = input_data.get('video_quality', '720p')
+        video_quality = input_data.get('video_quality', '1080p')
         thumbnail_url = input_data.get('thumbnail_url')
         callback_url = input_data.get('callback_url')
         
-        with tempfile.TemporaryDirectory() as temp_dir:
-            print(f"Processing project: {project_id}")
+        track_info = {
+            'track_number': input_data.get('track_number', 'KT-01'),
+            'artist_name': input_data.get('artist_name', 'Unknown Artist'),
+            'song_title': input_data.get('song_title', 'Unknown Title'),
+        }
+        
+        print(f"🎤 Processing project: {project_id}")
+        print(f"   Type: {processing_type}")
+        print(f"   Lyrics: {include_lyrics}")
+        print(f"   Quality: {video_quality}")
+        
+        # Create temp working directory
+        work_dir = tempfile.mkdtemp()
+        
+        # Download audio
+        audio_path = os.path.join(work_dir, 'input_audio.wav')
+        print(f"📥 Downloading audio from {audio_url}")
+        download_file(audio_url, audio_path)
+        
+        results = {}
+        
+        # Separate vocals
+        if processing_type in ['remove_vocals', 'both']:
+            instrumental_path, vocals_path = separate_vocals(audio_path, work_dir)
+            results['processed_audio_url'] = instrumental_path
             
-            audio_path = os.path.join(temp_dir, 'input_audio.mp3')
-            download_file(audio_url, audio_path)
-            print(f"Downloaded audio: {audio_path}")
-            
-            thumbnail_path = None
-            if thumbnail_url:
-                thumbnail_path = os.path.join(temp_dir, 'thumbnail.jpg')
-                try:
-                    download_file(thumbnail_url, thumbnail_path)
-                except:
-                    thumbnail_path = None
-            
-            instrumental_path, vocals_path = separate_vocals(audio_path, temp_dir)
-            
-            lyrics = []
-            if include_lyrics:
-                lyrics = transcribe_lyrics(audio_path)
-            
-            video_path = os.path.join(temp_dir, 'output_video.mp4')
-            video_audio = instrumental_path if processing_type != 'isolate_backing' else audio_path
-            generate_lyrics_video(video_audio, lyrics, thumbnail_path, video_path, video_quality)
-            
-            results = {}
-            
-            processed_key = f"processed/{project_id}/instrumental.wav"
-            results['processed_audio_url'] = upload_to_r2(instrumental_path, processed_key, 'audio/wav')
-            
-            if processing_type in ['isolate_backing', 'both']:
-                vocals_key = f"processed/{project_id}/vocals.wav"
-                results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key, 'audio/wav')
-            
-            video_key = f"processed/{project_id}/video.mp4"
-            results['video_url'] = upload_to_r2(video_path, video_key, 'video/mp4')
-            
+            if processing_type == 'both':
+                results['vocals_audio_url'] = vocals_path
+        
+        elif processing_type == 'isolate_backing':
+            instrumental_path, vocals_path = separate_vocals(audio_path, work_dir)
+            results['vocals_audio_url'] = vocals_path
+        
+        # Transcribe lyrics
+        lyrics = []
+        gaps = []
+        if include_lyrics:
+            lyrics = transcribe_lyrics(audio_path)
+            gaps = detect_silence_gaps(lyrics)
             results['lyrics'] = lyrics
-            
-            print(f"Processing complete for project: {project_id}")
-            
-            if callback_url:
-                send_callback(callback_url, project_id, 'completed', results)
-            
-            return {'status': 'completed', 'project_id': project_id, 'results': results}
-            
+        
+        # Generate video
+        video_path = os.path.join(work_dir, f'{project_id}_output.mp4')
+        audio_for_video = results.get('processed_audio_url', audio_path)
+        generate_video(audio_for_video, lyrics, gaps, track_info, video_path, video_quality)
+        results['video_url'] = video_path
+        
+        # Send callback
+        if callback_url:
+            print(f"📤 Sending callback to {callback_url}")
+            requests.post(callback_url, json={
+                'project_id': project_id,
+                'status': 'completed',
+                'results': results
+            })
+        
+        print("✅ Processing complete!")
+        return {
+            'status': 'completed',
+            'project_id': project_id,
+            'results': results
+        }
+        
     except Exception as e:
-        error_msg = str(e)
-        print(f"Processing failed: {error_msg}")
+        print(f"❌ Error: {str(e)}")
         
-        if 'callback_url' in input_data:
-            send_callback(input_data['callback_url'], input_data['project_id'], 'failed', error=error_msg)
+        if callback_url:
+            requests.post(callback_url, json={
+                'project_id': project_id,
+                'status': 'failed',
+                'error': str(e)
+            })
         
-        return {'status': 'failed', 'project_id': input_data.get('project_id'), 'error': error_msg}
+        return {
+            'status': 'failed',
+            'error': str(e)
+        }
 
 
-runpod.serverless.start({'handler': handler})
-```
-
----
-
-## ✅ Complete File Checklist
-```
-vocalize-ai/
-├── database/
-│   └── schema.sql              ✅ (#1)
-├── frontend/
-│   ├── package.json            ✅ (#2)
-│   ├── tailwind.config.js      ✅ (#3)
-│   ├── postcss.config.js       ✅ (#4)
-│   ├── next.config.js          ✅ (#5)
-│   ├── .env.example            ✅ (#6)
-│   └── src/
-│       ├── pages/
-│       │   ├── _app.jsx        ✅ (#7)
-│       │   └── index.jsx       ✅ (#9)
-│       └── styles/
-│           └── globals.css     ✅ (#8)
-├── backend/
-│   ├── package.json            ✅ (#10)
-│   ├── .env.example            ✅ (#11)
-│   └── src/
-│       └── index.js            ✅ (#12)
-└── docker/
-    ├── Dockerfile              ✅ (#13)
-    └── handler.py              ✅ (#14)
+# RunPod serverless handler
+runpod.serverless.start({"handler": handler})
