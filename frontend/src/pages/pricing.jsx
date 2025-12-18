@@ -18,7 +18,7 @@ const plans = [
     name: 'Free',
     price: 0,
     credits: 3,
-    features: ['3 credits/month', '10MB max file size', '720p video export', 'Community support'],
+    features: ['3 credits/month', '10MB max file size', '720p video export', 'Email support (48hr)'],
     popular: false,
   },
   {

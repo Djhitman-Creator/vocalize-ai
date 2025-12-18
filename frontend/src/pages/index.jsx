@@ -165,7 +165,7 @@ const FeaturesSection = ({ isDark }) => {
 
 const PricingSection = ({ isDark }) => {
   const plans = [
-    { name: 'Free', price: 0, features: ['3 credits/month', '10MB max file size', '720p video export', 'Community support'], popular: false },
+    { name: 'Free', price: 0, features: ['3 credits/month', '10MB max file size', '720p video export', 'Email support (48hr)'], popular: false },
     { name: 'Starter', price: 9.99, features: ['25 credits/month', '50MB max file size', '1080p video export', 'Email support'], popular: false },
     { name: 'Pro', price: 24.99, features: ['75 credits/month', '100MB max file size', '1080p video export', 'Priority support'], popular: true },
     { name: 'Studio', price: 49.99, features: ['200 credits/month', '500MB max file size', '4K video export', 'Dedicated support'], popular: false },
@@ -270,7 +270,7 @@ const Footer = ({ isDark }) => (
           <a href="mailto:support@karatrack.com" className="hover:text-cyan-500 transition-colors">Contact</a>
         </div>
         <div className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          © 2024 Karatrack Studio. All rights reserved.
+          © 2025 Karatrack Studio. All rights reserved.
         </div>
       </div>
     </div>
