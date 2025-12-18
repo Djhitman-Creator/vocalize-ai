@@ -151,10 +151,10 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <h1 className="text-3xl font-bold text-white mb-2">
+          <h1 className={`text-3xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Welcome back, {profile?.full_name || user?.email?.split('@')[0]}!
           </h1>
-          <p className="text-gray-400">Ready to transform some music?</p>
+          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Ready to transform some music?</p>
         </motion.div>
 
         {/* Stats Cards */}
@@ -170,8 +170,8 @@ export default function DashboardPage() {
                 <Zap className="w-6 h-6 text-cyan-400" />
               </div>
               <div>
-                <p className="text-gray-400 text-sm">Credits Remaining</p>
-                <p className="text-2xl font-bold text-white">{profile?.credits_remaining || 0}</p>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Credits Remaining</p>
+                <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{profile?.credits_remaining || 0}</p>
               </div>
             </div>
           </motion.div>
@@ -223,8 +223,8 @@ export default function DashboardPage() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-400/20 to-purple-500/20 flex items-center justify-center group-hover:from-cyan-400/40 group-hover:to-purple-500/40 transition-all">
                 <Upload className="w-8 h-8 text-cyan-500" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">Upload New Track</h3>
-              <p className="text-gray-400">Drop your audio file or click to browse</p>
+              <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Upload New Track</h3>
+              <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Drop your audio file or click to browse</p>
             </div>
           </Link>
         </motion.div>
@@ -235,12 +235,12 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <h2 className="text-xl font-bold text-white mb-4">Recent Projects</h2>
+          <h2 className={`text-xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Recent Projects</h2>
 
           {projects.length === 0 ? (
             <div className="glass-panel p-8 text-center">
               <FileVideo className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-              <p className="text-gray-400">No projects yet. Upload your first track!</p>
+              <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>No projects yet. Upload your first track!</p>
             </div>
           ) : (
             <div className="space-y-4">

@@ -87,7 +87,6 @@ export default function SettingsPage() {
     setSuccess('');
 
     try {
-      // Update profile in database
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ full_name: fullName })
@@ -95,17 +94,12 @@ export default function SettingsPage() {
 
       if (updateError) throw updateError;
 
-      // Update auth metadata
       await supabase.auth.updateUser({
         data: { full_name: fullName }
       });
 
       setSuccess('Profile updated successfully!');
-
-      // Update local state
       setProfile({ ...profile, full_name: fullName });
-
-      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.message);
@@ -143,8 +137,6 @@ export default function SettingsPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-
-      // Clear success message after 3 seconds
       setTimeout(() => setPasswordSuccess(''), 3000);
     } catch (err) {
       setPasswordError(err.message);
@@ -187,7 +179,7 @@ export default function SettingsPage() {
       <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'} flex items-center justify-center`}>
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading...</p>
+          <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Loading...</p>
         </div>
       </div>
     );
@@ -196,7 +188,7 @@ export default function SettingsPage() {
   return (
     <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
       {/* Navigation */}
-      <nav className="border-b border-white/10 px-6 py-4">
+      <nav className={`border-b ${isDark ? 'border-white/10' : 'border-gray-200'} px-6 py-4`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
@@ -206,9 +198,9 @@ export default function SettingsPage() {
           </Link>
 
           <div className="flex items-center gap-6">
-            <Link href="/dashboard" className="text-gray-400 hover:text-white">Dashboard</Link>
-            <Link href="/upload" className="text-gray-400 hover:text-white">Upload</Link>
-            <Link href="/pricing" className="text-gray-400 hover:text-white">Pricing</Link>
+            <Link href="/dashboard" className={`${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>Dashboard</Link>
+            <Link href="/upload" className={`${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>Upload</Link>
+            <Link href="/pricing" className={`${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>Pricing</Link>
 
             <div className="credit-badge">
               <div className="credit-badge-icon">
@@ -226,7 +218,7 @@ export default function SettingsPage() {
 
             <button
               onClick={handleLogout}
-              className="glass-button p-3 rounded-xl text-gray-400 hover:text-white"
+              className={`glass-button p-3 rounded-xl ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -236,7 +228,7 @@ export default function SettingsPage() {
 
       {/* Main Content */}
       <main className="max-w-3xl mx-auto px-6 py-8">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6">
+        <Link href="/dashboard" className={`inline-flex items-center gap-2 mb-6 ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
           <ChevronLeft className="w-5 h-5" />
           Back to Dashboard
         </Link>
@@ -245,11 +237,11 @@ export default function SettingsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-3xl font-bold text-white mb-8">Account Settings</h1>
+          <h1 className={`text-3xl font-bold mb-8 ${isDark ? 'text-white' : 'text-gray-900'}`}>Account Settings</h1>
 
           {/* Profile Section */}
           <div className="glass-panel p-6 mb-6">
-            <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+            <h2 className={`text-xl font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               <User className="w-5 h-5 text-cyan-400" />
               Profile Information
             </h2>
@@ -270,31 +262,31 @@ export default function SettingsPage() {
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Full Name</label>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Full Name</label>
                 <div className="relative">
                   <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                    className={`w-full border rounded-xl py-3 pl-12 pr-4 placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                     placeholder="Your name"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Email</label>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Email</label>
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input
                     type="email"
                     value={email}
                     disabled
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-gray-400 cursor-not-allowed"
+                    className={`w-full border rounded-xl py-3 pl-12 pr-4 cursor-not-allowed ${isDark ? 'bg-white/5 border-white/10 text-gray-400' : 'bg-gray-100 border-gray-300 text-gray-500'}`}
                   />
                 </div>
-                <p className="text-gray-500 text-sm mt-1">Email cannot be changed</p>
+                <p className={`text-sm mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Email cannot be changed</p>
               </div>
 
               <button
@@ -319,7 +311,7 @@ export default function SettingsPage() {
 
           {/* Password Section */}
           <div className="glass-panel p-6 mb-6">
-            <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+            <h2 className={`text-xl font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               <Lock className="w-5 h-5 text-cyan-400" />
               Change Password
             </h2>
@@ -340,28 +332,28 @@ export default function SettingsPage() {
 
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">New Password</label>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>New Password</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                    className={`w-full border rounded-xl py-3 pl-12 pr-4 placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                     placeholder="••••••••"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Confirm New Password</label>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Confirm New Password</label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                   <input
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors"
+                    className={`w-full border rounded-xl py-3 pl-12 pr-4 placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                     placeholder="••••••••"
                   />
                 </div>
@@ -370,7 +362,7 @@ export default function SettingsPage() {
               <button
                 type="submit"
                 disabled={changingPassword || !newPassword || !confirmPassword}
-                className="glass-button py-3 px-6 flex items-center gap-2 disabled:opacity-50 text-white"
+                className={`glass-button py-3 px-6 flex items-center gap-2 disabled:opacity-50 ${isDark ? 'text-white' : 'text-gray-900'}`}
               >
                 {changingPassword ? (
                   <>
@@ -389,18 +381,18 @@ export default function SettingsPage() {
 
           {/* Subscription Section */}
           <div className="glass-panel p-6 mb-6">
-            <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+            <h2 className={`text-xl font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               <CreditCard className="w-5 h-5 text-cyan-400" />
               Subscription
             </h2>
 
             <div className="flex items-center justify-between mb-6">
               <div>
-                <p className="text-white font-medium">Current Plan</p>
-                <p className="text-gray-400 capitalize">{profile?.subscription_tier || 'Free'}</p>
+                <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Current Plan</p>
+                <p className={`capitalize ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{profile?.subscription_tier || 'Free'}</p>
               </div>
               <div className="text-right">
-                <p className="text-white font-medium">Credits Remaining</p>
+                <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Credits Remaining</p>
                 <p className="text-cyan-400">{profile?.credits_remaining || 0} credits</p>
               </div>
             </div>
@@ -415,7 +407,7 @@ export default function SettingsPage() {
               {profile?.stripe_customer_id && (
                 <button
                   onClick={handleManageSubscription}
-                  className="glass-button py-3 px-6 text-white"
+                  className={`glass-button py-3 px-6 ${isDark ? 'text-white' : 'text-gray-900'}`}
                 >
                   Manage Billing
                 </button>
@@ -425,27 +417,27 @@ export default function SettingsPage() {
 
           {/* Account Stats */}
           <div className="glass-panel p-6">
-            <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+            <h2 className={`text-xl font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               <Zap className="w-5 h-5 text-cyan-400" />
               Account Stats
             </h2>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white/5 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-white">{profile?.track_count || 0}</p>
-                <p className="text-gray-400 text-sm">Tracks Processed</p>
+              <div className={`rounded-xl p-4 text-center ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{profile?.track_count || 0}</p>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Tracks Processed</p>
               </div>
-              <div className="bg-white/5 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-white">{profile?.credits_used_this_month || 0}</p>
-                <p className="text-gray-400 text-sm">Credits Used (Month)</p>
+              <div className={`rounded-xl p-4 text-center ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{profile?.credits_used_this_month || 0}</p>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Credits Used (Month)</p>
               </div>
-              <div className="bg-white/5 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-white">{profile?.credits_remaining || 0}</p>
-                <p className="text-gray-400 text-sm">Credits Available</p>
+              <div className={`rounded-xl p-4 text-center ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                <p className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{profile?.credits_remaining || 0}</p>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Credits Available</p>
               </div>
-              <div className="bg-white/5 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-white capitalize">{profile?.subscription_tier || 'Free'}</p>
-                <p className="text-gray-400 text-sm">Plan</p>
+              <div className={`rounded-xl p-4 text-center ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                <p className={`text-2xl font-bold capitalize ${isDark ? 'text-white' : 'text-gray-900'}`}>{profile?.subscription_tier || 'Free'}</p>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Plan</p>
               </div>
             </div>
           </div>
