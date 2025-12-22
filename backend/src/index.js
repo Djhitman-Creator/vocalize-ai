@@ -45,14 +45,20 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp3', 'audio/x-wav'];
-    if (allowedTypes.includes(file.mimetype)) {
+    const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp3', 'audio/x-wav'];
+    const imageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    if (audioTypes.includes(file.mimetype) || imageTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only MP3, WAV, and FLAC are allowed.'));
+      cb(new Error('Invalid file type.'));
     }
   },
 });
+
+const projectUpload = upload.fields([
+  { name: 'audio', maxCount: 1 },
+  { name: 'thumbnail', maxCount: 1 }
+]);
 
 // ============================================
 // MIDDLEWARE
@@ -205,7 +211,7 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
     const profile = await getUserProfile(req.user.id);
     res.json(profile);
   } catch (error) {
-    console.error('Stripe checkout error:', error);
+    console.error('Profile fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -221,7 +227,7 @@ app.get('/api/user/credits/history', authMiddleware, async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error('Stripe checkout error:', error);
+    console.error('Credits history error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -237,7 +243,7 @@ app.get('/api/projects', authMiddleware, async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error('Stripe checkout error:', error);
+    console.error('Projects fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -254,15 +260,16 @@ app.get('/api/projects/:id', authMiddleware, async (req, res) => {
     if (!data) return res.status(404).json({ error: 'Project not found' });
     res.json(data);
   } catch (error) {
-    console.error('Stripe checkout error:', error);
+    console.error('Project fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/projects', authMiddleware, upload.single('audio'), async (req, res) => {
+app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
   try {
     const { title, processing_type, include_lyrics, video_quality, artist_name, song_title, track_number } = req.body;
-    const file = req.file;
+    const file = req.files?.audio?.[0];
+    const thumbnailFile = req.files?.thumbnail?.[0];
 
     if (!file) {
       return res.status(400).json({ error: 'No audio file provided' });
@@ -288,6 +295,13 @@ app.post('/api/projects', authMiddleware, upload.single('audio'), async (req, re
 
     const projectId = uuidv4();
 
+    // Upload thumbnail if provided
+    let thumbnailUrl = null;
+    if (thumbnailFile) {
+      const thumbKey = `thumbnails/${req.user.id}/${projectId}-thumbnail${thumbnailFile.originalname.substring(thumbnailFile.originalname.lastIndexOf('.'))}`;
+      thumbnailUrl = await uploadToR2(thumbnailFile.buffer, thumbKey, thumbnailFile.mimetype);
+    }
+
     // Update user's track count
     await supabase
       .from('profiles')
@@ -311,6 +325,7 @@ app.post('/api/projects', authMiddleware, upload.single('audio'), async (req, re
         include_lyrics: include_lyrics === 'true',
         video_quality,
         credits_used: creditsNeeded,
+        thumbnail_url: thumbnailUrl,
       })
       .select()
       .single();
@@ -323,7 +338,7 @@ app.post('/api/projects', authMiddleware, upload.single('audio'), async (req, re
       processing_type,
       include_lyrics: include_lyrics === 'true',
       video_quality,
-      thumbnail_url: null,
+      thumbnail_url: thumbnailUrl,
       artist_name: artist_name || 'Unknown Artist',
       song_title: song_title || file.originalname.replace(/\.[^/.]+$/, ''),
       track_number: track_number || 'KT-01',
@@ -377,7 +392,7 @@ app.post('/api/projects/:id/thumbnail', authMiddleware, upload.single('thumbnail
     if (updateError) throw updateError;
     res.json(updated);
   } catch (error) {
-    console.error('Stripe checkout error:', error);
+    console.error('Thumbnail upload error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -407,7 +422,7 @@ app.get('/api/projects/:id/download', authMiddleware, async (req, res) => {
 
     res.json(urls);
   } catch (error) {
-    console.error('Stripe checkout error:', error);
+    console.error('Download error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -422,7 +437,7 @@ app.get('/api/plans', async (req, res) => {
     if (error) throw error;
     res.json(data);
   } catch (error) {
-    console.error('Stripe checkout error:', error);
+    console.error('Plans fetch error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -515,7 +530,7 @@ app.post('/api/stripe/portal', authMiddleware, async (req, res) => {
 
     res.json({ url: session.url });
   } catch (error) {
-    console.error('Stripe checkout error:', error);
+    console.error('Stripe portal error:', error);
     res.status(500).json({ error: error.message });
   }
 });
