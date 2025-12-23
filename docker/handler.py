@@ -123,9 +123,26 @@ def get_font(size):
         return ImageFont.load_default()
 
 
+def convert_to_wav(input_path, output_path):
+    """Convert any audio file to WAV using FFmpeg"""
+    cmd = [
+        'ffmpeg', '-y', '-i', input_path,
+        '-ar', str(SAMPLE_RATE),
+        '-ac', '2',  # stereo
+        '-c:a', 'pcm_s16le',
+        output_path
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
+    return output_path
+
+
 def separate_vocals(audio_path, output_dir):
     """Use Demucs to separate vocals from instrumental"""
     print("🎵 Separating vocals with Demucs...")
+    
+    # Convert input to WAV first (torchaudio may not support MP3)
+    wav_input_path = os.path.join(output_dir, 'input_converted.wav')
+    convert_to_wav(audio_path, wav_input_path)
     
     model = get_model(DEMUCS_MODEL)
     model.eval()
@@ -133,7 +150,7 @@ def separate_vocals(audio_path, output_dir):
     if torch.cuda.is_available():
         model.cuda()
     
-    wav, sr = torchaudio.load(audio_path)
+    wav, sr = torchaudio.load(wav_input_path)
     
     if sr != SAMPLE_RATE:
         resampler = torchaudio.transforms.Resample(sr, SAMPLE_RATE)
@@ -175,11 +192,22 @@ def transcribe_lyrics(audio_path, work_dir):
     """Use Whisper to transcribe lyrics with word-level timestamps"""
     print("📝 Transcribing lyrics with Whisper...")
     
+    # Convert to WAV for Whisper (16kHz mono)
+    whisper_audio_path = os.path.join(work_dir, 'whisper_input.wav')
+    cmd = [
+        'ffmpeg', '-y', '-i', audio_path,
+        '-ar', '16000',
+        '-ac', '1',
+        '-c:a', 'pcm_s16le',
+        whisper_audio_path
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
+    
     model = whisper.load_model(WHISPER_MODEL)
     
-    # Use file path directly - compatible with pinned Whisper version
+    # Use converted WAV file
     result = model.transcribe(
-        audio_path,
+        whisper_audio_path,
         word_timestamps=True,
         language="en"
     )
