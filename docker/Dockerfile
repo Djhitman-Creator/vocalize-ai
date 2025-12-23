@@ -1,14 +1,12 @@
 # Karatrack Studio - RunPod Serverless Dockerfile
-# Version 4 - Fixed NumPy compatibility
-FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+# Version 5 - Use PyTorch base image with known compatible versions
+FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
 
 # Prevent interactive prompts during install
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
     ffmpeg \
     git \
     fonts-dejavu-core \
@@ -17,20 +15,12 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Install NumPy 1.x FIRST (required for torch 2.0.1 compatibility)
-RUN pip3 install --no-cache-dir "numpy<2"
+# Install torchaudio matching the base PyTorch version
+RUN pip install --no-cache-dir torchaudio==2.0.2
 
-# Install specific PyTorch version known to work with Whisper
-RUN pip3 install --no-cache-dir \
-    torch==2.0.1 \
-    torchaudio==2.0.2 \
-    --index-url https://download.pytorch.org/whl/cu118
-
-# Install specific Whisper version
-RUN pip3 install --no-cache-dir openai-whisper==20231117
-
-# Install other dependencies (excluding numpy since it's already installed)
-RUN pip3 install --no-cache-dir \
+# Install Whisper and other dependencies
+RUN pip install --no-cache-dir \
+    openai-whisper \
     runpod \
     demucs \
     Pillow \
@@ -38,11 +28,11 @@ RUN pip3 install --no-cache-dir \
     boto3
 
 # Pre-download models to avoid cold start delays
-RUN python3 -c "import whisper; whisper.load_model('medium')"
-RUN python3 -c "from demucs.pretrained import get_model; get_model('htdemucs')"
+RUN python -c "import whisper; whisper.load_model('medium')"
+RUN python -c "from demucs.pretrained import get_model; get_model('htdemucs')"
 
 # Copy handler
 COPY handler.py /app/handler.py
 
 # Set entrypoint
-CMD ["python3", "-u", "/app/handler.py"]
+CMD ["python", "-u", "/app/handler.py"]
