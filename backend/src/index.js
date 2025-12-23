@@ -142,7 +142,31 @@ async function uploadToR2(buffer, key, contentType) {
   return `${process.env.CLOUDFLARE_R2_PUBLIC_URL}/${key}`;
 }
 
-async function getSignedDownloadUrl(key) {
+// Extract the R2 key from a full URL
+function extractR2Key(url) {
+  if (!url) return null;
+  // Remove the public URL prefix to get just the key
+  const publicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL;
+  if (publicUrl && url.startsWith(publicUrl)) {
+    return url.replace(publicUrl + '/', '');
+  }
+  // If it's already just a key (no http), return as-is
+  if (!url.startsWith('http')) {
+    return url;
+  }
+  // Fallback: try to extract path after the domain
+  try {
+    const urlObj = new URL(url);
+    return urlObj.pathname.substring(1); // Remove leading slash
+  } catch {
+    return url;
+  }
+}
+
+async function getSignedDownloadUrl(url) {
+  const key = extractR2Key(url);
+  if (!key) return null;
+  
   const command = new GetObjectCommand({
     Bucket: process.env.CLOUDFLARE_R2_BUCKET,
     Key: key,
