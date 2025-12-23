@@ -1,11 +1,12 @@
 # Karatrack Studio - RunPod Serverless Dockerfile
-# Version 5 - Use PyTorch base image with known compatible versions
+# Version 6 - Fix FFmpeg with libx264 support
 FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
 
 # Prevent interactive prompts during install
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# Remove conda's FFmpeg and install proper one with libx264
+RUN conda remove -y ffmpeg || true
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     git \
