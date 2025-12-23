@@ -123,22 +123,6 @@ def get_font(size):
         return ImageFont.load_default()
 
 
-def load_audio_ffmpeg(file_path, sr=16000):
-    """Load audio using FFmpeg - bypasses torchaudio completely"""
-    cmd = [
-        'ffmpeg', '-i', file_path,
-        '-f', 'f32le',  # 32-bit float little-endian
-        '-acodec', 'pcm_f32le',
-        '-ac', '1',  # mono
-        '-ar', str(sr),  # sample rate
-        '-'  # output to stdout
-    ]
-    
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    audio = np.frombuffer(result.stdout, dtype=np.float32)
-    return audio
-
-
 def separate_vocals(audio_path, output_dir):
     """Use Demucs to separate vocals from instrumental"""
     print("🎵 Separating vocals with Demucs...")
@@ -191,14 +175,11 @@ def transcribe_lyrics(audio_path, work_dir):
     """Use Whisper to transcribe lyrics with word-level timestamps"""
     print("📝 Transcribing lyrics with Whisper...")
     
-    # Load audio using FFmpeg (bypasses torchaudio bug)
-    audio = load_audio_ffmpeg(audio_path, sr=16000)
-    
     model = whisper.load_model(WHISPER_MODEL)
     
-    # Transcribe using the audio array directly
+    # Use file path directly - compatible with pinned Whisper version
     result = model.transcribe(
-        audio,
+        audio_path,
         word_timestamps=True,
         language="en"
     )

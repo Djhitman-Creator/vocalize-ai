@@ -1,4 +1,5 @@
 # Karatrack Studio - RunPod Serverless Dockerfile
+# Cache bust: v2
 FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
 # Prevent interactive prompts during install
@@ -16,15 +17,18 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Install Python packages
+# Install PyTorch 2.0.1 - known compatible version
 RUN pip3 install --no-cache-dir \
-    torch \
-    torchaudio \
+    torch==2.0.1+cu118 \
+    torchaudio==2.0.2+cu118 \
     --index-url https://download.pytorch.org/whl/cu118
 
+# Install Whisper with specific version known to work
+RUN pip3 install --no-cache-dir openai-whisper==20231117
+
+# Install other dependencies
 RUN pip3 install --no-cache-dir \
     runpod \
-    openai-whisper \
     demucs \
     numpy \
     Pillow \
