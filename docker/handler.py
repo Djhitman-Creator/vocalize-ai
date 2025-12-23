@@ -1,6 +1,7 @@
 """
 Karatrack Studio RunPod Handler
 Processes audio files: vocal removal, lyrics transcription, video generation
+Uploads results to Cloudflare R2
 """
 
 import os
@@ -18,6 +19,8 @@ import torchaudio
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 import math
+import boto3
+from botocore.config import Config
 
 # ============================================
 # CONFIGURATION
@@ -49,6 +52,56 @@ COUNTDOWN_THRESHOLD = 3  # seconds of silence before showing countdown
 COUNTDOWN_DOTS = 3
 
 # ============================================
+# R2 UPLOAD FUNCTIONS
+# ============================================
+
+def get_r2_client():
+    """Create R2 client using environment variables"""
+    return boto3.client(
+        's3',
+        endpoint_url=os.environ.get('CLOUDFLARE_R2_ENDPOINT'),
+        aws_access_key_id=os.environ.get('CLOUDFLARE_R2_ACCESS_KEY'),
+        aws_secret_access_key=os.environ.get('CLOUDFLARE_R2_SECRET_KEY'),
+        config=Config(signature_version='s3v4'),
+        region_name='auto'
+    )
+
+def upload_to_r2(file_path, key):
+    """Upload a file to R2 and return the public URL"""
+    try:
+        client = get_r2_client()
+        bucket = os.environ.get('CLOUDFLARE_R2_BUCKET', 'vocalize-files')
+        public_url = os.environ.get('CLOUDFLARE_R2_PUBLIC_URL', '')
+        
+        # Determine content type
+        if file_path.endswith('.mp4'):
+            content_type = 'video/mp4'
+        elif file_path.endswith('.wav'):
+            content_type = 'audio/wav'
+        elif file_path.endswith('.mp3'):
+            content_type = 'audio/mpeg'
+        else:
+            content_type = 'application/octet-stream'
+        
+        # Upload file
+        with open(file_path, 'rb') as f:
+            client.put_object(
+                Bucket=bucket,
+                Key=key,
+                Body=f,
+                ContentType=content_type
+            )
+        
+        # Return public URL
+        url = f"{public_url}/{key}"
+        print(f"✅ Uploaded to R2: {url}")
+        return url
+        
+    except Exception as e:
+        print(f"❌ R2 upload error: {str(e)}")
+        raise e
+
+# ============================================
 # HELPER FUNCTIONS
 # ============================================
 
@@ -60,14 +113,6 @@ def download_file(url, destination):
         for chunk in response.iter_content(chunk_size=8192):
             f.write(chunk)
     return destination
-
-
-def upload_file(file_path, upload_url):
-    """Upload file to pre-signed URL or return local path"""
-    if upload_url:
-        with open(file_path, 'rb') as f:
-            requests.put(upload_url, data=f)
-    return file_path
 
 
 def get_font(size):
@@ -424,6 +469,9 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
 
 def handler(event):
     """RunPod handler function"""
+    callback_url = None
+    project_id = None
+    
     try:
         input_data = event['input']
         
@@ -457,16 +505,24 @@ def handler(event):
         results = {}
         
         # Separate vocals
+        instrumental_path = None
+        vocals_path = None
+        
         if processing_type in ['remove_vocals', 'both']:
             instrumental_path, vocals_path = separate_vocals(audio_path, work_dir)
-            results['processed_audio_url'] = instrumental_path
+            
+            # Upload instrumental to R2
+            instrumental_key = f"processed/{project_id}/instrumental.wav"
+            results['processed_audio_url'] = upload_to_r2(instrumental_path, instrumental_key)
             
             if processing_type == 'both':
-                results['vocals_audio_url'] = vocals_path
+                vocals_key = f"processed/{project_id}/vocals.wav"
+                results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
         
         elif processing_type == 'isolate_backing':
             instrumental_path, vocals_path = separate_vocals(audio_path, work_dir)
-            results['vocals_audio_url'] = vocals_path
+            vocals_key = f"processed/{project_id}/vocals.wav"
+            results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
         
         # Transcribe lyrics
         lyrics = []
@@ -478,9 +534,12 @@ def handler(event):
         
         # Generate video
         video_path = os.path.join(work_dir, f'{project_id}_output.mp4')
-        audio_for_video = results.get('processed_audio_url', audio_path)
+        audio_for_video = instrumental_path if instrumental_path else audio_path
         generate_video(audio_for_video, lyrics, gaps, track_info, video_path, video_quality)
-        results['video_url'] = video_path
+        
+        # Upload video to R2
+        video_key = f"processed/{project_id}/video.mp4"
+        results['video_url'] = upload_to_r2(video_path, video_key)
         
         # Send callback
         if callback_url:
@@ -490,6 +549,10 @@ def handler(event):
                 'status': 'completed',
                 'results': results
             })
+        
+        # Cleanup
+        import shutil
+        shutil.rmtree(work_dir)
         
         print("✅ Processing complete!")
         return {
