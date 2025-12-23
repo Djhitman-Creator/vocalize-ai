@@ -1,5 +1,5 @@
 # Karatrack Studio - RunPod Serverless Dockerfile
-# Cache bust: v2
+# Version 4 - Fixed NumPy compatibility
 FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
 # Prevent interactive prompts during install
@@ -17,20 +17,22 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Install PyTorch 2.0.1 - known compatible version
+# Install NumPy 1.x FIRST (required for torch 2.0.1 compatibility)
+RUN pip3 install --no-cache-dir "numpy<2"
+
+# Install specific PyTorch version known to work with Whisper
 RUN pip3 install --no-cache-dir \
-    torch==2.0.1+cu118 \
-    torchaudio==2.0.2+cu118 \
+    torch==2.0.1 \
+    torchaudio==2.0.2 \
     --index-url https://download.pytorch.org/whl/cu118
 
-# Install Whisper with specific version known to work
+# Install specific Whisper version
 RUN pip3 install --no-cache-dir openai-whisper==20231117
 
-# Install other dependencies
+# Install other dependencies (excluding numpy since it's already installed)
 RUN pip3 install --no-cache-dir \
     runpod \
     demucs \
-    numpy \
     Pillow \
     requests \
     boto3
