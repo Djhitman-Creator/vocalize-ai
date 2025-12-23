@@ -123,6 +123,19 @@ def get_font(size):
         return ImageFont.load_default()
 
 
+def convert_to_whisper_format(input_path, output_path):
+    """Convert audio file to format Whisper expects (16kHz mono WAV)"""
+    cmd = [
+        'ffmpeg', '-y', '-i', input_path,
+        '-ar', '16000',  # 16kHz for Whisper
+        '-ac', '1',      # Mono
+        '-c:a', 'pcm_s16le',
+        output_path
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
+    return output_path
+
+
 def separate_vocals(audio_path, output_dir):
     """Use Demucs to separate vocals from instrumental"""
     print("🎵 Separating vocals with Demucs...")
@@ -171,14 +184,19 @@ def separate_vocals(audio_path, output_dir):
     return instrumental_path, vocals_path
 
 
-def transcribe_lyrics(audio_path):
+def transcribe_lyrics(audio_path, work_dir):
     """Use Whisper to transcribe lyrics with word-level timestamps"""
     print("📝 Transcribing lyrics with Whisper...")
     
+    # Convert to WAV format that Whisper expects (16kHz mono)
+    whisper_audio_path = os.path.join(work_dir, 'whisper_audio.wav')
+    convert_to_whisper_format(audio_path, whisper_audio_path)
+    
     model = whisper.load_model(WHISPER_MODEL)
     
+    # Use the file path directly - Whisper handles loading internally
     result = model.transcribe(
-        audio_path,
+        whisper_audio_path,
         word_timestamps=True,
         language="en"
     )
@@ -498,7 +516,7 @@ def handler(event):
         work_dir = tempfile.mkdtemp()
         
         # Download audio
-        audio_path = os.path.join(work_dir, 'input_audio.wav')
+        audio_path = os.path.join(work_dir, 'input_audio.mp3')
         print(f"📥 Downloading audio from {audio_url}")
         download_file(audio_url, audio_path)
         
@@ -528,7 +546,7 @@ def handler(event):
         lyrics = []
         gaps = []
         if include_lyrics:
-            lyrics = transcribe_lyrics(audio_path)
+            lyrics = transcribe_lyrics(audio_path, work_dir)
             gaps = detect_silence_gaps(lyrics)
             results['lyrics'] = lyrics
         
