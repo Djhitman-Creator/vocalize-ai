@@ -123,17 +123,20 @@ def get_font(size):
         return ImageFont.load_default()
 
 
-def convert_to_whisper_format(input_path, output_path):
-    """Convert audio file to format Whisper expects (16kHz mono WAV)"""
+def load_audio_ffmpeg(file_path, sr=16000):
+    """Load audio using FFmpeg - bypasses torchaudio completely"""
     cmd = [
-        'ffmpeg', '-y', '-i', input_path,
-        '-ar', '16000',  # 16kHz for Whisper
-        '-ac', '1',      # Mono
-        '-c:a', 'pcm_s16le',
-        output_path
+        'ffmpeg', '-i', file_path,
+        '-f', 'f32le',  # 32-bit float little-endian
+        '-acodec', 'pcm_f32le',
+        '-ac', '1',  # mono
+        '-ar', str(sr),  # sample rate
+        '-'  # output to stdout
     ]
-    subprocess.run(cmd, check=True, capture_output=True)
-    return output_path
+    
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    audio = np.frombuffer(result.stdout, dtype=np.float32)
+    return audio
 
 
 def separate_vocals(audio_path, output_dir):
@@ -188,15 +191,14 @@ def transcribe_lyrics(audio_path, work_dir):
     """Use Whisper to transcribe lyrics with word-level timestamps"""
     print("📝 Transcribing lyrics with Whisper...")
     
-    # Convert to WAV format that Whisper expects (16kHz mono)
-    whisper_audio_path = os.path.join(work_dir, 'whisper_audio.wav')
-    convert_to_whisper_format(audio_path, whisper_audio_path)
+    # Load audio using FFmpeg (bypasses torchaudio bug)
+    audio = load_audio_ffmpeg(audio_path, sr=16000)
     
     model = whisper.load_model(WHISPER_MODEL)
     
-    # Use the file path directly - Whisper handles loading internally
+    # Transcribe using the audio array directly
     result = model.transcribe(
-        whisper_audio_path,
+        audio,
         word_timestamps=True,
         language="en"
     )
