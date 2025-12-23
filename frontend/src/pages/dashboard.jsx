@@ -15,7 +15,9 @@ import {
   CheckCircle,
   AlertCircle,
   Sun,
-  Moon
+  Moon,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -31,6 +33,7 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState(null);
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState(null);
   const { isDark, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -76,6 +79,50 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/');
+  };
+
+  const handleDownload = async (project) => {
+    try {
+      setDownloadingId(project.id);
+      
+      // Get the auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        alert('Please log in again');
+        return;
+      }
+
+      // Call the backend to get download URLs
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${project.id}/download`,
+        {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to get download links');
+      }
+
+      const urls = await response.json();
+
+      // Download the video if available
+      if (urls.video) {
+        window.open(urls.video, '_blank');
+      } else if (urls.processed_audio) {
+        window.open(urls.processed_audio, '_blank');
+      } else {
+        alert('No files available for download');
+      }
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Failed to download. Please try again.');
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   if (loading) {
@@ -260,6 +307,27 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-4">
                     {getStatusIcon(project.status)}
                     <span className="text-gray-400 text-sm capitalize">{project.status}</span>
+                    
+                    {/* Download Button - only show for completed projects */}
+                    {project.status === 'completed' && (
+                      <button
+                        onClick={() => handleDownload(project)}
+                        disabled={downloadingId === project.id}
+                        className="ml-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+                      >
+                        {downloadingId === project.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Loading...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4" />
+                            <span>Download</span>
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
