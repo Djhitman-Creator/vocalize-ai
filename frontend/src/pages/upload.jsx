@@ -37,7 +37,7 @@ import {
   Wand2,
   ShieldCheck
 } from 'lucide-react';
-import { useTheme } from '../src/context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
