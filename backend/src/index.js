@@ -163,14 +163,21 @@ function extractR2Key(url) {
   }
 }
 
-async function getSignedDownloadUrl(url) {
+async function getSignedDownloadUrl(url, filename = null) {
   const key = extractR2Key(url);
   if (!key) return null;
   
-  const command = new GetObjectCommand({
+  const commandOptions = {
     Bucket: process.env.CLOUDFLARE_R2_BUCKET,
     Key: key,
-  });
+  };
+  
+  // Add Content-Disposition to force download with custom filename
+  if (filename) {
+    commandOptions.ResponseContentDisposition = `attachment; filename="${filename}"`;
+  }
+  
+  const command = new GetObjectCommand(commandOptions);
   return getSignedUrl(r2Client, command, { expiresIn: 3600 });
 }
 
@@ -438,10 +445,15 @@ app.get('/api/projects/:id/download', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Project not ready for download' });
     }
 
+    // Build filename from project metadata: "KT-01 - Artist Name - Song Title"
+    const baseFilename = `${project.track_number || 'KT-01'} - ${project.artist_name || 'Unknown Artist'} - ${project.song_title || 'Untitled'}`;
+    // Sanitize filename (remove invalid characters)
+    const sanitizedFilename = baseFilename.replace(/[<>:"/\\|?*]/g, '');
+
     const urls = {
-      video: project.video_url ? await getSignedDownloadUrl(project.video_url) : null,
-      processed_audio: project.processed_audio_url ? await getSignedDownloadUrl(project.processed_audio_url) : null,
-      vocals: project.vocals_audio_url ? await getSignedDownloadUrl(project.vocals_audio_url) : null,
+      video: project.video_url ? await getSignedDownloadUrl(project.video_url, `${sanitizedFilename}.mp4`) : null,
+      processed_audio: project.processed_audio_url ? await getSignedDownloadUrl(project.processed_audio_url, `${sanitizedFilename} - Instrumental.wav`) : null,
+      vocals: project.vocals_audio_url ? await getSignedDownloadUrl(project.vocals_audio_url, `${sanitizedFilename} - Vocals.wav`) : null,
     };
 
     res.json(urls);
