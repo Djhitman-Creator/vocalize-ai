@@ -1,5 +1,12 @@
 /**
  * Karatrack Studio Backend API Server
+ * 
+ * UPDATED: Added support for:
+ * - lyrics_text (user-provided lyrics for 100% accuracy)
+ * - display_mode (auto/scroll/page/overwrite)
+ * - clean_version (profanity filter toggle)
+ * 
+ * Changes marked with "// NEW:" comments
  */
 
 require('dotenv').config();
@@ -201,6 +208,7 @@ function calculateCreditsNeeded(options) {
   return credits;
 }
 
+// UPDATED: Added new fields to RunPod payload
 async function sendToRunPod(projectId, audioUrl, options) {
   const response = await axios.post(
     `https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/run`,
@@ -216,6 +224,11 @@ async function sendToRunPod(projectId, audioUrl, options) {
         song_title: options.song_title,
         track_number: options.track_number,
         callback_url: `${process.env.API_URL}/api/webhooks/runpod`,
+        
+        // NEW: Add lyrics, display mode, and clean version
+        lyrics_text: options.lyrics_text || null,
+        display_mode: options.display_mode || 'auto',
+        clean_version: options.clean_version || false,
       },
     },
     {
@@ -296,14 +309,35 @@ app.get('/api/projects/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// UPDATED: Project creation with new fields
 app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
   try {
-    const { title, processing_type, include_lyrics, video_quality, artist_name, song_title, track_number } = req.body;
+    const { 
+      title, 
+      processing_type, 
+      include_lyrics, 
+      video_quality, 
+      artist_name, 
+      song_title, 
+      track_number,
+      // NEW: Extract new fields from request body
+      lyrics_text,
+      display_mode,
+      clean_version
+    } = req.body;
+    
     const file = req.files?.audio?.[0];
     const thumbnailFile = req.files?.thumbnail?.[0];
 
     if (!file) {
       return res.status(400).json({ error: 'No audio file provided' });
+    }
+
+    // NEW: Validate lyrics are provided (required for accurate sync)
+    if (!lyrics_text || lyrics_text.trim().length < 50) {
+      return res.status(400).json({ 
+        error: 'Lyrics are required for accurate sync. Please paste the complete song lyrics (minimum 50 characters).' 
+      });
     }
 
     const creditsNeeded = calculateCreditsNeeded({
@@ -339,6 +373,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       .update({ track_count: supabase.rpc('increment_track_count') })
       .eq('id', req.user.id);
 
+    // UPDATED: Insert project with new fields
     const { data: project, error } = await supabase
       .from('projects')
       .insert({
@@ -357,6 +392,10 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         video_quality,
         credits_used: creditsNeeded,
         thumbnail_url: thumbnailUrl,
+        // NEW: Store the new fields in database
+        lyrics_text: lyrics_text ? lyrics_text.trim() : null,
+        display_mode: display_mode || 'auto',
+        clean_version: clean_version === 'true' || clean_version === true,
       })
       .select()
       .single();
@@ -365,6 +404,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
 
     await deductCredits(req.user.id, creditsNeeded, projectId, `Processing: ${title || file.originalname}`);
 
+    // UPDATED: Send new fields to RunPod
     const runpodJobId = await sendToRunPod(projectId, fileUrl, {
       processing_type,
       include_lyrics: include_lyrics === 'true',
@@ -373,6 +413,10 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       artist_name: artist_name || 'Unknown Artist',
       song_title: song_title || file.originalname.replace(/\.[^/.]+$/, ''),
       track_number: track_number || 'KT-01',
+      // NEW: Pass new fields to RunPod
+      lyrics_text: lyrics_text ? lyrics_text.trim() : null,
+      display_mode: display_mode || 'auto',
+      clean_version: clean_version === 'true' || clean_version === true,
     });
 
     await supabase
