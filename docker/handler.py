@@ -1,12 +1,13 @@
 """
 Karatrack Studio RunPod Handler
-Version 2.0 - Enhanced Lyrics Processing
+Version 2.1 - Bug Fixes
 
-UPDATES:
-- Transcribes ISOLATED VOCALS instead of original mix (better sync)
-- Uses forced alignment when user provides lyrics (100% accuracy)
-- Profanity filter for clean versions
-- Multiple display modes (scroll, page, overwrite, auto)
+FIXES:
+- Removed track number from intro screen (only shows Artist and Title)
+- Changed countdown threshold from 3 to 5 seconds
+- Only show countdown dots for intros 10+ seconds
+- Fixed profanity filter not detecting words
+- Accounted for intro screen duration in timing
 
 Processes audio files: vocal removal, lyrics transcription, video generation
 Uploads results to Cloudflare R2
@@ -46,7 +47,6 @@ FPS = 30
 FONT_SIZE_LYRICS = 72
 FONT_SIZE_TITLE = 96
 FONT_SIZE_ARTIST = 64
-FONT_SIZE_TRACK = 48
 
 # Colors (RGB)
 COLOR_BG = (10, 10, 20)
@@ -55,9 +55,10 @@ COLOR_HIGHLIGHT = (0, 255, 255)  # Cyan
 COLOR_UPCOMING = (150, 150, 150)  # Gray
 COLOR_COUNTDOWN = (255, 200, 0)  # Gold
 
-# Timing
+# Timing - UPDATED
 INTRO_DURATION = 5  # seconds for title screen
-COUNTDOWN_THRESHOLD = 3  # seconds of silence before showing countdown
+COUNTDOWN_THRESHOLD = 5  # CHANGED: from 3 to 5 seconds
+INTRO_COUNTDOWN_THRESHOLD = 10  # NEW: Only show countdown for intros 10+ seconds
 COUNTDOWN_DOTS = 3
 
 # Display mode settings
@@ -65,17 +66,17 @@ WORDS_PER_LINE = 7
 LINES_PER_PAGE = 4
 
 # ============================================
-# PROFANITY FILTER
+# PROFANITY FILTER - FIXED
 # ============================================
 
 # Comprehensive profanity list - words will be replaced with # symbols
 PROFANITY_LIST = {
-    # Common profanity
-    'fuck', 'fucking', 'fucked', 'fucker', 'fuckers', 'fucks',
-    'shit', 'shitting', 'shitted', 'shitty', 'bullshit',
+    # Common profanity - all lowercase for matching
+    'fuck', 'fucking', 'fucked', 'fucker', 'fuckers', 'fucks', 'fuckin',
+    'shit', 'shitting', 'shitted', 'shitty', 'bullshit', 'shits',
     'ass', 'asses', 'asshole', 'assholes',
     'bitch', 'bitches', 'bitching', 'bitchy',
-    'damn', 'damned', 'dammit', 'goddamn', 'goddamned',
+    'damn', 'damned', 'dammit', 'goddamn', 'goddamned', 'goddamnit',
     'hell',
     'crap', 'crappy',
     'dick', 'dicks', 'dickhead',
@@ -87,28 +88,33 @@ PROFANITY_LIST = {
     'slut', 'sluts',
     'piss', 'pissed', 'pissing',
     
-    # Racial slurs and hate speech (partial list - expand as needed)
+    # Racial slurs and hate speech
     'nigga', 'niggas', 'nigger', 'niggers',
-    
-    # Drug references (optional - you may want these for some content)
-    # 'weed', 'cocaine', 'heroin', etc.
     
     # Additional variations
     'wtf', 'stfu', 'lmfao', 'lmao',
-    'mofo', 'motherfucker', 'motherfucking', 'motherfuckers',
+    'mofo', 'motherfucker', 'motherfucking', 'motherfuckers', 'muthafucka',
     'sob',
+    'hoe', 'hoes',
+    'thot', 'thots',
 }
 
-def censor_word(word, profanity_set=PROFANITY_LIST):
+def censor_word(word):
     """
     Replace profanity with # symbols matching the word length.
     
     Example: "damn" -> "####"
-    """
-    # Extract just letters for comparison (keep punctuation)
-    clean_word = re.sub(r'[^a-zA-Z]', '', word).lower()
     
-    if clean_word in profanity_set:
+    FIXED: Better word extraction and matching
+    """
+    if not word:
+        return word
+    
+    # Extract just letters for comparison
+    clean_word = re.sub(r'[^a-zA-Z\']', '', word).lower()
+    
+    # Check if the clean word is in our profanity list
+    if clean_word in PROFANITY_LIST:
         # Replace letters with #, keep punctuation in place
         result = ''
         for char in word:
@@ -116,7 +122,9 @@ def censor_word(word, profanity_set=PROFANITY_LIST):
                 result += '#'
             else:
                 result += char
+        print(f"   Censored: '{word}' -> '{result}'")
         return result
+    
     return word
 
 
@@ -131,10 +139,20 @@ def apply_profanity_filter(lyrics_list):
         New list with censored words
     """
     filtered = []
+    censored_count = 0
+    
     for item in lyrics_list:
         filtered_item = item.copy()
-        filtered_item['word'] = censor_word(item['word'])
+        original_word = item['word']
+        censored_word = censor_word(original_word)
+        
+        if censored_word != original_word:
+            censored_count += 1
+            
+        filtered_item['word'] = censored_word
         filtered.append(filtered_item)
+    
+    print(f"   Total words censored: {censored_count}")
     return filtered
 
 
@@ -487,32 +505,40 @@ def align_word_sequences(user_words, whisper_words):
     return aligned
 
 
-def detect_silence_gaps(lyrics, threshold=COUNTDOWN_THRESHOLD):
-    """Find gaps in lyrics where countdown should appear"""
+def detect_silence_gaps(lyrics, intro_threshold=INTRO_COUNTDOWN_THRESHOLD, mid_threshold=COUNTDOWN_THRESHOLD):
+    """
+    Find gaps in lyrics where countdown should appear.
+    
+    UPDATED:
+    - Intro gaps need to be >= 10 seconds to show countdown
+    - Mid-song gaps need to be >= 5 seconds to show countdown
+    """
     gaps = []
     
     if not lyrics:
         return gaps
     
-    # Check gap at start
-    if lyrics[0]['start'] > threshold:
+    # Check gap at start - only show countdown if >= INTRO_COUNTDOWN_THRESHOLD (10 seconds)
+    if lyrics[0]['start'] >= intro_threshold:
         gaps.append({
             'start': 0,
             'end': lyrics[0]['start'],
-            'duration': lyrics[0]['start']
+            'duration': lyrics[0]['start'],
+            'is_intro': True
         })
     
-    # Check gaps between words
+    # Check gaps between words - use COUNTDOWN_THRESHOLD (5 seconds)
     for i in range(len(lyrics) - 1):
         gap_start = lyrics[i]['end']
         gap_end = lyrics[i + 1]['start']
         gap_duration = gap_end - gap_start
         
-        if gap_duration >= threshold:
+        if gap_duration >= mid_threshold:
             gaps.append({
                 'start': gap_start,
                 'end': gap_end,
-                'duration': gap_duration
+                'duration': gap_duration,
+                'is_intro': False
             })
     
     return gaps
@@ -552,7 +578,7 @@ def calculate_lyrics_stats(lyrics, audio_duration):
     avg_line_length = sum(len(line) for line in lines) / len(lines) if lines else WORDS_PER_LINE
     
     # Check for clear sections (gaps > 3 seconds)
-    long_gaps = [g for g in detect_silence_gaps(lyrics, threshold=3) if g['duration'] > 3]
+    long_gaps = [g for g in detect_silence_gaps(lyrics) if g['duration'] > 3]
     has_clear_sections = len(long_gaps) >= 2
     
     return {
@@ -616,14 +642,17 @@ def draw_centered_text(draw, text, y, font, color, width):
     draw.text((x, y), text, font=font, fill=color)
 
 
-def create_intro_frame(track_number, artist, title, frame_num, total_frames, width, height):
-    """Create intro screen frame with fade in/out"""
+def create_intro_frame(artist, title, frame_num, total_frames, width, height):
+    """
+    Create intro screen frame with fade in/out.
+    
+    UPDATED: Removed track_number - only shows Artist and Title
+    """
     img = create_frame(width, height)
     draw = ImageDraw.Draw(img)
     
     # Scale fonts based on resolution
     scale = width / 1920
-    font_track = get_font(int(FONT_SIZE_TRACK * scale))
     font_artist = get_font(int(FONT_SIZE_ARTIST * scale))
     font_title = get_font(int(FONT_SIZE_TITLE * scale))
     
@@ -640,16 +669,12 @@ def create_intro_frame(track_number, artist, title, frame_num, total_frames, wid
     def apply_alpha(color, a):
         return tuple(int(c * a) for c in color)
     
-    # Draw track number
-    draw_centered_text(draw, track_number, height // 2 - int(150 * scale), 
-                       font_track, apply_alpha(COLOR_COUNTDOWN, alpha), width)
-    
-    # Draw artist
-    draw_centered_text(draw, artist, height // 2 - int(50 * scale), 
+    # Draw artist (moved up since no track number)
+    draw_centered_text(draw, artist, height // 2 - int(60 * scale), 
                        font_artist, apply_alpha(COLOR_TEXT, alpha), width)
     
     # Draw title
-    draw_centered_text(draw, title, height // 2 + int(50 * scale), 
+    draw_centered_text(draw, title, height // 2 + int(40 * scale), 
                        font_title, apply_alpha(COLOR_HIGHLIGHT, alpha), width)
     
     return img
@@ -928,7 +953,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     # Create temp directory for frames
     frames_dir = tempfile.mkdtemp()
     
-    track_number = track_info.get('track_number', 'KT-01')
+    # UPDATED: Only use artist and title (no track number)
     artist = track_info.get('artist_name', 'Unknown Artist')
     title = track_info.get('song_title', 'Unknown Title')
     
@@ -936,8 +961,8 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     
     for frame_num in range(total_frames):
         if frame_num < intro_frames:
-            # Intro screen
-            frame = create_intro_frame(track_number, artist, title, frame_num, intro_frames, width, height)
+            # Intro screen - UPDATED: no track_number parameter
+            frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height)
         else:
             # Main content
             current_time = (frame_num - intro_frames) / FPS
@@ -1010,10 +1035,13 @@ def handler(event):
         thumbnail_url = input_data.get('thumbnail_url')
         callback_url = input_data.get('callback_url')
         
-        # NEW: Get new parameters
+        # Get new parameters
         user_lyrics_text = input_data.get('lyrics_text')  # User-provided lyrics
         display_mode = input_data.get('display_mode', 'auto')  # auto/scroll/page/overwrite
-        clean_version = input_data.get('clean_version', False)  # Profanity filter
+        
+        # FIXED: Properly handle clean_version as boolean
+        clean_version_raw = input_data.get('clean_version', False)
+        clean_version = clean_version_raw in [True, 'true', 'True', '1', 1]
         
         track_info = {
             'track_number': input_data.get('track_number', 'KT-01'),
@@ -1025,7 +1053,7 @@ def handler(event):
         print(f"   Type: {processing_type}")
         print(f"   Lyrics provided: {'Yes' if user_lyrics_text else 'No (auto-transcribe)'}")
         print(f"   Display mode: {display_mode}")
-        print(f"   Clean version: {clean_version}")
+        print(f"   Clean version: {clean_version} (raw value: {clean_version_raw})")
         print(f"   Quality: {video_quality}")
         
         # Create temp working directory
@@ -1056,7 +1084,7 @@ def handler(event):
             results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
         
         # ============================================
-        # LYRICS PROCESSING - THE KEY IMPROVEMENT
+        # LYRICS PROCESSING
         # ============================================
         lyrics = []
         gaps = []
@@ -1068,18 +1096,18 @@ def handler(event):
                 lyrics = align_user_lyrics(vocals_path, user_lyrics_text, work_dir)
             else:
                 # NO USER LYRICS - Auto-transcribe from ISOLATED VOCALS
-                # This is the key fix: use vocals_path instead of audio_path
                 print("📝 Auto-transcribing from isolated vocals...")
                 lyrics = transcribe_lyrics_auto(vocals_path, work_dir)
             
-            # Apply profanity filter if requested
+            # Apply profanity filter if requested - FIXED
             if clean_version and lyrics:
                 print("🛡️ Applying profanity filter...")
+                print(f"   Processing {len(lyrics)} words...")
                 lyrics = apply_profanity_filter(lyrics)
-                print(f"   Filtered {len(lyrics)} words")
             
-            # Detect gaps for countdown dots
+            # Detect gaps for countdown dots - UPDATED thresholds
             gaps = detect_silence_gaps(lyrics)
+            print(f"   Found {len(gaps)} gaps for countdown")
             
             # Store lyrics in results
             results['lyrics'] = lyrics
