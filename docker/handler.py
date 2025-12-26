@@ -1,17 +1,38 @@
 """
 Karatrack Studio RunPod Handler
-Version 3.0 - WhisperX for Precise Timing
+Version 3.1 - WhisperX for Precise Timing
 
 MAJOR CHANGE: Uses WhisperX instead of standard Whisper
 - WhisperX provides phoneme-level forced alignment
 - Word timestamps are accurate to ~50ms instead of ~500-2000ms
 - Uses wav2vec2 alignment model for precision
 
+FIX in 3.1: PyTorch 2.6 compatibility - torch.load weights_only issue
+
 Processes audio files: vocal removal, lyrics transcription, video generation
 Uploads results to Cloudflare R2
 """
 
 import os
+
+# ============================================
+# PYTORCH 2.6 COMPATIBILITY FIX
+# Must be done BEFORE importing whisperx
+# ============================================
+import torch
+
+# Fix for PyTorch 2.6+ changing default weights_only=True
+# This breaks pyannote/whisperx model loading
+_original_torch_load = torch.load
+
+def _patched_torch_load(*args, **kwargs):
+    # If weights_only not specified, default to False for compatibility
+    if 'weights_only' not in kwargs:
+        kwargs['weights_only'] = False
+    return _original_torch_load(*args, **kwargs)
+
+torch.load = _patched_torch_load
+# ============================================
 import json
 import subprocess
 import tempfile
