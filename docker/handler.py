@@ -1,13 +1,18 @@
 """
 Karatrack Studio RunPod Handler
-Version 2.1 - Bug Fixes
+Version 2.2 - Teleprompter Style Updates
 
-FIXES:
+CHANGES IN v2.2:
+- Added more profanity words (suck, balls, etc.)
+- Teleprompter-style scroll: all text same size, smooth uniform scroll
+- Added left/right padding so lyrics don't go edge to edge
+- Countdown dots now show ABOVE the upcoming lyrics (preview)
+
+PREVIOUS FIXES (v2.1):
 - Removed track number from intro screen (only shows Artist and Title)
 - Changed countdown threshold from 3 to 5 seconds
 - Only show countdown dots for intros 10+ seconds
 - Fixed profanity filter not detecting words
-- Accounted for intro screen duration in timing
 
 Processes audio files: vocal removal, lyrics transcription, video generation
 Uploads results to Cloudflare R2
@@ -44,21 +49,27 @@ DEMUCS_MODEL = "htdemucs"
 VIDEO_WIDTH = 1920
 VIDEO_HEIGHT = 1080
 FPS = 30
-FONT_SIZE_LYRICS = 72
+FONT_SIZE_LYRICS = 64  # Slightly smaller for teleprompter style
 FONT_SIZE_TITLE = 96
 FONT_SIZE_ARTIST = 64
+FONT_SIZE_COUNTDOWN = 80
+
+# Layout settings - NEW
+PADDING_LEFT_RIGHT = 100  # Pixels of padding on each side
+LINE_HEIGHT_MULTIPLIER = 1.4  # Space between lines
 
 # Colors (RGB)
 COLOR_BG = (10, 10, 20)
 COLOR_TEXT = (255, 255, 255)
-COLOR_HIGHLIGHT = (0, 255, 255)  # Cyan
-COLOR_UPCOMING = (150, 150, 150)  # Gray
-COLOR_COUNTDOWN = (255, 200, 0)  # Gold
+COLOR_HIGHLIGHT = (0, 255, 255)  # Cyan for current word
+COLOR_SUNG = (100, 200, 200)  # Dimmed cyan for already sung words
+COLOR_UPCOMING = (200, 200, 200)  # Light gray for upcoming lines
+COLOR_COUNTDOWN = (255, 200, 0)  # Gold for countdown dots
 
-# Timing - UPDATED
+# Timing
 INTRO_DURATION = 5  # seconds for title screen
-COUNTDOWN_THRESHOLD = 5  # CHANGED: from 3 to 5 seconds
-INTRO_COUNTDOWN_THRESHOLD = 10  # NEW: Only show countdown for intros 10+ seconds
+COUNTDOWN_THRESHOLD = 5  # seconds - gaps longer than this get countdown
+INTRO_COUNTDOWN_THRESHOLD = 10  # Only show countdown for intros 10+ seconds
 COUNTDOWN_DOTS = 3
 
 # Display mode settings
@@ -66,7 +77,7 @@ WORDS_PER_LINE = 7
 LINES_PER_PAGE = 4
 
 # ============================================
-# PROFANITY FILTER - FIXED
+# PROFANITY FILTER - EXPANDED
 # ============================================
 
 # Comprehensive profanity list - words will be replaced with # symbols
@@ -74,29 +85,68 @@ PROFANITY_LIST = {
     # Common profanity - all lowercase for matching
     'fuck', 'fucking', 'fucked', 'fucker', 'fuckers', 'fucks', 'fuckin',
     'shit', 'shitting', 'shitted', 'shitty', 'bullshit', 'shits',
-    'ass', 'asses', 'asshole', 'assholes',
+    'ass', 'asses', 'asshole', 'assholes', 'badass',
     'bitch', 'bitches', 'bitching', 'bitchy',
     'damn', 'damned', 'dammit', 'goddamn', 'goddamned', 'goddamnit',
     'hell',
     'crap', 'crappy',
-    'dick', 'dicks', 'dickhead',
-    'cock', 'cocks',
+    'dick', 'dicks', 'dickhead', 'dickheads',
+    'cock', 'cocks', 'cocksucker',
     'pussy', 'pussies',
     'cunt', 'cunts',
     'bastard', 'bastards',
     'whore', 'whores',
-    'slut', 'sluts',
+    'slut', 'sluts', 'slutty',
     'piss', 'pissed', 'pissing',
+    
+    # NEW - Added words
+    'suck', 'sucks', 'sucked', 'sucking', 'sucker', 'suckers',
+    'balls', 'ballsack',
+    'boob', 'boobs', 'boobie', 'boobies',
+    'tit', 'tits', 'titty', 'titties',
+    'nut', 'nuts', 'nutsack',
+    'screw', 'screwed', 'screwing',
+    'cocked',
+    'jackass', 'dumbass', 'fatass', 'smartass',
+    'bloody',
+    'bugger',
+    'bollocks',
+    'wanker', 'wankers',
+    'tosser',
+    'twat', 'twats',
+    'arsehole', 'arse',
+    'skank', 'skanky',
+    'douche', 'douchebag', 'douchy',
+    'fap', 'fapping',
+    'jizz',
+    'spunk',
+    'dildo',
+    'butthole',
+    'blowjob',
+    'handjob',
+    'rimjob',
     
     # Racial slurs and hate speech
     'nigga', 'niggas', 'nigger', 'niggers',
+    'spic', 'spics',
+    'chink', 'chinks',
+    'wetback', 'wetbacks',
+    'kike', 'kikes',
+    'fag', 'fags', 'faggot', 'faggots',
+    'dyke', 'dykes',
+    'tranny', 'trannies',
+    'retard', 'retarded', 'retards',
     
     # Additional variations
     'wtf', 'stfu', 'lmfao', 'lmao',
-    'mofo', 'motherfucker', 'motherfucking', 'motherfuckers', 'muthafucka',
+    'mofo', 'motherfucker', 'motherfucking', 'motherfuckers', 'muthafucka', 'muthafuckin',
     'sob',
     'hoe', 'hoes',
     'thot', 'thots',
+    'biatch',
+    'beotch',
+    'effing',
+    'frigging', 'freakin', 'freaking',
 }
 
 def censor_word(word):
@@ -104,8 +154,6 @@ def censor_word(word):
     Replace profanity with # symbols matching the word length.
     
     Example: "damn" -> "####"
-    
-    FIXED: Better word extraction and matching
     """
     if not word:
         return word
@@ -361,14 +409,6 @@ def align_user_lyrics(vocals_path, user_lyrics_text, work_dir):
     Forced alignment: Take user-provided lyrics and align them to audio timestamps.
     This gives 100% accuracy on the WORDS (user provided them),
     and uses Whisper to find WHEN each word is sung.
-    
-    Args:
-        vocals_path: Path to isolated vocals audio
-        user_lyrics_text: Raw lyrics text provided by user
-        work_dir: Working directory for temp files
-    
-    Returns:
-        List of word objects with 'word', 'start', 'end' keys
     """
     print("📝 Aligning user-provided lyrics with Whisper...")
     
@@ -391,7 +431,6 @@ def align_user_lyrics(vocals_path, user_lyrics_text, work_dir):
     model = whisper.load_model(WHISPER_MODEL)
     
     # Transcribe with initial prompt to help Whisper recognize the words
-    # This improves recognition accuracy significantly
     initial_prompt = ' '.join(user_words[:50])  # First 50 words as context
     
     result = model.transcribe(
@@ -435,7 +474,6 @@ def parse_lyrics_text(lyrics_text):
     # Split into words, keeping basic punctuation attached
     words = []
     for word in text.split():
-        # Clean up but keep the word readable
         cleaned = word.strip()
         if cleaned and not cleaned.isspace():
             words.append(cleaned)
@@ -447,9 +485,6 @@ def align_word_sequences(user_words, whisper_words):
     """
     Align user-provided words with Whisper-detected timestamps.
     Uses a simple sequential matching approach.
-    
-    The user words are THE TRUTH (what should be displayed).
-    The Whisper words provide TIMING information.
     """
     aligned = []
     whisper_idx = 0
@@ -465,7 +500,6 @@ def align_word_sequences(user_words, whisper_words):
         for i in range(whisper_idx, min(whisper_idx + 10, len(whisper_words))):
             whisper_clean = re.sub(r'[^a-zA-Z]', '', whisper_words[i]['word']).lower()
             
-            # Calculate similarity (simple approach)
             if user_clean == whisper_clean:
                 best_match_idx = i
                 best_match_score = 1.0
@@ -477,7 +511,6 @@ def align_word_sequences(user_words, whisper_words):
                     best_match_score = score
         
         if best_match_idx is not None and best_match_score > 0.5:
-            # Use timing from matched Whisper word, but keep user's word text
             aligned.append({
                 'word': user_word,
                 'start': whisper_words[best_match_idx]['start'],
@@ -485,17 +518,15 @@ def align_word_sequences(user_words, whisper_words):
             })
             whisper_idx = best_match_idx + 1
         else:
-            # No good match found - estimate timing based on previous word
             if aligned:
                 prev_end = aligned[-1]['end']
-                estimated_duration = 0.3  # Average word duration
+                estimated_duration = 0.3
                 aligned.append({
                     'word': user_word,
                     'start': prev_end,
                     'end': prev_end + estimated_duration
                 })
             else:
-                # First word with no match - start at 0
                 aligned.append({
                     'word': user_word,
                     'start': 0.0,
@@ -508,17 +539,13 @@ def align_word_sequences(user_words, whisper_words):
 def detect_silence_gaps(lyrics, intro_threshold=INTRO_COUNTDOWN_THRESHOLD, mid_threshold=COUNTDOWN_THRESHOLD):
     """
     Find gaps in lyrics where countdown should appear.
-    
-    UPDATED:
-    - Intro gaps need to be >= 10 seconds to show countdown
-    - Mid-song gaps need to be >= 5 seconds to show countdown
     """
     gaps = []
     
     if not lyrics:
         return gaps
     
-    # Check gap at start - only show countdown if >= INTRO_COUNTDOWN_THRESHOLD (10 seconds)
+    # Check gap at start - only show countdown if >= 10 seconds
     if lyrics[0]['start'] >= intro_threshold:
         gaps.append({
             'start': 0,
@@ -527,7 +554,7 @@ def detect_silence_gaps(lyrics, intro_threshold=INTRO_COUNTDOWN_THRESHOLD, mid_t
             'is_intro': True
         })
     
-    # Check gaps between words - use COUNTDOWN_THRESHOLD (5 seconds)
+    # Check gaps between words - use 5 seconds threshold
     for i in range(len(lyrics) - 1):
         gap_start = lyrics[i]['end']
         gap_end = lyrics[i + 1]['start']
@@ -545,31 +572,21 @@ def detect_silence_gaps(lyrics, intro_threshold=INTRO_COUNTDOWN_THRESHOLD, mid_t
 
 
 def calculate_lyrics_stats(lyrics, audio_duration):
-    """
-    Calculate statistics about the lyrics for auto display mode selection.
-    
-    Returns dict with:
-    - words_per_minute: Average WPM
-    - avg_line_length: Average words per line
-    - has_clear_sections: Whether lyrics have distinct verse/chorus breaks
-    """
+    """Calculate statistics about the lyrics for auto display mode selection."""
     if not lyrics:
         return {'words_per_minute': 0, 'avg_line_length': 0, 'has_clear_sections': False}
     
-    # Words per minute
     total_words = len(lyrics)
     duration_minutes = audio_duration / 60
     wpm = total_words / duration_minutes if duration_minutes > 0 else 0
     
-    # Average line length (estimate based on natural breaks)
-    # Group words by gaps > 1 second
     lines = []
     current_line = []
     for i, word in enumerate(lyrics):
         current_line.append(word)
         if i < len(lyrics) - 1:
             gap = lyrics[i + 1]['start'] - word['end']
-            if gap > 1.0:  # Line break at gaps > 1 second
+            if gap > 1.0:
                 lines.append(current_line)
                 current_line = []
     if current_line:
@@ -577,7 +594,6 @@ def calculate_lyrics_stats(lyrics, audio_duration):
     
     avg_line_length = sum(len(line) for line in lines) / len(lines) if lines else WORDS_PER_LINE
     
-    # Check for clear sections (gaps > 3 seconds)
     long_gaps = [g for g in detect_silence_gaps(lyrics) if g['duration'] > 3]
     has_clear_sections = len(long_gaps) >= 2
     
@@ -589,17 +605,7 @@ def calculate_lyrics_stats(lyrics, audio_duration):
 
 
 def select_display_mode(lyrics, audio_duration, requested_mode='auto'):
-    """
-    Select the best display mode based on song characteristics.
-    
-    Args:
-        lyrics: List of word objects
-        audio_duration: Song duration in seconds
-        requested_mode: 'auto', 'scroll', 'page', or 'overwrite'
-    
-    Returns:
-        'scroll', 'page', or 'overwrite'
-    """
+    """Select the best display mode based on song characteristics."""
     if requested_mode != 'auto':
         return requested_mode
     
@@ -609,23 +615,18 @@ def select_display_mode(lyrics, audio_duration, requested_mode='auto'):
           f"avg line: {stats['avg_line_length']:.1f} words, "
           f"clear sections: {stats['has_clear_sections']}")
     
-    # Decision logic
     if stats['words_per_minute'] > 150:
-        # Fast song (rap, etc.) - use scroll
         return 'scroll'
     elif stats['avg_line_length'] > 10:
-        # Long lines - use scroll
         return 'scroll'
     elif stats['has_clear_sections'] and stats['words_per_minute'] < 100:
-        # Slow song with clear structure - use page-by-page
         return 'page'
     else:
-        # Default - traditional overwrite style
         return 'overwrite'
 
 
 # ============================================
-# VIDEO GENERATION
+# VIDEO GENERATION - UPDATED FOR TELEPROMPTER
 # ============================================
 
 def create_frame(width, height, bg_color=COLOR_BG):
@@ -634,29 +635,38 @@ def create_frame(width, height, bg_color=COLOR_BG):
     return img
 
 
-def draw_centered_text(draw, text, y, font, color, width):
-    """Draw centered text"""
+def draw_centered_text(draw, text, y, font, color, width, padding=PADDING_LEFT_RIGHT):
+    """Draw centered text with padding"""
     bbox = draw.textbbox((0, 0), text, font=font)
     text_width = bbox[2] - bbox[0]
+    
+    # Ensure text fits within padding
+    max_width = width - (2 * padding)
     x = (width - text_width) // 2
+    
+    # Clamp x to respect padding
+    x = max(padding, x)
+    
     draw.text((x, y), text, font=font, fill=color)
 
 
+def get_font(size):
+    """Get font, fallback to default if custom not available"""
+    try:
+        return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size)
+    except:
+        return ImageFont.load_default()
+
+
 def create_intro_frame(artist, title, frame_num, total_frames, width, height):
-    """
-    Create intro screen frame with fade in/out.
-    
-    UPDATED: Removed track_number - only shows Artist and Title
-    """
+    """Create intro screen frame with fade in/out."""
     img = create_frame(width, height)
     draw = ImageDraw.Draw(img)
     
-    # Scale fonts based on resolution
     scale = width / 1920
     font_artist = get_font(int(FONT_SIZE_ARTIST * scale))
     font_title = get_font(int(FONT_SIZE_TITLE * scale))
     
-    # Fade effect
     progress = frame_num / total_frames
     if progress < 0.2:
         alpha = progress / 0.2
@@ -665,64 +675,124 @@ def create_intro_frame(artist, title, frame_num, total_frames, width, height):
     else:
         alpha = 1.0
     
-    # Apply alpha to colors
     def apply_alpha(color, a):
         return tuple(int(c * a) for c in color)
     
-    # Draw artist (moved up since no track number)
     draw_centered_text(draw, artist, height // 2 - int(60 * scale), 
                        font_artist, apply_alpha(COLOR_TEXT, alpha), width)
     
-    # Draw title
     draw_centered_text(draw, title, height // 2 + int(40 * scale), 
                        font_title, apply_alpha(COLOR_HIGHLIGHT, alpha), width)
     
     return img
 
 
-def create_countdown_frame(dots_remaining, width, height, total_dots=COUNTDOWN_DOTS):
-    """Create countdown frame with dots"""
+def create_countdown_frame_with_preview(dots_remaining, width, height, lyrics, gap_end_time, total_dots=COUNTDOWN_DOTS):
+    """
+    Create countdown frame with dots AND preview of upcoming lyrics below.
+    
+    NEW: Shows countdown dots at top, then the first few lines of upcoming lyrics
+    so the singer can prepare.
+    """
     img = create_frame(width, height)
     draw = ImageDraw.Draw(img)
     
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale))
+    font_countdown = get_font(int(FONT_SIZE_COUNTDOWN * scale))
+    font_lyrics = get_font(int(FONT_SIZE_LYRICS * scale))
+    line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale)
+    padding = int(PADDING_LEFT_RIGHT * scale)
     
-    # Create dots string: ● ● ● or ● ● or ●
+    # Draw countdown dots at top area
     dots = " ● " * dots_remaining
     dots_gray = " ○ " * (total_dots - dots_remaining)
-    
     full_text = dots_gray + dots
     
-    draw_centered_text(draw, full_text.strip(), height // 2, 
-                       font, COLOR_COUNTDOWN, width)
+    # Position dots in upper third of screen
+    dots_y = height // 4
+    draw_centered_text(draw, full_text.strip(), dots_y, font_countdown, COLOR_COUNTDOWN, width)
+    
+    # Now show preview of upcoming lyrics below the dots
+    # Find the lyrics that start at or after gap_end_time
+    upcoming_words = [w for w in lyrics if w['start'] >= gap_end_time - 0.5]
+    
+    if upcoming_words:
+        # Group into lines
+        lines = []
+        current_line = []
+        for word in upcoming_words:
+            current_line.append(word)
+            if len(current_line) >= WORDS_PER_LINE:
+                lines.append(current_line)
+                current_line = []
+                if len(lines) >= 4:  # Show max 4 preview lines
+                    break
+        if current_line and len(lines) < 4:
+            lines.append(current_line)
+        
+        # Draw preview lines starting below the dots
+        preview_start_y = height // 2  # Start at middle
+        
+        for i, line in enumerate(lines[:4]):  # Max 4 lines
+            y = preview_start_y + (i * line_height)
+            line_text = ' '.join([w['word'] for w in line])
+            
+            # First line brighter (what's coming next), others dimmer
+            if i == 0:
+                color = COLOR_TEXT
+            else:
+                fade = 1 - (i * 0.2)
+                color = tuple(int(c * fade) for c in COLOR_UPCOMING)
+            
+            draw_centered_text(draw, line_text, y, font_lyrics, color, width, padding)
     
     return img
 
 
+def group_lyrics_into_lines(lyrics, words_per_line=WORDS_PER_LINE):
+    """Helper function to group lyrics into display lines"""
+    lines = []
+    current_line = []
+    
+    for word in lyrics:
+        current_line.append(word)
+        if len(current_line) >= words_per_line:
+            lines.append(current_line)
+            current_line = []
+    
+    if current_line:
+        lines.append(current_line)
+    
+    return lines
+
+
 def create_scroll_frame(current_time, lyrics, width, height):
     """
-    Create frame with smoothly scrolling lyrics.
-    All lyrics scroll upward, current word highlighted.
+    Create TELEPROMPTER-STYLE scrolling lyrics frame.
+    
+    UPDATED v2.2:
+    - All text same font size (no smaller font for other lines)
+    - Left/right padding so text doesn't go edge to edge
+    - Smooth continuous scroll
+    - Current word highlighted, sung words slightly dimmed
+    - All visible lines are readable
     """
     img = create_frame(width, height)
     draw = ImageDraw.Draw(img)
     
     scale = width / 1920
     font = get_font(int(FONT_SIZE_LYRICS * scale))
-    font_small = get_font(int((FONT_SIZE_LYRICS - 20) * scale))
-    line_height = int(100 * scale)
+    line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale)
+    padding = int(PADDING_LEFT_RIGHT * scale)
+    
+    # Available width for text
+    text_area_width = width - (2 * padding)
     
     # Group words into lines
-    lines = []
-    current_line_words = []
-    for word in lyrics:
-        current_line_words.append(word)
-        if len(current_line_words) >= WORDS_PER_LINE:
-            lines.append(current_line_words)
-            current_line_words = []
-    if current_line_words:
-        lines.append(current_line_words)
+    lines = group_lyrics_into_lines(lyrics)
+    
+    if not lines:
+        return img
     
     # Find current line index based on time
     current_line_idx = 0
@@ -732,7 +802,7 @@ def create_scroll_frame(current_time, lyrics, width, height):
             break
         current_line_idx = i
     
-    # Calculate scroll offset for smooth animation
+    # Calculate smooth scroll offset
     scroll_progress = 0
     if current_line_idx < len(lines):
         line = lines[current_line_idx]
@@ -743,71 +813,72 @@ def create_scroll_frame(current_time, lyrics, width, height):
                 scroll_progress = (current_time - line_start) / (line_end - line_start)
                 scroll_progress = max(0, min(1, scroll_progress))
     
-    # Draw lines centered around current line
-    center_y = height // 2
-    visible_lines = 7  # Show 7 lines at a time
+    # Number of visible lines
+    visible_lines = 9  # Show more lines for teleprompter feel
     
+    # Center point for current line
+    center_y = height // 2
+    
+    # Draw all visible lines with SAME font size
     for offset in range(-visible_lines // 2, visible_lines // 2 + 1):
         line_idx = current_line_idx + offset
+        
         if 0 <= line_idx < len(lines):
             line = lines[line_idx]
             
             # Calculate y position with smooth scroll
             base_y = center_y + (offset * line_height)
-            scroll_offset = scroll_progress * line_height * 0.3  # Subtle scroll
+            scroll_offset = scroll_progress * line_height
             y = base_y - int(scroll_offset)
             
-            # Build line text with highlighting
-            if offset == 0:
-                # Current line - draw word by word with highlighting
-                x = width // 2
-                total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
-                x = (width - total_width) // 2
+            # Skip if outside visible area
+            if y < -line_height or y > height + line_height:
+                continue
+            
+            # Calculate total line width to center it
+            total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
+            x = (width - total_width) // 2
+            x = max(padding, x)  # Respect left padding
+            
+            # Draw each word
+            for word_data in line:
+                word = word_data['word'] + ' '
+                word_width = draw.textbbox((0, 0), word, font=font)[2]
                 
-                for word_data in line:
-                    word = word_data['word'] + ' '
-                    
-                    # Highlight if this word is current or past
+                # Determine color based on timing
+                if line_idx < current_line_idx:
+                    # Past line - dimmed
+                    color = COLOR_SUNG
+                elif line_idx == current_line_idx:
+                    # Current line - highlight current/past words
                     if current_time >= word_data['start']:
-                        color = COLOR_HIGHLIGHT
+                        color = COLOR_HIGHLIGHT  # Current or sung word
                     else:
-                        color = COLOR_TEXT
-                    
+                        color = COLOR_TEXT  # Upcoming word in current line
+                else:
+                    # Future line - normal white
+                    color = COLOR_UPCOMING
+                
+                # Check if word fits within right padding
+                if x + word_width <= width - padding:
                     draw.text((x, y), word, font=font, fill=color)
-                    x += draw.textbbox((0, 0), word, font=font)[2]
-            else:
-                # Other lines - show in gray
-                line_text = ' '.join([w['word'] for w in line])
-                # Fade based on distance from center
-                fade = 1 - (abs(offset) / (visible_lines // 2 + 1))
-                color = tuple(int(c * fade) for c in COLOR_UPCOMING)
-                draw_centered_text(draw, line_text, y, font_small, color, width)
+                
+                x += word_width
     
     return img
 
 
 def create_page_frame(current_time, lyrics, width, height):
-    """
-    Create frame with page-by-page lyrics display.
-    Shows a "page" of lines, transitions to next page at appropriate times.
-    """
+    """Create frame with page-by-page lyrics display."""
     img = create_frame(width, height)
     draw = ImageDraw.Draw(img)
     
     scale = width / 1920
     font = get_font(int(FONT_SIZE_LYRICS * scale))
-    line_height = int(100 * scale)
+    line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale)
+    padding = int(PADDING_LEFT_RIGHT * scale)
     
-    # Group words into lines
-    lines = []
-    current_line_words = []
-    for word in lyrics:
-        current_line_words.append(word)
-        if len(current_line_words) >= WORDS_PER_LINE:
-            lines.append(current_line_words)
-            current_line_words = []
-    if current_line_words:
-        lines.append(current_line_words)
+    lines = group_lyrics_into_lines(lyrics)
     
     # Group lines into pages
     pages = []
@@ -828,7 +899,6 @@ def create_page_frame(current_time, lyrics, width, height):
     if current_page_idx < len(pages):
         page = pages[current_page_idx]
         
-        # Calculate starting Y to center the page
         total_height = len(page) * line_height
         start_y = (height - total_height) // 2
         
@@ -836,23 +906,22 @@ def create_page_frame(current_time, lyrics, width, height):
             y = start_y + (i * line_height)
             line_idx_global = current_page_idx * LINES_PER_PAGE + i
             
-            # Draw word by word
             total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
             x = (width - total_width) // 2
+            x = max(padding, x)
             
             for word_data in line:
                 word = word_data['word'] + ' '
                 
-                # Highlight based on current time
                 if line_idx_global < current_line_idx:
-                    color = COLOR_UPCOMING  # Past line
+                    color = COLOR_SUNG
                 elif line_idx_global == current_line_idx:
                     if current_time >= word_data['start']:
-                        color = COLOR_HIGHLIGHT  # Current or past word
+                        color = COLOR_HIGHLIGHT
                     else:
-                        color = COLOR_TEXT  # Upcoming word
+                        color = COLOR_TEXT
                 else:
-                    color = COLOR_TEXT  # Future line
+                    color = COLOR_TEXT
                 
                 draw.text((x, y), word, font=font, fill=color)
                 x += draw.textbbox((0, 0), word, font=font)[2]
@@ -861,30 +930,17 @@ def create_page_frame(current_time, lyrics, width, height):
 
 
 def create_overwrite_frame(current_time, lyrics, width, height):
-    """
-    Create frame with overwrite-style lyrics display.
-    Shows current line (highlighted) and next line (preview).
-    Traditional karaoke style.
-    """
+    """Create frame with overwrite-style lyrics display."""
     img = create_frame(width, height)
     draw = ImageDraw.Draw(img)
     
     scale = width / 1920
     font = get_font(int(FONT_SIZE_LYRICS * scale))
-    font_preview = get_font(int((FONT_SIZE_LYRICS - 15) * scale))
+    font_preview = get_font(int((FONT_SIZE_LYRICS - 10) * scale))
+    padding = int(PADDING_LEFT_RIGHT * scale)
     
-    # Group words into lines
-    lines = []
-    current_line_words = []
-    for word in lyrics:
-        current_line_words.append(word)
-        if len(current_line_words) >= WORDS_PER_LINE:
-            lines.append(current_line_words)
-            current_line_words = []
-    if current_line_words:
-        lines.append(current_line_words)
+    lines = group_lyrics_into_lines(lyrics)
     
-    # Find current line
     current_line_idx = 0
     for i, line in enumerate(lines):
         if line and line[-1]['end'] >= current_time:
@@ -899,6 +955,7 @@ def create_overwrite_frame(current_time, lyrics, width, height):
         
         total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
         x = (width - total_width) // 2
+        x = max(padding, x)
         
         for word_data in line:
             word = word_data['word'] + ' '
@@ -917,20 +974,18 @@ def create_overwrite_frame(current_time, lyrics, width, height):
         y = height // 2 + int(70 * scale)
         
         next_text = ' '.join([w['word'] for w in next_line])
-        draw_centered_text(draw, next_text, y, font_preview, COLOR_UPCOMING, width)
+        draw_centered_text(draw, next_text, y, font_preview, COLOR_UPCOMING, width, padding)
     
     return img
 
 
 def create_lyrics_frame(current_time, lyrics, display_mode, width, height):
-    """
-    Create frame with lyrics based on selected display mode.
-    """
+    """Create frame with lyrics based on selected display mode."""
     if display_mode == 'scroll':
         return create_scroll_frame(current_time, lyrics, width, height)
     elif display_mode == 'page':
         return create_page_frame(current_time, lyrics, width, height)
-    else:  # 'overwrite' or default
+    else:
         return create_overwrite_frame(current_time, lyrics, width, height)
 
 
@@ -938,7 +993,6 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     """Generate video with lyrics and countdown"""
     print(f"🎬 Generating video (mode: {display_mode})...")
     
-    # Video dimensions based on quality
     if video_quality == '4k':
         width, height = 3840, 2160
     elif video_quality == '1080p':
@@ -946,14 +1000,11 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     else:
         width, height = 1280, 720
     
-    # Get audio duration
     duration = get_audio_duration(audio_path)
     total_frames = int((duration + INTRO_DURATION) * FPS)
     
-    # Create temp directory for frames
     frames_dir = tempfile.mkdtemp()
     
-    # UPDATED: Only use artist and title (no track number)
     artist = track_info.get('artist_name', 'Unknown Artist')
     title = track_info.get('song_title', 'Unknown Title')
     
@@ -961,10 +1012,8 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     
     for frame_num in range(total_frames):
         if frame_num < intro_frames:
-            # Intro screen - UPDATED: no track_number parameter
             frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height)
         else:
-            # Main content
             current_time = (frame_num - intro_frames) / FPS
             
             # Check if we're in a countdown gap
@@ -974,11 +1023,14 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
                     in_gap = True
                     time_until_lyrics = gap['end'] - current_time
                     dots_remaining = min(COUNTDOWN_DOTS, int(time_until_lyrics) + 1)
-                    frame = create_countdown_frame(dots_remaining, width, height)
+                    
+                    # NEW: Use countdown with preview instead of plain countdown
+                    frame = create_countdown_frame_with_preview(
+                        dots_remaining, width, height, lyrics, gap['end']
+                    )
                     break
             
             if not in_gap:
-                # Lyrics frame based on display mode
                 frame = create_lyrics_frame(current_time, lyrics, display_mode, width, height)
         
         frame_path = os.path.join(frames_dir, f'frame_{frame_num:06d}.png')
@@ -987,7 +1039,6 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         if frame_num % 100 == 0:
             print(f"  Frame {frame_num}/{total_frames}")
     
-    # Combine frames with audio using FFmpeg
     print("🔧 Encoding video with FFmpeg...")
     
     ffmpeg_cmd = [
@@ -1007,7 +1058,6 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     
     subprocess.run(ffmpeg_cmd, check=True)
     
-    # Cleanup frames
     import shutil
     shutil.rmtree(frames_dir)
     
@@ -1035,11 +1085,9 @@ def handler(event):
         thumbnail_url = input_data.get('thumbnail_url')
         callback_url = input_data.get('callback_url')
         
-        # Get new parameters
-        user_lyrics_text = input_data.get('lyrics_text')  # User-provided lyrics
-        display_mode = input_data.get('display_mode', 'auto')  # auto/scroll/page/overwrite
+        user_lyrics_text = input_data.get('lyrics_text')
+        display_mode = input_data.get('display_mode', 'auto')
         
-        # FIXED: Properly handle clean_version as boolean
         clean_version_raw = input_data.get('clean_version', False)
         clean_version = clean_version_raw in [True, 'true', 'True', '1', 1]
         
@@ -1053,24 +1101,20 @@ def handler(event):
         print(f"   Type: {processing_type}")
         print(f"   Lyrics provided: {'Yes' if user_lyrics_text else 'No (auto-transcribe)'}")
         print(f"   Display mode: {display_mode}")
-        print(f"   Clean version: {clean_version} (raw value: {clean_version_raw})")
+        print(f"   Clean version: {clean_version}")
         print(f"   Quality: {video_quality}")
         
-        # Create temp working directory
         work_dir = tempfile.mkdtemp()
         
-        # Download audio
         audio_path = os.path.join(work_dir, 'input_audio.mp3')
         print(f"📥 Downloading audio from {audio_url}")
         download_file(audio_url, audio_path)
         
         results = {}
         
-        # Separate vocals (always needed for better lyrics sync)
         print("🎵 Starting vocal separation...")
         instrumental_path, vocals_path = separate_vocals(audio_path, work_dir)
         
-        # Upload based on processing type
         if processing_type in ['remove_vocals', 'both']:
             instrumental_key = f"processed/{project_id}/instrumental.wav"
             results['processed_audio_url'] = upload_to_r2(instrumental_path, instrumental_key)
@@ -1083,47 +1127,34 @@ def handler(event):
             vocals_key = f"processed/{project_id}/vocals.wav"
             results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
         
-        # ============================================
         # LYRICS PROCESSING
-        # ============================================
         lyrics = []
         gaps = []
         
         if include_lyrics:
             if user_lyrics_text and len(user_lyrics_text.strip()) > 50:
-                # USER PROVIDED LYRICS - Use forced alignment for 100% accuracy
                 print("📝 Using user-provided lyrics with forced alignment...")
                 lyrics = align_user_lyrics(vocals_path, user_lyrics_text, work_dir)
             else:
-                # NO USER LYRICS - Auto-transcribe from ISOLATED VOCALS
                 print("📝 Auto-transcribing from isolated vocals...")
                 lyrics = transcribe_lyrics_auto(vocals_path, work_dir)
             
-            # Apply profanity filter if requested - FIXED
             if clean_version and lyrics:
                 print("🛡️ Applying profanity filter...")
                 print(f"   Processing {len(lyrics)} words...")
                 lyrics = apply_profanity_filter(lyrics)
             
-            # Detect gaps for countdown dots - UPDATED thresholds
             gaps = detect_silence_gaps(lyrics)
             print(f"   Found {len(gaps)} gaps for countdown")
             
-            # Store lyrics in results
             results['lyrics'] = lyrics
         
-        # ============================================
         # VIDEO GENERATION
-        # ============================================
-        
-        # Get audio duration for display mode selection
         audio_duration = get_audio_duration(audio_path)
         
-        # Select display mode (auto-detect if 'auto')
         selected_display_mode = select_display_mode(lyrics, audio_duration, display_mode)
         print(f"📺 Selected display mode: {selected_display_mode}")
         
-        # Generate video
         video_path = os.path.join(work_dir, f'{project_id}_output.mp4')
         audio_for_video = instrumental_path if instrumental_path else audio_path
         
@@ -1137,11 +1168,9 @@ def handler(event):
             selected_display_mode
         )
         
-        # Upload video to R2
         video_key = f"processed/{project_id}/video.mp4"
         results['video_url'] = upload_to_r2(video_path, video_key)
         
-        # Send callback
         if callback_url:
             print(f"📤 Sending callback to {callback_url}")
             requests.post(callback_url, json={
@@ -1150,7 +1179,6 @@ def handler(event):
                 'results': results
             })
         
-        # Cleanup
         import shutil
         shutil.rmtree(work_dir)
         
