@@ -1,39 +1,36 @@
-# Karatrack Studio RunPod Handler v2.2 Serverless Dockerfile
-# Version 6 - Fix FFmpeg with libx264 support
-FROM pytorch/pytorch:2.0.1-cuda11.7-cudnn8-runtime
+# Karatrack Studio RunPod Handler v3.0
+# WhisperX for precise word-level timestamps
 
-# Prevent interactive prompts during install
-ENV DEBIAN_FRONTEND=noninteractive
+FROM runpod/pytorch:2.1.0-py3.10-cuda11.8.0-devel-ubuntu22.04
 
-# Remove conda's FFmpeg and install proper one with libx264
-RUN conda remove -y ffmpeg || true
+WORKDIR /app
+
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     git \
-    fonts-dejavu-core \
+    libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /app
-
-# Install torchaudio matching the base PyTorch version
-RUN pip install --no-cache-dir torchaudio==2.0.2
-
-# Install Whisper and other dependencies
+# Install Python dependencies
 RUN pip install --no-cache-dir \
-    openai-whisper \
     runpod \
-    demucs \
-    Pillow \
+    boto3 \
     requests \
-    boto3
+    numpy \
+    Pillow \
+    torchaudio \
+    demucs
 
-# Pre-download models to avoid cold start delays
-RUN python -c "import whisper; whisper.load_model('medium')"
-RUN python -c "from demucs.pretrained import get_model; get_model('htdemucs')"
+# Install WhisperX (includes whisper + forced alignment)
+RUN pip install --no-cache-dir git+https://github.com/m-bain/whisperx.git
 
 # Copy handler
 COPY handler.py /app/handler.py
 
-# Set entrypoint
+# Pre-download models (optional but speeds up first run)
+# Uncomment these lines to bake models into the image:
+# RUN python -c "import whisperx; whisperx.load_model('medium', device='cpu', compute_type='int8')"
+# RUN python -c "import whisperx; whisperx.load_align_model(language_code='en', device='cpu')"
+
 CMD ["python", "-u", "/app/handler.py"]
