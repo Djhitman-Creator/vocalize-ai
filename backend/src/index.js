@@ -5,6 +5,8 @@
  * - lyrics_text (user-provided lyrics for 100% accuracy)
  * - display_mode (auto/scroll/page/overwrite)
  * - clean_version (profanity filter toggle)
+ * - Style customization (colors, fonts, gradients)
+ * - Email notifications via Brevo when processing completes
  * 
  * Changes marked with "// NEW:" comments
  */
@@ -23,6 +25,9 @@ const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/clien
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const Stripe = require('stripe');
 const axios = require('axios');
+
+// NEW: Import Brevo SDK
+const SibApiV3Sdk = require('sib-api-v3-sdk');
 
 // ============================================
 // CONFIGURATION
@@ -47,6 +52,12 @@ const r2Client = new S3Client({
     secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_KEY,
   },
 });
+
+// NEW: Configure Brevo
+const brevoClient = SibApiV3Sdk.ApiClient.instance;
+const apiKey = brevoClient.authentications['api-key'];
+apiKey.apiKey = process.env.BREVO_API_KEY;
+const brevoEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -208,7 +219,7 @@ function calculateCreditsNeeded(options) {
   return credits;
 }
 
-// UPDATED: Added new fields to RunPod payload
+// UPDATED: Added new fields to RunPod payload including style options
 async function sendToRunPod(projectId, audioUrl, options) {
   const response = await axios.post(
     `https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/run`,
@@ -225,10 +236,20 @@ async function sendToRunPod(projectId, audioUrl, options) {
         track_number: options.track_number,
         callback_url: `${process.env.API_URL}/api/webhooks/runpod`,
         
-        // NEW: Add lyrics, display mode, and clean version
+        // Lyrics and display options
         lyrics_text: options.lyrics_text || null,
         display_mode: options.display_mode || 'auto',
         clean_version: options.clean_version || false,
+        
+        // NEW: Style customization options
+        bg_color_1: options.bg_color_1 || '#1a1a2e',
+        bg_color_2: options.bg_color_2 || '#16213e',
+        use_gradient: options.use_gradient !== false,
+        gradient_direction: options.gradient_direction || 'to bottom',
+        text_color: options.text_color || '#ffffff',
+        outline_color: options.outline_color || '#000000',
+        sung_color: options.sung_color || '#00d4ff',
+        font: options.font || 'arial',
       },
     },
     {
@@ -239,6 +260,207 @@ async function sendToRunPod(projectId, audioUrl, options) {
     }
   );
   return response.data.id;
+}
+
+// NEW: Send completion email via Brevo
+async function sendCompletionEmail(project, downloadUrl) {
+  try {
+    // Get user email from auth
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(project.user_id);
+    
+    if (authError || !authUser?.user?.email) {
+      console.error('Could not get user email for notification:', authError);
+      return;
+    }
+
+    const userEmail = authUser.user.email;
+    const userName = authUser.user.user_metadata?.full_name || userEmail.split('@')[0];
+
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    
+    sendSmtpEmail.subject = `🎵 Your karaoke track "${project.title}" is ready!`;
+    sendSmtpEmail.sender = { 
+      name: 'Karatrack Studio', 
+      email: 'notifications@karatrack.com' 
+    };
+    sendSmtpEmail.to = [{ 
+      email: userEmail, 
+      name: userName 
+    }];
+    
+    sendSmtpEmail.htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f0f1a;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+          <!-- Header -->
+          <div style="text-align: center; margin-bottom: 40px;">
+            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">🎵 Karatrack Studio</h1>
+          </div>
+          
+          <!-- Main Content -->
+          <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(0, 212, 255, 0.2);">
+            <h2 style="color: #ffffff; font-size: 24px; margin: 0 0 20px 0;">
+              Hey ${userName}! 👋
+            </h2>
+            
+            <p style="color: #a0a0a0; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+              Great news! Your karaoke track is ready for download.
+            </p>
+            
+            <!-- Track Info -->
+            <div style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+              <p style="color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">
+                ${project.track_number || 'KT-01'}
+              </p>
+              <p style="color: #ffffff; font-size: 20px; font-weight: bold; margin: 0 0 4px 0;">
+                ${project.song_title || project.title}
+              </p>
+              <p style="color: #a0a0a0; font-size: 14px; margin: 0;">
+                by ${project.artist_name || 'Unknown Artist'}
+              </p>
+            </div>
+            
+            <!-- Download Button -->
+            <div style="text-align: center;">
+              <a href="${downloadUrl}" 
+                 style="display: inline-block; background: linear-gradient(90deg, #00d4ff 0%, #a855f7 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-weight: bold; font-size: 16px;">
+                Download Your Track
+              </a>
+            </div>
+            
+            <p style="color: #666; font-size: 12px; text-align: center; margin: 30px 0 0 0;">
+              This download link expires in 1 hour. You can always download again from your dashboard.
+            </p>
+          </div>
+          
+          <!-- Footer -->
+          <div style="text-align: center; margin-top: 40px;">
+            <p style="color: #666; font-size: 14px; margin: 0 0 10px 0;">
+              <a href="${process.env.FRONTEND_URL}/dashboard" style="color: #00d4ff; text-decoration: none;">
+                Go to Dashboard
+              </a>
+            </p>
+            <p style="color: #444; font-size: 12px; margin: 0;">
+              © ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    sendSmtpEmail.textContent = `
+Hey ${userName}!
+
+Great news! Your karaoke track "${project.song_title || project.title}" by ${project.artist_name || 'Unknown Artist'} is ready for download.
+
+Download your track here: ${downloadUrl}
+
+This link expires in 1 hour. You can always download again from your dashboard at ${process.env.FRONTEND_URL}/dashboard
+
+- Karatrack Studio
+    `;
+
+    await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Completion email sent to ${userEmail} for project ${project.id}`);
+    
+  } catch (error) {
+    console.error('Error sending completion email:', error);
+    // Don't throw - email failure shouldn't break the webhook
+  }
+}
+
+// NEW: Send failure notification email
+async function sendFailureEmail(project, errorMessage) {
+  try {
+    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(project.user_id);
+    
+    if (authError || !authUser?.user?.email) {
+      console.error('Could not get user email for failure notification:', authError);
+      return;
+    }
+
+    const userEmail = authUser.user.email;
+    const userName = authUser.user.user_metadata?.full_name || userEmail.split('@')[0];
+
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    
+    sendSmtpEmail.subject = `⚠️ Issue processing "${project.title}"`;
+    sendSmtpEmail.sender = { 
+      name: 'Karatrack Studio', 
+      email: 'notifications@karatrack.com' 
+    };
+    sendSmtpEmail.to = [{ 
+      email: userEmail, 
+      name: userName 
+    }];
+    
+    sendSmtpEmail.htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f0f1a;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+          <!-- Header -->
+          <div style="text-align: center; margin-bottom: 40px;">
+            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">🎵 Karatrack Studio</h1>
+          </div>
+          
+          <!-- Main Content -->
+          <div style="background: linear-gradient(135deg, #2e1a1a 0%, #3e1616 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(255, 100, 100, 0.2);">
+            <h2 style="color: #ffffff; font-size: 24px; margin: 0 0 20px 0;">
+              Processing Issue
+            </h2>
+            
+            <p style="color: #a0a0a0; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+              Unfortunately, there was an issue processing your track "${project.song_title || project.title}".
+            </p>
+            
+            <p style="color: #ff6b6b; font-size: 14px; margin: 0 0 30px 0;">
+              ${errorMessage || 'An unexpected error occurred during processing.'}
+            </p>
+            
+            <p style="color: #a0a0a0; font-size: 14px; line-height: 1.6; margin: 0 0 30px 0;">
+              Your credits have not been deducted. Please try uploading again, or contact support if the issue persists.
+            </p>
+            
+            <!-- Retry Button -->
+            <div style="text-align: center;">
+              <a href="${process.env.FRONTEND_URL}/upload" 
+                 style="display: inline-block; background: linear-gradient(90deg, #00d4ff 0%, #a855f7 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 12px; font-weight: bold; font-size: 16px;">
+                Try Again
+              </a>
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div style="text-align: center; margin-top: 40px;">
+            <p style="color: #666; font-size: 14px; margin: 0 0 10px 0;">
+              Need help? <a href="mailto:support@karatrack.com" style="color: #00d4ff; text-decoration: none;">Contact Support</a>
+            </p>
+            <p style="color: #444; font-size: 12px; margin: 0;">
+              © ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
+    console.log(`✅ Failure email sent to ${userEmail} for project ${project.id}`);
+    
+  } catch (error) {
+    console.error('Error sending failure email:', error);
+  }
 }
 
 // ============================================
@@ -309,7 +531,7 @@ app.get('/api/projects/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// UPDATED: Project creation with new fields
+// UPDATED: Project creation with style options and email notification preference
 app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
   try {
     const { 
@@ -320,10 +542,21 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       artist_name, 
       song_title, 
       track_number,
-      // NEW: Extract new fields from request body
+      // Lyrics and display options
       lyrics_text,
       display_mode,
-      clean_version
+      clean_version,
+      // NEW: Style customization
+      bg_color_1,
+      bg_color_2,
+      use_gradient,
+      gradient_direction,
+      text_color,
+      outline_color,
+      sung_color,
+      font,
+      // NEW: Email notification preference
+      notify_on_complete
     } = req.body;
     
     const file = req.files?.audio?.[0];
@@ -333,7 +566,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       return res.status(400).json({ error: 'No audio file provided' });
     }
 
-    // NEW: Validate lyrics are provided (required for accurate sync)
+    // Validate lyrics are provided (required for accurate sync)
     if (!lyrics_text || lyrics_text.trim().length < 50) {
       return res.status(400).json({ 
         error: 'Lyrics are required for accurate sync. Please paste the complete song lyrics (minimum 50 characters).' 
@@ -373,7 +606,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       .update({ track_count: supabase.rpc('increment_track_count') })
       .eq('id', req.user.id);
 
-    // UPDATED: Insert project with new fields
+    // Insert project with all fields including style options
     const { data: project, error } = await supabase
       .from('projects')
       .insert({
@@ -392,10 +625,21 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         video_quality,
         credits_used: creditsNeeded,
         thumbnail_url: thumbnailUrl,
-        // NEW: Store the new fields in database
+        // Lyrics and display
         lyrics_text: lyrics_text ? lyrics_text.trim() : null,
         display_mode: display_mode || 'auto',
         clean_version: clean_version === 'true' || clean_version === true,
+        // NEW: Style options
+        bg_color_1: bg_color_1 || '#1a1a2e',
+        bg_color_2: bg_color_2 || '#16213e',
+        use_gradient: use_gradient !== 'false' && use_gradient !== false,
+        gradient_direction: gradient_direction || 'to bottom',
+        text_color: text_color || '#ffffff',
+        outline_color: outline_color || '#000000',
+        sung_color: sung_color || '#00d4ff',
+        font: font || 'arial',
+        // NEW: Email notification preference
+        notify_on_complete: notify_on_complete !== 'false' && notify_on_complete !== false,
       })
       .select()
       .single();
@@ -404,7 +648,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
 
     await deductCredits(req.user.id, creditsNeeded, projectId, `Processing: ${title || file.originalname}`);
 
-    // UPDATED: Send new fields to RunPod
+    // Send to RunPod with all options
     const runpodJobId = await sendToRunPod(projectId, fileUrl, {
       processing_type,
       include_lyrics: include_lyrics === 'true',
@@ -413,10 +657,18 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       artist_name: artist_name || 'Unknown Artist',
       song_title: song_title || file.originalname.replace(/\.[^/.]+$/, ''),
       track_number: track_number || 'KT-01',
-      // NEW: Pass new fields to RunPod
       lyrics_text: lyrics_text ? lyrics_text.trim() : null,
       display_mode: display_mode || 'auto',
       clean_version: clean_version === 'true' || clean_version === true,
+      // Style options
+      bg_color_1: bg_color_1 || '#1a1a2e',
+      bg_color_2: bg_color_2 || '#16213e',
+      use_gradient: use_gradient !== 'false' && use_gradient !== false,
+      gradient_direction: gradient_direction || 'to bottom',
+      text_color: text_color || '#ffffff',
+      outline_color: outline_color || '#000000',
+      sung_color: sung_color || '#00d4ff',
+      font: font || 'arial',
     });
 
     await supabase
@@ -738,9 +990,17 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
   }
 });
 
+// UPDATED: RunPod webhook with email notifications
 app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
   try {
     const { project_id, status, results, error: processingError } = req.body;
+
+    // Fetch the project to get notify preference
+    const { data: project } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', project_id)
+      .single();
 
     if (status === 'completed' && results) {
       await supabase
@@ -754,6 +1014,21 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
           processing_completed_at: new Date().toISOString(),
         })
         .eq('id', project_id);
+
+      // NEW: Send completion email if enabled
+      if (project && project.notify_on_complete !== false) {
+        // Generate download URL for email
+        const baseFilename = `${project.track_number || 'KT-01'} - ${project.artist_name || 'Unknown Artist'} - ${project.song_title || 'Untitled'}`;
+        const sanitizedFilename = baseFilename.replace(/[<>:"/\\|?*]/g, '');
+        
+        let downloadUrl = `${process.env.FRONTEND_URL}/dashboard`;
+        if (results.video_url) {
+          downloadUrl = await getSignedDownloadUrl(results.video_url, `${sanitizedFilename}.mp4`);
+        }
+        
+        await sendCompletionEmail(project, downloadUrl);
+      }
+      
     } else if (status === 'failed') {
       await supabase
         .from('projects')
@@ -763,6 +1038,11 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
           processing_completed_at: new Date().toISOString(),
         })
         .eq('id', project_id);
+
+      // NEW: Send failure email if enabled
+      if (project && project.notify_on_complete !== false) {
+        await sendFailureEmail(project, processingError);
+      }
     }
 
     res.json({ received: true });
@@ -789,6 +1069,7 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Karatrack Studio API running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📧 Email notifications: ${process.env.BREVO_API_KEY ? 'enabled' : 'disabled'}`);
 });
 
 module.exports = app;
