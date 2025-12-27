@@ -846,15 +846,13 @@ def create_page_frame(current_time, lyrics, width, height):
 
 def create_overwrite_frame(current_time, lyrics, width, height):
     """
-    Create frame with rolling karaoke-style lyrics display.
+    Create frame with overwrite-style lyrics display.
     
-    Shows 6 lines at a time:
-    - Lines 1-2: Recently sung (dimmed)
-    - Line 3: Currently being sung (word-by-word highlight)
-    - Lines 4-6: Upcoming lyrics (visible, not highlighted)
-    
-    As singing progresses, old lines scroll up and new lines appear at bottom.
-    No "clear screen" - upcoming lyrics are always visible.
+    Shows 6 lines at a time with NO scrolling:
+    - Current line moves down through positions 1, 2, 3
+    - When position 3 is done, top 3 lines are replaced with next 3
+    - Upcoming lines are always visible
+    - No smooth scroll - instant "overwrite" of top lines
     """
     img = create_frame(width, height)
     draw = ImageDraw.Draw(img)
@@ -880,16 +878,15 @@ def create_overwrite_frame(current_time, lyrics, width, height):
     
     # Number of lines to display
     DISPLAY_LINES = 6
-    # Position of current line within display (0-indexed, so 2 = third line)
-    CURRENT_LINE_POSITION = 2
+    # Lines per "chunk" - how many lines before we overwrite
+    CHUNK_SIZE = 3
     
-    # Calculate which lines to show
-    # We want current_line_idx to appear at position CURRENT_LINE_POSITION
-    start_line_idx = current_line_idx - CURRENT_LINE_POSITION
-    
-    # Don't go negative at the start
-    if start_line_idx < 0:
-        start_line_idx = 0
+    # Calculate which chunk we're in and starting line
+    # Chunk 0: lines 0-5, current at position 0,1,2
+    # Chunk 1: lines 3-8, current at position 0,1,2
+    # etc.
+    chunk_num = current_line_idx // CHUNK_SIZE
+    start_line_idx = chunk_num * CHUNK_SIZE
     
     # Calculate vertical starting position to center the block
     total_display_height = DISPLAY_LINES * line_height
@@ -925,7 +922,7 @@ def create_overwrite_frame(current_time, lyrics, width, height):
                 else:
                     color = COLOR_TEXT
             else:
-                # Upcoming lines - visible but dimmed
+                # Upcoming lines - visible but slightly dimmed
                 color = COLOR_UPCOMING
             
             draw.text((x, y), word, font=font, fill=color)
