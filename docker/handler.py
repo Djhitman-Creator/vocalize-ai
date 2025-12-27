@@ -894,7 +894,8 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         if frame_num < intro_frames:
             frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height)
         else:
-            current_time = (frame_num - intro_frames) / FPS
+            # Audio plays from frame 0, so current_time = total video time, not time since intro ended
+            current_time = frame_num / FPS
             
             in_gap = False
             for gap in gaps:
