@@ -1,16 +1,17 @@
 'use client';
 
 /**
- * Upload Page - Karatrack Studio
+ * Upload Page - Karatrack Studio (Redesigned)
  * 
  * Place this at: frontend/src/pages/upload.jsx
  * 
  * Features:
- * - Required lyrics textarea
- * - Display mode selector (Auto/Scroll/Page-by-Page/Overwrite)
- * - Clean version checkbox (profanity filter)
- * - AI disclaimer
- * - Rights confirmation checkbox (REQUIRED)
+ * - Condensed layout
+ * - Live preview with customization
+ * - Background color/gradient
+ * - Text color, outline color, sung color
+ * - Font selection
+ * - Rights confirmation
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -24,20 +25,15 @@ import {
   Zap,
   Sun,
   Moon,
-  LogOut,
   ArrowLeft,
   FileAudio,
-  Image as ImageIcon,
   X,
   AlertCircle,
   CheckCircle,
   Loader2,
-  ScrollText,
-  FileText,
-  Layers,
-  Wand2,
-  ShieldCheck,
-  Scale
+  Palette,
+  Type,
+  Eye
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -47,36 +43,55 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+// Available fonts
+const FONT_OPTIONS = [
+  { value: 'arial', label: 'Arial', family: 'Arial, sans-serif' },
+  { value: 'roboto', label: 'Roboto', family: '"Roboto", sans-serif' },
+  { value: 'poppins', label: 'Poppins', family: '"Poppins", sans-serif' },
+  { value: 'montserrat', label: 'Montserrat', family: '"Montserrat", sans-serif' },
+  { value: 'oswald', label: 'Oswald', family: '"Oswald", sans-serif' },
+  { value: 'playfair', label: 'Playfair Display', family: '"Playfair Display", serif' },
+  { value: 'bebas', label: 'Bebas Neue', family: '"Bebas Neue", sans-serif' },
+  { value: 'impact', label: 'Impact', family: 'Impact, sans-serif' },
+];
+
+// Sample lyrics for preview (original, not from any real song)
+const SAMPLE_LYRICS = `Chasing stars across the sky tonight
+Dreams are dancing in the neon light
+Every heartbeat tells a story new
+Finding magic in the morning dew`;
+
 export default function UploadPage() {
   const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
   
   // Form state
   const [audioFile, setAudioFile] = useState(null);
-  const [thumbnailFile, setThumbnailFile] = useState(null);
-  const [thumbnailPreview, setThumbnailPreview] = useState(null);
   const [title, setTitle] = useState('');
   const [artistName, setArtistName] = useState('');
   const [trackNumber, setTrackNumber] = useState('KT-01');
   const [processingType, setProcessingType] = useState('remove_vocals');
   const [videoQuality, setVideoQuality] = useState('1080p');
-  
-  // Lyrics and display options
   const [lyrics, setLyrics] = useState('');
   const [displayMode, setDisplayMode] = useState('auto');
   const [cleanVersion, setCleanVersion] = useState(false);
-  
-  // Rights confirmation (REQUIRED)
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  
+  // Style customization
+  const [bgColor1, setBgColor1] = useState('#1a1a2e');
+  const [bgColor2, setBgColor2] = useState('#16213e');
+  const [useGradient, setUseGradient] = useState(true);
+  const [gradientDirection, setGradientDirection] = useState('to bottom');
+  const [textColor, setTextColor] = useState('#ffffff');
+  const [outlineColor, setOutlineColor] = useState('#000000');
+  const [sungColor, setSungColor] = useState('#00d4ff');
+  const [selectedFont, setSelectedFont] = useState('arial');
   
   // UI state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState(null);
   const [profile, setProfile] = useState(null);
-  
-  // Refs
-  const thumbnailInputRef = useRef(null);
 
   // Load user profile on mount
   useState(() => {
@@ -101,7 +116,6 @@ export default function UploadPage() {
     const file = acceptedFiles[0];
     if (file) {
       setAudioFile(file);
-      // Auto-fill title from filename
       if (!title) {
         const nameWithoutExt = file.name.replace(/\.(mp3|wav|flac)$/i, '');
         setTitle(nameWithoutExt);
@@ -117,26 +131,22 @@ export default function UploadPage() {
       'audio/wav': ['.wav'],
       'audio/flac': ['.flac']
     },
-    maxSize: 500 * 1024 * 1024, // 500MB
+    maxSize: 500 * 1024 * 1024,
     multiple: false
   });
 
-  // Thumbnail handling
-  const handleThumbnailChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setThumbnailFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setThumbnailPreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+  // Get current font family
+  const getCurrentFontFamily = () => {
+    const font = FONT_OPTIONS.find(f => f.value === selectedFont);
+    return font ? font.family : 'Arial, sans-serif';
   };
 
-  const removeThumbnail = () => {
-    setThumbnailFile(null);
-    setThumbnailPreview(null);
+  // Get background style
+  const getBackgroundStyle = () => {
+    if (useGradient) {
+      return { background: `linear-gradient(${gradientDirection}, ${bgColor1}, ${bgColor2})` };
+    }
+    return { backgroundColor: bgColor1 };
   };
 
   // Form submission
@@ -144,14 +154,13 @@ export default function UploadPage() {
     e.preventDefault();
     setError(null);
 
-    // Validation
     if (!audioFile) {
       setError('Please select an audio file');
       return;
     }
 
     if (!lyrics.trim()) {
-      setError('Please paste the song lyrics for accurate sync. You can find lyrics on sites like Genius or AZLyrics.');
+      setError('Please paste the song lyrics');
       return;
     }
 
@@ -161,7 +170,7 @@ export default function UploadPage() {
     }
 
     if (!title.trim()) {
-      setError('Please enter a track title');
+      setError('Please enter a song title');
       return;
     }
 
@@ -170,7 +179,6 @@ export default function UploadPage() {
       return;
     }
 
-    // Rights confirmation check
     if (!rightsConfirmed) {
       setError('Please confirm that you have the legal right to use this audio');
       return;
@@ -187,7 +195,6 @@ export default function UploadPage() {
         return;
       }
 
-      // Create FormData
       const formData = new FormData();
       formData.append('audio', audioFile);
       formData.append('title', title.trim());
@@ -197,19 +204,22 @@ export default function UploadPage() {
       formData.append('processing_type', processingType);
       formData.append('video_quality', videoQuality);
       formData.append('include_lyrics', 'true');
-      
-      // Add lyrics and display options
       formData.append('lyrics_text', lyrics.trim());
       formData.append('display_mode', displayMode);
       formData.append('clean_version', cleanVersion.toString());
-
-      if (thumbnailFile) {
-        formData.append('thumbnail', thumbnailFile);
-      }
+      
+      // Style options
+      formData.append('bg_color_1', bgColor1);
+      formData.append('bg_color_2', bgColor2);
+      formData.append('use_gradient', useGradient.toString());
+      formData.append('gradient_direction', gradientDirection);
+      formData.append('text_color', textColor);
+      formData.append('outline_color', outlineColor);
+      formData.append('sung_color', sungColor);
+      formData.append('font', selectedFont);
 
       setUploadProgress(30);
 
-      // Upload to backend
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/projects`,
         {
@@ -228,10 +238,8 @@ export default function UploadPage() {
         throw new Error(errorData.error || 'Upload failed');
       }
 
-      const project = await response.json();
       setUploadProgress(100);
 
-      // Redirect to dashboard
       setTimeout(() => {
         router.push('/dashboard');
       }, 500);
@@ -243,34 +251,6 @@ export default function UploadPage() {
       setUploadProgress(0);
     }
   };
-
-  // Display mode options
-  const displayModes = [
-    {
-      value: 'auto',
-      label: 'Auto',
-      icon: Wand2,
-      description: 'AI picks the best mode based on song tempo'
-    },
-    {
-      value: 'scroll',
-      label: 'Scroll',
-      icon: ScrollText,
-      description: 'Smooth continuous scroll - best for fast songs & rap'
-    },
-    {
-      value: 'page',
-      label: 'Page-by-Page',
-      icon: Layers,
-      description: 'Shows verse blocks - best for ballads & slow songs'
-    },
-    {
-      value: 'overwrite',
-      label: 'Overwrite',
-      icon: FileText,
-      description: 'Line by line replacement - traditional karaoke style'
-    }
-  ];
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
@@ -293,11 +273,7 @@ export default function UploadPage() {
                 <span className="text-sm text-white">{profile.credits_remaining || 0} Credits</span>
               </div>
             )}
-
-            <button
-              onClick={toggleTheme}
-              className="glass-button p-3 rounded-xl"
-            >
+            <button onClick={toggleTheme} className="glass-button p-3 rounded-xl">
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
           </div>
@@ -305,418 +281,446 @@ export default function UploadPage() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-6 py-8">
-        {/* Back Button */}
+      <main className="max-w-7xl mx-auto px-6 py-8">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </Link>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-panel p-8"
-        >
-          <h1 className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            🎵 Create Karaoke Track
-          </h1>
-          <p className={`mb-8 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Upload your audio and paste the lyrics for perfect sync
-          </p>
+        {/* Error Display */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-red-400">{error}</p>
+          </div>
+        )}
 
-          {/* Error Display */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-              <p className="text-red-400">{error}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Section 1: Audio Upload */}
-            <section>
-              <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                1. Upload Audio File
-              </h2>
-              
-              <div
-                {...getAudioRootProps()}
-                className={`dropzone cursor-pointer transition-all ${
-                  isAudioDragActive ? 'border-cyan-400 bg-cyan-400/10' : ''
-                } ${audioFile ? 'border-green-400 bg-green-400/5' : ''}`}
+        <form onSubmit={handleSubmit}>
+          <div className="grid lg:grid-cols-2 gap-8">
+            
+            {/* LEFT COLUMN - File & Track Info */}
+            <div className="space-y-6">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="glass-panel p-6"
               >
-                <input {...getAudioInputProps()} />
-                
-                {audioFile ? (
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                      <CheckCircle className="w-6 h-6 text-green-400" />
-                    </div>
-                    <div className="flex-1 text-left">
-                      <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{audioFile.name}</p>
-                      <p className="text-gray-400 text-sm">{(audioFile.size / (1024 * 1024)).toFixed(2)} MB</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAudioFile(null);
-                      }}
-                      className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                    >
-                      <X className="w-5 h-5 text-gray-400" />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-400/20 to-purple-500/20 flex items-center justify-center">
-                      <FileAudio className="w-8 h-8 text-cyan-400" />
-                    </div>
-                    <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {isAudioDragActive ? 'Drop your audio file here' : 'Drag & drop your audio file'}
-                    </p>
-                    <p className="text-gray-400 text-sm mt-1">MP3, WAV, or FLAC (max 500MB)</p>
-                  </>
-                )}
-              </div>
-            </section>
+                <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <FileAudio className="w-5 h-5 text-cyan-400" />
+                  Audio & Track Info
+                </h2>
 
-            {/* Section 2: Track Information */}
-            <section>
-              <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                2. Track Information
-              </h2>
-              
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Track Title *
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="Enter song title"
-                    className="glass-input w-full px-4 py-3 rounded-xl"
-                  />
-                </div>
-                
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Artist Name *
-                  </label>
-                  <input
-                    type="text"
-                    value={artistName}
-                    onChange={(e) => setArtistName(e.target.value)}
-                    placeholder="Enter artist name"
-                    className="glass-input w-full px-4 py-3 rounded-xl"
-                  />
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Track Number
-                  </label>
-                  <input
-                    type="text"
-                    value={trackNumber}
-                    onChange={(e) => setTrackNumber(e.target.value)}
-                    placeholder="KT-01"
-                    className="glass-input w-full px-4 py-3 rounded-xl"
-                  />
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Video Quality
-                  </label>
-                  <select
-                    value={videoQuality}
-                    onChange={(e) => setVideoQuality(e.target.value)}
-                    className="glass-input w-full px-4 py-3 rounded-xl"
-                  >
-                    <option value="720p">720p (Standard)</option>
-                    <option value="1080p">1080p (HD)</option>
-                    <option value="4k">4K (Ultra HD)</option>
-                  </select>
-                </div>
-              </div>
-            </section>
-
-            {/* Section 3: Lyrics Input */}
-            <section>
-              <h2 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                3. Song Lyrics *
-              </h2>
-              <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Paste the complete lyrics below. This ensures 100% accurate word display and sync.
-                Find lyrics on <a href="https://genius.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Genius</a>, <a href="https://www.azlyrics.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">AZLyrics</a>, or <a href="https://www.musixmatch.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Musixmatch</a>.
-              </p>
-              
-              {/* AI Disclaimer */}
-              <div className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-yellow-50 border border-yellow-200'}`}>
-                <p className={`text-sm ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
-                  ⚡ Lyrics are synced using AI for precise timing. Some words may vary slightly — accuracy improves as AI technology advances.
-                </p>
-              </div>
-              
-              <textarea
-                value={lyrics}
-                onChange={(e) => setLyrics(e.target.value)}
-                placeholder={`Paste the song lyrics here...\n\nExample:\nVerse 1:\nNever gonna give you up\nNever gonna let you down\nNever gonna run around and desert you\n\nChorus:\n...`}
-                rows={10}
-                className="glass-input w-full px-4 py-3 rounded-xl resize-y min-h-[200px]"
-              />
-              
-              <div className="flex justify-between mt-2">
-                <span className={`text-sm ${lyrics.length < 50 ? 'text-yellow-400' : 'text-green-400'}`}>
-                  {lyrics.length} characters {lyrics.length < 50 && '(minimum 50)'}
-                </span>
-                <span className="text-sm text-gray-500">
-                  ~{lyrics.split(/\s+/).filter(w => w).length} words
-                </span>
-              </div>
-            </section>
-
-            {/* Section 4: Display Mode */}
-            <section>
-              <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                4. Lyrics Display Mode
-              </h2>
-              
-              <div className="grid sm:grid-cols-2 gap-3">
-                {displayModes.map((mode) => {
-                  const Icon = mode.icon;
-                  return (
-                    <label
-                      key={mode.value}
-                      className={`flex items-start gap-3 p-4 rounded-xl cursor-pointer transition-all ${
-                        displayMode === mode.value
-                          ? 'bg-cyan-500/20 border-2 border-cyan-400'
-                          : 'bg-white/5 border-2 border-transparent hover:bg-white/10'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="displayMode"
-                        value={mode.value}
-                        checked={displayMode === mode.value}
-                        onChange={(e) => setDisplayMode(e.target.value)}
-                        className="sr-only"
-                      />
-                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                        displayMode === mode.value ? 'bg-cyan-500/30' : 'bg-white/10'
-                      }`}>
-                        <Icon className={`w-5 h-5 ${displayMode === mode.value ? 'text-cyan-400' : 'text-gray-400'}`} />
-                      </div>
-                      <div>
-                        <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{mode.label}</p>
-                        <p className="text-sm text-gray-400">{mode.description}</p>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-            </section>
-
-            {/* Section 5: Processing Options */}
-            <section>
-              <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                5. Processing Options
-              </h2>
-              
-              {/* Vocal Options */}
-              <div className="mb-6">
-                <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Vocal Removal
-                </label>
-                <div className="flex flex-wrap gap-3">
-                  {[
-                    { value: 'remove_vocals', label: 'Remove All Vocals', desc: 'Full karaoke track' },
-                    { value: 'isolate_backing', label: 'Keep Backing Vocals', desc: 'Remove lead, keep harmonies' },
-                    { value: 'both', label: 'Both Versions', desc: 'Get instrumental + vocals separate' }
-                  ].map((option) => (
-                    <label
-                      key={option.value}
-                      className={`flex-1 min-w-[150px] p-3 rounded-xl cursor-pointer transition-all text-center ${
-                        processingType === option.value
-                          ? 'bg-purple-500/20 border-2 border-purple-400'
-                          : 'bg-white/5 border-2 border-transparent hover:bg-white/10'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="processingType"
-                        value={option.value}
-                        checked={processingType === option.value}
-                        onChange={(e) => setProcessingType(e.target.value)}
-                        className="sr-only"
-                      />
-                      <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</p>
-                      <p className="text-xs text-gray-400 mt-1">{option.desc}</p>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Clean Version Checkbox */}
-              <label className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${
-                cleanVersion
-                  ? 'bg-green-500/20 border-2 border-green-400'
-                  : 'bg-white/5 border-2 border-transparent hover:bg-white/10'
-              }`}>
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  cleanVersion ? 'bg-green-500/30' : 'bg-white/10'
-                }`}>
-                  <ShieldCheck className={`w-5 h-5 ${cleanVersion ? 'text-green-400' : 'text-gray-400'}`} />
-                </div>
-                <div className="flex-1">
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    Clean Version (Family Friendly)
-                  </p>
-                  <p className="text-sm text-gray-400">
-                    Replace profanity with #### symbols
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={cleanVersion}
-                  onChange={(e) => setCleanVersion(e.target.checked)}
-                  className="sr-only"
-                />
-                <div className={`w-12 h-6 rounded-full transition-colors ${
-                  cleanVersion ? 'bg-green-500' : 'bg-gray-600'
-                }`}>
-                  <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform mt-0.5 ${
-                    cleanVersion ? 'translate-x-6 ml-0.5' : 'translate-x-0.5'
-                  }`} />
-                </div>
-              </label>
-            </section>
-
-            {/* Section 6: Thumbnail (Optional) */}
-            <section>
-              <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                6. Thumbnail Image (Optional)
-              </h2>
-              
-              {thumbnailPreview ? (
-                <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl">
-                  <img
-                    src={thumbnailPreview}
-                    alt="Thumbnail preview"
-                    className="w-20 h-20 object-cover rounded-lg"
-                  />
-                  <div className="flex-1">
-                    <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{thumbnailFile?.name}</p>
-                    <p className="text-gray-400 text-sm">Thumbnail added</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={removeThumbnail}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                  >
-                    <X className="w-5 h-5 text-gray-400" />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => thumbnailInputRef.current?.click()}
-                  className="w-full p-6 border-2 border-dashed border-white/20 rounded-xl hover:border-white/40 transition-colors"
+                {/* Audio Upload */}
+                <div
+                  {...getAudioRootProps()}
+                  className={`dropzone cursor-pointer transition-all mb-4 p-4 ${
+                    isAudioDragActive ? 'border-cyan-400 bg-cyan-400/10' : ''
+                  } ${audioFile ? 'border-green-400 bg-green-400/5' : ''}`}
                 >
-                  <ImageIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Add Thumbnail</p>
-                  <p className="text-gray-400 text-sm">JPG or PNG (shown at start of video)</p>
-                </button>
-              )}
-              <input
-                ref={thumbnailInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/jpg"
-                onChange={handleThumbnailChange}
-                className="hidden"
-              />
-            </section>
-
-            {/* Section 7: Rights Confirmation (REQUIRED) */}
-            <section>
-              <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                7. Rights Confirmation *
-              </h2>
-              
-              <label className={`flex items-start gap-4 p-4 rounded-xl cursor-pointer transition-all ${
-                rightsConfirmed
-                  ? 'bg-cyan-500/20 border-2 border-cyan-400'
-                  : 'bg-white/5 border-2 border-red-500/50 hover:bg-white/10'
-              }`}>
-                <div className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
-                  rightsConfirmed 
-                    ? 'bg-cyan-500 border-cyan-500' 
-                    : 'border-gray-500'
-                }`}>
-                  {rightsConfirmed && <CheckCircle className="w-4 h-4 text-white" />}
+                  <input {...getAudioInputProps()} />
+                  {audioFile ? (
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-5 h-5 text-green-400" />
+                      <span className={`flex-1 truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{audioFile.name}</span>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setAudioFile(null); }} className="p-1 hover:bg-white/10 rounded">
+                        <X className="w-4 h-4 text-gray-400" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <Upload className="w-8 h-8 text-cyan-400 mx-auto mb-2" />
+                      <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Drop audio file or click to browse</p>
+                      <p className="text-xs text-gray-500 mt-1">MP3, WAV, FLAC (max 500MB)</p>
+                    </div>
+                  )}
                 </div>
-                <div className="flex-1">
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    I confirm I have the legal right to use this audio
-                  </p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    By checking this box, I confirm that I either own the copyright to this audio, 
-                    have obtained proper licenses/permissions, or the content is my original work. 
-                    I understand that uploading copyrighted material without authorization violates 
-                    the <Link href="/terms" className="text-cyan-400 hover:underline">Terms of Service</Link>.
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={rightsConfirmed}
-                  onChange={(e) => setRightsConfirmed(e.target.checked)}
-                  className="sr-only"
-                />
-              </label>
-            </section>
 
-            {/* Submit Button */}
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={isUploading || !rightsConfirmed}
-                className={`w-full py-4 px-6 rounded-xl text-white font-semibold text-lg transition-all flex items-center justify-center gap-3 ${
-                  rightsConfirmed 
-                    ? 'bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90' 
-                    : 'bg-gray-600 cursor-not-allowed'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
+                {/* Track Info Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Disc ID</label>
+                    <input
+                      type="text"
+                      value={trackNumber}
+                      onChange={(e) => setTrackNumber(e.target.value)}
+                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Artist *</label>
+                    <input
+                      type="text"
+                      value={artistName}
+                      onChange={(e) => setArtistName(e.target.value)}
+                      placeholder="Artist name"
+                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Song Title *</label>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Song title"
+                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Output Quality</label>
+                    <select
+                      value={videoQuality}
+                      onChange={(e) => setVideoQuality(e.target.value)}
+                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                    >
+                      <option value="720p">720p</option>
+                      <option value="1080p">1080p (HD)</option>
+                      <option value="4k">4K</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Lyric Display</label>
+                    <select
+                      value={displayMode}
+                      onChange={(e) => setDisplayMode(e.target.value)}
+                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                    >
+                      <option value="auto">Auto</option>
+                      <option value="scroll">Scroll</option>
+                      <option value="page">Page-by-Page</option>
+                      <option value="overwrite">Overwrite</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Clean Lyrics</label>
+                    <select
+                      value={cleanVersion ? 'on' : 'off'}
+                      onChange={(e) => setCleanVersion(e.target.value === 'on')}
+                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                    >
+                      <option value="off">OFF</option>
+                      <option value="on">ON</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Processing</label>
+                    <select
+                      value={processingType}
+                      onChange={(e) => setProcessingType(e.target.value)}
+                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                    >
+                      <option value="remove_vocals">Remove All Vocals</option>
+                      <option value="isolate_backing">Keep Backing Vocals</option>
+                      <option value="both">Both Versions</option>
+                    </select>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Lyrics Input */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="glass-panel p-6"
               >
-                {isUploading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Processing... {uploadProgress}%</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="w-5 h-5" />
-                    <span>{rightsConfirmed ? 'Create Karaoke Track' : 'Please Confirm Rights Above'}</span>
-                  </>
-                )}
-              </button>
-              
-              {isUploading && (
-                <div className="mt-4">
-                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <h2 className={`text-lg font-semibold mb-2 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <Type className="w-5 h-5 text-cyan-400" />
+                  Lyrics *
+                </h2>
+                
+                {/* AI Disclaimer */}
+                <div className={`mb-3 p-2 rounded-lg text-xs ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
+                  ⚡ Lyrics are synced using AI for precise timing. Some words may vary slightly — accuracy improves as AI technology advances.
+                </div>
+                
+                <textarea
+                  value={lyrics}
+                  onChange={(e) => setLyrics(e.target.value)}
+                  placeholder={`Paste lyrics here...\n\nExample:\n${SAMPLE_LYRICS}`}
+                  rows={8}
+                  className="glass-input w-full px-3 py-2 rounded-lg text-sm resize-none"
+                />
+                <div className="flex justify-between mt-2 text-xs text-gray-500">
+                  <span className={lyrics.length < 50 ? 'text-yellow-400' : 'text-green-400'}>
+                    {lyrics.length} chars {lyrics.length < 50 && '(min 50)'}
+                  </span>
+                  <span>~{lyrics.split(/\s+/).filter(w => w).length} words</span>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* RIGHT COLUMN - Style Customization & Preview */}
+            <div className="space-y-6">
+              {/* Live Preview */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="glass-panel p-6"
+              >
+                <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <Eye className="w-5 h-5 text-cyan-400" />
+                  Live Preview
+                </h2>
+                
+                {/* Preview Box */}
+                <div
+                  className="rounded-xl overflow-hidden aspect-video flex items-center justify-center p-6"
+                  style={getBackgroundStyle()}
+                >
+                  <div className="text-center space-y-2">
+                    {SAMPLE_LYRICS.split('\n').map((line, i) => (
+                      <p
+                        key={i}
+                        style={{
+                          fontFamily: getCurrentFontFamily(),
+                          color: i === 0 ? sungColor : textColor,
+                          textShadow: `
+                            -1px -1px 0 ${outlineColor},
+                            1px -1px 0 ${outlineColor},
+                            -1px 1px 0 ${outlineColor},
+                            1px 1px 0 ${outlineColor}
+                          `,
+                          fontSize: '1.1rem',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Style Customization */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="glass-panel p-6"
+              >
+                <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <Palette className="w-5 h-5 text-cyan-400" />
+                  Style Customization
+                </h2>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Font Selection */}
+                  <div className="col-span-2">
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Font</label>
+                    <select
+                      value={selectedFont}
+                      onChange={(e) => setSelectedFont(e.target.value)}
+                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                    >
+                      {FONT_OPTIONS.map(font => (
+                        <option key={font.value} value={font.value}>{font.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Background Colors */}
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      Background {useGradient ? '(Start)' : ''}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={bgColor1}
+                        onChange={(e) => setBgColor1(e.target.value)}
+                        className="w-10 h-10 rounded-lg cursor-pointer border-0"
+                      />
+                      <input
+                        type="text"
+                        value={bgColor1}
+                        onChange={(e) => setBgColor1(e.target.value)}
+                        className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {useGradient ? 'Background (End)' : 'Gradient (Off)'}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={bgColor2}
+                        onChange={(e) => setBgColor2(e.target.value)}
+                        disabled={!useGradient}
+                        className={`w-10 h-10 rounded-lg cursor-pointer border-0 ${!useGradient && 'opacity-50'}`}
+                      />
+                      <input
+                        type="text"
+                        value={bgColor2}
+                        onChange={(e) => setBgColor2(e.target.value)}
+                        disabled={!useGradient}
+                        className={`glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase ${!useGradient && 'opacity-50'}`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Gradient Toggle & Direction */}
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Gradient</label>
+                    <select
+                      value={useGradient ? 'on' : 'off'}
+                      onChange={(e) => setUseGradient(e.target.value === 'on')}
+                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                    >
+                      <option value="on">ON</option>
+                      <option value="off">OFF</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Direction</label>
+                    <select
+                      value={gradientDirection}
+                      onChange={(e) => setGradientDirection(e.target.value)}
+                      disabled={!useGradient}
+                      className={`glass-input w-full px-3 py-2 rounded-lg text-sm ${!useGradient && 'opacity-50'}`}
+                    >
+                      <option value="to bottom">Top → Bottom</option>
+                      <option value="to top">Bottom → Top</option>
+                      <option value="to right">Left → Right</option>
+                      <option value="to left">Right → Left</option>
+                      <option value="to bottom right">Diagonal ↘</option>
+                      <option value="to bottom left">Diagonal ↙</option>
+                    </select>
+                  </div>
+
+                  {/* Text Colors */}
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Text Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={textColor}
+                        onChange={(e) => setTextColor(e.target.value)}
+                        className="w-10 h-10 rounded-lg cursor-pointer border-0"
+                      />
+                      <input
+                        type="text"
+                        value={textColor}
+                        onChange={(e) => setTextColor(e.target.value)}
+                        className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Text Outline</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={outlineColor}
+                        onChange={(e) => setOutlineColor(e.target.value)}
+                        className="w-10 h-10 rounded-lg cursor-pointer border-0"
+                      />
+                      <input
+                        type="text"
+                        value={outlineColor}
+                        onChange={(e) => setOutlineColor(e.target.value)}
+                        className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Sung Color (After Read)</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={sungColor}
+                        onChange={(e) => setSungColor(e.target.value)}
+                        className="w-10 h-10 rounded-lg cursor-pointer border-0"
+                      />
+                      <input
+                        type="text"
+                        value={sungColor}
+                        onChange={(e) => setSungColor(e.target.value)}
+                        className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
+                      />
+                      <span className="text-xs text-gray-500">← First line shows this color</span>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Rights Confirmation & Submit */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="glass-panel p-6"
+              >
+                {/* Rights Checkbox */}
+                <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-4 ${
+                  rightsConfirmed
+                    ? 'bg-cyan-500/20 border border-cyan-400'
+                    : 'bg-white/5 border border-red-500/50 hover:bg-white/10'
+                }`}>
+                  <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
+                    rightsConfirmed ? 'bg-cyan-500 border-cyan-500' : 'border-gray-500'
+                  }`}>
+                    {rightsConfirmed && <CheckCircle className="w-3 h-3 text-white" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      I confirm I have the legal right to use this audio
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      I own, have licensed, or created this content. <Link href="/terms" className="text-cyan-400 hover:underline">Terms of Service</Link>
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={rightsConfirmed}
+                    onChange={(e) => setRightsConfirmed(e.target.checked)}
+                    className="sr-only"
+                  />
+                </label>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isUploading || !rightsConfirmed}
+                  className={`w-full py-4 px-6 rounded-xl text-white font-semibold text-lg transition-all flex items-center justify-center gap-3 ${
+                    rightsConfirmed 
+                      ? 'bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90' 
+                      : 'bg-gray-600 cursor-not-allowed'
+                  } disabled:opacity-50`}
+                >
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      <span>Processing... {uploadProgress}%</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5" />
+                      <span>{rightsConfirmed ? 'Create Karaoke Track' : 'Confirm Rights Above'}</span>
+                    </>
+                  )}
+                </button>
+                
+                {isUploading && (
+                  <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
                     <motion.div
                       className="h-full bg-gradient-to-r from-cyan-500 to-purple-500"
                       initial={{ width: 0 }}
                       animate={{ width: `${uploadProgress}%` }}
-                      transition={{ duration: 0.3 }}
                     />
                   </div>
-                </div>
-              )}
+                )}
+              </motion.div>
             </div>
-          </form>
-        </motion.div>
+          </div>
+        </form>
       </main>
     </div>
   );
