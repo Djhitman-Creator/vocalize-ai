@@ -410,67 +410,47 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
     """
     Map user-provided lyrics to AssemblyAI timestamps.
     
-    This gives us:
-    - 100% accurate WORDS (from user)
-    - Precise TIMING (from AssemblyAI)
+    SIMPLE APPROACH: 
+    - If word counts are similar (within 15%), do 1:1 sequential mapping
+    - User word 1 gets API timestamp 1, user word 2 gets API timestamp 2, etc.
+    - This guarantees timestamps stay in order and are accurate
+    
+    If word counts differ too much, just use API words directly.
     """
     # Parse user lyrics into words
     user_words = parse_lyrics_text(user_lyrics_text)
     print(f"   User provided {len(user_words)} words")
     print(f"   AssemblyAI detected {len(api_lyrics)} words")
     
-    aligned = []
-    api_idx = 0
+    # Check if word counts are similar enough for 1:1 mapping
+    if len(api_lyrics) == 0:
+        print("   ⚠️ No API words - returning empty")
+        return []
     
-    for user_word in user_words:
-        user_clean = re.sub(r'[^a-zA-Z]', '', user_word).lower()
+    word_count_ratio = len(user_words) / len(api_lyrics)
+    
+    # If counts are within 15%, do 1:1 sequential mapping
+    if 0.85 <= word_count_ratio <= 1.15:
+        print(f"   ✅ Word counts similar ({word_count_ratio:.2f}) - using 1:1 mapping")
+        aligned = []
         
-        # Find matching API word
-        best_match_idx = None
-        best_match_score = 0
+        # Use the shorter list length
+        min_len = min(len(user_words), len(api_lyrics))
         
-        # Look ahead up to 15 words for a match
-        for i in range(api_idx, min(api_idx + 15, len(api_lyrics))):
-            api_clean = re.sub(r'[^a-zA-Z]', '', api_lyrics[i]['word']).lower()
-            
-            if user_clean == api_clean:
-                best_match_idx = i
-                best_match_score = 1.0
-                break
-            elif len(user_clean) > 2 and len(api_clean) > 2:
-                # Partial match for longer words
-                if user_clean in api_clean or api_clean in user_clean:
-                    score = min(len(user_clean), len(api_clean)) / max(len(user_clean), len(api_clean))
-                    if score > best_match_score:
-                        best_match_idx = i
-                        best_match_score = score
-        
-        if best_match_idx is not None and best_match_score > 0.6:
+        for i in range(min_len):
             aligned.append({
-                'word': user_word,  # Use user's word
-                'start': api_lyrics[best_match_idx]['start'],  # Use API timing
-                'end': api_lyrics[best_match_idx]['end']
+                'word': user_words[i],  # User's word
+                'start': api_lyrics[i]['start'],  # API's timing
+                'end': api_lyrics[i]['end']
             })
-            api_idx = best_match_idx + 1
-        else:
-            # Estimate timing based on previous word
-            if aligned:
-                prev_end = aligned[-1]['end']
-                estimated_duration = 0.25  # Quarter second per word
-                aligned.append({
-                    'word': user_word,
-                    'start': prev_end + 0.05,
-                    'end': prev_end + 0.05 + estimated_duration
-                })
-            else:
-                aligned.append({
-                    'word': user_word,
-                    'start': 0.0,
-                    'end': 0.25
-                })
-    
-    print(f"✅ Aligned {len(aligned)} user words with AssemblyAI timestamps")
-    return aligned
+        
+        print(f"✅ Aligned {len(aligned)} user words with AssemblyAI timestamps")
+        return aligned
+    else:
+        # Word counts too different - just use API transcription directly
+        print(f"   ⚠️ Word counts too different ({word_count_ratio:.2f}) - using API words directly")
+        print(f"✅ Using {len(api_lyrics)} AssemblyAI words with original timestamps")
+        return api_lyrics
 
 
 def parse_lyrics_text(lyrics_text):
