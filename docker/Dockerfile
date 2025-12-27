@@ -1,6 +1,6 @@
-# Karatrack Studio RunPod Handler v3.4
+# Karatrack Studio RunPod Handler v3.5
 # WhisperX for precise word-level timestamps
-# Explicit version pinning for all torch components
+# Reinstall torch stack LAST to ensure compatibility
 
 FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 
@@ -16,18 +16,12 @@ RUN apt-get update && apt-get install -y \
 # Pin NumPy to 1.x first
 RUN pip install --no-cache-dir "numpy<2"
 
-# Install compatible torch stack together (2.4.0 versions)
-RUN pip install --no-cache-dir --force-reinstall \
-    torch==2.4.0 \
-    torchvision==0.19.0 \
-    torchaudio==2.4.0 \
-    --index-url https://download.pytorch.org/whl/cu124
-
-# Install demucs with --no-deps to prevent torch conflicts
-RUN pip install --no-cache-dir --no-deps demucs
-
-# Install demucs dependencies manually
+# Install ALL Python packages first (they may pull wrong torch versions)
 RUN pip install --no-cache-dir \
+    runpod \
+    boto3 \
+    requests \
+    Pillow \
     einops \
     lameenc \
     openunmix \
@@ -35,26 +29,23 @@ RUN pip install --no-cache-dir \
     diffq \
     julius \
     submitit \
-    treetable
-
-# Install transformers (pinned to avoid conflicts)
-RUN pip install --no-cache-dir "transformers>=4.36.0,<4.50.0"
-
-# Install WhisperX dependencies
-RUN pip install --no-cache-dir \
+    treetable \
+    "transformers>=4.36.0,<4.50.0" \
     faster-whisper \
     pyannote.audio \
     ctranslate2
 
-# Install WhisperX (without deps to avoid torch conflicts)
+# Install demucs and whisperx without deps
+RUN pip install --no-cache-dir --no-deps demucs
 RUN pip install --no-cache-dir --no-deps git+https://github.com/m-bain/whisperx.git
 
-# Install remaining dependencies
-RUN pip install --no-cache-dir \
-    runpod \
-    boto3 \
-    requests \
-    Pillow
+# CRITICAL: Reinstall compatible torch stack LAST
+# This overwrites any incompatible versions pulled by other packages
+RUN pip install --no-cache-dir --force-reinstall \
+    torch==2.4.0 \
+    torchvision==0.19.0 \
+    torchaudio==2.4.0 \
+    --index-url https://download.pytorch.org/whl/cu124
 
 # Copy handler
 COPY handler.py /app/handler.py
