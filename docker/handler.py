@@ -388,10 +388,20 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
     
     print(f"✅ AssemblyAI returned {len(lyrics)} words with precise timestamps")
     
+    # Debug: Show first 5 words and their timestamps
+    print("   📊 First 5 words timing:")
+    for i, w in enumerate(lyrics[:5]):
+        print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s")
+    
     # If user provided lyrics, use their words but keep AssemblyAI timestamps
     if user_lyrics_text and len(user_lyrics_text.strip()) > 50:
         print("📝 Mapping user lyrics to AssemblyAI timestamps...")
         lyrics = align_user_lyrics_to_timestamps(user_lyrics_text, lyrics)
+        
+        # Debug: Show first 5 aligned words
+        print("   📊 First 5 aligned words timing:")
+        for i, w in enumerate(lyrics[:5]):
+            print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s")
     
     return lyrics
 
@@ -662,13 +672,36 @@ def create_countdown_frame_with_preview(dots_remaining, width, height, lyrics, g
 
 
 def group_lyrics_into_lines(lyrics, words_per_line=WORDS_PER_LINE):
-    """Helper function to group lyrics into display lines"""
+    """
+    Group lyrics into display lines using both word count AND timing gaps.
+    
+    Natural line breaks occur when:
+    1. We've reached max words per line, OR
+    2. There's a significant pause (0.5+ seconds) between words
+    
+    This creates more natural-looking line breaks that match the song's rhythm.
+    """
     lines = []
     current_line = []
     
-    for word in lyrics:
+    for i, word in enumerate(lyrics):
         current_line.append(word)
+        
+        # Check if we should end this line
+        should_break = False
+        
+        # Reason 1: Reached max words per line
         if len(current_line) >= words_per_line:
+            should_break = True
+        
+        # Reason 2: Natural pause before next word (0.5+ seconds gap)
+        elif i < len(lyrics) - 1:
+            next_word = lyrics[i + 1]
+            gap = next_word['start'] - word['end']
+            if gap >= 0.5 and len(current_line) >= 3:  # At least 3 words before breaking on gap
+                should_break = True
+        
+        if should_break:
             lines.append(current_line)
             current_line = []
     
@@ -812,17 +845,32 @@ def create_page_frame(current_time, lyrics, width, height):
 
 
 def create_overwrite_frame(current_time, lyrics, width, height):
-    """Create frame with overwrite-style lyrics display."""
+    """
+    Create frame with rolling karaoke-style lyrics display.
+    
+    Shows 6 lines at a time:
+    - Lines 1-2: Recently sung (dimmed)
+    - Line 3: Currently being sung (word-by-word highlight)
+    - Lines 4-6: Upcoming lyrics (visible, not highlighted)
+    
+    As singing progresses, old lines scroll up and new lines appear at bottom.
+    No "clear screen" - upcoming lyrics are always visible.
+    """
     img = create_frame(width, height)
     draw = ImageDraw.Draw(img)
     
     scale = width / 1920
     font = get_font(int(FONT_SIZE_LYRICS * scale))
-    font_preview = get_font(int((FONT_SIZE_LYRICS - 10) * scale))
+    line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
+    # Group lyrics into lines
     lines = group_lyrics_into_lines(lyrics)
     
+    if not lines:
+        return img
+    
+    # Find which line is currently being sung
     current_line_idx = 0
     for i, line in enumerate(lines):
         if line and line[-1]['end'] >= current_time:
@@ -830,31 +878,58 @@ def create_overwrite_frame(current_time, lyrics, width, height):
             break
         current_line_idx = i
     
-    if current_line_idx < len(lines):
-        line = lines[current_line_idx]
-        y = height // 2 - int(30 * scale)
+    # Number of lines to display
+    DISPLAY_LINES = 6
+    # Position of current line within display (0-indexed, so 2 = third line)
+    CURRENT_LINE_POSITION = 2
+    
+    # Calculate which lines to show
+    # We want current_line_idx to appear at position CURRENT_LINE_POSITION
+    start_line_idx = current_line_idx - CURRENT_LINE_POSITION
+    
+    # Don't go negative at the start
+    if start_line_idx < 0:
+        start_line_idx = 0
+    
+    # Calculate vertical starting position to center the block
+    total_display_height = DISPLAY_LINES * line_height
+    start_y = (height - total_display_height) // 2
+    
+    # Draw each visible line
+    for display_pos in range(DISPLAY_LINES):
+        line_idx = start_line_idx + display_pos
         
+        # Skip if line doesn't exist
+        if line_idx < 0 or line_idx >= len(lines):
+            continue
+        
+        line = lines[line_idx]
+        y = start_y + (display_pos * line_height)
+        
+        # Calculate total width for centering
         total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
         x = (width - total_width) // 2
         x = max(padding, x)
         
+        # Draw each word in the line
         for word_data in line:
             word = word_data['word'] + ' '
             
-            if current_time >= word_data['start']:
-                color = COLOR_HIGHLIGHT
+            if line_idx < current_line_idx:
+                # Already sung lines - dimmed
+                color = COLOR_SUNG
+            elif line_idx == current_line_idx:
+                # Current line - highlight sung words
+                if current_time >= word_data['start']:
+                    color = COLOR_HIGHLIGHT
+                else:
+                    color = COLOR_TEXT
             else:
-                color = COLOR_TEXT
+                # Upcoming lines - visible but dimmed
+                color = COLOR_UPCOMING
             
             draw.text((x, y), word, font=font, fill=color)
             x += draw.textbbox((0, 0), word, font=font)[2]
-    
-    if current_line_idx + 1 < len(lines):
-        next_line = lines[current_line_idx + 1]
-        y = height // 2 + int(70 * scale)
-        
-        next_text = ' '.join([w['word'] for w in next_line])
-        draw_centered_text(draw, next_text, y, font_preview, COLOR_UPCOMING, width, padding)
     
     return img
 
@@ -890,12 +965,27 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     
     intro_frames = int(INTRO_DURATION * FPS)
     
+    # Debug: Log timing info
+    print(f"   📊 Timing debug:")
+    print(f"      Audio duration: {duration:.2f}s")
+    print(f"      Intro duration: {INTRO_DURATION}s ({intro_frames} frames)")
+    print(f"      Total frames: {total_frames}")
+    if lyrics:
+        print(f"      First lyric '{lyrics[0]['word']}' at {lyrics[0]['start']:.2f}s (frame {int(lyrics[0]['start'] * FPS)})")
+    
+    first_lyric_logged = False
+    
     for frame_num in range(total_frames):
         if frame_num < intro_frames:
             frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height)
         else:
             # Audio plays from frame 0, so current_time = total video time, not time since intro ended
             current_time = frame_num / FPS
+            
+            # Debug: Log when first lyric should appear
+            if not first_lyric_logged and lyrics and current_time >= lyrics[0]['start']:
+                print(f"   📊 First lyric should appear now: frame {frame_num}, current_time={current_time:.2f}s")
+                first_lyric_logged = True
             
             # Just show lyrics - no countdown dots for now
             frame = create_lyrics_frame(current_time, lyrics, display_mode, width, height)
