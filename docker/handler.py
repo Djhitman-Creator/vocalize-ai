@@ -1,11 +1,9 @@
 """
 Karatrack Studio RunPod Handler
-Version 3.1 - WhisperX for Precise Timing
+Version 4.0 - AssemblyAI for Precise Timing
 
-MAJOR CHANGE: Uses WhisperX instead of standard Whisper
-- WhisperX provides phoneme-level forced alignment
-- Word timestamps are accurate to ~50ms instead of ~500-2000ms
-- Uses wav2vec2 alignment model for precision
+Uses AssemblyAI API for word-level timestamps (~50ms accuracy)
+No more dependency hell - simple REST API call
 
 Processes audio files: vocal removal, lyrics transcription, video generation
 Uploads results to Cloudflare R2
@@ -17,10 +15,10 @@ import subprocess
 import tempfile
 import requests
 import re
+import time
 from pathlib import Path
 import runpod
 import torch
-import whisperx
 from demucs.pretrained import get_model
 from demucs.apply import apply_model
 import torchaudio
@@ -36,8 +34,12 @@ import gc
 # ============================================
 
 SAMPLE_RATE = 44100
-WHISPER_MODEL = "medium"  # Options: tiny, base, small, medium, large-v2
 DEMUCS_MODEL = "htdemucs"
+
+# AssemblyAI
+ASSEMBLYAI_API_KEY = os.environ.get('ASSEMBLYAI_API_KEY')
+ASSEMBLYAI_UPLOAD_URL = "https://api.assemblyai.com/v2/upload"
+ASSEMBLYAI_TRANSCRIPT_URL = "https://api.assemblyai.com/v2/transcript"
 
 # Video settings
 VIDEO_WIDTH = 1920
@@ -298,142 +300,137 @@ def separate_vocals(audio_path, output_dir):
 
 
 # ============================================
-# WHISPERX TRANSCRIPTION - PRECISE TIMING
+# ASSEMBLYAI TRANSCRIPTION - PRECISE TIMING
 # ============================================
 
-def transcribe_with_whisperx(audio_path, user_lyrics_text=None):
+def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
     """
-    Use WhisperX for precise word-level timestamps.
+    Use AssemblyAI for precise word-level timestamps.
     
-    WhisperX uses:
-    1. Whisper for initial transcription
-    2. wav2vec2 for phoneme-level forced alignment
-    
-    This gives ~50ms accuracy vs Whisper's ~500-2000ms accuracy.
+    AssemblyAI provides:
+    - ~50ms word-level accuracy
+    - No dependency conflicts
+    - Production-grade reliability
     """
-    print("📝 Transcribing with WhisperX (precise alignment)...")
+    print("📝 Transcribing with AssemblyAI (precise alignment)...")
     
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    compute_type = "float16" if torch.cuda.is_available() else "int8"
+    if not ASSEMBLYAI_API_KEY:
+        raise ValueError("ASSEMBLYAI_API_KEY environment variable not set")
     
-    # Convert audio to proper format for WhisperX (16kHz mono)
-    temp_audio = audio_path.replace('.wav', '_whisperx.wav')
-    cmd = [
-        'ffmpeg', '-y', '-i', audio_path,
-        '-ar', '16000',
-        '-ac', '1',
-        '-c:a', 'pcm_s16le',
-        temp_audio
-    ]
-    subprocess.run(cmd, check=True, capture_output=True)
+    headers = {
+        "authorization": ASSEMBLYAI_API_KEY,
+        "content-type": "application/json"
+    }
     
-    # Load WhisperX model
-    print(f"   Loading WhisperX model ({WHISPER_MODEL})...")
-    model = whisperx.load_model(WHISPER_MODEL, device=device, compute_type=compute_type)
+    # Step 1: Upload audio file to AssemblyAI
+    print("   Uploading audio to AssemblyAI...")
+    with open(audio_path, 'rb') as f:
+        upload_response = requests.post(
+            ASSEMBLYAI_UPLOAD_URL,
+            headers={"authorization": ASSEMBLYAI_API_KEY},
+            data=f
+        )
+    upload_response.raise_for_status()
+    audio_url = upload_response.json()['upload_url']
+    print(f"   Audio uploaded: {audio_url[:50]}...")
     
-    # Transcribe
-    print("   Transcribing audio...")
-    audio = whisperx.load_audio(temp_audio)
-    result = model.transcribe(audio, batch_size=16)
+    # Step 2: Request transcription with word-level timestamps
+    print("   Requesting transcription...")
+    transcript_request = {
+        "audio_url": audio_url,
+        "word_boost": [],  # Can add expected words for better accuracy
+        "boost_param": "default"
+    }
     
-    print(f"   Detected language: {result.get('language', 'en')}")
-    
-    # Free transcription model memory
-    del model
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-    
-    # Load alignment model
-    print("   Loading alignment model...")
-    model_a, metadata = whisperx.load_align_model(
-        language_code=result.get("language", "en"),
-        device=device
+    transcript_response = requests.post(
+        ASSEMBLYAI_TRANSCRIPT_URL,
+        headers=headers,
+        json=transcript_request
     )
+    transcript_response.raise_for_status()
+    transcript_id = transcript_response.json()['id']
+    print(f"   Transcript ID: {transcript_id}")
     
-    # Align with audio for precise word timestamps
-    print("   Aligning words with audio (this is where the magic happens)...")
-    result_aligned = whisperx.align(
-        result["segments"],
-        model_a,
-        metadata,
-        audio,
-        device,
-        return_char_alignments=False
-    )
+    # Step 3: Poll for completion
+    print("   Waiting for transcription to complete...")
+    polling_url = f"{ASSEMBLYAI_TRANSCRIPT_URL}/{transcript_id}"
     
-    # Free alignment model memory
-    del model_a
-    gc.collect()
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
+    while True:
+        poll_response = requests.get(polling_url, headers=headers)
+        poll_response.raise_for_status()
+        result = poll_response.json()
+        
+        status = result['status']
+        if status == 'completed':
+            print("   ✅ Transcription complete!")
+            break
+        elif status == 'error':
+            raise Exception(f"AssemblyAI transcription failed: {result.get('error', 'Unknown error')}")
+        else:
+            print(f"   Status: {status}...")
+            time.sleep(3)
     
-    # Extract word-level timestamps
+    # Step 4: Extract word-level timestamps
+    words = result.get('words', [])
+    
     lyrics = []
-    for segment in result_aligned["segments"]:
-        if "words" in segment:
-            for word_info in segment["words"]:
-                # WhisperX provides 'word', 'start', 'end' directly
-                word = word_info.get("word", "").strip()
-                start = word_info.get("start", 0)
-                end = word_info.get("end", start + 0.1)
-                
-                if word:
-                    lyrics.append({
-                        'word': word,
-                        'start': start,
-                        'end': end
-                    })
+    for word_info in words:
+        word = word_info.get('text', '').strip()
+        start = word_info.get('start', 0) / 1000.0  # Convert ms to seconds
+        end = word_info.get('end', 0) / 1000.0
+        
+        if word:
+            lyrics.append({
+                'word': word,
+                'start': start,
+                'end': end
+            })
     
-    print(f"✅ WhisperX aligned {len(lyrics)} words with precise timestamps")
+    print(f"✅ AssemblyAI returned {len(lyrics)} words with precise timestamps")
     
-    # Clean up temp file
-    if os.path.exists(temp_audio):
-        os.remove(temp_audio)
-    
-    # If user provided lyrics, use their words but keep WhisperX timestamps
+    # If user provided lyrics, use their words but keep AssemblyAI timestamps
     if user_lyrics_text and len(user_lyrics_text.strip()) > 50:
-        print("📝 Mapping user lyrics to WhisperX timestamps...")
+        print("📝 Mapping user lyrics to AssemblyAI timestamps...")
         lyrics = align_user_lyrics_to_timestamps(user_lyrics_text, lyrics)
     
     return lyrics
 
 
-def align_user_lyrics_to_timestamps(user_lyrics_text, whisperx_lyrics):
+def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
     """
-    Map user-provided lyrics to WhisperX timestamps.
+    Map user-provided lyrics to AssemblyAI timestamps.
     
     This gives us:
     - 100% accurate WORDS (from user)
-    - Precise TIMING (from WhisperX)
+    - Precise TIMING (from AssemblyAI)
     """
     # Parse user lyrics into words
     user_words = parse_lyrics_text(user_lyrics_text)
     print(f"   User provided {len(user_words)} words")
-    print(f"   WhisperX detected {len(whisperx_lyrics)} words")
+    print(f"   AssemblyAI detected {len(api_lyrics)} words")
     
     aligned = []
-    whisper_idx = 0
+    api_idx = 0
     
     for user_word in user_words:
         user_clean = re.sub(r'[^a-zA-Z]', '', user_word).lower()
         
-        # Find matching WhisperX word
+        # Find matching API word
         best_match_idx = None
         best_match_score = 0
         
         # Look ahead up to 15 words for a match
-        for i in range(whisper_idx, min(whisper_idx + 15, len(whisperx_lyrics))):
-            whisper_clean = re.sub(r'[^a-zA-Z]', '', whisperx_lyrics[i]['word']).lower()
+        for i in range(api_idx, min(api_idx + 15, len(api_lyrics))):
+            api_clean = re.sub(r'[^a-zA-Z]', '', api_lyrics[i]['word']).lower()
             
-            if user_clean == whisper_clean:
+            if user_clean == api_clean:
                 best_match_idx = i
                 best_match_score = 1.0
                 break
-            elif len(user_clean) > 2 and len(whisper_clean) > 2:
+            elif len(user_clean) > 2 and len(api_clean) > 2:
                 # Partial match for longer words
-                if user_clean in whisper_clean or whisper_clean in user_clean:
-                    score = min(len(user_clean), len(whisper_clean)) / max(len(user_clean), len(whisper_clean))
+                if user_clean in api_clean or api_clean in user_clean:
+                    score = min(len(user_clean), len(api_clean)) / max(len(user_clean), len(api_clean))
                     if score > best_match_score:
                         best_match_idx = i
                         best_match_score = score
@@ -441,10 +438,10 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, whisperx_lyrics):
         if best_match_idx is not None and best_match_score > 0.6:
             aligned.append({
                 'word': user_word,  # Use user's word
-                'start': whisperx_lyrics[best_match_idx]['start'],  # Use WhisperX timing
-                'end': whisperx_lyrics[best_match_idx]['end']
+                'start': api_lyrics[best_match_idx]['start'],  # Use API timing
+                'end': api_lyrics[best_match_idx]['end']
             })
-            whisper_idx = best_match_idx + 1
+            api_idx = best_match_idx + 1
         else:
             # Estimate timing based on previous word
             if aligned:
@@ -462,7 +459,7 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, whisperx_lyrics):
                     'end': 0.25
                 })
     
-    print(f"✅ Aligned {len(aligned)} user words with WhisperX timestamps")
+    print(f"✅ Aligned {len(aligned)} user words with AssemblyAI timestamps")
     return aligned
 
 
@@ -983,7 +980,7 @@ def handler(event):
         print(f"   Display mode: {display_mode}")
         print(f"   Clean version: {clean_version}")
         print(f"   Quality: {video_quality}")
-        print(f"   🚀 Using WhisperX for precise timing!")
+        print(f"   🚀 Using AssemblyAI for precise timing!")
         
         work_dir = tempfile.mkdtemp()
         
@@ -1008,13 +1005,13 @@ def handler(event):
             vocals_key = f"processed/{project_id}/vocals.wav"
             results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
         
-        # LYRICS PROCESSING - NOW USING WHISPERX
+        # LYRICS PROCESSING - NOW USING ASSEMBLYAI
         lyrics = []
         gaps = []
         
         if include_lyrics:
-            # Use WhisperX for transcription and alignment
-            lyrics = transcribe_with_whisperx(vocals_path, user_lyrics_text)
+            # Use AssemblyAI for transcription and alignment
+            lyrics = transcribe_with_assemblyai(vocals_path, user_lyrics_text)
             
             if clean_version and lyrics:
                 print("🛡️ Applying profanity filter...")
