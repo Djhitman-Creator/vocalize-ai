@@ -76,6 +76,7 @@ export default function UploadPage() {
   const [displayMode, setDisplayMode] = useState('auto');
   const [cleanVersion, setCleanVersion] = useState(false);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
+  const [notifyOnComplete, setNotifyOnComplete] = useState(true);
   
   // Style customization
   const [bgColor1, setBgColor1] = useState('#1a1a2e');
@@ -217,6 +218,9 @@ export default function UploadPage() {
       formData.append('outline_color', outlineColor);
       formData.append('sung_color', sungColor);
       formData.append('font', selectedFont);
+      
+      // Email notification
+      formData.append('notify_on_complete', notifyOnComplete.toString());
 
       setUploadProgress(30);
 
@@ -658,6 +662,33 @@ export default function UploadPage() {
                 transition={{ delay: 0.4 }}
                 className="glass-panel p-6"
               >
+                {/* Email Notification Checkbox */}
+                <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${
+                  notifyOnComplete
+                    ? 'bg-purple-500/20 border border-purple-400'
+                    : 'bg-white/5 border border-transparent hover:bg-white/10'
+                }`}>
+                  <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
+                    notifyOnComplete ? 'bg-purple-500 border-purple-500' : 'border-gray-500'
+                  }`}>
+                    {notifyOnComplete && <CheckCircle className="w-3 h-3 text-white" />}
+                  </div>
+                  <div className="flex-1">
+                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      📧 Notify me when processing is complete
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      We'll email you a download link when your karaoke track is ready
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={notifyOnComplete}
+                    onChange={(e) => setNotifyOnComplete(e.target.checked)}
+                    className="sr-only"
+                  />
+                </label>
+
                 {/* Rights Checkbox */}
                 <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-4 ${
                   rightsConfirmed
