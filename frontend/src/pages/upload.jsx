@@ -443,6 +443,13 @@ export default function UploadPage() {
                 Find lyrics on <a href="https://genius.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Genius</a>, <a href="https://www.azlyrics.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">AZLyrics</a>, or <a href="https://www.musixmatch.com" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">Musixmatch</a>.
               </p>
               
+              {/* AI Disclaimer */}
+              <div className={`mb-4 p-3 rounded-lg ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-yellow-50 border border-yellow-200'}`}>
+                <p className={`text-sm ${isDark ? 'text-yellow-300' : 'text-yellow-700'}`}>
+                  ⚡ Lyrics are synced using AI for precise timing. Some words may vary slightly — accuracy improves as AI technology advances.
+                </p>
+              </div>
+              
               <textarea
                 value={lyrics}
                 onChange={(e) => setLyrics(e.target.value)}
