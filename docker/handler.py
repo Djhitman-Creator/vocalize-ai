@@ -408,47 +408,40 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
 
 def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
     """
-    Map user-provided lyrics to AssemblyAI timestamps.
+    Decide whether to use user lyrics or API transcription.
     
-    SIMPLE APPROACH: 
-    - If word counts are similar (within 15%), do 1:1 sequential mapping
-    - User word 1 gets API timestamp 1, user word 2 gets API timestamp 2, etc.
-    - This guarantees timestamps stay in order and are accurate
+    PRIORITY: Perfect timing over perfect words.
     
-    If word counts differ too much, just use API words directly.
+    - If word counts match exactly: use user words with API timestamps
+    - Otherwise: use API transcription directly (timing is perfect)
+    
+    The API transcription might have minor word errors, but the timing
+    will be perfectly synced throughout the entire song.
     """
     # Parse user lyrics into words
     user_words = parse_lyrics_text(user_lyrics_text)
     print(f"   User provided {len(user_words)} words")
     print(f"   AssemblyAI detected {len(api_lyrics)} words")
     
-    # Check if word counts are similar enough for 1:1 mapping
     if len(api_lyrics) == 0:
         print("   ⚠️ No API words - returning empty")
         return []
     
-    word_count_ratio = len(user_words) / len(api_lyrics)
-    
-    # If counts are within 15%, do 1:1 sequential mapping
-    if 0.85 <= word_count_ratio <= 1.15:
-        print(f"   ✅ Word counts similar ({word_count_ratio:.2f}) - using 1:1 mapping")
+    # Only use user words if counts match EXACTLY
+    if len(user_words) == len(api_lyrics):
+        print(f"   ✅ Word counts match exactly - using user words with API timestamps")
         aligned = []
-        
-        # Use the shorter list length
-        min_len = min(len(user_words), len(api_lyrics))
-        
-        for i in range(min_len):
+        for i in range(len(user_words)):
             aligned.append({
-                'word': user_words[i],  # User's word
-                'start': api_lyrics[i]['start'],  # API's timing
+                'word': user_words[i],
+                'start': api_lyrics[i]['start'],
                 'end': api_lyrics[i]['end']
             })
-        
         print(f"✅ Aligned {len(aligned)} user words with AssemblyAI timestamps")
         return aligned
     else:
-        # Word counts too different - just use API transcription directly
-        print(f"   ⚠️ Word counts too different ({word_count_ratio:.2f}) - using API words directly")
+        # Word counts differ - use API transcription for perfect timing
+        print(f"   ⚠️ Word counts differ ({len(user_words)} vs {len(api_lyrics)}) - using API transcription for perfect timing")
         print(f"✅ Using {len(api_lyrics)} AssemblyAI words with original timestamps")
         return api_lyrics
 
