@@ -1,6 +1,6 @@
-# Karatrack Studio RunPod Handler v3.5
+# Karatrack Studio RunPod Handler v3.6
 # WhisperX for precise word-level timestamps
-# Reinstall torch stack LAST to ensure compatibility
+# Pin pyannote.audio to version compatible with whisperx
 
 FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 
@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
 # Pin NumPy to 1.x first
 RUN pip install --no-cache-dir "numpy<2"
 
-# Install ALL Python packages first (they may pull wrong torch versions)
+# Install ALL Python packages first
 RUN pip install --no-cache-dir \
     runpod \
     boto3 \
@@ -32,15 +32,16 @@ RUN pip install --no-cache-dir \
     treetable \
     "transformers>=4.36.0,<4.50.0" \
     faster-whisper \
-    pyannote.audio \
     ctranslate2
+
+# Pin pyannote.audio to older version that has use_auth_token
+RUN pip install --no-cache-dir "pyannote.audio==3.1.1"
 
 # Install demucs and whisperx without deps
 RUN pip install --no-cache-dir --no-deps demucs
 RUN pip install --no-cache-dir --no-deps git+https://github.com/m-bain/whisperx.git
 
 # CRITICAL: Reinstall compatible torch stack LAST
-# This overwrites any incompatible versions pulled by other packages
 RUN pip install --no-cache-dir --force-reinstall \
     torch==2.4.0 \
     torchvision==0.19.0 \
