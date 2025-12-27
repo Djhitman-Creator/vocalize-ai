@@ -1,4 +1,4 @@
-# Karatrack Studio RunPod Handler v3.3
+# Karatrack Studio RunPod Handler v3.4
 # WhisperX for precise word-level timestamps
 # Explicit version pinning for all torch components
 
@@ -17,18 +17,16 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --no-cache-dir "numpy<2"
 
 # Install compatible torch stack together (2.4.0 versions)
-# This ensures torch, torchvision, torchaudio are all compatible
 RUN pip install --no-cache-dir --force-reinstall \
     torch==2.4.0 \
     torchvision==0.19.0 \
     torchaudio==2.4.0 \
     --index-url https://download.pytorch.org/whl/cu124
 
-# Install other dependencies (without letting them upgrade torch)
-RUN pip install --no-cache-dir --no-deps \
-    demucs
+# Install demucs with --no-deps to prevent torch conflicts
+RUN pip install --no-cache-dir --no-deps demucs
 
-# Install demucs dependencies manually (excluding torch)
+# Install demucs dependencies manually
 RUN pip install --no-cache-dir \
     einops \
     lameenc \
@@ -39,7 +37,10 @@ RUN pip install --no-cache-dir \
     submitit \
     treetable
 
-# Install WhisperX dependencies first
+# Install transformers (pinned to avoid conflicts)
+RUN pip install --no-cache-dir "transformers>=4.36.0,<4.50.0"
+
+# Install WhisperX dependencies
 RUN pip install --no-cache-dir \
     faster-whisper \
     pyannote.audio \
