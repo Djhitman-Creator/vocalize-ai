@@ -826,13 +826,15 @@ def create_page_frame(current_time, lyrics, width, height):
 
 def create_overwrite_frame(current_time, lyrics, width, height):
     """
-    Create frame with overwrite-style lyrics display.
+    Create frame with TRUE overwrite-style lyrics display.
     
-    Shows 6 lines at a time with NO scrolling:
-    - Current line moves down through positions 1, 2, 3
-    - When position 3 is done, top 3 lines are replaced with next 3
-    - Upcoming lines are always visible
-    - No smooth scroll - instant "overwrite" of top lines
+    3 fixed positions on screen:
+    - Position 0 (top): shows lines 0, 3, 6, 9...
+    - Position 1 (middle): shows lines 1, 4, 7, 10...
+    - Position 2 (bottom): shows lines 2, 5, 8, 11...
+    
+    When a line is done being sung, the NEXT line for that position
+    appears instantly. Lines don't move - content is replaced in place.
     """
     img = create_frame(width, height)
     draw = ImageDraw.Draw(img)
@@ -856,32 +858,26 @@ def create_overwrite_frame(current_time, lyrics, width, height):
             break
         current_line_idx = i
     
-    # Number of lines to display
-    DISPLAY_LINES = 6
-    # Lines per "chunk" - how many lines before we overwrite
-    CHUNK_SIZE = 3
+    NUM_POSITIONS = 3
     
-    # Calculate which chunk we're in and starting line
-    # Chunk 0: lines 0-5, current at position 0,1,2
-    # Chunk 1: lines 3-8, current at position 0,1,2
-    # etc.
-    chunk_num = current_line_idx // CHUNK_SIZE
-    start_line_idx = chunk_num * CHUNK_SIZE
-    
-    # Calculate vertical starting position to center the block
-    total_display_height = DISPLAY_LINES * line_height
+    # Calculate vertical positions - centered on screen
+    total_display_height = NUM_POSITIONS * line_height
     start_y = (height - total_display_height) // 2
     
-    # Draw each visible line
-    for display_pos in range(DISPLAY_LINES):
-        line_idx = start_line_idx + display_pos
-        
+    # We always show the current line and the next 2 upcoming lines
+    # Each line's position is determined by: line_idx % NUM_POSITIONS
+    lines_to_show = [current_line_idx, current_line_idx + 1, current_line_idx + 2]
+    
+    for line_idx in lines_to_show:
         # Skip if line doesn't exist
         if line_idx < 0 or line_idx >= len(lines):
             continue
         
         line = lines[line_idx]
-        y = start_y + (display_pos * line_height)
+        
+        # This line's fixed position (0, 1, or 2)
+        position = line_idx % NUM_POSITIONS
+        y = start_y + (position * line_height)
         
         # Calculate total width for centering
         total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
@@ -893,7 +889,7 @@ def create_overwrite_frame(current_time, lyrics, width, height):
             word = word_data['word'] + ' '
             
             if line_idx < current_line_idx:
-                # Already sung lines - dimmed
+                # Already sung (shouldn't happen with this logic, but just in case)
                 color = COLOR_SUNG
             elif line_idx == current_line_idx:
                 # Current line - highlight sung words
@@ -902,7 +898,7 @@ def create_overwrite_frame(current_time, lyrics, width, height):
                 else:
                     color = COLOR_TEXT
             else:
-                # Upcoming lines - visible but slightly dimmed
+                # Upcoming lines
                 color = COLOR_UPCOMING
             
             draw.text((x, y), word, font=font, fill=color)
