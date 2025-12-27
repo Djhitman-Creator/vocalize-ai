@@ -3,13 +3,14 @@
 /**
  * Upload Page - Karatrack Studio
  * 
- * NEW FILE - Place this at: frontend/pages/upload.jsx
+ * Place this at: frontend/src/pages/upload.jsx
  * 
- * Features added:
- * - Required lyrics textarea (for 100% accuracy)
+ * Features:
+ * - Required lyrics textarea
  * - Display mode selector (Auto/Scroll/Page-by-Page/Overwrite)
  * - Clean version checkbox (profanity filter)
- * - All existing functionality preserved
+ * - AI disclaimer
+ * - Rights confirmation checkbox (REQUIRED)
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -35,7 +36,8 @@ import {
   FileText,
   Layers,
   Wand2,
-  ShieldCheck
+  ShieldCheck,
+  Scale
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -59,10 +61,13 @@ export default function UploadPage() {
   const [processingType, setProcessingType] = useState('remove_vocals');
   const [videoQuality, setVideoQuality] = useState('1080p');
   
-  // NEW: Lyrics and display options
+  // Lyrics and display options
   const [lyrics, setLyrics] = useState('');
   const [displayMode, setDisplayMode] = useState('auto');
   const [cleanVersion, setCleanVersion] = useState(false);
+  
+  // Rights confirmation (REQUIRED)
+  const [rightsConfirmed, setRightsConfirmed] = useState(false);
   
   // UI state
   const [isUploading, setIsUploading] = useState(false);
@@ -165,6 +170,12 @@ export default function UploadPage() {
       return;
     }
 
+    // Rights confirmation check
+    if (!rightsConfirmed) {
+      setError('Please confirm that you have the legal right to use this audio');
+      return;
+    }
+
     setIsUploading(true);
     setUploadProgress(10);
 
@@ -187,7 +198,7 @@ export default function UploadPage() {
       formData.append('video_quality', videoQuality);
       formData.append('include_lyrics', 'true');
       
-      // NEW: Add lyrics and display options
+      // Add lyrics and display options
       formData.append('lyrics_text', lyrics.trim());
       formData.append('display_mode', displayMode);
       formData.append('clean_version', cleanVersion.toString());
@@ -433,7 +444,7 @@ export default function UploadPage() {
               </div>
             </section>
 
-            {/* Section 3: Lyrics Input (NEW - REQUIRED) */}
+            {/* Section 3: Lyrics Input */}
             <section>
               <h2 className={`text-lg font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 3. Song Lyrics *
@@ -468,7 +479,7 @@ export default function UploadPage() {
               </div>
             </section>
 
-            {/* Section 4: Display Mode (NEW) */}
+            {/* Section 4: Display Mode */}
             <section>
               <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 4. Lyrics Display Mode
@@ -549,7 +560,7 @@ export default function UploadPage() {
                 </div>
               </div>
 
-              {/* Clean Version Checkbox (NEW) */}
+              {/* Clean Version Checkbox */}
               <label className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${
                 cleanVersion
                   ? 'bg-green-500/20 border-2 border-green-400'
@@ -629,12 +640,54 @@ export default function UploadPage() {
               />
             </section>
 
+            {/* Section 7: Rights Confirmation (REQUIRED) */}
+            <section>
+              <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                7. Rights Confirmation *
+              </h2>
+              
+              <label className={`flex items-start gap-4 p-4 rounded-xl cursor-pointer transition-all ${
+                rightsConfirmed
+                  ? 'bg-cyan-500/20 border-2 border-cyan-400'
+                  : 'bg-white/5 border-2 border-red-500/50 hover:bg-white/10'
+              }`}>
+                <div className={`w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
+                  rightsConfirmed 
+                    ? 'bg-cyan-500 border-cyan-500' 
+                    : 'border-gray-500'
+                }`}>
+                  {rightsConfirmed && <CheckCircle className="w-4 h-4 text-white" />}
+                </div>
+                <div className="flex-1">
+                  <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    I confirm I have the legal right to use this audio
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    By checking this box, I confirm that I either own the copyright to this audio, 
+                    have obtained proper licenses/permissions, or the content is my original work. 
+                    I understand that uploading copyrighted material without authorization violates 
+                    the <Link href="/terms" className="text-cyan-400 hover:underline">Terms of Service</Link>.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={rightsConfirmed}
+                  onChange={(e) => setRightsConfirmed(e.target.checked)}
+                  className="sr-only"
+                />
+              </label>
+            </section>
+
             {/* Submit Button */}
             <div className="pt-4">
               <button
                 type="submit"
-                disabled={isUploading}
-                className="w-full py-4 px-6 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-xl text-white font-semibold text-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                disabled={isUploading || !rightsConfirmed}
+                className={`w-full py-4 px-6 rounded-xl text-white font-semibold text-lg transition-all flex items-center justify-center gap-3 ${
+                  rightsConfirmed 
+                    ? 'bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90' 
+                    : 'bg-gray-600 cursor-not-allowed'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
                 {isUploading ? (
                   <>
@@ -644,7 +697,7 @@ export default function UploadPage() {
                 ) : (
                   <>
                     <Upload className="w-5 h-5" />
-                    <span>Create Karaoke Track</span>
+                    <span>{rightsConfirmed ? 'Create Karaoke Track' : 'Please Confirm Rights Above'}</span>
                   </>
                 )}
               </button>

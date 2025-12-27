@@ -14,7 +14,8 @@ import {
   Sun,
   Zap,
   Play,
-  Check
+  Check,
+  Scale
 } from 'lucide-react';
 
 const ThemeToggle = ({ isDark, toggle }) => (
@@ -99,20 +100,51 @@ const HeroSection = ({ isDark }) => (
         transition={{ delay: 0.5 }}
         className="flex flex-col sm:flex-row items-center justify-center gap-4"
       >
-        <button className="glass-button-primary glass-button flex items-center gap-2 text-lg px-8 py-4">
-          <Upload className="w-5 h-5" />
-          Upload Your Track
-        </button>
+        <Link href="/upload">
+          <button className="glass-button-primary glass-button flex items-center gap-2 text-lg px-8 py-4">
+            <Upload className="w-5 h-5" />
+            Upload Your Track
+          </button>
+        </Link>
         <button className={`glass-button flex items-center gap-2 text-lg px-8 py-4 ${isDark ? 'text-white' : 'text-gray-800'}`}>
           <Play className="w-5 h-5" />
           Watch Demo
         </button>
       </motion.div>
+
+      {/* Legal Disclaimer */}
+      <motion.div
+        initial={{ y: 30, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.55 }}
+        className={`max-w-2xl mx-auto mt-8 p-4 rounded-xl ${
+          isDark 
+            ? 'bg-white/5 border border-white/10' 
+            : 'bg-gray-50 border border-gray-200'
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <Scale className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+          <div className="text-left">
+            <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              <strong>For personal use only.</strong> By using Karatrack Studio, you confirm you have 
+              the rights to any music you upload — either through ownership, license, or original creation.
+            </p>
+            <Link 
+              href="/terms" 
+              className={`text-sm mt-2 inline-block ${isDark ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'}`}
+            >
+              Read our Terms of Service →
+            </Link>
+          </div>
+        </div>
+      </motion.div>
+
       <motion.div
         initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.6 }}
-        className="grid grid-cols-3 gap-8 mt-20 max-w-2xl mx-auto"
+        className="grid grid-cols-3 gap-8 mt-16 max-w-2xl mx-auto"
       >
         {[
           { value: '50K+', label: 'Tracks Processed' },
