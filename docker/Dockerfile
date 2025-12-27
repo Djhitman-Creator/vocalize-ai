@@ -1,6 +1,6 @@
-# Karatrack Studio RunPod Handler v3.6
+# Karatrack Studio RunPod Handler v3.7
 # WhisperX for precise word-level timestamps
-# Pin pyannote.audio to version compatible with whisperx
+# Force NumPy 1.x LAST to prevent overwrite
 
 FROM runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 
@@ -12,9 +12,6 @@ RUN apt-get update && apt-get install -y \
     git \
     libsndfile1 \
     && rm -rf /var/lib/apt/lists/*
-
-# Pin NumPy to 1.x first
-RUN pip install --no-cache-dir "numpy<2"
 
 # Install ALL Python packages first
 RUN pip install --no-cache-dir \
@@ -41,12 +38,16 @@ RUN pip install --no-cache-dir "pyannote.audio==3.1.1"
 RUN pip install --no-cache-dir --no-deps demucs
 RUN pip install --no-cache-dir --no-deps git+https://github.com/m-bain/whisperx.git
 
-# CRITICAL: Reinstall compatible torch stack LAST
+# Reinstall compatible torch stack
 RUN pip install --no-cache-dir --force-reinstall \
     torch==2.4.0 \
     torchvision==0.19.0 \
     torchaudio==2.4.0 \
     --index-url https://download.pytorch.org/whl/cu124
+
+# CRITICAL: Force NumPy 1.x LAST (after everything else)
+# pyannote.audio uses np.NaN which was removed in NumPy 2.0
+RUN pip install --no-cache-dir --force-reinstall "numpy==1.26.4"
 
 # Copy handler
 COPY handler.py /app/handler.py
