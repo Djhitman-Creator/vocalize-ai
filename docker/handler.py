@@ -897,19 +897,8 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
             # Audio plays from frame 0, so current_time = total video time, not time since intro ended
             current_time = frame_num / FPS
             
-            in_gap = False
-            for gap in gaps:
-                if gap['start'] <= current_time < gap['end']:
-                    in_gap = True
-                    time_until_lyrics = gap['end'] - current_time
-                    dots_remaining = min(COUNTDOWN_DOTS, int(time_until_lyrics) + 1)
-                    frame = create_countdown_frame_with_preview(
-                        dots_remaining, width, height, lyrics, gap['end']
-                    )
-                    break
-            
-            if not in_gap:
-                frame = create_lyrics_frame(current_time, lyrics, display_mode, width, height)
+            # Just show lyrics - no countdown dots for now
+            frame = create_lyrics_frame(current_time, lyrics, display_mode, width, height)
         
         frame_path = os.path.join(frames_dir, f'frame_{frame_num:06d}.png')
         frame.save(frame_path)
