@@ -1161,49 +1161,109 @@ def handler(event):
         print(f"   🎨 Style: bg={style_options['bg_color_1']}, text={style_options['text_color']}, sung={style_options['sung_color']}")
         print(f"   🚀 Using AssemblyAI for precise timing!")
         
+        # Check processing mode early
+        processing_mode = input_data.get('processing_mode', 'full')
+        print(f"   📋 Processing mode: {processing_mode}")
+        
         work_dir = tempfile.mkdtemp()
-        
-        audio_path = os.path.join(work_dir, 'input_audio.mp3')
-        print(f"📥 Downloading audio from {audio_url}")
-        download_file(audio_url, audio_path)
-        
         results = {}
         
-        print("🎵 Starting vocal separation...")
-        instrumental_path, vocals_path = separate_vocals(audio_path, work_dir)
-        
-        if processing_type in ['remove_vocals', 'both']:
-            instrumental_key = f"processed/{project_id}/instrumental.wav"
-            results['processed_audio_url'] = upload_to_r2(instrumental_path, instrumental_key)
+        # RENDER_ONLY MODE: Skip vocal separation, use existing processed audio
+        if processing_mode == 'render_only':
+            print("🎬 Render-only mode - using existing processed audio")
             
-            if processing_type == 'both':
-                vocals_key = f"processed/{project_id}/vocals.wav"
-                results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
-        
-        elif processing_type == 'isolate_backing':
-            vocals_key = f"processed/{project_id}/vocals.wav"
-            results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
-        
-        # LYRICS PROCESSING - NOW USING ASSEMBLYAI
-        lyrics = []
-        gaps = []
-        
-        if include_lyrics:
-            # Use AssemblyAI for transcription and alignment
-            lyrics = transcribe_with_assemblyai(vocals_path, user_lyrics_text)
+            # Get the already-processed audio URL
+            processed_audio_url = input_data.get('processed_audio_url')
+            if not processed_audio_url:
+                raise ValueError("render_only mode requires processed_audio_url")
             
-            if clean_version and lyrics:
-                print("🛡️ Applying profanity filter...")
-                print(f"   Processing {len(lyrics)} words...")
-                lyrics = apply_profanity_filter(lyrics)
+            # Download the processed audio
+            instrumental_path = os.path.join(work_dir, 'instrumental.wav')
+            print(f"📥 Downloading processed audio from {processed_audio_url}")
+            download_file(processed_audio_url, instrumental_path)
+            
+            # Get edited lyrics from input
+            lyrics = input_data.get('edited_lyrics', [])
+            if not lyrics:
+                raise ValueError("render_only mode requires edited_lyrics")
+            
+            print(f"📝 Using {len(lyrics)} edited lyrics from user")
+            
+            # Keep existing URLs
+            results['processed_audio_url'] = processed_audio_url
+            if input_data.get('vocals_audio_url'):
+                results['vocals_audio_url'] = input_data.get('vocals_audio_url')
             
             gaps = detect_silence_gaps(lyrics)
-            print(f"   Found {len(gaps)} gaps for countdown")
-            
             results['lyrics'] = lyrics
+            
+            # Skip to video generation (handled below)
+            vocals_path = None
+            audio_path = instrumental_path
+            
+        else:
+            # FULL or TRANSCRIBE_ONLY MODE: Do vocal separation and transcription
+            audio_path = os.path.join(work_dir, 'input_audio.mp3')
+            print(f"📥 Downloading audio from {audio_url}")
+            download_file(audio_url, audio_path)
+            
+            print("🎵 Starting vocal separation...")
+            instrumental_path, vocals_path = separate_vocals(audio_path, work_dir)
+            
+            if processing_type in ['remove_vocals', 'both']:
+                instrumental_key = f"processed/{project_id}/instrumental.wav"
+                results['processed_audio_url'] = upload_to_r2(instrumental_path, instrumental_key)
+                
+                if processing_type == 'both':
+                    vocals_key = f"processed/{project_id}/vocals.wav"
+                    results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
+            
+            elif processing_type == 'isolate_backing':
+                vocals_key = f"processed/{project_id}/vocals.wav"
+                results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
+            
+            # LYRICS PROCESSING - NOW USING ASSEMBLYAI
+            lyrics = []
+            gaps = []
+            
+            if include_lyrics:
+                # Use AssemblyAI for transcription and alignment
+                lyrics = transcribe_with_assemblyai(vocals_path, user_lyrics_text)
+                
+                if clean_version and lyrics:
+                    print("🛡️ Applying profanity filter...")
+                    print(f"   Processing {len(lyrics)} words...")
+                    lyrics = apply_profanity_filter(lyrics)
+                
+                gaps = detect_silence_gaps(lyrics)
+                print(f"   Found {len(gaps)} gaps for countdown")
+                
+                results['lyrics'] = lyrics
+            
+            # Check if transcribe_only - stop here
+            if processing_mode == 'transcribe_only':
+                print("📋 Transcribe-only mode - skipping video generation")
+                
+                if callback_url:
+                    print(f"📤 Sending callback to {callback_url}")
+                    requests.post(callback_url, json={
+                        'project_id': project_id,
+                        'status': 'transcribed',
+                        'results': results
+                    })
+                
+                import shutil
+                shutil.rmtree(work_dir)
+                
+                print("✅ Transcription complete!")
+                return {
+                    'status': 'transcribed',
+                    'project_id': project_id,
+                    'results': results
+                }
         
-        # VIDEO GENERATION
-        audio_duration = get_audio_duration(audio_path)
+        # VIDEO GENERATION (for 'full' or 'render_only' modes)
+        audio_duration = get_audio_duration(instrumental_path if instrumental_path else audio_path)
         
         selected_display_mode = select_display_mode(lyrics, audio_duration, display_mode)
         print(f"📺 Selected display mode: {selected_display_mode}")
