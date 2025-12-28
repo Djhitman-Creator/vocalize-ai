@@ -147,9 +147,9 @@ const HeroSection = ({ isDark }) => (
         className="grid grid-cols-3 gap-8 mt-16 max-w-2xl mx-auto"
       >
         {[
-          { value: '50K+', label: 'Tracks Processed' },
-          { value: '98%', label: 'Accuracy Rate' },
-          { value: '<2min', label: 'Processing Time' },
+          { value: '98%+', label: 'Lyrics Accuracy' },
+          { value: 'Word-Level', label: 'Timing Sync' },
+          { value: 'Up to 1080p', label: 'Export Quality' },
         ].map((stat, i) => (
           <div key={i} className="text-center">
             <div className="font-display text-3xl font-bold text-gradient">{stat.value}</div>
@@ -198,7 +198,7 @@ const FeaturesSection = ({ isDark }) => {
 
 const PricingSection = ({ isDark }) => {
   const plans = [
-    { name: 'Free', price: 0, features: ['3 credits/month', '10MB max file size', '720p video export', 'Email support (48hr)'], popular: false },
+    { name: 'Free', price: 0, features: ['5 credits/month', '10MB max file size', '480p video export', 'Chat support'], popular: false },
     { name: 'Starter', price: 9.99, features: ['25 credits/month', '50MB max file size', '1080p video export', 'Email support'], popular: false },
     { name: 'Pro', price: 24.99, features: ['75 credits/month', '100MB max file size', '1080p video export', 'Priority support'], popular: true },
     { name: 'Studio', price: 49.99, features: ['200 credits/month', '500MB max file size', '4K video export', 'Dedicated support'], popular: false },
