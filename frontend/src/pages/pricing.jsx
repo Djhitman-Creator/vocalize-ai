@@ -13,12 +13,10 @@ import {
   Sparkles,
   Palette,
   Edit3,
-  Image,
   MessageCircle,
   Mail,
   Headphones,
-  Crown,
-  Users
+  Crown
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -45,9 +43,7 @@ const plans = [
       watermark: 'karatrack',
       maxQuality: '480p',
       editLyrics: false,
-      customBackground: false,
       colorCustomization: false,
-      duetMode: false,
       adjustLyricsStyle: false,
       emailSupport: false,
       prioritySupport: false,
@@ -71,9 +67,7 @@ const plans = [
       watermark: 'none',
       maxQuality: '1080p',
       editLyrics: false,
-      customBackground: false,
       colorCustomization: true,
-      duetMode: false,
       adjustLyricsStyle: false,
       emailSupport: true,
       prioritySupport: false,
@@ -91,16 +85,13 @@ const plans = [
       { text: '1080p video quality', included: true },
       { text: 'No watermark', included: true },
       { text: 'Edit lyrics before render', included: true },
-      { text: 'Duet mode (color-coded)', included: true },
       { text: 'Email support', included: true },
     ],
     features: {
       watermark: 'none',
       maxQuality: '1080p',
       editLyrics: true,
-      customBackground: false,
       colorCustomization: true,
-      duetMode: true,
       adjustLyricsStyle: false,
       emailSupport: true,
       prioritySupport: false,
@@ -118,18 +109,14 @@ const plans = [
       { text: '1080p video quality', included: true },
       { text: 'Custom logo watermark', included: true },
       { text: 'Edit lyrics before render', included: true },
-      { text: 'Custom background images', included: true },
       { text: 'Full style control', included: true },
-      { text: 'Duet mode (color-coded)', included: true },
       { text: 'Priority support', included: true },
     ],
     features: {
       watermark: 'custom',
       maxQuality: '1080p',
       editLyrics: true,
-      customBackground: true,
       colorCustomization: true,
-      duetMode: true,
       adjustLyricsStyle: true,
       emailSupport: true,
       prioritySupport: true,
@@ -172,14 +159,6 @@ const featureComparison = [
         studio: 'Your logo',
         type: 'text'
       },
-      { 
-        name: 'Custom background image', 
-        free: false, 
-        starter: false, 
-        pro: false, 
-        studio: true,
-        type: 'boolean'
-      },
     ]
   },
   {
@@ -203,14 +182,6 @@ const featureComparison = [
       },
       { 
         name: 'Edit lyrics before render', 
-        free: false, 
-        starter: false, 
-        pro: true, 
-        studio: true,
-        type: 'boolean'
-      },
-      { 
-        name: 'Duet mode (color-coded lyrics)', 
         free: false, 
         starter: false, 
         pro: true, 
@@ -723,10 +694,10 @@ export default function PricingPage() {
             </div>
             
             <div className="glass-panel p-6">
-              <h3 className="font-semibold text-white mb-2">What is duet mode?</h3>
+              <h3 className="font-semibold text-white mb-2">What is "Edit lyrics before render"?</h3>
               <p className="text-gray-400 text-sm">
-                Duet mode lets you assign different colors to different singers' lyrics, 
-                making it easy to follow along in songs with multiple vocalists. Available on Pro and Studio plans.
+                Pro and Studio users can review and edit the AI-transcribed lyrics before the final video is created. 
+                This lets you fix any transcription errors for a perfect result.
               </p>
             </div>
             
