@@ -14,7 +14,7 @@
  * - Rights confirmation
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -96,7 +96,7 @@ export default function UploadPage() {
   const [profile, setProfile] = useState(null);
 
   // Load user profile on mount
-  useState(() => {
+  useEffect(() => {
     const loadProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -111,13 +111,40 @@ export default function UploadPage() {
       setProfile(data);
     };
     loadProfile();
-  }, []);
+  }, [router]);
 
   // Check if user has Pro or Studio plan
   const isPremiumUser = () => {
-    if (!profile?.subscriptions?.[0]?.subscription_plans) return false;
-    const planName = profile.subscriptions[0].subscription_plans.name?.toLowerCase() || '';
-    return planName.includes('pro') || planName.includes('studio');
+    // Debug: log profile to see subscription structure
+    console.log('Profile data:', profile);
+    console.log('Subscriptions:', profile?.subscriptions);
+    
+    // Check multiple possible structures
+    // Option 1: subscriptions array with subscription_plans
+    if (profile?.subscriptions?.[0]?.subscription_plans) {
+      const planName = profile.subscriptions[0].subscription_plans.name?.toLowerCase() || '';
+      if (planName.includes('pro') || planName.includes('studio')) return true;
+    }
+    
+    // Option 2: Direct plan_name on profile
+    if (profile?.plan_name) {
+      const planName = profile.plan_name.toLowerCase();
+      if (planName.includes('pro') || planName.includes('studio')) return true;
+    }
+    
+    // Option 3: subscription_tier on profile
+    if (profile?.subscription_tier) {
+      const tier = profile.subscription_tier.toLowerCase();
+      if (tier.includes('pro') || tier.includes('studio')) return true;
+    }
+    
+    // Option 4: current_plan on profile
+    if (profile?.current_plan) {
+      const plan = profile.current_plan.toLowerCase();
+      if (plan.includes('pro') || plan.includes('studio')) return true;
+    }
+    
+    return false;
   };
 
   // Audio file dropzone
