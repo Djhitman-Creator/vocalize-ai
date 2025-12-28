@@ -219,7 +219,7 @@ function calculateCreditsNeeded(options) {
   return credits;
 }
 
-// UPDATED: Added new fields to RunPod payload including style options
+// UPDATED: Added new fields to RunPod payload including style options and processing mode
 async function sendToRunPod(projectId, audioUrl, options) {
   const response = await axios.post(
     `https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/run`,
@@ -241,7 +241,7 @@ async function sendToRunPod(projectId, audioUrl, options) {
         display_mode: options.display_mode || 'auto',
         clean_version: options.clean_version || false,
         
-        // NEW: Style customization options
+        // Style customization options
         bg_color_1: options.bg_color_1 || '#1a1a2e',
         bg_color_2: options.bg_color_2 || '#16213e',
         use_gradient: options.use_gradient !== false,
@@ -250,6 +250,14 @@ async function sendToRunPod(projectId, audioUrl, options) {
         outline_color: options.outline_color || '#000000',
         sung_color: options.sung_color || '#00d4ff',
         font: options.font || 'arial',
+        
+        // NEW: Processing mode for two-stage flow
+        processing_mode: options.processing_mode || 'full',
+        
+        // For render_only mode
+        processed_audio_url: options.processed_audio_url || null,
+        vocals_audio_url: options.vocals_audio_url || null,
+        edited_lyrics: options.edited_lyrics || null,
       },
     },
     {
@@ -620,7 +628,9 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       sung_color,
       font,
       // NEW: Email notification preference
-      notify_on_complete
+      notify_on_complete,
+      // NEW: Processing mode for lyrics review
+      processing_mode
     } = req.body;
     
     const file = req.files?.audio?.[0];
@@ -733,13 +743,18 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       outline_color: outline_color || '#000000',
       sung_color: sung_color || '#00d4ff',
       font: font || 'arial',
+      // NEW: Processing mode
+      processing_mode: processing_mode || 'full',
     });
+
+    // Set appropriate status based on processing mode
+    const initialStatus = processing_mode === 'transcribe_only' ? 'transcribing' : 'processing';
 
     await supabase
       .from('projects')
       .update({
         runpod_job_id: runpodJobId,
-        status: 'processing',
+        status: initialStatus,
         processing_started_at: new Date().toISOString(),
       })
       .eq('id', projectId);
@@ -819,6 +834,196 @@ app.get('/api/projects/:id/download', authMiddleware, async (req, res) => {
     res.json(urls);
   } catch (error) {
     console.error('Download error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// LYRICS REVIEW & EDIT ENDPOINTS (Pro/Studio Feature)
+// ============================================
+
+// Get lyrics for review/editing
+app.get('/api/projects/:id/lyrics', authMiddleware, async (req, res) => {
+  try {
+    const { data: project, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (error || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Check if lyrics are available
+    if (!project.lyrics_json) {
+      return res.status(400).json({ error: 'Lyrics not yet available. Project may still be processing.' });
+    }
+
+    res.json({
+      project_id: project.id,
+      title: project.title,
+      artist_name: project.artist_name,
+      song_title: project.song_title,
+      status: project.status,
+      lyrics: project.lyrics_json,
+      processed_audio_url: project.processed_audio_url,
+      vocals_audio_url: project.vocals_audio_url,
+    });
+  } catch (error) {
+    console.error('Get lyrics error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Submit edited lyrics and start video rendering
+app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
+  try {
+    const { edited_lyrics } = req.body;
+    
+    if (!edited_lyrics || !Array.isArray(edited_lyrics)) {
+      return res.status(400).json({ error: 'edited_lyrics array is required' });
+    }
+
+    const { data: project, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (error || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Check if project is in a state where we can render
+    if (!['awaiting_review', 'transcribed'].includes(project.status)) {
+      return res.status(400).json({ 
+        error: `Cannot render project with status: ${project.status}. Project must be awaiting review.` 
+      });
+    }
+
+    // Check if processed audio exists
+    if (!project.processed_audio_url) {
+      return res.status(400).json({ error: 'Processed audio not available. Please re-upload the track.' });
+    }
+
+    // Update project with edited lyrics
+    await supabase
+      .from('projects')
+      .update({
+        edited_lyrics_json: edited_lyrics,
+        status: 'rendering',
+        render_started_at: new Date().toISOString(),
+      })
+      .eq('id', project.id);
+
+    // Send to RunPod in render_only mode
+    const runpodJobId = await sendToRunPod(project.id, project.original_file_url, {
+      processing_mode: 'render_only',
+      processing_type: project.processing_type,
+      include_lyrics: true,
+      video_quality: project.video_quality,
+      thumbnail_url: project.thumbnail_url,
+      artist_name: project.artist_name,
+      song_title: project.song_title,
+      track_number: project.track_number,
+      display_mode: project.display_mode || 'auto',
+      clean_version: project.clean_version || false,
+      // Style options
+      bg_color_1: project.bg_color_1 || '#1a1a2e',
+      bg_color_2: project.bg_color_2 || '#16213e',
+      use_gradient: project.use_gradient !== false,
+      gradient_direction: project.gradient_direction || 'to bottom',
+      text_color: project.text_color || '#ffffff',
+      outline_color: project.outline_color || '#000000',
+      sung_color: project.sung_color || '#00d4ff',
+      font: project.font || 'arial',
+      // Render-only specific
+      processed_audio_url: project.processed_audio_url,
+      vocals_audio_url: project.vocals_audio_url,
+      edited_lyrics: edited_lyrics,
+    });
+
+    await supabase
+      .from('projects')
+      .update({
+        runpod_job_id: runpodJobId,
+      })
+      .eq('id', project.id);
+
+    res.json({
+      message: 'Rendering started',
+      project_id: project.id,
+      runpod_job_id: runpodJobId,
+    });
+
+  } catch (error) {
+    console.error('Render error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Start transcription only (for Pro/Studio users who want to review)
+app.post('/api/projects/:id/transcribe', authMiddleware, async (req, res) => {
+  try {
+    const { data: project, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (error || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Check if project is in a state where we can start transcription
+    if (project.status !== 'queued') {
+      return res.status(400).json({ 
+        error: `Cannot transcribe project with status: ${project.status}` 
+      });
+    }
+
+    // Update status to transcribing
+    await supabase
+      .from('projects')
+      .update({
+        status: 'transcribing',
+        processing_started_at: new Date().toISOString(),
+      })
+      .eq('id', project.id);
+
+    // Send to RunPod in transcribe_only mode
+    const runpodJobId = await sendToRunPod(project.id, project.original_file_url, {
+      processing_mode: 'transcribe_only',
+      processing_type: project.processing_type,
+      include_lyrics: true,
+      video_quality: project.video_quality,
+      artist_name: project.artist_name,
+      song_title: project.song_title,
+      track_number: project.track_number,
+      lyrics_text: project.lyrics_text,
+      display_mode: project.display_mode || 'auto',
+      clean_version: project.clean_version || false,
+    });
+
+    await supabase
+      .from('projects')
+      .update({
+        runpod_job_id: runpodJobId,
+      })
+      .eq('id', project.id);
+
+    res.json({
+      message: 'Transcription started',
+      project_id: project.id,
+      runpod_job_id: runpodJobId,
+    });
+
+  } catch (error) {
+    console.error('Transcribe error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1066,20 +1271,37 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
       .eq('id', project_id)
       .single();
 
-    if (status === 'completed' && results) {
+    // Handle transcription completed (two-stage processing)
+    if (status === 'transcribed' && results) {
+      console.log(`📋 Project ${project_id} transcription complete - awaiting review`);
+      
+      await supabase
+        .from('projects')
+        .update({
+          status: 'awaiting_review',
+          processed_audio_url: results.processed_audio_url,
+          vocals_audio_url: results.vocals_audio_url,
+          lyrics_json: results.lyrics,
+          transcription_completed_at: new Date().toISOString(),
+        })
+        .eq('id', project_id);
+
+      // Don't send email - user needs to review lyrics first
+      
+    } else if (status === 'completed' && results) {
       await supabase
         .from('projects')
         .update({
           status: 'completed',
-          processed_audio_url: results.processed_audio_url,
-          vocals_audio_url: results.vocals_audio_url,
-          lyrics_json: results.lyrics,
+          processed_audio_url: results.processed_audio_url || project?.processed_audio_url,
+          vocals_audio_url: results.vocals_audio_url || project?.vocals_audio_url,
+          lyrics_json: results.lyrics || project?.lyrics_json,
           video_url: results.video_url,
           processing_completed_at: new Date().toISOString(),
         })
         .eq('id', project_id);
 
-      // NEW: Send completion email if enabled
+      // Send completion email if enabled
       if (project && project.notify_on_complete !== false) {
         // Generate download URL for email
         const baseFilename = `${project.track_number || 'KT-01'} - ${project.artist_name || 'Unknown Artist'} - ${project.song_title || 'Untitled'}`;
@@ -1103,7 +1325,7 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         })
         .eq('id', project_id);
 
-      // NEW: Send failure email if enabled
+      // Send failure email if enabled
       if (project && project.notify_on_complete !== false) {
         await sendFailureEmail(project, processingError);
       }
