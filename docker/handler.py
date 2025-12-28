@@ -354,8 +354,9 @@ def apply_watermark(frame, video_width, video_height):
         # Paste logo onto frame
         watermarked.paste(logo_with_opacity, (logo_x, logo_y), logo_with_opacity)
         
-        # Position text ABOVE the logo
-        text_x = logo_x + (logo.width - text_width) // 2  # Center above logo
+        # Position text ABOVE the logo, left-aligned with logo
+        # Ensure text doesn't go off the left edge
+        text_x = max(WATERMARK_PADDING, logo_x)
         text_y = logo_y - text_height - 5  # 5px gap above logo
     else:
         # No logo, just put text at bottom-left
