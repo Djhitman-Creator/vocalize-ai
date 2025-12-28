@@ -98,50 +98,65 @@ export default function UploadPage() {
   // Load user profile on mount
   useEffect(() => {
     const loadProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push('/login');
-        return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+        
+        // Get profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError) {
+          console.error('Profile error:', profileError);
+        }
+        
+        // Get subscription separately
+        const { data: subData, error: subError } = await supabase
+          .from('subscriptions')
+          .select('*, subscription_plans(*)')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .single();
+        
+        console.log('Profile:', profileData);
+        console.log('Subscription:', subData);
+        
+        // Combine profile with subscription
+        setProfile({
+          ...profileData,
+          subscription: subData
+        });
+      } catch (err) {
+        console.error('Load profile error:', err);
       }
-      const { data } = await supabase
-        .from('profiles')
-        .select('*, subscriptions(*, subscription_plans(*))')
-        .eq('id', user.id)
-        .single();
-      setProfile(data);
     };
     loadProfile();
   }, [router]);
 
   // Check if user has Pro or Studio plan
   const isPremiumUser = () => {
-    // Debug: log profile to see subscription structure
-    console.log('Profile data:', profile);
-    console.log('Subscriptions:', profile?.subscriptions);
+    console.log('Checking premium - Profile:', profile);
     
-    // Check multiple possible structures
-    // Option 1: subscriptions array with subscription_plans
-    if (profile?.subscriptions?.[0]?.subscription_plans) {
-      const planName = profile.subscriptions[0].subscription_plans.name?.toLowerCase() || '';
-      if (planName.includes('pro') || planName.includes('studio')) return true;
+    if (!profile) return false;
+    
+    // Check subscription plan name
+    const planName = profile?.subscription?.subscription_plans?.name?.toLowerCase() || '';
+    console.log('Plan name:', planName);
+    
+    if (planName.includes('pro') || planName.includes('studio')) {
+      return true;
     }
     
-    // Option 2: Direct plan_name on profile
-    if (profile?.plan_name) {
-      const planName = profile.plan_name.toLowerCase();
-      if (planName.includes('pro') || planName.includes('studio')) return true;
-    }
-    
-    // Option 3: subscription_tier on profile
-    if (profile?.subscription_tier) {
-      const tier = profile.subscription_tier.toLowerCase();
-      if (tier.includes('pro') || tier.includes('studio')) return true;
-    }
-    
-    // Option 4: current_plan on profile
-    if (profile?.current_plan) {
-      const plan = profile.current_plan.toLowerCase();
-      if (plan.includes('pro') || plan.includes('studio')) return true;
+    // Also check profile fields directly
+    if (profile?.plan_name?.toLowerCase()?.includes('pro') || 
+        profile?.plan_name?.toLowerCase()?.includes('studio')) {
+      return true;
     }
     
     return false;
