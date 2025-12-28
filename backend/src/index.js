@@ -209,21 +209,30 @@ async function getSignedDownloadUrl(url, filename = null) {
 
 function calculateCreditsNeeded(options) {
   let credits = 0;
+  
+  // Base processing cost
   if (options.processing_type === 'both') {
-    credits += 3;
+    credits += 2;  // Both vocal versions
   } else {
-    credits += options.hd_quality ? 2 : 1;
+    credits += 1;  // Single version
   }
-  if (options.include_lyrics) {
-    credits += 1;
-  }
-  if (options.video_quality === '1080p') {
-    credits += 2;
+  
+  // Lyrics always included now
+  credits += 1;
+  
+  // Quality-based pricing (480p=3, 720p=5, 1080p=7 total for basic track)
+  if (options.video_quality === '480p') {
+    credits += 1;   // Total: 1+1+1 = 3 credits
+  } else if (options.video_quality === '720p') {
+    credits += 3;   // Total: 1+1+3 = 5 credits
+  } else if (options.video_quality === '1080p') {
+    credits += 5;   // Total: 1+1+5 = 7 credits
   } else if (options.video_quality === '4k') {
-    credits += 3;
+    credits += 7;   // Total: 1+1+7 = 9 credits
   } else {
-    credits += 1;
+    credits += 1;   // Default to 480p pricing
   }
+  
   return credits;
 }
 
