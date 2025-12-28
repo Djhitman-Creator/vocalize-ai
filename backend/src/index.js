@@ -7,6 +7,7 @@
  * - clean_version (profanity filter toggle)
  * - Style customization (colors, fonts, gradients)
  * - Email notifications via Brevo when processing completes
+ * - Subscription tier passed to RunPod for watermark logic
  * 
  * Changes marked with "// NEW:" comments
  */
@@ -226,7 +227,7 @@ function calculateCreditsNeeded(options) {
   return credits;
 }
 
-// UPDATED: Added new fields to RunPod payload including style options and processing mode
+// UPDATED: Added subscription_tier to RunPod payload for watermark logic
 async function sendToRunPod(projectId, audioUrl, options) {
   const response = await axios.post(
     `https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/run`,
@@ -258,8 +259,11 @@ async function sendToRunPod(projectId, audioUrl, options) {
         sung_color: options.sung_color || '#00d4ff',
         font: options.font || 'arial',
         
-        // NEW: Processing mode for two-stage flow
+        // Processing mode for two-stage flow
         processing_mode: options.processing_mode || 'full',
+        
+        // NEW: Subscription tier for watermark logic
+        subscription_tier: options.subscription_tier || 'free',
         
         // For render_only mode
         processed_audio_url: options.processed_audio_url || null,
@@ -613,7 +617,7 @@ app.get('/api/projects/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// UPDATED: Project creation with style options and email notification preference
+// UPDATED: Project creation with subscription_tier for watermark logic
 app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
   try {
     const { 
@@ -628,7 +632,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       lyrics_text,
       display_mode,
       clean_version,
-      // NEW: Style customization
+      // Style customization
       bg_color_1,
       bg_color_2,
       use_gradient,
@@ -637,9 +641,9 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       outline_color,
       sung_color,
       font,
-      // NEW: Email notification preference
+      // Email notification preference
       notify_on_complete,
-      // NEW: Processing mode for lyrics review
+      // Processing mode for lyrics review
       processing_mode
     } = req.body;
     
@@ -713,7 +717,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         lyrics_text: lyrics_text ? lyrics_text.trim() : null,
         display_mode: display_mode || 'auto',
         clean_version: clean_version === 'true' || clean_version === true,
-        // NEW: Style options
+        // Style options
         bg_color_1: bg_color_1 || '#1a1a2e',
         bg_color_2: bg_color_2 || '#16213e',
         use_gradient: use_gradient !== 'false' && use_gradient !== false,
@@ -722,7 +726,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         outline_color: outline_color || '#000000',
         sung_color: sung_color || '#00d4ff',
         font: font || 'arial',
-        // NEW: Email notification preference
+        // Email notification preference
         notify_on_complete: notify_on_complete !== 'false' && notify_on_complete !== false,
       })
       .select()
@@ -732,7 +736,10 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
 
     await deductCredits(req.user.id, creditsNeeded, projectId, `Processing: ${title || file.originalname}`);
 
-    // Send to RunPod with all options
+    // NEW: Get user's subscription tier for watermark logic
+    const userProfile = await getUserProfile(req.user.id);
+
+    // Send to RunPod with all options including subscription_tier
     const runpodJobId = await sendToRunPod(projectId, fileUrl, {
       processing_type,
       include_lyrics: include_lyrics === 'true',
@@ -753,8 +760,10 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       outline_color: outline_color || '#000000',
       sung_color: sung_color || '#00d4ff',
       font: font || 'arial',
-      // NEW: Processing mode
+      // Processing mode
       processing_mode: processing_mode || 'full',
+      // NEW: Subscription tier for watermark logic
+      subscription_tier: userProfile.subscription_tier || 'free',
     });
 
     // Set appropriate status based on processing mode
@@ -929,6 +938,9 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       })
       .eq('id', project.id);
 
+    // NEW: Get user's subscription tier for watermark logic
+    const userProfile = await getUserProfile(req.user.id);
+
     // Send to RunPod in render_only mode
     const runpodJobId = await sendToRunPod(project.id, project.original_file_url, {
       processing_mode: 'render_only',
@@ -954,6 +966,8 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       processed_audio_url: project.processed_audio_url,
       vocals_audio_url: project.vocals_audio_url,
       edited_lyrics: edited_lyrics,
+      // NEW: Subscription tier for watermark logic
+      subscription_tier: userProfile.subscription_tier || 'free',
     });
 
     await supabase
@@ -1269,7 +1283,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
   }
 });
 
-// UPDATED: RunPod webhook with email notifications
+// RunPod webhook with email notifications
 app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
   try {
     const { project_id, status, results, error: processingError } = req.body;
