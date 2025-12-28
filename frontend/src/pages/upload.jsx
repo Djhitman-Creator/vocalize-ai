@@ -227,13 +227,14 @@ export default function UploadPage() {
     
     // Check subscription_tier field on profile
     const tier = profile?.subscription_tier?.toLowerCase() || '';
-    if (tier === 'free' || tier === '') return true;
     
-    // Check subscription plan name
-    const planName = profile?.subscription?.subscription_plans?.name?.toLowerCase() || '';
-    if (!planName || planName === 'free') return true;
+    // If tier is set to any paid tier, user is NOT free
+    if (tier === 'starter' || tier === 'pro' || tier === 'studio') {
+      return false;
+    }
     
-    return false;
+    // If tier is explicitly 'free' or empty, user IS free
+    return true;
   };
 
   // Check if user has Studio plan (for 4K access)
