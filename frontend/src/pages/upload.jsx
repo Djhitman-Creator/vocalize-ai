@@ -175,7 +175,8 @@ export default function UploadPage() {
       } else if (tier === 'studio') {
         setVideoQuality('1080p');
       } else {
-        setVideoQuality('1080p');
+        // Starter and Pro default to 720p
+        setVideoQuality('720p');
       }
     }
   }, [profile]);
@@ -603,8 +604,8 @@ export default function UploadPage() {
                   Lyrics *
                 </h2>
                 
-                {/* AI Disclaimer - different message for free vs paid */}
-                {isFreeUser() ? (
+                {/* AI Disclaimer - different message for users with/without edit lyrics */}
+                {!isPremiumUser() ? (
                   <div className={`mb-3 p-2 rounded-lg text-xs ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
                     ⚡ Lyrics are synced using AI for precise timing. Some words may vary slightly. <Link href="/pricing" className="text-cyan-400 hover:underline font-medium">Upgrade to Pro or Studio</Link> to review and edit lyrics before rendering.
                   </div>
