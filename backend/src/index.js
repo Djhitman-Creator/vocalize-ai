@@ -265,16 +265,56 @@ async function sendToRunPod(projectId, audioUrl, options) {
 // NEW: Send completion email via Brevo
 async function sendCompletionEmail(project, downloadUrl) {
   try {
-    // Get user email from auth
-    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(project.user_id);
+    console.log(`📧 Attempting to send completion email for project ${project.id}`);
     
-    if (authError || !authUser?.user?.email) {
-      console.error('Could not get user email for notification:', authError);
+    // Method 1: Try to get email from profiles table
+    let userEmail = null;
+    let userName = null;
+    
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', project.user_id)
+      .single();
+    
+    if (profile?.email) {
+      userEmail = profile.email;
+      userName = profile.full_name || userEmail.split('@')[0];
+      console.log(`   Found email in profiles: ${userEmail}`);
+    }
+    
+    // Method 2: If not in profiles, try auth.users via SQL
+    if (!userEmail) {
+      const { data: authData, error: authError } = await supabase
+        .rpc('get_user_email', { user_id: project.user_id });
+      
+      if (authData) {
+        userEmail = authData;
+        userName = userEmail.split('@')[0];
+        console.log(`   Found email via RPC: ${userEmail}`);
+      }
+    }
+    
+    // Method 3: Try the admin API
+    if (!userEmail) {
+      try {
+        const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(project.user_id);
+        if (authUser?.user?.email) {
+          userEmail = authUser.user.email;
+          userName = authUser.user.user_metadata?.full_name || userEmail.split('@')[0];
+          console.log(`   Found email via admin API: ${userEmail}`);
+        }
+      } catch (adminErr) {
+        console.log(`   Admin API failed: ${adminErr.message}`);
+      }
+    }
+    
+    if (!userEmail) {
+      console.error('❌ Could not get user email for notification - no email found');
       return;
     }
 
-    const userEmail = authUser.user.email;
-    const userName = authUser.user.user_metadata?.full_name || userEmail.split('@')[0];
+    console.log(`   Sending email to: ${userEmail}`);
 
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
     
@@ -378,15 +418,39 @@ This link expires in 1 hour. You can always download again from your dashboard a
 // NEW: Send failure notification email
 async function sendFailureEmail(project, errorMessage) {
   try {
-    const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(project.user_id);
+    console.log(`📧 Attempting to send failure email for project ${project.id}`);
     
-    if (authError || !authUser?.user?.email) {
-      console.error('Could not get user email for failure notification:', authError);
+    // Get user email (same method as sendCompletionEmail)
+    let userEmail = null;
+    let userName = null;
+    
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('email, full_name')
+      .eq('id', project.user_id)
+      .single();
+    
+    if (profile?.email) {
+      userEmail = profile.email;
+      userName = profile.full_name || userEmail.split('@')[0];
+    }
+    
+    if (!userEmail) {
+      try {
+        const { data: authUser } = await supabase.auth.admin.getUserById(project.user_id);
+        if (authUser?.user?.email) {
+          userEmail = authUser.user.email;
+          userName = authUser.user.user_metadata?.full_name || userEmail.split('@')[0];
+        }
+      } catch (adminErr) {
+        console.log(`   Admin API failed: ${adminErr.message}`);
+      }
+    }
+    
+    if (!userEmail) {
+      console.error('❌ Could not get user email for failure notification');
       return;
     }
-
-    const userEmail = authUser.user.email;
-    const userName = authUser.user.user_metadata?.full_name || userEmail.split('@')[0];
 
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
     
