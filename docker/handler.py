@@ -550,9 +550,33 @@ def select_display_mode(lyrics, audio_duration, requested_mode='auto'):
 # VIDEO GENERATION
 # ============================================
 
-def create_frame(width, height, bg_color=COLOR_BG):
-    """Create a blank frame"""
-    img = Image.new('RGB', (width, height), bg_color)
+def create_frame(width, height, colors=None):
+    """Create a blank frame with optional gradient background"""
+    if colors is None:
+        colors = {'bg_1': COLOR_BG, 'bg_2': COLOR_BG, 'use_gradient': False}
+    
+    bg_1 = colors.get('bg_1', COLOR_BG)
+    bg_2 = colors.get('bg_2', COLOR_BG)
+    use_gradient = colors.get('use_gradient', False)
+    
+    img = Image.new('RGB', (width, height), bg_1)
+    
+    if use_gradient and bg_1 != bg_2:
+        draw = ImageDraw.Draw(img)
+        direction = colors.get('gradient_direction', 'to bottom')
+        
+        # Create gradient
+        for i in range(height):
+            if direction in ['to bottom', 'to top']:
+                ratio = i / height if direction == 'to bottom' else (height - i) / height
+            else:
+                ratio = i / height  # Default to vertical
+            
+            r = int(bg_1[0] + (bg_2[0] - bg_1[0]) * ratio)
+            g = int(bg_1[1] + (bg_2[1] - bg_1[1]) * ratio)
+            b = int(bg_1[2] + (bg_2[2] - bg_1[2]) * ratio)
+            draw.line([(0, i), (width, i)], fill=(r, g, b))
+    
     return img
 
 
@@ -565,10 +589,14 @@ def draw_centered_text(draw, text, y, font, color, width, padding=PADDING_LEFT_R
     draw.text((x, y), text, font=font, fill=color)
 
 
-def create_intro_frame(artist, title, frame_num, total_frames, width, height):
+def create_intro_frame(artist, title, frame_num, total_frames, width, height, colors=None):
     """Create intro screen frame with fade in/out."""
-    img = create_frame(width, height)
+    img = create_frame(width, height, colors)
     draw = ImageDraw.Draw(img)
+    
+    # Get colors or use defaults
+    text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
+    sung_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
     
     scale = width / 1920
     font_artist = get_font(int(FONT_SIZE_ARTIST * scale))
@@ -586,10 +614,10 @@ def create_intro_frame(artist, title, frame_num, total_frames, width, height):
         return tuple(int(c * a) for c in color)
     
     draw_centered_text(draw, artist, height // 2 - int(60 * scale), 
-                       font_artist, apply_alpha(COLOR_TEXT, alpha), width)
+                       font_artist, apply_alpha(text_color, alpha), width)
     
     draw_centered_text(draw, title, height // 2 + int(40 * scale), 
-                       font_title, apply_alpha(COLOR_HIGHLIGHT, alpha), width)
+                       font_title, apply_alpha(sung_color, alpha), width)
     
     return img
 
@@ -684,10 +712,19 @@ def group_lyrics_into_lines(lyrics, words_per_line=WORDS_PER_LINE):
     return lines
 
 
-def create_scroll_frame(current_time, lyrics, width, height):
+def create_scroll_frame(current_time, lyrics, width, height, colors=None):
     """Create TELEPROMPTER-STYLE scrolling lyrics frame."""
-    img = create_frame(width, height)
+    img = create_frame(width, height, colors)
     draw = ImageDraw.Draw(img)
+    
+    # Get colors or use defaults
+    text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
+    sung_color = colors.get('sung', COLOR_SUNG) if colors else COLOR_SUNG
+    highlight_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
+    upcoming_color = colors.get('text', COLOR_UPCOMING) if colors else COLOR_UPCOMING
+    # Make upcoming slightly dimmer than main text
+    if colors:
+        upcoming_color = tuple(int(c * 0.7) for c in text_color)
     
     scale = width / 1920
     font = get_font(int(FONT_SIZE_LYRICS * scale))
@@ -741,14 +778,14 @@ def create_scroll_frame(current_time, lyrics, width, height):
                 word_width = draw.textbbox((0, 0), word, font=font)[2]
                 
                 if line_idx < current_line_idx:
-                    color = COLOR_SUNG
+                    color = sung_color
                 elif line_idx == current_line_idx:
                     if current_time >= word_data['start']:
-                        color = COLOR_HIGHLIGHT
+                        color = highlight_color
                     else:
-                        color = COLOR_TEXT
+                        color = text_color
                 else:
-                    color = COLOR_UPCOMING
+                    color = upcoming_color
                 
                 if x + word_width <= width - padding:
                     draw.text((x, y), word, font=font, fill=color)
@@ -758,10 +795,15 @@ def create_scroll_frame(current_time, lyrics, width, height):
     return img
 
 
-def create_page_frame(current_time, lyrics, width, height):
+def create_page_frame(current_time, lyrics, width, height, colors=None):
     """Create frame with page-by-page lyrics display."""
-    img = create_frame(width, height)
+    img = create_frame(width, height, colors)
     draw = ImageDraw.Draw(img)
+    
+    # Get colors or use defaults
+    text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
+    sung_color = colors.get('sung', COLOR_SUNG) if colors else COLOR_SUNG
+    highlight_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
     
     scale = width / 1920
     font = get_font(int(FONT_SIZE_LYRICS * scale))
@@ -802,14 +844,14 @@ def create_page_frame(current_time, lyrics, width, height):
                 word = word_data['word'] + ' '
                 
                 if line_idx_global < current_line_idx:
-                    color = COLOR_SUNG
+                    color = sung_color
                 elif line_idx_global == current_line_idx:
                     if current_time >= word_data['start']:
-                        color = COLOR_HIGHLIGHT
+                        color = highlight_color
                     else:
-                        color = COLOR_TEXT
+                        color = text_color
                 else:
-                    color = COLOR_TEXT
+                    color = text_color
                 
                 draw.text((x, y), word, font=font, fill=color)
                 x += draw.textbbox((0, 0), word, font=font)[2]
@@ -817,7 +859,7 @@ def create_page_frame(current_time, lyrics, width, height):
     return img
 
 
-def create_overwrite_frame(current_time, lyrics, width, height):
+def create_overwrite_frame(current_time, lyrics, width, height, colors=None):
     """
     Create frame with TRUE overwrite-style lyrics display.
     
@@ -829,8 +871,17 @@ def create_overwrite_frame(current_time, lyrics, width, height):
     When a line is done being sung, the NEXT line for that position
     appears instantly. Lines don't move - content is replaced in place.
     """
-    img = create_frame(width, height)
+    img = create_frame(width, height, colors)
     draw = ImageDraw.Draw(img)
+    
+    # Get colors or use defaults
+    text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
+    sung_color = colors.get('sung', COLOR_SUNG) if colors else COLOR_SUNG
+    highlight_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
+    upcoming_color = colors.get('text', COLOR_UPCOMING) if colors else COLOR_UPCOMING
+    # Make upcoming slightly dimmer than main text
+    if colors:
+        upcoming_color = tuple(int(c * 0.7) for c in text_color)
     
     scale = width / 1920
     font = get_font(int(FONT_SIZE_LYRICS * scale))
@@ -883,16 +934,16 @@ def create_overwrite_frame(current_time, lyrics, width, height):
             
             if line_idx < current_line_idx:
                 # Already sung (shouldn't happen with this logic, but just in case)
-                color = COLOR_SUNG
+                color = sung_color
             elif line_idx == current_line_idx:
                 # Current line - highlight sung words
                 if current_time >= word_data['start']:
-                    color = COLOR_HIGHLIGHT
+                    color = highlight_color
                 else:
-                    color = COLOR_TEXT
+                    color = text_color
             else:
                 # Upcoming lines
-                color = COLOR_UPCOMING
+                color = upcoming_color
             
             draw.text((x, y), word, font=font, fill=color)
             x += draw.textbbox((0, 0), word, font=font)[2]
@@ -900,19 +951,49 @@ def create_overwrite_frame(current_time, lyrics, width, height):
     return img
 
 
-def create_lyrics_frame(current_time, lyrics, display_mode, width, height):
+def create_lyrics_frame(current_time, lyrics, display_mode, width, height, colors=None):
     """Create frame with lyrics based on selected display mode."""
     if display_mode == 'scroll':
-        return create_scroll_frame(current_time, lyrics, width, height)
+        return create_scroll_frame(current_time, lyrics, width, height, colors)
     elif display_mode == 'page':
-        return create_page_frame(current_time, lyrics, width, height)
+        return create_page_frame(current_time, lyrics, width, height, colors)
     else:
-        return create_overwrite_frame(current_time, lyrics, width, height)
+        return create_overwrite_frame(current_time, lyrics, width, height, colors)
 
 
-def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode):
+def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None):
     """Generate video with lyrics and countdown"""
     print(f"🎬 Generating video (mode: {display_mode})...")
+    
+    # Default style options if not provided
+    if style_options is None:
+        style_options = {
+            'bg_color_1': '#1a1a2e',
+            'bg_color_2': '#16213e',
+            'use_gradient': True,
+            'gradient_direction': 'to bottom',
+            'text_color': '#ffffff',
+            'outline_color': '#000000',
+            'sung_color': '#00d4ff',
+            'font': 'arial',
+        }
+    
+    # Parse colors from hex to RGB tuples
+    def hex_to_rgb(hex_color):
+        hex_color = hex_color.lstrip('#')
+        return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    
+    colors = {
+        'bg_1': hex_to_rgb(style_options.get('bg_color_1', '#1a1a2e')),
+        'bg_2': hex_to_rgb(style_options.get('bg_color_2', '#16213e')),
+        'text': hex_to_rgb(style_options.get('text_color', '#ffffff')),
+        'outline': hex_to_rgb(style_options.get('outline_color', '#000000')),
+        'sung': hex_to_rgb(style_options.get('sung_color', '#00d4ff')),
+        'use_gradient': style_options.get('use_gradient', True),
+        'gradient_direction': style_options.get('gradient_direction', 'to bottom'),
+    }
+    
+    print(f"   🎨 Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}")
     
     if video_quality == '4k':
         width, height = 3840, 2160
@@ -943,7 +1024,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     
     for frame_num in range(total_frames):
         if frame_num < intro_frames:
-            frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height)
+            frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height, colors)
         else:
             # Audio plays from frame 0, so current_time = total video time, not time since intro ended
             current_time = frame_num / FPS
@@ -954,7 +1035,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
                 first_lyric_logged = True
             
             # Just show lyrics - no countdown dots for now
-            frame = create_lyrics_frame(current_time, lyrics, display_mode, width, height)
+            frame = create_lyrics_frame(current_time, lyrics, display_mode, width, height, colors)
         
         frame_path = os.path.join(frames_dir, f'frame_{frame_num:06d}.png')
         frame.save(frame_path)
@@ -1020,12 +1101,25 @@ def handler(event):
             'song_title': input_data.get('song_title', 'Unknown Title'),
         }
         
+        # NEW: Extract style customization options
+        style_options = {
+            'bg_color_1': input_data.get('bg_color_1', '#1a1a2e'),
+            'bg_color_2': input_data.get('bg_color_2', '#16213e'),
+            'use_gradient': input_data.get('use_gradient', True) in [True, 'true', 'True', '1', 1],
+            'gradient_direction': input_data.get('gradient_direction', 'to bottom'),
+            'text_color': input_data.get('text_color', '#ffffff'),
+            'outline_color': input_data.get('outline_color', '#000000'),
+            'sung_color': input_data.get('sung_color', '#00d4ff'),
+            'font': input_data.get('font', 'arial'),
+        }
+        
         print(f"🎤 Processing project: {project_id}")
         print(f"   Type: {processing_type}")
         print(f"   Lyrics provided: {'Yes' if user_lyrics_text else 'No (auto-transcribe)'}")
         print(f"   Display mode: {display_mode}")
         print(f"   Clean version: {clean_version}")
         print(f"   Quality: {video_quality}")
+        print(f"   🎨 Style: bg={style_options['bg_color_1']}, text={style_options['text_color']}, sung={style_options['sung_color']}")
         print(f"   🚀 Using AssemblyAI for precise timing!")
         
         work_dir = tempfile.mkdtemp()
@@ -1085,7 +1179,8 @@ def handler(event):
             track_info, 
             video_path, 
             video_quality,
-            selected_display_mode
+            selected_display_mode,
+            style_options  # NEW: Pass style options
         )
         
         video_key = f"processed/{project_id}/video.mp4"
