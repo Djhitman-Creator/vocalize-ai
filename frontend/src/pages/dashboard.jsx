@@ -165,6 +165,15 @@ export default function DashboardPage() {
     checkUser();
   }, [router]);
 
+  // Show notification if redirected from upload with review mode
+  useEffect(() => {
+    if (router.query.awaiting_review === 'true') {
+      addNotification('✏️ Your track is being transcribed. Click "Review Lyrics" when it\'s ready!', 'info');
+      // Remove the query param from URL without refresh
+      router.replace('/dashboard', undefined, { shallow: true });
+    }
+  }, [router.query.awaiting_review, addNotification, router]);
+
   // Polling effect - only poll when there are processing projects
   useEffect(() => {
     if (!user) return;

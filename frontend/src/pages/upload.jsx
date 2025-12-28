@@ -343,11 +343,11 @@ export default function UploadPage() {
       setUploadProgress(100);
 
       setTimeout(() => {
-        if (reviewLyrics && projectData.id) {
-          // Redirect to lyrics editor for review
-          router.push(`/edit/${projectData.id}`);
+        // Always go to dashboard first - user will click "Review Lyrics" 
+        // button once transcription completes (status: awaiting_review)
+        if (reviewLyrics) {
+          router.push('/dashboard?awaiting_review=true');
         } else {
-          // Normal flow - go to dashboard
           router.push('/dashboard');
         }
       }, 500);
