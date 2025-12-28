@@ -106,7 +106,7 @@ const plans = [
     description: 'For professionals',
     highlights: [
       { text: '200 credits/month', included: true },
-      { text: '1080p video quality', included: true },
+      { text: '4K video quality', included: true },
       { text: 'Custom logo watermark', included: true },
       { text: 'Edit lyrics before render', included: true },
       { text: 'Full style control', included: true },
@@ -114,7 +114,7 @@ const plans = [
     ],
     features: {
       watermark: 'custom',
-      maxQuality: '1080p',
+      maxQuality: '4K',
       editLyrics: true,
       colorCustomization: true,
       adjustLyricsStyle: true,
@@ -143,7 +143,7 @@ const featureComparison = [
         free: '480p', 
         starter: '1080p', 
         pro: '1080p', 
-        studio: '1080p',
+        studio: '4K',
         type: 'text'
       },
     ]

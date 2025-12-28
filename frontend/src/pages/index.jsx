@@ -147,15 +147,18 @@ const HeroSection = ({ isDark }) => (
         className="grid grid-cols-3 gap-8 mt-16 max-w-2xl mx-auto"
       >
         {[
-          { value: '98%+', label: 'Lyrics Accuracy' },
+          { value: '98%+', label: 'Lyrics Accuracy*' },
           { value: 'Word-Level', label: 'Timing Sync' },
-          { value: 'Up to 1080p', label: 'Export Quality' },
+          { value: 'Up to 4K', label: 'Export Quality' },
         ].map((stat, i) => (
           <div key={i} className="text-center">
             <div className="font-display text-3xl font-bold text-gradient">{stat.value}</div>
             <div className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{stat.label}</div>
           </div>
         ))}
+        <div className={`col-span-3 text-xs mt-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+          *with edit-before-render feature on Pro/Studio plans
+        </div>
       </motion.div>
     </div>
   </section>
