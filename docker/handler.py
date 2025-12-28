@@ -63,7 +63,7 @@ COLOR_UPCOMING = (200, 200, 200)  # Light gray for upcoming lines
 COLOR_COUNTDOWN = (255, 200, 0)  # Gold for countdown dots
 
 # Timing
-INTRO_DURATION = 5
+INTRO_DURATION = 4  # Reduced from 5 to 4 seconds
 COUNTDOWN_THRESHOLD = 5
 INTRO_COUNTDOWN_THRESHOLD = 10
 COUNTDOWN_DOTS = 3
@@ -246,6 +246,27 @@ def get_audio_duration(audio_path):
         capture_output=True, text=True
     )
     return float(result.stdout.strip())
+
+
+def add_silence_to_audio(audio_path, silence_duration, output_path):
+    """Add silence to the beginning of an audio file"""
+    print(f"   Adding {silence_duration}s silence to beginning of audio...")
+    
+    # Use FFmpeg to add silence at the beginning
+    # This creates silence and concatenates it with the original audio
+    cmd = [
+        'ffmpeg', '-y',
+        '-f', 'lavfi', '-i', f'anullsrc=r=44100:cl=stereo:d={silence_duration}',
+        '-i', audio_path,
+        '-filter_complex', '[0:a][1:a]concat=n=2:v=0:a=1[out]',
+        '-map', '[out]',
+        '-c:a', 'pcm_s16le',
+        output_path
+    ]
+    
+    subprocess.run(cmd, check=True, capture_output=True)
+    print(f"   ✅ Audio with silence created: {output_path}")
+    return output_path
 
 
 def separate_vocals(audio_path, output_dir):
@@ -1002,8 +1023,25 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     else:
         width, height = 1280, 720
     
-    duration = get_audio_duration(audio_path)
-    total_frames = int((duration + INTRO_DURATION) * FPS)
+    # Add silence to beginning of audio for intro screen
+    work_dir = os.path.dirname(audio_path)
+    audio_with_intro = os.path.join(work_dir, 'audio_with_intro.wav')
+    add_silence_to_audio(audio_path, INTRO_DURATION, audio_with_intro)
+    
+    # Offset all lyric timestamps by INTRO_DURATION
+    # So lyrics sync with audio that now has silence at the start
+    offset_lyrics = []
+    for word in lyrics:
+        offset_word = word.copy()
+        offset_word['start'] = word['start'] + INTRO_DURATION
+        offset_word['end'] = word['end'] + INTRO_DURATION
+        offset_lyrics.append(offset_word)
+    
+    print(f"   ⏱️ Lyrics offset by {INTRO_DURATION}s for intro")
+    
+    # Get duration of audio WITH intro silence
+    total_duration = get_audio_duration(audio_with_intro)
+    total_frames = int(total_duration * FPS)
     
     frames_dir = tempfile.mkdtemp()
     
@@ -1014,28 +1052,28 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     
     # Debug: Log timing info
     print(f"   📊 Timing debug:")
-    print(f"      Audio duration: {duration:.2f}s")
+    print(f"      Total duration (with intro): {total_duration:.2f}s")
     print(f"      Intro duration: {INTRO_DURATION}s ({intro_frames} frames)")
     print(f"      Total frames: {total_frames}")
-    if lyrics:
-        print(f"      First lyric '{lyrics[0]['word']}' at {lyrics[0]['start']:.2f}s (frame {int(lyrics[0]['start'] * FPS)})")
+    if offset_lyrics:
+        print(f"      First lyric '{offset_lyrics[0]['word']}' at {offset_lyrics[0]['start']:.2f}s (frame {int(offset_lyrics[0]['start'] * FPS)})")
     
     first_lyric_logged = False
     
     for frame_num in range(total_frames):
+        current_time = frame_num / FPS
+        
         if frame_num < intro_frames:
+            # Show intro screen during the silence period
             frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height, colors)
         else:
-            # Audio plays from frame 0, so current_time = total video time, not time since intro ended
-            current_time = frame_num / FPS
-            
             # Debug: Log when first lyric should appear
-            if not first_lyric_logged and lyrics and current_time >= lyrics[0]['start']:
+            if not first_lyric_logged and offset_lyrics and current_time >= offset_lyrics[0]['start']:
                 print(f"   📊 First lyric should appear now: frame {frame_num}, current_time={current_time:.2f}s")
                 first_lyric_logged = True
             
-            # Just show lyrics - no countdown dots for now
-            frame = create_lyrics_frame(current_time, lyrics, display_mode, width, height, colors)
+            # Show lyrics (using offset timestamps)
+            frame = create_lyrics_frame(current_time, offset_lyrics, display_mode, width, height, colors)
         
         frame_path = os.path.join(frames_dir, f'frame_{frame_num:06d}.png')
         frame.save(frame_path)
@@ -1045,11 +1083,12 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     
     print("🔧 Encoding video with FFmpeg...")
     
+    # Use audio_with_intro which has silence at the beginning
     ffmpeg_cmd = [
         'ffmpeg', '-y',
         '-framerate', str(FPS),
         '-i', os.path.join(frames_dir, 'frame_%06d.png'),
-        '-i', audio_path,
+        '-i', audio_with_intro,
         '-c:v', 'libx264',
         '-preset', 'medium',
         '-crf', '23',
