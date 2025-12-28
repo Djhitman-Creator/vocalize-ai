@@ -116,16 +116,43 @@ export default function UploadPage() {
           console.error('Profile error:', profileError);
         }
         
-        // Get subscription separately
-        const { data: subData, error: subError } = await supabase
+        console.log('Profile loaded:', profileData);
+        
+        // Try to get subscription - attempt different query structures
+        let subData = null;
+        
+        // Attempt 1: With status filter
+        const { data: sub1, error: err1 } = await supabase
           .from('subscriptions')
           .select('*, subscription_plans(*)')
           .eq('user_id', user.id)
           .eq('status', 'active')
-          .single();
+          .maybeSingle();
         
-        console.log('Profile:', profileData);
-        console.log('Subscription:', subData);
+        if (sub1) {
+          subData = sub1;
+          console.log('Found subscription (with status):', sub1);
+        } else {
+          console.log('Attempt 1 failed:', err1?.message);
+          
+          // Attempt 2: Without status filter
+          const { data: sub2, error: err2 } = await supabase
+            .from('subscriptions')
+            .select('*, subscription_plans(*)')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          if (sub2) {
+            subData = sub2;
+            console.log('Found subscription (no status filter):', sub2);
+          } else {
+            console.log('Attempt 2 failed:', err2?.message);
+            
+            // Attempt 3: Check if plan info is on profile itself
+            console.log('Checking profile for plan info...');
+            console.log('Profile fields:', Object.keys(profileData || {}));
+          }
+        }
         
         // Combine profile with subscription
         setProfile({
@@ -141,24 +168,41 @@ export default function UploadPage() {
 
   // Check if user has Pro or Studio plan
   const isPremiumUser = () => {
-    console.log('Checking premium - Profile:', profile);
+    if (!profile) {
+      console.log('No profile yet');
+      return false;
+    }
     
-    if (!profile) return false;
+    console.log('Checking premium for profile:', profile);
+    console.log('Profile fields:', Object.keys(profile));
     
     // Check subscription plan name
     const planName = profile?.subscription?.subscription_plans?.name?.toLowerCase() || '';
-    console.log('Plan name:', planName);
+    console.log('Subscription plan name:', planName);
     
     if (planName.includes('pro') || planName.includes('studio')) {
+      console.log('✅ Premium via subscription_plans.name');
       return true;
     }
     
-    // Also check profile fields directly
-    if (profile?.plan_name?.toLowerCase()?.includes('pro') || 
-        profile?.plan_name?.toLowerCase()?.includes('studio')) {
-      return true;
+    // Check subscription plan_id or plan directly
+    const planId = profile?.subscription?.plan_id || profile?.subscription?.subscription_plan_id;
+    console.log('Plan ID:', planId);
+    
+    // Check various profile fields that might indicate plan
+    const fieldsToCheck = ['plan_name', 'subscription_tier', 'current_plan', 'plan', 'tier', 'subscription_plan'];
+    for (const field of fieldsToCheck) {
+      if (profile[field]) {
+        const value = String(profile[field]).toLowerCase();
+        console.log(`Checking profile.${field}:`, value);
+        if (value.includes('pro') || value.includes('studio')) {
+          console.log(`✅ Premium via profile.${field}`);
+          return true;
+        }
+      }
     }
     
+    console.log('❌ Not premium');
     return false;
   };
 
