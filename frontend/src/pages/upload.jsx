@@ -71,7 +71,7 @@ export default function UploadPage() {
   const [artistName, setArtistName] = useState('');
   const [trackNumber, setTrackNumber] = useState('KT-01');
   const [processingType, setProcessingType] = useState('remove_vocals');
-  const [videoQuality, setVideoQuality] = useState('1080p');
+  const [videoQuality, setVideoQuality] = useState('480p');
   const [lyrics, setLyrics] = useState('');
   const [displayMode, setDisplayMode] = useState('auto');
   const [cleanVersion, setCleanVersion] = useState(false);
@@ -166,6 +166,20 @@ export default function UploadPage() {
     loadProfile();
   }, [router]);
 
+  // Set default video quality based on subscription tier
+  useEffect(() => {
+    if (profile) {
+      const tier = profile?.subscription_tier?.toLowerCase() || 'free';
+      if (tier === 'free' || tier === '') {
+        setVideoQuality('480p');
+      } else if (tier === 'studio') {
+        setVideoQuality('1080p');
+      } else {
+        setVideoQuality('1080p');
+      }
+    }
+  }, [profile]);
+
   // Check if user has Pro or Studio plan
   const isPremiumUser = () => {
     if (!profile) {
@@ -204,6 +218,53 @@ export default function UploadPage() {
     
     console.log('❌ Not premium');
     return false;
+  };
+
+  // Check if user is on free tier
+  const isFreeUser = () => {
+    if (!profile) return true; // Default to free if no profile loaded
+    
+    // Check subscription_tier field on profile
+    const tier = profile?.subscription_tier?.toLowerCase() || '';
+    if (tier === 'free' || tier === '') return true;
+    
+    // Check subscription plan name
+    const planName = profile?.subscription?.subscription_plans?.name?.toLowerCase() || '';
+    if (!planName || planName === 'free') return true;
+    
+    return false;
+  };
+
+  // Check if user has Studio plan (for 4K access)
+  const isStudioUser = () => {
+    if (!profile) return false;
+    
+    const tier = profile?.subscription_tier?.toLowerCase() || '';
+    if (tier === 'studio') return true;
+    
+    const planName = profile?.subscription?.subscription_plans?.name?.toLowerCase() || '';
+    if (planName.includes('studio')) return true;
+    
+    return false;
+  };
+
+  // Get available quality options based on subscription tier
+  const getQualityOptions = () => {
+    if (isFreeUser()) {
+      return [{ value: '480p', label: '480p' }];
+    } else if (isStudioUser()) {
+      return [
+        { value: '720p', label: '720p' },
+        { value: '1080p', label: '1080p (HD)' },
+        { value: '4k', label: '4K' }
+      ];
+    } else {
+      // Starter and Pro
+      return [
+        { value: '720p', label: '720p' },
+        { value: '1080p', label: '1080p (HD)' }
+      ];
+    }
   };
 
   // Audio file dropzone
@@ -481,10 +542,15 @@ export default function UploadPage() {
                       onChange={(e) => setVideoQuality(e.target.value)}
                       className="glass-input w-full px-3 py-2 rounded-lg text-sm"
                     >
-                      <option value="720p">720p</option>
-                      <option value="1080p">1080p (HD)</option>
-                      <option value="4k">4K</option>
+                      {getQualityOptions().map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
                     </select>
+                    {isFreeUser() && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        <Link href="/pricing" className="text-cyan-400 hover:underline">Upgrade</Link> for HD quality
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Lyric Display</label>
@@ -601,7 +667,8 @@ export default function UploadPage() {
                 </div>
               </motion.div>
 
-              {/* Style Customization */}
+              {/* Style Customization - Paid users only */}
+              {!isFreeUser() ? (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -758,6 +825,33 @@ export default function UploadPage() {
                   </div>
                 </div>
               </motion.div>
+              ) : (
+                /* Free tier upgrade prompt */
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="glass-panel p-6"
+                >
+                  <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    <Palette className="w-5 h-5 text-gray-500" />
+                    Style Customization
+                    <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-xs rounded-full">STARTER+</span>
+                  </h2>
+                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
+                      Customize your karaoke video with custom colors, fonts, and gradients.
+                    </p>
+                    <Link 
+                      href="/pricing" 
+                      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
+                    >
+                      <Zap className="w-4 h-4" />
+                      Upgrade to Unlock
+                    </Link>
+                  </div>
+                </motion.div>
+              )}
 
               {/* Rights Confirmation & Submit */}
               <motion.div
