@@ -19,7 +19,8 @@ import {
   Download,
   Loader2,
   Bell,
-  X
+  X,
+  Edit3
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -76,9 +77,9 @@ export default function DashboardPage() {
         if (isPolling) {
           projectsData.forEach(project => {
             if (project.status === 'completed' && !completedIds.has(project.id)) {
-              // Check if this was previously processing
+              // Check if this was previously processing or rendering
               const oldProject = projects.find(p => p.id === project.id);
-              if (oldProject && oldProject.status === 'processing') {
+              if (oldProject && ['processing', 'rendering'].includes(oldProject.status)) {
                 addNotification(`🎉 "${project.title}" is ready for download!`, 'success');
                 
                 // Play notification sound (optional)
@@ -91,10 +92,19 @@ export default function DashboardPage() {
               setCompletedIds(prev => new Set([...prev, project.id]));
             }
             
+            // Check for awaiting_review (transcription completed)
+            if (project.status === 'awaiting_review' && !completedIds.has(project.id)) {
+              const oldProject = projects.find(p => p.id === project.id);
+              if (oldProject && oldProject.status === 'transcribing') {
+                addNotification(`✏️ "${project.title}" is ready for lyrics review!`, 'success');
+              }
+              setCompletedIds(prev => new Set([...prev, project.id]));
+            }
+            
             // Check for failed projects
             if (project.status === 'failed' && !completedIds.has(project.id)) {
               const oldProject = projects.find(p => p.id === project.id);
-              if (oldProject && oldProject.status === 'processing') {
+              if (oldProject && ['processing', 'transcribing', 'rendering'].includes(oldProject.status)) {
                 addNotification(`❌ "${project.title}" failed to process`, 'error');
               }
               setCompletedIds(prev => new Set([...prev, project.id]));
@@ -159,11 +169,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
     
-    const hasProcessingProjects = projects.some(p => p.status === 'processing');
+    const hasActiveProjects = projects.some(p => 
+      ['processing', 'transcribing', 'rendering'].includes(p.status)
+    );
     
-    if (!hasProcessingProjects) return;
+    if (!hasActiveProjects) return;
     
-    console.log('🔄 Starting polling - processing projects detected');
+    console.log('🔄 Starting polling - active projects detected');
     
     const pollInterval = setInterval(() => {
       fetchProjects(user.id, true);
@@ -245,7 +257,11 @@ export default function DashboardPage() {
       case 'completed':
         return <CheckCircle className="w-5 h-5 text-green-400" />;
       case 'processing':
+      case 'transcribing':
+      case 'rendering':
         return <Loader2 className="w-5 h-5 text-yellow-400 animate-spin" />;
+      case 'awaiting_review':
+        return <Edit3 className="w-5 h-5 text-purple-400" />;
       case 'failed':
         return <AlertCircle className="w-5 h-5 text-red-400" />;
       default:
@@ -259,6 +275,12 @@ export default function DashboardPage() {
         return 'Ready';
       case 'processing':
         return 'Processing...';
+      case 'transcribing':
+        return 'Transcribing...';
+      case 'rendering':
+        return 'Rendering...';
+      case 'awaiting_review':
+        return 'Review Lyrics';
       case 'failed':
         return 'Failed';
       default:
@@ -266,8 +288,10 @@ export default function DashboardPage() {
     }
   };
 
-  // Count processing projects
-  const processingCount = projects.filter(p => p.status === 'processing').length;
+  // Count processing projects (all active statuses)
+  const processingCount = projects.filter(p => 
+    ['processing', 'transcribing', 'rendering'].includes(p.status)
+  ).length;
 
   return (
     <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
@@ -463,7 +487,8 @@ export default function DashboardPage() {
                 <motion.div 
                   key={project.id} 
                   className={`glass-panel p-4 flex items-center justify-between ${
-                    project.status === 'processing' ? 'border border-yellow-500/30' : ''
+                    ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'border border-yellow-500/30' : 
+                    project.status === 'awaiting_review' ? 'border border-purple-500/30' : ''
                   }`}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
@@ -472,12 +497,14 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                       project.status === 'completed' ? 'bg-green-500/20' :
-                      project.status === 'processing' ? 'bg-yellow-500/20' :
+                      ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'bg-yellow-500/20' :
+                      project.status === 'awaiting_review' ? 'bg-purple-500/20' :
                       project.status === 'failed' ? 'bg-red-500/20' : 'bg-white/5'
                     }`}>
                       <Music className={`w-6 h-6 ${
                         project.status === 'completed' ? 'text-green-400' :
-                        project.status === 'processing' ? 'text-yellow-400' :
+                        ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'text-yellow-400' :
+                        project.status === 'awaiting_review' ? 'text-purple-400' :
                         project.status === 'failed' ? 'text-red-400' : 'text-cyan-400'
                       }`} />
                     </div>
@@ -493,7 +520,8 @@ export default function DashboardPage() {
                       {getStatusIcon(project.status)}
                       <span className={`text-sm ${
                         project.status === 'completed' ? 'text-green-400' :
-                        project.status === 'processing' ? 'text-yellow-400' :
+                        ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'text-yellow-400' :
+                        project.status === 'awaiting_review' ? 'text-purple-400' :
                         project.status === 'failed' ? 'text-red-400' : 'text-gray-400'
                       }`}>
                         {getStatusText(project.status)}
@@ -519,6 +547,16 @@ export default function DashboardPage() {
                           </>
                         )}
                       </button>
+                    )}
+                    
+                    {/* Review Lyrics Button - for awaiting_review projects */}
+                    {project.status === 'awaiting_review' && (
+                      <Link href={`/edit/${project.id}`}>
+                        <button className="ml-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
+                          <Edit3 className="w-4 h-4" />
+                          <span>Review Lyrics</span>
+                        </button>
+                      </Link>
                     )}
                     
                     {/* Retry button for failed projects */}

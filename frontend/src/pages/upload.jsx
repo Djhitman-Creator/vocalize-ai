@@ -77,6 +77,7 @@ export default function UploadPage() {
   const [cleanVersion, setCleanVersion] = useState(false);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [notifyOnComplete, setNotifyOnComplete] = useState(true);
+  const [reviewLyrics, setReviewLyrics] = useState(false);  // NEW: Review lyrics before rendering
   
   // Style customization
   const [bgColor1, setBgColor1] = useState('#1a1a2e');
@@ -104,13 +105,20 @@ export default function UploadPage() {
       }
       const { data } = await supabase
         .from('profiles')
-        .select('*')
+        .select('*, subscriptions(*, subscription_plans(*))')
         .eq('id', user.id)
         .single();
       setProfile(data);
     };
     loadProfile();
   }, []);
+
+  // Check if user has Pro or Studio plan
+  const isPremiumUser = () => {
+    if (!profile?.subscriptions?.[0]?.subscription_plans) return false;
+    const planName = profile.subscriptions[0].subscription_plans.name?.toLowerCase() || '';
+    return planName.includes('pro') || planName.includes('studio');
+  };
 
   // Audio file dropzone
   const onDropAudio = useCallback((acceptedFiles) => {
@@ -221,6 +229,9 @@ export default function UploadPage() {
       
       // Email notification
       formData.append('notify_on_complete', notifyOnComplete.toString());
+      
+      // NEW: Processing mode for lyrics review
+      formData.append('processing_mode', reviewLyrics ? 'transcribe_only' : 'full');
 
       setUploadProgress(30);
 
@@ -242,10 +253,17 @@ export default function UploadPage() {
         throw new Error(errorData.error || 'Upload failed');
       }
 
+      const projectData = await response.json();
       setUploadProgress(100);
 
       setTimeout(() => {
-        router.push('/dashboard');
+        if (reviewLyrics && projectData.id) {
+          // Redirect to lyrics editor for review
+          router.push(`/edit/${projectData.id}`);
+        } else {
+          // Normal flow - go to dashboard
+          router.push('/dashboard');
+        }
       }, 500);
 
     } catch (err) {
@@ -689,6 +707,36 @@ export default function UploadPage() {
                   />
                 </label>
 
+                {/* Review Lyrics Checkbox - Pro/Studio Only */}
+                {isPremiumUser() && (
+                  <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${
+                    reviewLyrics
+                      ? 'bg-yellow-500/20 border border-yellow-400'
+                      : 'bg-white/5 border border-transparent hover:bg-white/10'
+                  }`}>
+                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
+                      reviewLyrics ? 'bg-yellow-500 border-yellow-500' : 'border-gray-500'
+                    }`}>
+                      {reviewLyrics && <CheckCircle className="w-3 h-3 text-white" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        ✏️ Review & edit lyrics before rendering
+                        <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs rounded-full">PRO</span>
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Preview AI-generated lyrics and fix any mistakes before your video is created
+                      </p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={reviewLyrics}
+                      onChange={(e) => setReviewLyrics(e.target.checked)}
+                      className="sr-only"
+                    />
+                  </label>
+                )}
+
                 {/* Rights Checkbox */}
                 <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-4 ${
                   rightsConfirmed
@@ -734,7 +782,14 @@ export default function UploadPage() {
                   ) : (
                     <>
                       <Upload className="w-5 h-5" />
-                      <span>{rightsConfirmed ? 'Create Karaoke Track' : 'Confirm Rights Above'}</span>
+                      <span>
+                        {!rightsConfirmed 
+                          ? 'Confirm Rights Above' 
+                          : reviewLyrics 
+                            ? 'Process & Review Lyrics' 
+                            : 'Create Karaoke Track'
+                        }
+                      </span>
                     </>
                   )}
                 </button>
