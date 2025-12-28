@@ -1275,7 +1275,7 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
     if (status === 'transcribed' && results) {
       console.log(`📋 Project ${project_id} transcription complete - awaiting review`);
       
-      await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('projects')
         .update({
           status: 'awaiting_review',
@@ -1284,12 +1284,19 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
           lyrics_json: results.lyrics,
           transcription_completed_at: new Date().toISOString(),
         })
-        .eq('id', project_id);
+        .eq('id', project_id)
+        .select();
+
+      if (updateError) {
+        console.error('❌ Failed to update project status:', updateError);
+      } else {
+        console.log('✅ Project status updated to awaiting_review:', updateData);
+      }
 
       // Don't send email - user needs to review lyrics first
       
     } else if (status === 'completed' && results) {
-      await supabase
+      const { data: updateData, error: updateError } = await supabase
         .from('projects')
         .update({
           status: 'completed',
@@ -1299,7 +1306,14 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
           video_url: results.video_url,
           processing_completed_at: new Date().toISOString(),
         })
-        .eq('id', project_id);
+        .eq('id', project_id)
+        .select();
+
+      if (updateError) {
+        console.error('❌ Failed to update project status:', updateError);
+      } else {
+        console.log('✅ Project status updated to completed:', updateData);
+      }
 
       // Send completion email if enabled
       if (project && project.notify_on_complete !== false) {
@@ -1316,7 +1330,7 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
       }
       
     } else if (status === 'failed') {
-      await supabase
+      const { error: updateError } = await supabase
         .from('projects')
         .update({
           status: 'failed',
@@ -1324,6 +1338,10 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
           processing_completed_at: new Date().toISOString(),
         })
         .eq('id', project_id);
+
+      if (updateError) {
+        console.error('❌ Failed to update project status:', updateError);
+      }
 
       // Send failure email if enabled
       if (project && project.notify_on_complete !== false) {
