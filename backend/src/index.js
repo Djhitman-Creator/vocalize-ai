@@ -1171,13 +1171,15 @@ app.post('/api/stripe/portal', authMiddleware, async (req, res) => {
 
 // WEBHOOKS
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  console.log('🔔 Stripe webhook received');
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+    console.log(`✅ Webhook verified: ${event.type}`);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
+    console.error('❌ Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -1201,23 +1203,39 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         const customerId = subscription.customer;
+        console.log(`📦 Subscription ${event.type} for customer: ${customerId}`);
 
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('id')
           .eq('stripe_customer_id', customerId)
           .single();
 
+        if (profileError) {
+          console.error('❌ Error finding profile by stripe_customer_id:', profileError);
+          console.log('   Looking for customer ID:', customerId);
+        }
+
         if (profile) {
+          console.log(`✅ Found profile: ${profile.id}`);
           const priceId = subscription.items.data[0].price.id;
-          const { data: plan } = await supabase
+          console.log(`   Price ID from subscription: ${priceId}`);
+          
+          const { data: plan, error: planError } = await supabase
             .from('subscription_plans')
             .select('tier, credits_per_month')
             .eq('stripe_price_id', priceId)
             .single();
 
+          if (planError) {
+            console.error('❌ Error finding plan by stripe_price_id:', planError);
+            console.log('   Looking for price ID:', priceId);
+          }
+
           if (plan) {
-            await supabase
+            console.log(`✅ Found plan: ${plan.tier} (${plan.credits_per_month} credits)`);
+            
+            const { error: updateError } = await supabase
               .from('profiles')
               .update({
                 subscription_tier: plan.tier,
@@ -1225,15 +1243,31 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               })
               .eq('id', profile.id);
 
+            if (updateError) {
+              console.error('❌ Error updating profile:', updateError);
+            } else {
+              console.log(`✅ Profile updated to tier: ${plan.tier}`);
+            }
+
             if (event.type === 'customer.subscription.created') {
-              await supabase.rpc('add_credits', {
+              const { error: creditError } = await supabase.rpc('add_credits', {
                 p_user_id: profile.id,
                 p_amount: plan.credits_per_month,
                 p_transaction_type: 'subscription_renewal',
                 p_description: `${plan.tier} subscription - ${plan.credits_per_month} monthly credits`,
               });
+              
+              if (creditError) {
+                console.error('❌ Error adding credits:', creditError);
+              } else {
+                console.log(`✅ Added ${plan.credits_per_month} credits to user`);
+              }
             }
+          } else {
+            console.log('❌ No plan found for price ID:', priceId);
           }
+        } else {
+          console.log('❌ No profile found for customer ID:', customerId);
         }
         break;
       }
