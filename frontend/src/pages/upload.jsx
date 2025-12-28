@@ -603,10 +603,16 @@ export default function UploadPage() {
                   Lyrics *
                 </h2>
                 
-                {/* AI Disclaimer */}
-                <div className={`mb-3 p-2 rounded-lg text-xs ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
-                  ⚡ Lyrics are synced using AI for precise timing. Some words may vary slightly — accuracy improves as AI technology advances.
-                </div>
+                {/* AI Disclaimer - different message for free vs paid */}
+                {isFreeUser() ? (
+                  <div className={`mb-3 p-2 rounded-lg text-xs ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
+                    ⚡ Lyrics are synced using AI for precise timing. Some words may vary slightly. <Link href="/pricing" className="text-cyan-400 hover:underline font-medium">Upgrade to Pro or Studio</Link> to review and edit lyrics before rendering.
+                  </div>
+                ) : (
+                  <div className={`mb-3 p-2 rounded-lg text-xs ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
+                    ⚡ Lyrics are synced using AI for precise timing. Use the "Review & edit lyrics" option below to fine-tune timing before rendering.
+                  </div>
+                )}
                 
                 <textarea
                   value={lyrics}
