@@ -322,23 +322,28 @@ def apply_watermark(frame, video_width, video_height):
     # Create a copy of the frame to work with
     watermarked = frame.copy()
     
-    # Calculate positions
-    x_pos = WATERMARK_PADDING
-    y_pos = video_height - WATERMARK_PADDING
-    
     # Prepare to draw text
     draw = ImageDraw.Draw(watermarked)
-    font = get_font(24)  # Smaller font for watermark text
+    font = get_font(20)  # Smaller font for watermark text
     
     # Calculate text size
     text_bbox = draw.textbbox((0, 0), WATERMARK_TEXT, font=font)
     text_width = text_bbox[2] - text_bbox[0]
     text_height = text_bbox[3] - text_bbox[1]
     
+    # Calculate total height needed (logo + text + spacing)
+    total_height = text_height + 8  # Start with text height + spacing
     if logo:
-        # Position logo at bottom-left
+        total_height += logo.height
+    
+    # Position from bottom-left with enough room for everything
+    x_pos = WATERMARK_PADDING
+    bottom_margin = WATERMARK_PADDING + 10  # Extra margin from bottom
+    
+    if logo:
+        # Position logo at bottom-left (but with margin)
         logo_x = x_pos
-        logo_y = y_pos - logo.height
+        logo_y = video_height - bottom_margin - logo.height
         
         # Create semi-transparent version of logo
         logo_with_opacity = logo.copy()
@@ -349,13 +354,13 @@ def apply_watermark(frame, video_width, video_height):
         # Paste logo onto frame
         watermarked.paste(logo_with_opacity, (logo_x, logo_y), logo_with_opacity)
         
-        # Position text below logo
-        text_x = logo_x + (logo.width - text_width) // 2  # Center under logo
-        text_y = logo_y + logo.height + 5
+        # Position text ABOVE the logo
+        text_x = logo_x + (logo.width - text_width) // 2  # Center above logo
+        text_y = logo_y - text_height - 5  # 5px gap above logo
     else:
         # No logo, just put text at bottom-left
         text_x = x_pos
-        text_y = y_pos - text_height - 10
+        text_y = video_height - bottom_margin - text_height
     
     # Draw text with slight transparency effect (draw outline then text)
     # Semi-transparent white text
@@ -1131,8 +1136,10 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         width, height = 3840, 2160
     elif video_quality == '1080p':
         width, height = 1920, 1080
+    elif video_quality == '480p':
+        width, height = 854, 480
     else:
-        width, height = 1280, 720
+        width, height = 1280, 720  # Default to 720p
     
     # Add silence to beginning of audio for intro screen
     work_dir = os.path.dirname(audio_path)
