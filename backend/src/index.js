@@ -59,6 +59,13 @@ const apiKey = brevoClient.authentications['api-key'];
 apiKey.apiKey = process.env.BREVO_API_KEY;
 const brevoEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
+// Log Brevo configuration
+if (process.env.BREVO_API_KEY) {
+  console.log(`📧 Email notifications: enabled (API key: ${process.env.BREVO_API_KEY.substring(0, 10)}...)`);
+} else {
+  console.log('⚠️ Email notifications: DISABLED (no BREVO_API_KEY set)');
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 500 * 1024 * 1024 },
@@ -418,7 +425,10 @@ This link expires in 1 hour. You can always download again from your dashboard a
     console.log(`✅ Completion email sent to ${userEmail} for project ${project.id}`);
     
   } catch (error) {
-    console.error('Error sending completion email:', error);
+    console.error('❌ Error sending completion email:');
+    console.error('   Message:', error.message);
+    console.error('   Status:', error.status);
+    console.error('   Response:', JSON.stringify(error.response?.body || error.response?.text || 'No response body'));
     // Don't throw - email failure shouldn't break the webhook
   }
 }
