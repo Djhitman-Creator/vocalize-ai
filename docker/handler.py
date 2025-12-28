@@ -72,6 +72,13 @@ COUNTDOWN_DOTS = 3
 WORDS_PER_LINE = 7
 LINES_PER_PAGE = 4
 
+# Watermark settings for free tier
+WATERMARK_LOGO_URL = os.environ.get('WATERMARK_LOGO_URL', '')
+WATERMARK_TEXT = "Karatrack.com"
+WATERMARK_OPACITY = 0.7  # 70% opacity
+WATERMARK_LOGO_SIZE = 80  # Width in pixels (height scales proportionally)
+WATERMARK_PADDING = 20  # Padding from edges
+
 # ============================================
 # PROFANITY FILTER
 # ============================================
@@ -267,6 +274,104 @@ def add_silence_to_audio(audio_path, silence_duration, output_path):
     subprocess.run(cmd, check=True, capture_output=True)
     print(f"   ✅ Audio with silence created: {output_path}")
     return output_path
+
+
+# Global variable to cache the watermark logo
+_watermark_logo_cache = None
+
+def get_watermark_logo():
+    """Download and cache the watermark logo"""
+    global _watermark_logo_cache
+    
+    if _watermark_logo_cache is not None:
+        return _watermark_logo_cache
+    
+    if not WATERMARK_LOGO_URL:
+        print("   ⚠️ No watermark logo URL configured")
+        return None
+    
+    try:
+        print(f"   📥 Downloading watermark logo from {WATERMARK_LOGO_URL}")
+        response = requests.get(WATERMARK_LOGO_URL)
+        response.raise_for_status()
+        
+        from io import BytesIO
+        logo = Image.open(BytesIO(response.content)).convert('RGBA')
+        
+        # Resize logo to standard width, keeping aspect ratio
+        aspect_ratio = logo.height / logo.width
+        new_width = WATERMARK_LOGO_SIZE
+        new_height = int(new_width * aspect_ratio)
+        logo = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        _watermark_logo_cache = logo
+        print(f"   ✅ Watermark logo loaded ({new_width}x{new_height})")
+        return logo
+        
+    except Exception as e:
+        print(f"   ⚠️ Failed to load watermark logo: {e}")
+        return None
+
+
+def apply_watermark(frame, video_width, video_height):
+    """Apply watermark (logo + text) to bottom-left of frame"""
+    
+    # Get logo
+    logo = get_watermark_logo()
+    
+    # Create a copy of the frame to work with
+    watermarked = frame.copy()
+    
+    # Calculate positions
+    x_pos = WATERMARK_PADDING
+    y_pos = video_height - WATERMARK_PADDING
+    
+    # Prepare to draw text
+    draw = ImageDraw.Draw(watermarked)
+    font = get_font(24)  # Smaller font for watermark text
+    
+    # Calculate text size
+    text_bbox = draw.textbbox((0, 0), WATERMARK_TEXT, font=font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+    
+    if logo:
+        # Position logo at bottom-left
+        logo_x = x_pos
+        logo_y = y_pos - logo.height
+        
+        # Create semi-transparent version of logo
+        logo_with_opacity = logo.copy()
+        alpha = logo_with_opacity.split()[3]
+        alpha = alpha.point(lambda p: int(p * WATERMARK_OPACITY))
+        logo_with_opacity.putalpha(alpha)
+        
+        # Paste logo onto frame
+        watermarked.paste(logo_with_opacity, (logo_x, logo_y), logo_with_opacity)
+        
+        # Position text below logo
+        text_x = logo_x + (logo.width - text_width) // 2  # Center under logo
+        text_y = logo_y + logo.height + 5
+    else:
+        # No logo, just put text at bottom-left
+        text_x = x_pos
+        text_y = y_pos - text_height - 10
+    
+    # Draw text with slight transparency effect (draw outline then text)
+    # Semi-transparent white text
+    text_color = (255, 255, 255, int(255 * WATERMARK_OPACITY))
+    outline_color = (0, 0, 0, int(255 * WATERMARK_OPACITY))
+    
+    # Draw outline
+    for dx in [-1, 0, 1]:
+        for dy in [-1, 0, 1]:
+            if dx != 0 or dy != 0:
+                draw.text((text_x + dx, text_y + dy), WATERMARK_TEXT, font=font, fill=outline_color)
+    
+    # Draw main text
+    draw.text((text_x, text_y), WATERMARK_TEXT, font=font, fill=text_color)
+    
+    return watermarked
 
 
 def separate_vocals(audio_path, output_dir):
@@ -982,9 +1087,15 @@ def create_lyrics_frame(current_time, lyrics, display_mode, width, height, color
         return create_overwrite_frame(current_time, lyrics, width, height, colors)
 
 
-def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None):
+def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free'):
     """Generate video with lyrics and countdown"""
     print(f"🎬 Generating video (mode: {display_mode})...")
+    print(f"   👤 Subscription tier: {subscription_tier}")
+    
+    # Determine if watermark should be applied (free tier only)
+    apply_watermark_to_video = subscription_tier == 'free'
+    if apply_watermark_to_video:
+        print("   🏷️ Watermark will be applied (free tier)")
     
     # Default style options if not provided
     if style_options is None:
@@ -1075,6 +1186,10 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
             # Show lyrics (using offset timestamps)
             frame = create_lyrics_frame(current_time, offset_lyrics, display_mode, width, height, colors)
         
+        # Apply watermark for free tier
+        if apply_watermark_to_video:
+            frame = apply_watermark(frame, width, height)
+        
         frame_path = os.path.join(frames_dir, f'frame_{frame_num:06d}.png')
         frame.save(frame_path)
         
@@ -1134,6 +1249,9 @@ def handler(event):
         clean_version_raw = input_data.get('clean_version', False)
         clean_version = clean_version_raw in [True, 'true', 'True', '1', 1]
         
+        # Get subscription tier for watermark logic
+        subscription_tier = input_data.get('subscription_tier', 'free')
+        
         track_info = {
             'track_number': input_data.get('track_number', 'KT-01'),
             'artist_name': input_data.get('artist_name', 'Unknown Artist'),
@@ -1158,6 +1276,7 @@ def handler(event):
         print(f"   Display mode: {display_mode}")
         print(f"   Clean version: {clean_version}")
         print(f"   Quality: {video_quality}")
+        print(f"   👤 Subscription tier: {subscription_tier}")
         print(f"   🎨 Style: bg={style_options['bg_color_1']}, text={style_options['text_color']}, sung={style_options['sung_color']}")
         print(f"   🚀 Using AssemblyAI for precise timing!")
         
@@ -1279,7 +1398,8 @@ def handler(event):
             video_path, 
             video_quality,
             selected_display_mode,
-            style_options  # NEW: Pass style options
+            style_options,
+            subscription_tier  # Pass subscription tier for watermark logic
         )
         
         video_key = f"processed/{project_id}/video.mp4"
