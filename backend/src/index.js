@@ -142,18 +142,28 @@ async function getUserProfile(userId) {
 }
 
 async function checkCredits(userId, required) {
-  const profile = await getUserProfile(userId);
-  return profile.credits_remaining >= required;
+  // Check available (non-expired) credits
+  const { data, error } = await supabase.rpc('get_available_credits', {
+    p_user_id: userId
+  });
+  if (error) {
+    // Fallback to profile credits if function not available yet
+    const profile = await getUserProfile(userId);
+    return profile.credits_remaining >= required;
+  }
+  return data >= required;
 }
 
 async function deductCredits(userId, amount, projectId, description) {
-  const { data, error } = await supabase.rpc('deduct_credits', {
+  // Use FIFO deduction - oldest non-expired credits first
+  const { data, error } = await supabase.rpc('deduct_credits_fifo', {
     p_user_id: userId,
     p_amount: amount,
     p_project_id: projectId,
     p_description: description,
   });
   if (error) throw error;
+  if (!data) throw new Error('Insufficient credits or credits expired');
   return data;
 }
 
@@ -1215,13 +1225,12 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         
         // Handle credit purchases
         if (session.metadata.type === 'credit_purchase') {
-          await supabase.rpc('add_credits', {
-            p_user_id: session.metadata.user_id,
-            p_amount: parseInt(session.metadata.credits),
-            p_transaction_type: 'purchase',
-            p_description: `Purchased ${session.metadata.credits} credits`,
-            p_stripe_payment_id: session.payment_intent,
-          });
+          await addCreditsWithExpiration(
+            session.metadata.user_id,
+            parseInt(session.metadata.credits),
+            'purchase',
+            `Purchased ${session.metadata.credits} credits`
+          );
         }
         
         // Handle subscription credits (both new signups AND upgrades get credits)
@@ -1244,13 +1253,13 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               ? `Upgraded to ${plan.tier} - ${plan.credits_per_month} credits`
               : `${plan.tier} subscription - ${plan.credits_per_month} monthly credits`;
             
-            console.log(`   Adding ${plan.credits_per_month} credits for ${plan.tier} subscription`);
-            await supabase.rpc('add_credits', {
-              p_user_id: session.metadata.user_id,
-              p_amount: plan.credits_per_month,
-              p_transaction_type: isUpgrade ? 'upgrade' : 'subscription_renewal',
-              p_description: description,
-            });
+            console.log(`   Adding ${plan.credits_per_month} credits for ${plan.tier} subscription (expires in 90 days)`);
+            await addCreditsWithExpiration(
+              session.metadata.user_id,
+              plan.credits_per_month,
+              isUpgrade ? 'upgrade' : 'subscription',
+              description
+            );
           }
         }
         break;
@@ -1346,12 +1355,13 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               .single();
 
             if (plan) {
-              await supabase.rpc('add_credits', {
-                p_user_id: profile.id,
-                p_amount: plan.credits_per_month,
-                p_transaction_type: 'subscription_renewal',
-                p_description: `Monthly renewal - ${plan.credits_per_month} credits`,
-              });
+              console.log(`📅 Monthly renewal for ${profile.subscription_tier}: adding ${plan.credits_per_month} credits`);
+              await addCreditsWithExpiration(
+                profile.id,
+                plan.credits_per_month,
+                'subscription',
+                `Monthly renewal - ${plan.credits_per_month} credits`
+              );
 
               await supabase
                 .from('profiles')
@@ -1464,6 +1474,315 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
     res.json({ received: true });
   } catch (error) {
     console.error('RunPod webhook error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// CREDIT EXPIRATION SYSTEM
+// ============================================
+
+// Helper: Add credits with expiration (90 days default)
+async function addCreditsWithExpiration(userId, amount, source, description, daysUntilExpiry = 90) {
+  const { data, error } = await supabase.rpc('add_credits_with_expiration', {
+    p_user_id: userId,
+    p_amount: amount,
+    p_source: source,
+    p_description: description,
+    p_days_until_expiry: daysUntilExpiry
+  });
+  
+  if (error) {
+    console.error('Error adding credits with expiration:', error);
+    throw error;
+  }
+  
+  return data;
+}
+
+// Helper: Send expiration warning email
+async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expirationDate) {
+  if (!process.env.BREVO_API_KEY) {
+    console.log('⚠️ Brevo not configured, skipping expiration email');
+    return;
+  }
+
+  try {
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    
+    sendSmtpEmail.to = [{ email }];
+    sendSmtpEmail.sender = { 
+      name: 'Karatrack Studio', 
+      email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com' 
+    };
+    
+    if (daysLeft <= 1) {
+      sendSmtpEmail.subject = '⚠️ Your Karatrack credits expire TOMORROW!';
+    } else if (daysLeft <= 7) {
+      sendSmtpEmail.subject = `⚠️ ${creditsExpiring} credits expiring in ${daysLeft} days`;
+    } else {
+      sendSmtpEmail.subject = `📢 ${creditsExpiring} credits expiring in ${daysLeft} days`;
+    }
+    
+    const formattedDate = new Date(expirationDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
+    sendSmtpEmail.htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .warning-box { background: ${daysLeft <= 7 ? '#fee2e2' : '#fef3c7'}; border-left: 4px solid ${daysLeft <= 7 ? '#ef4444' : '#f59e0b'}; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+          .cta-button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0; }
+          .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🎤 Karatrack Studio</h1>
+          </div>
+          <div class="content">
+            <h2>Your credits are expiring soon!</h2>
+            
+            <div class="warning-box">
+              <strong>${creditsExpiring} credits</strong> will expire on <strong>${formattedDate}</strong>
+              ${daysLeft <= 1 ? '<br><br>⚠️ This is your final reminder!' : ''}
+            </div>
+            
+            <p>Don't let your credits go to waste! Use them to create amazing karaoke tracks before they expire.</p>
+            
+            <p>Each credit can be used to:</p>
+            <ul>
+              <li>Remove vocals from any song</li>
+              <li>Generate synced scrolling lyrics</li>
+              <li>Export professional karaoke videos</li>
+            </ul>
+            
+            <center>
+              <a href="${process.env.FRONTEND_URL}/upload" class="cta-button">
+                🎬 Create a Karaoke Track Now
+              </a>
+            </center>
+            
+            <p style="color: #666; font-size: 14px;">
+              Need more time? Upgrade your subscription to get fresh credits with a new 90-day expiration window.
+            </p>
+          </div>
+          <div class="footer">
+            <p>© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
+            <p>Questions? Reply to this email or visit our support page.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
+    console.log(`📧 Expiration warning sent to ${email} (${daysLeft} days left)`);
+  } catch (error) {
+    console.error('Failed to send expiration email:', error);
+  }
+}
+
+// Helper: Send credits expired notification
+async function sendCreditsExpiredEmail(email, expiredAmount) {
+  if (!process.env.BREVO_API_KEY) return;
+
+  try {
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+    
+    sendSmtpEmail.to = [{ email }];
+    sendSmtpEmail.sender = { 
+      name: 'Karatrack Studio', 
+      email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com' 
+    };
+    sendSmtpEmail.subject = `😢 ${expiredAmount} credits have expired`;
+    
+    sendSmtpEmail.htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .cta-button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; margin: 20px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🎤 Karatrack Studio</h1>
+          </div>
+          <div class="content">
+            <h2>Your credits have expired</h2>
+            
+            <p>Unfortunately, <strong>${expiredAmount} credits</strong> have expired and been removed from your account.</p>
+            
+            <p>Remember, credits expire 90 days after being added to encourage you to create awesome karaoke content!</p>
+            
+            <center>
+              <a href="${process.env.FRONTEND_URL}/pricing" class="cta-button">
+                🎯 Get More Credits
+              </a>
+            </center>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
+    console.log(`📧 Credits expired notification sent to ${email}`);
+  } catch (error) {
+    console.error('Failed to send expired email:', error);
+  }
+}
+
+// CRON ENDPOINT: Check for expiring credits and send notifications
+// Call this daily via external cron service (e.g., cron-job.org, Railway cron)
+// URL: POST /api/cron/check-credit-expiration
+// Header: x-cron-secret: YOUR_CRON_SECRET
+app.post('/api/cron/check-credit-expiration', async (req, res) => {
+  // Verify cron secret to prevent unauthorized access
+  const cronSecret = req.headers['x-cron-secret'];
+  if (cronSecret !== process.env.CRON_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  console.log('🕐 Running credit expiration check...');
+  
+  try {
+    const results = {
+      expired: 0,
+      warnings_14d: 0,
+      warnings_7d: 0,
+      warnings_1d: 0
+    };
+
+    // 1. Expire old credits
+    const { data: expiredUsers, error: expireError } = await supabase.rpc('expire_old_credits');
+    
+    if (expireError) {
+      console.error('Error expiring credits:', expireError);
+    } else if (expiredUsers && expiredUsers.length > 0) {
+      for (const user of expiredUsers) {
+        results.expired += user.expired_amount;
+        
+        // Get user email and send notification
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', user.user_id)
+          .single();
+        
+        if (profile?.email) {
+          await sendCreditsExpiredEmail(profile.email, user.expired_amount);
+        }
+      }
+      console.log(`💀 Expired ${results.expired} credits for ${expiredUsers.length} users`);
+    }
+
+    // 2. Send 14-day warnings
+    const { data: expiring14d } = await supabase
+      .from('credit_batches')
+      .select('id, user_id, remaining_amount, expires_at, profiles(email)')
+      .gt('remaining_amount', 0)
+      .gt('expires_at', new Date().toISOString())
+      .lte('expires_at', new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString())
+      .gt('expires_at', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
+      .eq('expired_notified_14d', false);
+
+    if (expiring14d) {
+      for (const batch of expiring14d) {
+        const daysLeft = Math.ceil((new Date(batch.expires_at) - new Date()) / (24 * 60 * 60 * 1000));
+        await sendExpirationWarningEmail(
+          batch.profiles?.email,
+          batch.remaining_amount,
+          daysLeft,
+          batch.expires_at
+        );
+        
+        await supabase
+          .from('credit_batches')
+          .update({ expired_notified_14d: true })
+          .eq('id', batch.id);
+        
+        results.warnings_14d++;
+      }
+    }
+
+    // 3. Send 7-day warnings
+    const { data: expiring7d } = await supabase
+      .from('credit_batches')
+      .select('id, user_id, remaining_amount, expires_at, profiles(email)')
+      .gt('remaining_amount', 0)
+      .gt('expires_at', new Date().toISOString())
+      .lte('expires_at', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString())
+      .gt('expires_at', new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString())
+      .eq('expired_notified_7d', false);
+
+    if (expiring7d) {
+      for (const batch of expiring7d) {
+        const daysLeft = Math.ceil((new Date(batch.expires_at) - new Date()) / (24 * 60 * 60 * 1000));
+        await sendExpirationWarningEmail(
+          batch.profiles?.email,
+          batch.remaining_amount,
+          daysLeft,
+          batch.expires_at
+        );
+        
+        await supabase
+          .from('credit_batches')
+          .update({ expired_notified_7d: true })
+          .eq('id', batch.id);
+        
+        results.warnings_7d++;
+      }
+    }
+
+    // 4. Send 1-day (final) warnings
+    const { data: expiring1d } = await supabase
+      .from('credit_batches')
+      .select('id, user_id, remaining_amount, expires_at, profiles(email)')
+      .gt('remaining_amount', 0)
+      .gt('expires_at', new Date().toISOString())
+      .lte('expires_at', new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString())
+      .eq('expired_notified_1d', false);
+
+    if (expiring1d) {
+      for (const batch of expiring1d) {
+        await sendExpirationWarningEmail(
+          batch.profiles?.email,
+          batch.remaining_amount,
+          1,
+          batch.expires_at
+        );
+        
+        await supabase
+          .from('credit_batches')
+          .update({ expired_notified_1d: true })
+          .eq('id', batch.id);
+        
+        results.warnings_1d++;
+      }
+    }
+
+    console.log('✅ Credit expiration check complete:', results);
+    res.json({ success: true, results });
+    
+  } catch (error) {
+    console.error('Credit expiration check failed:', error);
     res.status(500).json({ error: error.message });
   }
 });
