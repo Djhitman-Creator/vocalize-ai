@@ -12,6 +12,7 @@
  * - Text color, outline color, sung color
  * - Font selection
  * - Rights confirmation
+ * - Multi-language support (i18n)
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -37,6 +38,8 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
+import { useTranslation } from 'next-i18next';
+import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -64,6 +67,8 @@ Finding magic in the morning dew`;
 export default function UploadPage() {
   const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
+  const { t } = useTranslation('upload');
+  const { t: tCommon } = useTranslation('common');
   
   // Form state
   const [audioFile, setAudioFile] = useState(null);
@@ -464,7 +469,7 @@ export default function UploadPage() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
+          {t('backToDashboard')}
         </Link>
 
         {/* Error Display */}
@@ -487,7 +492,7 @@ export default function UploadPage() {
               >
                 <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   <FileAudio className="w-5 h-5 text-cyan-400" />
-                  Audio & Track Info
+                  {t('sections.audioInfo')}
                 </h2>
 
                 {/* Audio Upload */}
@@ -595,8 +600,7 @@ export default function UploadPage() {
                       className="glass-input w-full px-3 py-2 rounded-lg text-sm"
                     >
                       <option value="remove_vocals">Remove All Vocals</option>
-                      <option value="isolate_backing">Keep Backing Vocals</option>
-                      <option value="both">Both Versions</option>
+                      <option value="guide_vocals">Guide Vocals</option>
                     </select>
                   </div>
                 </div>
@@ -652,7 +656,7 @@ export default function UploadPage() {
               >
                 <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   <Eye className="w-5 h-5 text-cyan-400" />
-                  Live Preview
+                  {t('sections.livePreview')}
                 </h2>
                 
                 {/* Preview Box */}
@@ -694,7 +698,7 @@ export default function UploadPage() {
               >
                 <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   <Palette className="w-5 h-5 text-cyan-400" />
-                  Style Customization
+                  {t('sections.styleCustomization')}
                 </h2>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -910,12 +914,12 @@ export default function UploadPage() {
                 >
                   <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     <Palette className="w-5 h-5 text-gray-500" />
-                    Style Customization
+                    {t('sections.styleCustomization')}
                     <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-xs rounded-full">STARTER+</span>
                   </h2>
                   <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
                     <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
-                      Customize your karaoke video with custom colors, fonts, and gradients.
+                      {t('upgrade.customizeDesc')}
                     </p>
                     <Link 
                       href="/pricing" 
@@ -1039,10 +1043,10 @@ export default function UploadPage() {
                       <Upload className="w-5 h-5" />
                       <span>
                         {!rightsConfirmed 
-                          ? 'Confirm Rights Above' 
+                          ? t('submit.confirmRights') 
                           : reviewLyrics 
                             ? 'Process & Review Lyrics' 
-                            : 'Create Karaoke Track'
+                            : t('submit.createTrack')
                         }
                       </span>
                     </>
@@ -1065,4 +1069,13 @@ export default function UploadPage() {
       </main>
     </div>
   );
+}
+
+// Required for i18n - loads translations for this page
+export async function getStaticProps({ locale }) {
+  return {
+    props: {
+      ...(await serverSideTranslations(locale, ['common', 'upload'])),
+    },
+  };
 }
