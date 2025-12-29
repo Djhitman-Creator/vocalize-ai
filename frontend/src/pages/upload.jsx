@@ -38,8 +38,6 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
-import { useTranslation } from 'next-i18next';
-import { serverSideTranslations } from 'next-i18next/serverSideTranslations';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -67,8 +65,6 @@ Finding magic in the morning dew`;
 export default function UploadPage() {
   const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
-  const { t } = useTranslation('upload');
-  const { t: tCommon } = useTranslation('common');
   
   // Form state
   const [audioFile, setAudioFile] = useState(null);
@@ -469,7 +465,7 @@ export default function UploadPage() {
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Link href="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          {t('backToDashboard')}
+          Back to Dashboard
         </Link>
 
         {/* Error Display */}
@@ -492,7 +488,7 @@ export default function UploadPage() {
               >
                 <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   <FileAudio className="w-5 h-5 text-cyan-400" />
-                  {t('sections.audioInfo')}
+                  Audio & Track Info
                 </h2>
 
                 {/* Audio Upload */}
@@ -656,7 +652,7 @@ export default function UploadPage() {
               >
                 <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   <Eye className="w-5 h-5 text-cyan-400" />
-                  {t('sections.livePreview')}
+                  Live Preview
                 </h2>
                 
                 {/* Preview Box */}
@@ -698,7 +694,7 @@ export default function UploadPage() {
               >
                 <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                   <Palette className="w-5 h-5 text-cyan-400" />
-                  {t('sections.styleCustomization')}
+                  Style Customization
                 </h2>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -914,12 +910,12 @@ export default function UploadPage() {
                 >
                   <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     <Palette className="w-5 h-5 text-gray-500" />
-                    {t('sections.styleCustomization')}
+                    Style Customization
                     <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-xs rounded-full">STARTER+</span>
                   </h2>
                   <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
                     <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
-                      {t('upgrade.customizeDesc')}
+                    Unlock custom colors, fonts, and branding options with a paid subscription.
                     </p>
                     <Link 
                       href="/pricing" 
@@ -1043,10 +1039,10 @@ export default function UploadPage() {
                       <Upload className="w-5 h-5" />
                       <span>
                         {!rightsConfirmed 
-                          ? t('submit.confirmRights') 
+                          ? 'Confirm Rights to Continue' 
                           : reviewLyrics 
                             ? 'Process & Review Lyrics' 
-                            : t('submit.createTrack')
+                            : 'Create Karaoke Track'
                         }
                       </span>
                     </>
@@ -1069,13 +1065,4 @@ export default function UploadPage() {
       </main>
     </div>
   );
-}
-
-// Required for i18n - loads translations for this page
-export async function getStaticProps({ locale }) {
-  return {
-    props: {
-      ...(await serverSideTranslations(locale, ['common', 'upload'])),
-    },
-  };
 }
