@@ -1002,7 +1002,7 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       gradient_direction: project.gradient_direction || 'to bottom',
       text_color: project.text_color || '#ffffff',
       outline_color: project.outline_color || '#000000',
-      sung_color: project.sung_color || '#00d4ff',
+      sung_color: project.sung_color || '#F4E409',
       font: project.font || 'arial',
       // Render-only specific
       processed_audio_url: project.processed_audio_url,
@@ -1010,6 +1010,8 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       edited_lyrics: edited_lyrics,
       // NEW: Subscription tier for watermark logic
       subscription_tier: userProfile.subscription_tier || 'free',
+      // FIX: Include custom watermark URL for Studio tier re-renders
+      custom_watermark_url: userProfile.custom_watermark_url || null,
     });
 
     await supabase
