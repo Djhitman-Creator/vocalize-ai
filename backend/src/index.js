@@ -1080,6 +1080,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
   try {
     const { price_id } = req.body;
     const profile = await getUserProfile(req.user.id);
+    let isUpgrade = false;
 
     let customerId = profile.stripe_customer_id;
     if (!customerId) {
@@ -1095,6 +1096,27 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
         .eq('id', req.user.id);
     }
 
+    // If user has existing subscription, cancel it first (no proration - they keep credits)
+    if (profile.stripe_subscription_id) {
+      console.log(`📦 User has existing subscription: ${profile.stripe_subscription_id}`);
+      
+      try {
+        // Cancel the old subscription immediately
+        await stripe.subscriptions.cancel(profile.stripe_subscription_id);
+        console.log(`   ✅ Old subscription canceled`);
+        isUpgrade = true;
+        
+        // Clear the subscription ID in database
+        await supabase
+          .from('profiles')
+          .update({ stripe_subscription_id: null })
+          .eq('id', req.user.id);
+      } catch (cancelError) {
+        console.log(`   ⚠️ Could not cancel subscription: ${cancelError.message}`);
+      }
+    }
+
+    // Create new checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
@@ -1102,7 +1124,10 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
       line_items: [{ price: price_id, quantity: 1 }],
       success_url: `${process.env.FRONTEND_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/pricing`,
-      metadata: { user_id: req.user.id },
+      metadata: { 
+        user_id: req.user.id,
+        is_upgrade: isUpgrade ? 'true' : 'false'  // Track if this is an upgrade
+      },
     });
 
     res.json({ url: session.url });
@@ -1187,6 +1212,8 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
+        
+        // Handle credit purchases
         if (session.metadata.type === 'credit_purchase') {
           await supabase.rpc('add_credits', {
             p_user_id: session.metadata.user_id,
@@ -1195,6 +1222,36 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             p_description: `Purchased ${session.metadata.credits} credits`,
             p_stripe_payment_id: session.payment_intent,
           });
+        }
+        
+        // Handle subscription credits (both new signups AND upgrades get credits)
+        if (session.mode === 'subscription') {
+          const isUpgrade = session.metadata.is_upgrade === 'true';
+          console.log(`🆕 Subscription checkout completed for user: ${session.metadata.user_id} (upgrade: ${isUpgrade})`);
+          
+          // Get the subscription to find the price/plan
+          const subscription = await stripe.subscriptions.retrieve(session.subscription);
+          const priceId = subscription.items.data[0].price.id;
+          
+          const { data: plan } = await supabase
+            .from('subscription_plans')
+            .select('tier, credits_per_month')
+            .eq('stripe_price_id', priceId)
+            .single();
+          
+          if (plan) {
+            const description = isUpgrade 
+              ? `Upgraded to ${plan.tier} - ${plan.credits_per_month} credits`
+              : `${plan.tier} subscription - ${plan.credits_per_month} monthly credits`;
+            
+            console.log(`   Adding ${plan.credits_per_month} credits for ${plan.tier} subscription`);
+            await supabase.rpc('add_credits', {
+              p_user_id: session.metadata.user_id,
+              p_amount: plan.credits_per_month,
+              p_transaction_type: isUpgrade ? 'upgrade' : 'subscription_renewal',
+              p_description: description,
+            });
+          }
         }
         break;
       }
@@ -1249,20 +1306,8 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               console.log(`✅ Profile updated to tier: ${plan.tier}`);
             }
 
-            if (event.type === 'customer.subscription.created') {
-              const { error: creditError } = await supabase.rpc('add_credits', {
-                p_user_id: profile.id,
-                p_amount: plan.credits_per_month,
-                p_transaction_type: 'subscription_renewal',
-                p_description: `${plan.tier} subscription - ${plan.credits_per_month} monthly credits`,
-              });
-              
-              if (creditError) {
-                console.error('❌ Error adding credits:', creditError);
-              } else {
-                console.log(`✅ Added ${plan.credits_per_month} credits to user`);
-              }
-            }
+            // Note: Credits are now added in checkout.session.completed handler
+            // This allows us to check metadata and skip credits for upgrades
           } else {
             console.log('❌ No plan found for price ID:', priceId);
           }
