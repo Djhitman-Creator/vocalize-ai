@@ -1429,8 +1429,11 @@ def handler(event):
                     results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
             
             elif processing_type == 'isolate_backing':
-                vocals_key = f"processed/{project_id}/vocals.wav"
-                results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
+                # For backing vocals mode, the "vocals" track IS the processed audio (backing vocals)
+                vocals_key = f"processed/{project_id}/backing_vocals.wav"
+                backing_url = upload_to_r2(vocals_path, vocals_key)
+                results['vocals_audio_url'] = backing_url
+                results['processed_audio_url'] = backing_url  # Also set processed_audio_url for edit page
             
             # LYRICS PROCESSING - NOW USING ASSEMBLYAI
             lyrics = []
