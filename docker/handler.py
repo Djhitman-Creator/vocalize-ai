@@ -332,14 +332,14 @@ def get_custom_watermark(url):
         from io import BytesIO
         logo = Image.open(BytesIO(response.content)).convert('RGBA')
         
-        # Resize custom watermark - larger size for better visibility
-        max_width = 300
+        # Resize custom watermark - medium size for visibility without being intrusive
+        max_width = 150
         aspect_ratio = logo.height / logo.width
         new_width = min(logo.width, max_width)
         new_height = int(new_width * aspect_ratio)
         
         # Cap height as well
-        max_height = 200
+        max_height = 100
         if new_height > max_height:
             new_height = max_height
             new_width = int(new_height / aspect_ratio)
@@ -1166,6 +1166,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     """Generate video with lyrics and countdown"""
     print(f"🎬 Generating video (mode: {display_mode})...")
     print(f"   👤 Subscription tier: {subscription_tier}")
+    print(f"   🖼️ Custom watermark URL: {custom_watermark_url if custom_watermark_url else 'None'}")
     
     # Determine watermark behavior based on tier
     # Free: Karatrack watermark
@@ -1178,6 +1179,8 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         print("   🏷️ Karatrack watermark will be applied (free tier)")
     elif apply_custom_watermark:
         print(f"   🏷️ Custom watermark will be applied (Studio tier)")
+    elif subscription_tier == 'studio' and not custom_watermark_url:
+        print("   ⚠️ Studio tier but no custom watermark URL provided - no watermark")
     else:
         print("   ✨ No watermark (paid tier)")
     
