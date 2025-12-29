@@ -1338,6 +1338,23 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               console.log(`✅ Profile updated to tier: ${plan.tier}`);
             }
 
+            // ALSO upsert into subscriptions table (THIS WAS MISSING - caused "Failed to Fetch" errors)
+            const { error: subError } = await supabase
+              .from('subscriptions')
+              .upsert({
+                user_id: profile.id,
+                stripe_subscription_id: subscription.id,
+                stripe_price_id: priceId,
+                tier: plan.tier,
+                status: subscription.status
+              }, { onConflict: 'user_id' });
+
+            if (subError) {
+              console.error('❌ Error upserting subscription record:', subError);
+            } else {
+              console.log(`✅ Subscription record created/updated in subscriptions table`);
+            }
+
             // Note: Credits are now added in checkout.session.completed handler
             // This allows us to check metadata and skip credits for upgrades
           } else {
@@ -1351,6 +1368,9 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
+        console.log(`🗑️ Subscription deleted for customer: ${subscription.customer}`);
+        
+        // Update profile
         await supabase
           .from('profiles')
           .update({
@@ -1358,6 +1378,21 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             stripe_subscription_id: null,
           })
           .eq('stripe_customer_id', subscription.customer);
+        
+        // Also delete from subscriptions table
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('stripe_customer_id', subscription.customer)
+          .single();
+        
+        if (profile) {
+          await supabase
+            .from('subscriptions')
+            .delete()
+            .eq('user_id', profile.id);
+          console.log(`✅ Subscription record deleted from subscriptions table`);
+        }
         break;
       }
 
