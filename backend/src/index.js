@@ -83,7 +83,8 @@ const upload = multer({
 
 const projectUpload = upload.fields([
   { name: 'audio', maxCount: 1 },
-  { name: 'thumbnail', maxCount: 1 }
+  { name: 'thumbnail', maxCount: 1 },
+  { name: 'custom_watermark', maxCount: 1 }
 ]);
 
 // ============================================
@@ -283,6 +284,9 @@ async function sendToRunPod(projectId, audioUrl, options) {
         
         // NEW: Subscription tier for watermark logic
         subscription_tier: options.subscription_tier || 'free',
+        
+        // Custom watermark URL for Studio users
+        custom_watermark_url: options.custom_watermark_url || null,
         
         // For render_only mode
         processed_audio_url: options.processed_audio_url || null,
@@ -668,6 +672,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
     
     const file = req.files?.audio?.[0];
     const thumbnailFile = req.files?.thumbnail?.[0];
+    const customWatermarkFile = req.files?.custom_watermark?.[0];
 
     if (!file) {
       return res.status(400).json({ error: 'No audio file provided' });
@@ -705,6 +710,20 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
     if (thumbnailFile) {
       const thumbKey = `thumbnails/${req.user.id}/${projectId}-thumbnail${thumbnailFile.originalname.substring(thumbnailFile.originalname.lastIndexOf('.'))}`;
       thumbnailUrl = await uploadToR2(thumbnailFile.buffer, thumbKey, thumbnailFile.mimetype);
+    }
+
+    // Upload custom watermark if provided (Studio tier only)
+    let customWatermarkUrl = null;
+    if (customWatermarkFile) {
+      // Verify user is Studio tier
+      const userProfileForWatermark = await getUserProfile(req.user.id);
+      if (userProfileForWatermark.subscription_tier === 'studio') {
+        const watermarkKey = `watermarks/${req.user.id}/${projectId}-watermark${customWatermarkFile.originalname.substring(customWatermarkFile.originalname.lastIndexOf('.'))}`;
+        customWatermarkUrl = await uploadToR2(customWatermarkFile.buffer, watermarkKey, customWatermarkFile.mimetype);
+        console.log(`📸 Custom watermark uploaded: ${customWatermarkUrl}`);
+      } else {
+        console.log('⚠️ Custom watermark ignored - user is not Studio tier');
+      }
     }
 
     // Update user's track count
@@ -747,6 +766,8 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         font: font || 'arial',
         // Email notification preference
         notify_on_complete: notify_on_complete !== 'false' && notify_on_complete !== false,
+        // Custom watermark for Studio users
+        custom_watermark_url: customWatermarkUrl,
       })
       .select()
       .single();
@@ -783,6 +804,8 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       processing_mode: processing_mode || 'full',
       // NEW: Subscription tier for watermark logic
       subscription_tier: userProfile.subscription_tier || 'free',
+      // Custom watermark URL for Studio users
+      custom_watermark_url: customWatermarkUrl,
     });
 
     // Set appropriate status based on processing mode
