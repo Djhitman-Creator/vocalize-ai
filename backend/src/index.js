@@ -1010,8 +1010,8 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       edited_lyrics: edited_lyrics,
       // NEW: Subscription tier for watermark logic
       subscription_tier: userProfile.subscription_tier || 'free',
-      // FIX: Include custom watermark URL for Studio tier re-renders
-      custom_watermark_url: userProfile.custom_watermark_url || null,
+      // FIX: Include custom watermark URL from PROJECT (not profile) for Studio tier re-renders
+      custom_watermark_url: project.custom_watermark_url || null,
     });
 
     await supabase
