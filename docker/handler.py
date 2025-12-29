@@ -332,14 +332,14 @@ def get_custom_watermark(url):
         from io import BytesIO
         logo = Image.open(BytesIO(response.content)).convert('RGBA')
         
-        # Resize custom watermark - medium size for visibility without being intrusive
-        max_width = 150
+        # Resize custom watermark - larger size for better visibility
+        max_width = 300
         aspect_ratio = logo.height / logo.width
         new_width = min(logo.width, max_width)
         new_height = int(new_width * aspect_ratio)
         
         # Cap height as well
-        max_height = 100
+        max_height = 200
         if new_height > max_height:
             new_height = max_height
             new_width = int(new_height / aspect_ratio)
@@ -1166,7 +1166,6 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     """Generate video with lyrics and countdown"""
     print(f"🎬 Generating video (mode: {display_mode})...")
     print(f"   👤 Subscription tier: {subscription_tier}")
-    print(f"   🖼️ Custom watermark URL: {custom_watermark_url if custom_watermark_url else 'None'}")
     
     # Determine watermark behavior based on tier
     # Free: Karatrack watermark
@@ -1179,8 +1178,6 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         print("   🏷️ Karatrack watermark will be applied (free tier)")
     elif apply_custom_watermark:
         print(f"   🏷️ Custom watermark will be applied (Studio tier)")
-    elif subscription_tier == 'studio' and not custom_watermark_url:
-        print("   ⚠️ Studio tier but no custom watermark URL provided - no watermark")
     else:
         print("   ✨ No watermark (paid tier)")
     
@@ -1423,20 +1420,48 @@ def handler(event):
             print("🎵 Starting vocal separation...")
             instrumental_path, vocals_path = separate_vocals(audio_path, work_dir)
             
-            if processing_type in ['remove_vocals', 'both']:
+            if processing_type in ['remove_vocals']:
                 instrumental_key = f"processed/{project_id}/instrumental.wav"
                 results['processed_audio_url'] = upload_to_r2(instrumental_path, instrumental_key)
-                
-                if processing_type == 'both':
-                    vocals_key = f"processed/{project_id}/vocals.wav"
-                    results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
             
-            elif processing_type == 'isolate_backing':
-                # For backing vocals mode, the "vocals" track IS the processed audio (backing vocals)
-                vocals_key = f"processed/{project_id}/backing_vocals.wav"
-                backing_url = upload_to_r2(vocals_path, vocals_key)
-                results['vocals_audio_url'] = backing_url
-                results['processed_audio_url'] = backing_url  # Also set processed_audio_url for edit page
+            elif processing_type == 'guide_vocals':
+                # Guide Vocals mode: Mix instrumental (100%) + vocals (30%) for singers who need guidance
+                print("🎤 Creating guide vocals track (instrumental + 30% vocals)...")
+                
+                # Load both tracks
+                instrumental_wav, sr = torchaudio.load(instrumental_path)
+                vocals_wav, _ = torchaudio.load(vocals_path)
+                
+                # Ensure same length (pad shorter one with silence)
+                max_len = max(instrumental_wav.shape[1], vocals_wav.shape[1])
+                if instrumental_wav.shape[1] < max_len:
+                    padding = torch.zeros(instrumental_wav.shape[0], max_len - instrumental_wav.shape[1])
+                    instrumental_wav = torch.cat([instrumental_wav, padding], dim=1)
+                if vocals_wav.shape[1] < max_len:
+                    padding = torch.zeros(vocals_wav.shape[0], max_len - vocals_wav.shape[1])
+                    vocals_wav = torch.cat([vocals_wav, padding], dim=1)
+                
+                # Mix: instrumental at 100% + vocals at 30%
+                guide_mix = instrumental_wav + (vocals_wav * 0.3)
+                
+                # Normalize to prevent clipping
+                max_val = guide_mix.abs().max()
+                if max_val > 1.0:
+                    guide_mix = guide_mix / max_val
+                
+                # Save the mixed track
+                guide_path = os.path.join(work_dir, 'guide_vocals.wav')
+                torchaudio.save(guide_path, guide_mix, sr)
+                
+                guide_key = f"processed/{project_id}/guide_vocals.wav"
+                guide_url = upload_to_r2(guide_path, guide_key)
+                results['processed_audio_url'] = guide_url
+                
+                # Also save the isolated vocals for potential future use
+                vocals_key = f"processed/{project_id}/vocals.wav"
+                results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
+                
+                print("✅ Guide vocals track created")
             
             # LYRICS PROCESSING - NOW USING ASSEMBLYAI
             lyrics = []
