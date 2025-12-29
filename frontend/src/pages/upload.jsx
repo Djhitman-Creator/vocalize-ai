@@ -89,6 +89,10 @@ export default function UploadPage() {
   const [sungColor, setSungColor] = useState('#00d4ff');
   const [selectedFont, setSelectedFont] = useState('arial');
   
+  // Custom watermark (Studio only)
+  const [customWatermark, setCustomWatermark] = useState(null);
+  const [watermarkPreview, setWatermarkPreview] = useState(null);
+  
   // UI state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -375,6 +379,11 @@ export default function UploadPage() {
       formData.append('outline_color', outlineColor);
       formData.append('sung_color', sungColor);
       formData.append('font', selectedFont);
+      
+      // Custom watermark (Studio only)
+      if (customWatermark && isStudioUser()) {
+        formData.append('custom_watermark', customWatermark);
+      }
       
       // Email notification
       formData.append('notify_on_complete', notifyOnComplete.toString());
@@ -831,6 +840,64 @@ export default function UploadPage() {
                       <span className="text-xs text-gray-500">← First line shows this color</span>
                     </div>
                   </div>
+
+                  {/* Custom Watermark - Studio Only */}
+                  {isStudioUser() && (
+                    <div className="col-span-2 pt-4 border-t border-white/10">
+                      <label className={`block text-xs font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                        Custom Watermark
+                        <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs rounded-full">STUDIO</span>
+                      </label>
+                      <p className={`text-xs mb-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                        Add your logo to the bottom-right corner of your videos (PNG recommended, max 2MB)
+                      </p>
+                      
+                      {watermarkPreview ? (
+                        <div className="relative inline-block">
+                          <img 
+                            src={watermarkPreview} 
+                            alt="Watermark preview" 
+                            className="h-16 max-w-[200px] object-contain rounded-lg border border-white/20 bg-black/20 p-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomWatermark(null);
+                              setWatermarkPreview(null);
+                            }}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 border-dashed ${
+                          isDark ? 'border-white/20 hover:border-cyan-400/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-gray-50'
+                        }`}>
+                          <Upload className="w-5 h-5 text-cyan-400" />
+                          <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Click to upload your logo
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                            onChange={(e) => {
+                              const file = e.target.files[0];
+                              if (file) {
+                                if (file.size > 2 * 1024 * 1024) {
+                                  setError('Watermark image must be under 2MB');
+                                  return;
+                                }
+                                setCustomWatermark(file);
+                                setWatermarkPreview(URL.createObjectURL(file));
+                              }
+                            }}
+                            className="sr-only"
+                          />
+                        </label>
+                      )}
+                    </div>
+                  )}
                 </div>
               </motion.div>
               ) : (
