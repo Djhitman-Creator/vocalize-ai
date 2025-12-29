@@ -332,14 +332,14 @@ def get_custom_watermark(url):
         from io import BytesIO
         logo = Image.open(BytesIO(response.content)).convert('RGBA')
         
-        # Resize custom watermark - slightly larger than default (100px width)
-        max_width = 120
+        # Resize custom watermark - larger size for better visibility
+        max_width = 300
         aspect_ratio = logo.height / logo.width
         new_width = min(logo.width, max_width)
         new_height = int(new_width * aspect_ratio)
         
         # Cap height as well
-        max_height = 80
+        max_height = 200
         if new_height > max_height:
             new_height = max_height
             new_width = int(new_height / aspect_ratio)
@@ -432,8 +432,8 @@ def apply_studio_watermark(frame, video_width, video_height, custom_watermark_ur
     # Create a copy of the frame to work with
     watermarked = frame.copy()
     
-    # Position in bottom-right corner
-    padding = WATERMARK_PADDING
+    # Position in bottom-right corner with good padding
+    padding = 40  # Larger padding for custom watermarks
     logo_x = video_width - padding - logo.width
     logo_y = video_height - padding - logo.height
     
