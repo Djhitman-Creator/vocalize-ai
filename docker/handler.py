@@ -278,6 +278,7 @@ def add_silence_to_audio(audio_path, silence_duration, output_path):
 
 # Global variable to cache the watermark logo
 _watermark_logo_cache = None
+_custom_watermark_cache = {}  # Cache custom watermarks by URL
 
 def get_watermark_logo():
     """Download and cache the watermark logo"""
@@ -310,6 +311,47 @@ def get_watermark_logo():
         
     except Exception as e:
         print(f"   ⚠️ Failed to load watermark logo: {e}")
+        return None
+
+
+def get_custom_watermark(url):
+    """Download and cache a custom watermark logo"""
+    global _custom_watermark_cache
+    
+    if not url:
+        return None
+    
+    if url in _custom_watermark_cache:
+        return _custom_watermark_cache[url]
+    
+    try:
+        print(f"   📥 Downloading custom watermark from {url}")
+        response = requests.get(url)
+        response.raise_for_status()
+        
+        from io import BytesIO
+        logo = Image.open(BytesIO(response.content)).convert('RGBA')
+        
+        # Resize custom watermark - slightly larger than default (100px width)
+        max_width = 120
+        aspect_ratio = logo.height / logo.width
+        new_width = min(logo.width, max_width)
+        new_height = int(new_width * aspect_ratio)
+        
+        # Cap height as well
+        max_height = 80
+        if new_height > max_height:
+            new_height = max_height
+            new_width = int(new_height / aspect_ratio)
+        
+        logo = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        _custom_watermark_cache[url] = logo
+        print(f"   ✅ Custom watermark loaded ({new_width}x{new_height})")
+        return logo
+        
+    except Exception as e:
+        print(f"   ⚠️ Failed to load custom watermark: {e}")
         return None
 
 
@@ -376,6 +418,33 @@ def apply_watermark(frame, video_width, video_height):
     
     # Draw main text
     draw.text((text_x, text_y), WATERMARK_TEXT, font=font, fill=text_color)
+    
+    return watermarked
+
+
+def apply_studio_watermark(frame, video_width, video_height, custom_watermark_url):
+    """Apply custom watermark (logo only, no text) to bottom-right of frame"""
+    
+    logo = get_custom_watermark(custom_watermark_url)
+    if not logo:
+        return frame  # Return original if no custom watermark loaded
+    
+    # Create a copy of the frame to work with
+    watermarked = frame.copy()
+    
+    # Position in bottom-right corner
+    padding = WATERMARK_PADDING
+    logo_x = video_width - padding - logo.width
+    logo_y = video_height - padding - logo.height
+    
+    # Create semi-transparent version
+    logo_with_opacity = logo.copy()
+    alpha = logo_with_opacity.split()[3]
+    alpha = alpha.point(lambda p: int(p * WATERMARK_OPACITY))
+    logo_with_opacity.putalpha(alpha)
+    
+    # Paste logo onto frame
+    watermarked.paste(logo_with_opacity, (logo_x, logo_y), logo_with_opacity)
     
     return watermarked
 
@@ -1093,15 +1162,24 @@ def create_lyrics_frame(current_time, lyrics, display_mode, width, height, color
         return create_overwrite_frame(current_time, lyrics, width, height, colors)
 
 
-def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free'):
+def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None):
     """Generate video with lyrics and countdown"""
     print(f"🎬 Generating video (mode: {display_mode})...")
     print(f"   👤 Subscription tier: {subscription_tier}")
     
-    # Determine if watermark should be applied (free tier only)
+    # Determine watermark behavior based on tier
+    # Free: Karatrack watermark
+    # Starter/Pro: No watermark
+    # Studio: Custom watermark (if provided)
     apply_watermark_to_video = subscription_tier == 'free'
+    apply_custom_watermark = subscription_tier == 'studio' and custom_watermark_url
+    
     if apply_watermark_to_video:
-        print("   🏷️ Watermark will be applied (free tier)")
+        print("   🏷️ Karatrack watermark will be applied (free tier)")
+    elif apply_custom_watermark:
+        print(f"   🏷️ Custom watermark will be applied (Studio tier)")
+    else:
+        print("   ✨ No watermark (paid tier)")
     
     # Default style options if not provided
     if style_options is None:
@@ -1194,9 +1272,11 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
             # Show lyrics (using offset timestamps)
             frame = create_lyrics_frame(current_time, offset_lyrics, display_mode, width, height, colors)
         
-        # Apply watermark for free tier
+        # Apply watermark for free tier, or custom watermark for Studio
         if apply_watermark_to_video:
             frame = apply_watermark(frame, width, height)
+        elif apply_custom_watermark:
+            frame = apply_studio_watermark(frame, width, height, custom_watermark_url)
         
         frame_path = os.path.join(frames_dir, f'frame_{frame_num:06d}.png')
         frame.save(frame_path)
@@ -1259,6 +1339,9 @@ def handler(event):
         
         # Get subscription tier for watermark logic
         subscription_tier = input_data.get('subscription_tier', 'free')
+        
+        # Get custom watermark URL for Studio users
+        custom_watermark_url = input_data.get('custom_watermark_url', None)
         
         track_info = {
             'track_number': input_data.get('track_number', 'KT-01'),
@@ -1407,7 +1490,8 @@ def handler(event):
             video_quality,
             selected_display_mode,
             style_options,
-            subscription_tier  # Pass subscription tier for watermark logic
+            subscription_tier,  # Pass subscription tier for watermark logic
+            custom_watermark_url  # Pass custom watermark URL for Studio users
         )
         
         video_key = f"processed/{project_id}/video.mp4"
