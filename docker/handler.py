@@ -332,14 +332,14 @@ def get_custom_watermark(url):
         from io import BytesIO
         logo = Image.open(BytesIO(response.content)).convert('RGBA')
         
-        # Resize custom watermark - larger size for better visibility
-        max_width = 300
+        # Resize custom watermark - medium size for visibility without being intrusive
+        max_width = 150
         aspect_ratio = logo.height / logo.width
         new_width = min(logo.width, max_width)
         new_height = int(new_width * aspect_ratio)
         
         # Cap height as well
-        max_height = 200
+        max_height = 100
         if new_height > max_height:
             new_height = max_height
             new_width = int(new_height / aspect_ratio)
@@ -1460,6 +1460,9 @@ def handler(event):
                 # Also save the isolated vocals for potential future use
                 vocals_key = f"processed/{project_id}/vocals.wav"
                 results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
+                
+                # IMPORTANT: Use guide vocals mix for video generation
+                instrumental_path = guide_path
                 
                 print("✅ Guide vocals track created")
             
