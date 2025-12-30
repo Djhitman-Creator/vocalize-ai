@@ -92,7 +92,7 @@ const HeroSection = ({ isDark }) => (
         transition={{ delay: 0.4 }}
         className={`text-lg md:text-xl max-w-2xl mx-auto mb-12 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
       >
-        Remove vocals, isolate backing tracks, add scrolling lyrics, and export stunning music videos — all powered by cutting-edge AI.
+        Remove vocals, add guide vocals for practice, add scrolling lyrics, and export stunning music videos — all powered by cutting-edge AI.
       </motion.p>
       <motion.div
         initial={{ y: 30, opacity: 0 }}
@@ -149,16 +149,21 @@ const HeroSection = ({ isDark }) => (
         {[
           { value: '98%+', label: 'Lyrics Accuracy*' },
           { value: 'Word-Level', label: 'Timing Sync' },
-          { value: 'Up to 4K', label: 'Export Quality' },
+          { value: 'Up to 4K', label: 'Export Quality*' },
         ].map((stat, i) => (
           <div key={i} className="text-center">
             <div className="font-display text-3xl font-bold text-gradient">{stat.value}</div>
             <div className={`text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{stat.label}</div>
           </div>
         ))}
-        <div className={`col-span-3 text-xs mt-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-          *with edit-before-render feature on Pro/Studio plans
-        </div>
+      </motion.div>
+      <motion.div
+        initial={{ y: 40, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.65 }}
+        className={`text-xs mt-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
+      >
+        *with edit-before-render feature on Pro/Studio plans. 4K export available on Studio plan only.
       </motion.div>
     </div>
   </section>
@@ -167,9 +172,9 @@ const HeroSection = ({ isDark }) => (
 const FeaturesSection = ({ isDark }) => {
   const features = [
     { icon: <Mic2 className="w-8 h-8" />, title: 'Vocal Removal', description: 'Remove all vocals from any track with studio-quality precision using advanced AI separation.' },
-    { icon: <Music className="w-8 h-8" />, title: 'Backing Vocal Isolation', description: 'Extract backing vocals while removing lead vocals — perfect for harmonies and remixes.' },
+    { icon: <Music className="w-8 h-8" />, title: 'Guide Vocals', description: 'Reduce the lead vocal by 70% — great for practice and learning new songs.' },
     { icon: <FileVideo className="w-8 h-8" />, title: 'Scrolling Lyrics', description: 'AI automatically transcribes and syncs lyrics with smooth, karaoke-style animations.' },
-    { icon: <Sparkles className="w-8 h-8" />, title: 'Video Export', description: 'Export your processed track as a beautiful MP4 or AVI video with custom thumbnails.' },
+    { icon: <Sparkles className="w-8 h-8" />, title: 'Video Export', description: 'Export your processed track as a beautiful MP4 video with custom thumbnails.*' },
   ];
 
   return (
@@ -193,6 +198,9 @@ const FeaturesSection = ({ isDark }) => {
               <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>{feature.description}</p>
             </motion.div>
           ))}
+        </div>
+        <div className={`text-center text-xs mt-6 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+          *Custom thumbnails available with the Studio package.
         </div>
       </div>
     </section>
@@ -270,7 +278,7 @@ const UploadSection = ({ isDark }) => (
         <h3 className={`font-display text-2xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Drop your audio file here</h3>
         <p className={`mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>or click to browse • MP3, WAV, FLAC supported</p>
         <div className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-          Max file size: <span className="text-cyan-500">100MB</span>
+          Max file size: <span className="text-cyan-500">Up to 500MB</span> (varies by plan)
         </div>
       </motion.div>
       <div className="grid md:grid-cols-3 gap-8 mt-16">
