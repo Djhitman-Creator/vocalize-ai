@@ -17,7 +17,10 @@ import {
   CheckCircle,
   CreditCard,
   Sun,
-  Moon
+  Moon,
+  FolderOpen,
+  X,
+  Download
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -49,8 +52,17 @@ export default function SettingsPage() {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
 
+  // Download folder (localStorage)
+  const [downloadFolder, setDownloadFolder] = useState('');
+  const [downloadFolderSuccess, setDownloadFolderSuccess] = useState('');
+
   useEffect(() => {
     checkUser();
+    // Load download folder from localStorage
+    const savedFolder = localStorage.getItem('karatrack_download_folder');
+    if (savedFolder) {
+      setDownloadFolder(savedFolder);
+    }
   }, []);
 
   const checkUser = async () => {
@@ -145,6 +157,21 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveDownloadFolder = () => {
+    if (downloadFolder.trim()) {
+      localStorage.setItem('karatrack_download_folder', downloadFolder.trim());
+      setDownloadFolderSuccess('Download folder saved!');
+      setTimeout(() => setDownloadFolderSuccess(''), 3000);
+    }
+  };
+
+  const handleClearDownloadFolder = () => {
+    localStorage.removeItem('karatrack_download_folder');
+    setDownloadFolder('');
+    setDownloadFolderSuccess('Download folder cleared!');
+    setTimeout(() => setDownloadFolderSuccess(''), 3000);
+  };
+
   const handleManageSubscription = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -198,38 +225,28 @@ export default function SettingsPage() {
           </Link>
 
           <div className="flex items-center gap-6">
-            <Link href="/dashboard" className={`${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>Dashboard</Link>
-            <Link href="/upload" className={`${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>Upload</Link>
-            <Link href="/pricing" className={`${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>Pricing</Link>
-
-            <div className="credit-badge">
-              <div className="credit-badge-icon">
-                <Zap className="w-3 h-3 text-white" />
+            {profile && (
+              <div className="credit-badge">
+                <div className="credit-badge-icon">
+                  <Zap className="w-3 h-3 text-white" />
+                </div>
+                <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>{profile.credits_remaining || 0} Credits</span>
               </div>
-              <span className="text-sm text-white">{profile?.credits_remaining || 0} Credits</span>
-            </div>
-
-            <button
-              onClick={toggleTheme}
-              className="glass-button p-3 rounded-xl"
-            >
+            )}
+            <button onClick={toggleTheme} className="glass-button p-3 rounded-xl">
               {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
-
-            <button
-              onClick={handleLogout}
-              className={`glass-button p-3 rounded-xl ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-            >
-              <LogOut className="w-5 h-5" />
+            <button onClick={handleLogout} className={`glass-button py-2 px-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <LogOut className="w-4 h-4" />
+              Log Out
             </button>
           </div>
         </div>
       </nav>
 
-      {/* Main Content */}
-      <main className="max-w-3xl mx-auto px-6 py-8">
-        <Link href="/dashboard" className={`inline-flex items-center gap-2 mb-6 ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
-          <ChevronLeft className="w-5 h-5" />
+      <main className="max-w-2xl mx-auto px-6 py-12">
+        <Link href="/dashboard" className={`inline-flex items-center gap-2 mb-8 transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
+          <ChevronLeft className="w-4 h-4" />
           Back to Dashboard
         </Link>
 
@@ -307,6 +324,68 @@ export default function SettingsPage() {
                 )}
               </button>
             </form>
+          </div>
+
+          {/* Download Folder Section */}
+          <div className="glass-panel p-6 mb-6">
+            <h2 className={`text-xl font-semibold mb-6 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <Download className="w-5 h-5 text-cyan-400" />
+              Download Settings
+            </h2>
+
+            <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Set a default download folder for your karaoke tracks. This setting is saved locally on this device only.
+            </p>
+
+            {downloadFolderSuccess && (
+              <div className="bg-green-500/10 border border-green-500/50 rounded-lg p-3 mb-4 flex items-center gap-3">
+                <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                <p className="text-green-400 text-sm">{downloadFolderSuccess}</p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Default Download Folder
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <FolderOpen className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <input
+                      type="text"
+                      value={downloadFolder}
+                      onChange={(e) => setDownloadFolder(e.target.value)}
+                      className={`w-full border rounded-xl py-3 pl-12 pr-4 placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                      placeholder="C:\Users\YourName\Music\Karaoke"
+                    />
+                  </div>
+                  {downloadFolder && (
+                    <button
+                      type="button"
+                      onClick={handleClearDownloadFolder}
+                      className="p-3 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                      title="Clear folder"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+                <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Enter the full path where you want your downloads to be saved
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveDownloadFolder}
+                disabled={!downloadFolder.trim()}
+                className={`glass-button py-3 px-6 flex items-center gap-2 disabled:opacity-50 ${isDark ? 'text-white' : 'text-gray-900'}`}
+              >
+                <Save className="w-4 h-4" />
+                Save Download Folder
+              </button>
+            </div>
           </div>
 
           {/* Password Section */}

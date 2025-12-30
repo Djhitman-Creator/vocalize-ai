@@ -12,7 +12,7 @@
  * - Text color, outline color, sung color
  * - Font selection
  * - Rights confirmation
- * - Multi-language support (i18n)
+ * - Save as Default settings (Starter+)
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -34,7 +34,9 @@ import {
   Loader2,
   Palette,
   Type,
-  Eye
+  Eye,
+  Save,
+  RotateCcw
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -55,6 +57,24 @@ const FONT_OPTIONS = [
   { value: 'bebas', label: 'Bebas Neue', family: '"Bebas Neue", sans-serif' },
   { value: 'impact', label: 'Impact', family: 'Impact, sans-serif' },
 ];
+
+// Default settings
+const DEFAULT_SETTINGS = {
+  bgColor1: '#1a1a2e',
+  bgColor2: '#16213e',
+  useGradient: true,
+  gradientDirection: 'to bottom',
+  textColor: '#ffffff',
+  outlineColor: '#000000',
+  sungColor: '#00d4ff',
+  selectedFont: 'arial',
+  videoQuality: '480p',
+  displayMode: 'auto',
+  processingType: 'remove_vocals',
+  cleanVersion: false,
+  notifyOnComplete: true,
+  reviewLyrics: false
+};
 
 // Sample lyrics for preview (original, not from any real song)
 const SAMPLE_LYRICS = `Chasing stars across the sky tonight
@@ -78,7 +98,7 @@ export default function UploadPage() {
   const [cleanVersion, setCleanVersion] = useState(false);
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [notifyOnComplete, setNotifyOnComplete] = useState(true);
-  const [reviewLyrics, setReviewLyrics] = useState(false);  // NEW: Review lyrics before rendering
+  const [reviewLyrics, setReviewLyrics] = useState(false);
   
   // Style customization
   const [bgColor1, setBgColor1] = useState('#1a1a2e');
@@ -99,6 +119,9 @@ export default function UploadPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [savingPreferences, setSavingPreferences] = useState(false);
+  const [preferencesMessage, setPreferencesMessage] = useState(null);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   // Load user profile on mount
   useEffect(() => {
@@ -123,10 +146,9 @@ export default function UploadPage() {
         
         console.log('Profile loaded:', profileData);
         
-        // Try to get subscription - attempt different query structures
+        // Try to get subscription
         let subData = null;
         
-        // Attempt 1: With status filter
         const { data: sub1, error: err1 } = await supabase
           .from('subscriptions')
           .select('*, subscription_plans(*)')
@@ -136,12 +158,8 @@ export default function UploadPage() {
         
         if (sub1) {
           subData = sub1;
-          console.log('Found subscription (with status):', sub1);
         } else {
-          console.log('Attempt 1 failed:', err1?.message);
-          
-          // Attempt 2: Without status filter
-          const { data: sub2, error: err2 } = await supabase
+          const { data: sub2 } = await supabase
             .from('subscriptions')
             .select('*, subscription_plans(*)')
             .eq('user_id', user.id)
@@ -149,13 +167,6 @@ export default function UploadPage() {
           
           if (sub2) {
             subData = sub2;
-            console.log('Found subscription (no status filter):', sub2);
-          } else {
-            console.log('Attempt 2 failed:', err2?.message);
-            
-            // Attempt 3: Check if plan info is on profile itself
-            console.log('Checking profile for plan info...');
-            console.log('Profile fields:', Object.keys(profileData || {}));
           }
         }
         
@@ -171,87 +182,189 @@ export default function UploadPage() {
     loadProfile();
   }, [router]);
 
-  // Set default video quality based on subscription tier
+  // Load saved preferences when profile is available
   useEffect(() => {
-    if (profile) {
-      const tier = profile?.subscription_tier?.toLowerCase() || 'free';
-      if (tier === 'free' || tier === '') {
+    if (profile && !preferencesLoaded) {
+      loadSavedPreferences();
+      setPreferencesLoaded(true);
+    }
+  }, [profile, preferencesLoaded]);
+
+  // Load saved preferences from profile
+  const loadSavedPreferences = () => {
+    if (!profile) return;
+    
+    const prefs = profile.upload_preferences || {};
+    const tier = profile?.subscription_tier?.toLowerCase() || 'free';
+    
+    console.log('Loading saved preferences:', prefs);
+    
+    // Visual settings
+    if (prefs.bgColor1) setBgColor1(prefs.bgColor1);
+    if (prefs.bgColor2) setBgColor2(prefs.bgColor2);
+    if (prefs.useGradient !== undefined) setUseGradient(prefs.useGradient);
+    if (prefs.gradientDirection) setGradientDirection(prefs.gradientDirection);
+    if (prefs.textColor) setTextColor(prefs.textColor);
+    if (prefs.outlineColor) setOutlineColor(prefs.outlineColor);
+    if (prefs.sungColor) setSungColor(prefs.sungColor);
+    if (prefs.selectedFont) setSelectedFont(prefs.selectedFont);
+    
+    // Processing settings
+    if (prefs.displayMode) setDisplayMode(prefs.displayMode);
+    if (prefs.processingType) setProcessingType(prefs.processingType);
+    if (prefs.cleanVersion !== undefined) setCleanVersion(prefs.cleanVersion);
+    
+    // Checkbox settings
+    if (prefs.notifyOnComplete !== undefined) setNotifyOnComplete(prefs.notifyOnComplete);
+    if (prefs.reviewLyrics !== undefined) setReviewLyrics(prefs.reviewLyrics);
+    
+    // Video quality - respect tier limits
+    if (prefs.videoQuality) {
+      const savedQuality = prefs.videoQuality;
+      if (tier === 'free') {
+        setVideoQuality('480p');
+      } else if (tier === 'studio') {
+        setVideoQuality(savedQuality);
+      } else if (['starter', 'pro'].includes(tier)) {
+        if (savedQuality === '4k') {
+          setVideoQuality('1080p');
+        } else {
+          setVideoQuality(savedQuality);
+        }
+      }
+    } else {
+      if (tier === 'free') {
         setVideoQuality('480p');
       } else if (tier === 'studio') {
         setVideoQuality('1080p');
       } else {
-        // Starter and Pro default to 720p
         setVideoQuality('720p');
       }
     }
-  }, [profile]);
+    
+    // Load saved watermark preview (Studio only)
+    if (profile.default_watermark_url && tier === 'studio') {
+      setWatermarkPreview(profile.default_watermark_url);
+    }
+  };
+
+  // Save preferences to database
+  const savePreferences = async () => {
+    if (!profile) return;
+    
+    setSavingPreferences(true);
+    setPreferencesMessage(null);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+      
+      const preferences = {
+        bgColor1,
+        bgColor2,
+        useGradient,
+        gradientDirection,
+        textColor,
+        outlineColor,
+        sungColor,
+        selectedFont,
+        videoQuality,
+        displayMode,
+        processingType,
+        cleanVersion,
+        notifyOnComplete,
+        reviewLyrics
+      };
+      
+      const updateData = {
+        upload_preferences: preferences
+      };
+      
+      // If there's a watermark preview URL (already uploaded), save it
+      if (watermarkPreview && isStudioUser()) {
+        updateData.default_watermark_url = watermarkPreview;
+      }
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      setPreferencesMessage({ type: 'success', text: 'Settings saved as default!' });
+      setTimeout(() => setPreferencesMessage(null), 3000);
+      
+    } catch (err) {
+      console.error('Save preferences error:', err);
+      setPreferencesMessage({ type: 'error', text: err.message });
+    } finally {
+      setSavingPreferences(false);
+    }
+  };
+
+  // Reset to default settings
+  const resetToDefaults = () => {
+    setBgColor1(DEFAULT_SETTINGS.bgColor1);
+    setBgColor2(DEFAULT_SETTINGS.bgColor2);
+    setUseGradient(DEFAULT_SETTINGS.useGradient);
+    setGradientDirection(DEFAULT_SETTINGS.gradientDirection);
+    setTextColor(DEFAULT_SETTINGS.textColor);
+    setOutlineColor(DEFAULT_SETTINGS.outlineColor);
+    setSungColor(DEFAULT_SETTINGS.sungColor);
+    setSelectedFont(DEFAULT_SETTINGS.selectedFont);
+    setDisplayMode(DEFAULT_SETTINGS.displayMode);
+    setProcessingType(DEFAULT_SETTINGS.processingType);
+    setCleanVersion(DEFAULT_SETTINGS.cleanVersion);
+    setNotifyOnComplete(DEFAULT_SETTINGS.notifyOnComplete);
+    setReviewLyrics(DEFAULT_SETTINGS.reviewLyrics);
+    
+    const tier = profile?.subscription_tier?.toLowerCase() || 'free';
+    if (tier === 'free') {
+      setVideoQuality('480p');
+    } else if (tier === 'studio') {
+      setVideoQuality('1080p');
+    } else {
+      setVideoQuality('720p');
+    }
+    
+    setPreferencesMessage({ type: 'success', text: 'Reset to defaults!' });
+    setTimeout(() => setPreferencesMessage(null), 3000);
+  };
 
   // Check if user has Pro or Studio plan
   const isPremiumUser = () => {
-    if (!profile) {
-      console.log('No profile yet');
-      return false;
-    }
+    if (!profile) return false;
     
-    console.log('Checking premium for profile:', profile);
-    console.log('Profile fields:', Object.keys(profile));
-    
-    // Check subscription plan name
     const planName = profile?.subscription?.subscription_plans?.name?.toLowerCase() || '';
-    console.log('Subscription plan name:', planName);
+    if (planName.includes('pro') || planName.includes('studio')) return true;
     
-    if (planName.includes('pro') || planName.includes('studio')) {
-      console.log('✅ Premium via subscription_plans.name');
-      return true;
-    }
-    
-    // Check subscription plan_id or plan directly
-    const planId = profile?.subscription?.plan_id || profile?.subscription?.subscription_plan_id;
-    console.log('Plan ID:', planId);
-    
-    // Check various profile fields that might indicate plan
     const fieldsToCheck = ['plan_name', 'subscription_tier', 'current_plan', 'plan', 'tier', 'subscription_plan'];
     for (const field of fieldsToCheck) {
       if (profile[field]) {
         const value = String(profile[field]).toLowerCase();
-        console.log(`Checking profile.${field}:`, value);
-        if (value.includes('pro') || value.includes('studio')) {
-          console.log(`✅ Premium via profile.${field}`);
-          return true;
-        }
+        if (value.includes('pro') || value.includes('studio')) return true;
       }
     }
     
-    console.log('❌ Not premium');
     return false;
   };
 
   // Check if user is on free tier
   const isFreeUser = () => {
-    if (!profile) return true; // Default to free if no profile loaded
-    
-    // Check subscription_tier field on profile
+    if (!profile) return true;
     const tier = profile?.subscription_tier?.toLowerCase() || '';
-    
-    // If tier is set to any paid tier, user is NOT free
-    if (tier === 'starter' || tier === 'pro' || tier === 'studio') {
-      return false;
-    }
-    
-    // If tier is explicitly 'free' or empty, user IS free
+    if (tier === 'starter' || tier === 'pro' || tier === 'studio') return false;
     return true;
   };
 
-  // Check if user has Studio plan (for 4K access)
+  // Check if user has Studio plan
   const isStudioUser = () => {
     if (!profile) return false;
-    
     const tier = profile?.subscription_tier?.toLowerCase() || '';
     if (tier === 'studio') return true;
-    
     const planName = profile?.subscription?.subscription_plans?.name?.toLowerCase() || '';
     if (planName.includes('studio')) return true;
-    
     return false;
   };
 
@@ -266,7 +379,6 @@ export default function UploadPage() {
         { value: '4k', label: '4K' }
       ];
     } else {
-      // Starter and Pro
       return [
         { value: '720p', label: '720p' },
         { value: '1080p', label: '1080p (HD)' }
@@ -389,7 +501,7 @@ export default function UploadPage() {
       // Email notification
       formData.append('notify_on_complete', notifyOnComplete.toString());
       
-      // NEW: Processing mode for lyrics review
+      // Processing mode for lyrics review
       formData.append('processing_mode', reviewLyrics ? 'transcribe_only' : 'full');
 
       setUploadProgress(30);
@@ -416,8 +528,6 @@ export default function UploadPage() {
       setUploadProgress(100);
 
       setTimeout(() => {
-        // Always go to dashboard first - user will click "Review Lyrics" 
-        // button once transcription completes (status: awaiting_review)
         if (reviewLyrics) {
           router.push('/dashboard?awaiting_review=true');
         } else {
@@ -614,7 +724,7 @@ export default function UploadPage() {
                   Lyrics *
                 </h2>
                 
-                {/* AI Disclaimer - different message for users with/without edit lyrics */}
+                {/* AI Disclaimer */}
                 {!isPremiumUser() ? (
                   <div className={`mb-3 p-2 rounded-lg text-xs ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
                     ⚡ Lyrics are synced using AI for precise timing. Some words may vary slightly. <Link href="/pricing" className="text-cyan-400 hover:underline font-medium">Upgrade to Pro or Studio</Link> to review and edit lyrics before rendering.
@@ -667,12 +777,7 @@ export default function UploadPage() {
                         style={{
                           fontFamily: getCurrentFontFamily(),
                           color: i === 0 ? sungColor : textColor,
-                          textShadow: `
-                            -1px -1px 0 ${outlineColor},
-                            1px -1px 0 ${outlineColor},
-                            -1px 1px 0 ${outlineColor},
-                            1px 1px 0 ${outlineColor}
-                          `,
+                          textShadow: `-1px -1px 0 ${outlineColor}, 1px -1px 0 ${outlineColor}, -1px 1px 0 ${outlineColor}, 1px 1px 0 ${outlineColor}`,
                           fontSize: '1.1rem',
                           fontWeight: 'bold'
                         }}
@@ -692,10 +797,49 @@ export default function UploadPage() {
                 transition={{ delay: 0.3 }}
                 className="glass-panel p-6"
               >
-                <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  <Palette className="w-5 h-5 text-cyan-400" />
-                  Style Customization
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className={`text-lg font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    <Palette className="w-5 h-5 text-cyan-400" />
+                    Style Customization
+                  </h2>
+                  
+                  {/* Save/Reset Buttons */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={resetToDefaults}
+                      className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                      title="Reset to defaults"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={savePreferences}
+                      disabled={savingPreferences}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {savingPreferences ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Save className="w-3 h-3" />
+                      )}
+                      Save as Default
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preferences Message */}
+                {preferencesMessage && (
+                  <div className={`mb-4 p-2 rounded-lg text-xs flex items-center gap-2 ${
+                    preferencesMessage.type === 'success' 
+                      ? 'bg-green-500/10 border border-green-500/30 text-green-400' 
+                      : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                  }`}>
+                    {preferencesMessage.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                    {preferencesMessage.text}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   {/* Font Selection */}
@@ -718,18 +862,8 @@ export default function UploadPage() {
                       Background {useGradient ? '(Start)' : ''}
                     </label>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={bgColor1}
-                        onChange={(e) => setBgColor1(e.target.value)}
-                        className="w-10 h-10 rounded-lg cursor-pointer border-0"
-                      />
-                      <input
-                        type="text"
-                        value={bgColor1}
-                        onChange={(e) => setBgColor1(e.target.value)}
-                        className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
-                      />
+                      <input type="color" value={bgColor1} onChange={(e) => setBgColor1(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                      <input type="text" value={bgColor1} onChange={(e) => setBgColor1(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
                     </div>
                   </div>
 
@@ -738,31 +872,15 @@ export default function UploadPage() {
                       {useGradient ? 'Background (End)' : 'Gradient (Off)'}
                     </label>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={bgColor2}
-                        onChange={(e) => setBgColor2(e.target.value)}
-                        disabled={!useGradient}
-                        className={`w-10 h-10 rounded-lg cursor-pointer border-0 ${!useGradient && 'opacity-50'}`}
-                      />
-                      <input
-                        type="text"
-                        value={bgColor2}
-                        onChange={(e) => setBgColor2(e.target.value)}
-                        disabled={!useGradient}
-                        className={`glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase ${!useGradient && 'opacity-50'}`}
-                      />
+                      <input type="color" value={bgColor2} onChange={(e) => setBgColor2(e.target.value)} disabled={!useGradient} className={`w-10 h-10 rounded-lg cursor-pointer border-0 ${!useGradient && 'opacity-50'}`} />
+                      <input type="text" value={bgColor2} onChange={(e) => setBgColor2(e.target.value)} disabled={!useGradient} className={`glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase ${!useGradient && 'opacity-50'}`} />
                     </div>
                   </div>
 
                   {/* Gradient Toggle & Direction */}
                   <div>
                     <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Gradient</label>
-                    <select
-                      value={useGradient ? 'on' : 'off'}
-                      onChange={(e) => setUseGradient(e.target.value === 'on')}
-                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-                    >
+                    <select value={useGradient ? 'on' : 'off'} onChange={(e) => setUseGradient(e.target.value === 'on')} className="glass-input w-full px-3 py-2 rounded-lg text-sm">
                       <option value="on">ON</option>
                       <option value="off">OFF</option>
                     </select>
@@ -770,12 +888,7 @@ export default function UploadPage() {
 
                   <div>
                     <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Direction</label>
-                    <select
-                      value={gradientDirection}
-                      onChange={(e) => setGradientDirection(e.target.value)}
-                      disabled={!useGradient}
-                      className={`glass-input w-full px-3 py-2 rounded-lg text-sm ${!useGradient && 'opacity-50'}`}
-                    >
+                    <select value={gradientDirection} onChange={(e) => setGradientDirection(e.target.value)} disabled={!useGradient} className={`glass-input w-full px-3 py-2 rounded-lg text-sm ${!useGradient && 'opacity-50'}`}>
                       <option value="to bottom">Top → Bottom</option>
                       <option value="to top">Bottom → Top</option>
                       <option value="to right">Left → Right</option>
@@ -789,54 +902,24 @@ export default function UploadPage() {
                   <div>
                     <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Text Color</label>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={textColor}
-                        onChange={(e) => setTextColor(e.target.value)}
-                        className="w-10 h-10 rounded-lg cursor-pointer border-0"
-                      />
-                      <input
-                        type="text"
-                        value={textColor}
-                        onChange={(e) => setTextColor(e.target.value)}
-                        className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
-                      />
+                      <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                      <input type="text" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
                     </div>
                   </div>
 
                   <div>
                     <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Text Outline</label>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={outlineColor}
-                        onChange={(e) => setOutlineColor(e.target.value)}
-                        className="w-10 h-10 rounded-lg cursor-pointer border-0"
-                      />
-                      <input
-                        type="text"
-                        value={outlineColor}
-                        onChange={(e) => setOutlineColor(e.target.value)}
-                        className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
-                      />
+                      <input type="color" value={outlineColor} onChange={(e) => setOutlineColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                      <input type="text" value={outlineColor} onChange={(e) => setOutlineColor(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
                     </div>
                   </div>
 
                   <div className="col-span-2">
                     <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Sung Color (After Read)</label>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={sungColor}
-                        onChange={(e) => setSungColor(e.target.value)}
-                        className="w-10 h-10 rounded-lg cursor-pointer border-0"
-                      />
-                      <input
-                        type="text"
-                        value={sungColor}
-                        onChange={(e) => setSungColor(e.target.value)}
-                        className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
-                      />
+                      <input type="color" value={sungColor} onChange={(e) => setSungColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                      <input type="text" value={sungColor} onChange={(e) => setSungColor(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
                       <span className="text-xs text-gray-500">← First line shows this color</span>
                     </div>
                   </div>
@@ -854,46 +937,16 @@ export default function UploadPage() {
                       
                       {watermarkPreview ? (
                         <div className="relative inline-block">
-                          <img 
-                            src={watermarkPreview} 
-                            alt="Watermark preview" 
-                            className="h-16 max-w-[200px] object-contain rounded-lg border border-white/20 bg-black/20 p-2"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCustomWatermark(null);
-                              setWatermarkPreview(null);
-                            }}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                          >
+                          <img src={watermarkPreview} alt="Watermark preview" className="h-16 max-w-[200px] object-contain rounded-lg border border-white/20 bg-black/20 p-2" />
+                          <button type="button" onClick={() => { setCustomWatermark(null); setWatermarkPreview(null); }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
                             <X className="w-4 h-4" />
                           </button>
                         </div>
                       ) : (
-                        <label className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 border-dashed ${
-                          isDark ? 'border-white/20 hover:border-cyan-400/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-gray-50'
-                        }`}>
+                        <label className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 border-dashed ${isDark ? 'border-white/20 hover:border-cyan-400/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-gray-50'}`}>
                           <Upload className="w-5 h-5 text-cyan-400" />
-                          <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            Click to upload your logo
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/jpg,image/webp"
-                            onChange={(e) => {
-                              const file = e.target.files[0];
-                              if (file) {
-                                if (file.size > 2 * 1024 * 1024) {
-                                  setError('Watermark image must be under 2MB');
-                                  return;
-                                }
-                                setCustomWatermark(file);
-                                setWatermarkPreview(URL.createObjectURL(file));
-                              }
-                            }}
-                            className="sr-only"
-                          />
+                          <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Click to upload your logo</span>
+                          <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={(e) => { const file = e.target.files[0]; if (file) { if (file.size > 2 * 1024 * 1024) { setError('Watermark image must be under 2MB'); return; } setCustomWatermark(file); setWatermarkPreview(URL.createObjectURL(file)); } }} className="sr-only" />
                         </label>
                       )}
                     </div>
@@ -902,25 +955,15 @@ export default function UploadPage() {
               </motion.div>
               ) : (
                 /* Free tier upgrade prompt */
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="glass-panel p-6"
-                >
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-panel p-6">
                   <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     <Palette className="w-5 h-5 text-gray-500" />
                     Style Customization
                     <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-xs rounded-full">STARTER+</span>
                   </h2>
                   <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-3`}>
-                    Unlock custom colors, fonts, and branding options with a paid subscription.
-                    </p>
-                    <Link 
-                      href="/pricing" 
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
-                    >
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-3`}>Unlock custom colors, fonts, and branding options with a paid subscription.</p>
+                    <Link href="/pricing" className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
                       <Zap className="w-4 h-4" />
                       Upgrade to Unlock
                     </Link>
@@ -929,49 +972,23 @@ export default function UploadPage() {
               )}
 
               {/* Rights Confirmation & Submit */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="glass-panel p-6"
-              >
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-panel p-6">
                 {/* Email Notification Checkbox */}
-                <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${
-                  notifyOnComplete
-                    ? 'bg-purple-500/20 border border-purple-400'
-                    : 'bg-white/5 border border-transparent hover:bg-white/10'
-                }`}>
-                  <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
-                    notifyOnComplete ? 'bg-purple-500 border-purple-500' : 'border-gray-500'
-                  }`}>
+                <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${notifyOnComplete ? 'bg-purple-500/20 border border-purple-400' : 'bg-white/5 border border-transparent hover:bg-white/10'}`}>
+                  <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${notifyOnComplete ? 'bg-purple-500 border-purple-500' : 'border-gray-500'}`}>
                     {notifyOnComplete && <CheckCircle className="w-3 h-3 text-white" />}
                   </div>
                   <div className="flex-1">
-                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      📧 Notify me when processing is complete
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      We'll email you a download link when your karaoke track is ready
-                    </p>
+                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>📧 Notify me when processing is complete</p>
+                    <p className="text-xs text-gray-500 mt-1">We'll email you a download link when your karaoke track is ready</p>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={notifyOnComplete}
-                    onChange={(e) => setNotifyOnComplete(e.target.checked)}
-                    className="sr-only"
-                  />
+                  <input type="checkbox" checked={notifyOnComplete} onChange={(e) => setNotifyOnComplete(e.target.checked)} className="sr-only" />
                 </label>
 
                 {/* Review Lyrics Checkbox - Pro/Studio Only */}
                 {isPremiumUser() && (
-                  <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${
-                    reviewLyrics
-                      ? 'bg-yellow-500/20 border border-yellow-400'
-                      : 'bg-white/5 border border-transparent hover:bg-white/10'
-                  }`}>
-                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
-                      reviewLyrics ? 'bg-yellow-500 border-yellow-500' : 'border-gray-500'
-                    }`}>
+                  <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${reviewLyrics ? 'bg-yellow-500/20 border border-yellow-400' : 'bg-white/5 border border-transparent hover:bg-white/10'}`}>
+                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${reviewLyrics ? 'bg-yellow-500 border-yellow-500' : 'border-gray-500'}`}>
                       {reviewLyrics && <CheckCircle className="w-3 h-3 text-white" />}
                     </div>
                     <div className="flex-1">
@@ -979,56 +996,26 @@ export default function UploadPage() {
                         ✏️ Review & edit lyrics before rendering
                         <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs rounded-full">PRO</span>
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Preview AI-generated lyrics and fix any mistakes before your video is created
-                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Preview AI-generated lyrics and fix any mistakes before your video is created</p>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={reviewLyrics}
-                      onChange={(e) => setReviewLyrics(e.target.checked)}
-                      className="sr-only"
-                    />
+                    <input type="checkbox" checked={reviewLyrics} onChange={(e) => setReviewLyrics(e.target.checked)} className="sr-only" />
                   </label>
                 )}
 
                 {/* Rights Checkbox */}
-                <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-4 ${
-                  rightsConfirmed
-                    ? 'bg-cyan-500/20 border border-cyan-400'
-                    : 'bg-white/5 border border-red-500/50 hover:bg-white/10'
-                }`}>
-                  <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
-                    rightsConfirmed ? 'bg-cyan-500 border-cyan-500' : 'border-gray-500'
-                  }`}>
+                <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-4 ${rightsConfirmed ? 'bg-cyan-500/20 border border-cyan-400' : 'bg-white/5 border border-red-500/50 hover:bg-white/10'}`}>
+                  <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${rightsConfirmed ? 'bg-cyan-500 border-cyan-500' : 'border-gray-500'}`}>
                     {rightsConfirmed && <CheckCircle className="w-3 h-3 text-white" />}
                   </div>
                   <div className="flex-1">
-                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      I confirm I have the legal right to use this audio
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      I own, have licensed, or created this content. <Link href="/terms" className="text-cyan-400 hover:underline">Terms of Service</Link>
-                    </p>
+                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>I confirm I have the legal right to use this audio</p>
+                    <p className="text-xs text-gray-500 mt-1">I own, have licensed, or created this content. <Link href="/terms" className="text-cyan-400 hover:underline">Terms of Service</Link></p>
                   </div>
-                  <input
-                    type="checkbox"
-                    checked={rightsConfirmed}
-                    onChange={(e) => setRightsConfirmed(e.target.checked)}
-                    className="sr-only"
-                  />
+                  <input type="checkbox" checked={rightsConfirmed} onChange={(e) => setRightsConfirmed(e.target.checked)} className="sr-only" />
                 </label>
 
                 {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={isUploading || !rightsConfirmed}
-                  className={`w-full py-4 px-6 rounded-xl text-white font-semibold text-lg transition-all flex items-center justify-center gap-3 ${
-                    rightsConfirmed 
-                      ? 'bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90' 
-                      : 'bg-gray-600 cursor-not-allowed'
-                  } disabled:opacity-50`}
-                >
+                <button type="submit" disabled={isUploading || !rightsConfirmed} className={`w-full py-4 px-6 rounded-xl text-white font-semibold text-lg transition-all flex items-center justify-center gap-3 ${rightsConfirmed ? 'bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90' : 'bg-gray-600 cursor-not-allowed'} disabled:opacity-50`}>
                   {isUploading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
@@ -1037,25 +1024,14 @@ export default function UploadPage() {
                   ) : (
                     <>
                       <Upload className="w-5 h-5" />
-                      <span>
-                        {!rightsConfirmed 
-                          ? 'Confirm Rights to Continue' 
-                          : reviewLyrics 
-                            ? 'Process & Review Lyrics' 
-                            : 'Create Karaoke Track'
-                        }
-                      </span>
+                      <span>{!rightsConfirmed ? 'Confirm Rights to Continue' : reviewLyrics ? 'Process & Review Lyrics' : 'Create Karaoke Track'}</span>
                     </>
                   )}
                 </button>
                 
                 {isUploading && (
                   <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-gradient-to-r from-cyan-500 to-purple-500"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${uploadProgress}%` }}
-                    />
+                    <motion.div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
                   </div>
                 )}
               </motion.div>
