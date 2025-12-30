@@ -929,6 +929,7 @@ app.get('/api/projects/:id/lyrics', authMiddleware, async (req, res) => {
       song_title: project.song_title,
       status: project.status,
       lyrics: project.lyrics_json,
+      original_lyrics: project.lyrics_text || '', // User's pasted lyrics for comparison
       processed_audio_url: project.processed_audio_url,
       vocals_audio_url: project.vocals_audio_url,
     });

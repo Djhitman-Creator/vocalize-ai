@@ -22,7 +22,10 @@ import {
   Loader2,
   AlertCircle,
   Info,
-  Zap
+  Zap,
+  Eye,
+  EyeOff,
+  FileText
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -47,6 +50,8 @@ export default function LyricsEditorPage() {
   const [editValue, setEditValue] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [originalLyricsText, setOriginalLyricsText] = useState(''); // User's pasted lyrics
+  const [showComparison, setShowComparison] = useState(true); // Toggle comparison view
 
   // Group lyrics into lines for display
   const groupLyricsIntoLines = (words, wordsPerLine = 7) => {
@@ -55,6 +60,49 @@ export default function LyricsEditorPage() {
       lines.push(words.slice(i, i + wordsPerLine));
     }
     return lines;
+  };
+
+  // Smart comparison: Check if AI word differs from original when surrounding words match
+  const getWordMismatchInfo = (aiWords, originalText, index) => {
+    if (!originalText || !aiWords[index]) return { isMismatch: false };
+    
+    // Parse original lyrics into words (strip punctuation for comparison)
+    const originalWords = originalText
+      .replace(/\n/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.trim())
+      .map(w => w.toLowerCase().replace(/[^a-z0-9']/g, ''));
+    
+    const aiWord = aiWords[index].word.toLowerCase().replace(/[^a-z0-9']/g, '');
+    
+    // Get surrounding AI words
+    const prevAiWord = index > 0 ? aiWords[index - 1].word.toLowerCase().replace(/[^a-z0-9']/g, '') : null;
+    const nextAiWord = index < aiWords.length - 1 ? aiWords[index + 1].word.toLowerCase().replace(/[^a-z0-9']/g, '') : null;
+    
+    // Search for matching context in original
+    for (let i = 0; i < originalWords.length; i++) {
+      const origWord = originalWords[i];
+      const prevOrigWord = i > 0 ? originalWords[i - 1] : null;
+      const nextOrigWord = i < originalWords.length - 1 ? originalWords[i + 1] : null;
+      
+      // Check if surrounding words match but center differs
+      const prevMatch = !prevAiWord || !prevOrigWord || prevAiWord === prevOrigWord;
+      const nextMatch = !nextAiWord || !nextOrigWord || nextAiWord === nextOrigWord;
+      
+      // If at least one neighbor matches and center word differs
+      if ((prevMatch && prevAiWord === prevOrigWord) || (nextMatch && nextAiWord === nextOrigWord)) {
+        if (aiWord !== origWord && (prevAiWord === prevOrigWord || nextAiWord === nextOrigWord)) {
+          // Found a likely mismatch - get the original word for suggestion
+          return { 
+            isMismatch: true, 
+            suggestedWord: originalWords[i],
+            originalIndex: i
+          };
+        }
+      }
+    }
+    
+    return { isMismatch: false };
   };
 
   // Fetch project and lyrics
@@ -89,6 +137,7 @@ export default function LyricsEditorPage() {
         const data = await response.json();
         setProject(data);
         setLyrics(data.lyrics || []);
+        setOriginalLyricsText(data.original_lyrics || ''); // User's pasted lyrics
         
       } catch (err) {
         console.error('Error fetching lyrics:', err);
@@ -313,6 +362,21 @@ export default function LyricsEditorPage() {
           </div>
 
           <div className="flex items-center gap-4">
+            {originalLyricsText && (
+              <button
+                onClick={() => setShowComparison(!showComparison)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                  showComparison 
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/50' 
+                    : 'text-gray-400 hover:text-white'
+                }`}
+                title={showComparison ? 'Hide comparison' : 'Show comparison'}
+              >
+                {showComparison ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                <span className="hidden sm:inline">Compare</span>
+              </button>
+            )}
+            
             {hasChanges && (
               <button
                 onClick={resetAll}
@@ -334,7 +398,7 @@ export default function LyricsEditorPage() {
       </nav>
 
       {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className={`mx-auto px-6 py-8 ${showComparison && originalLyricsText ? 'max-w-7xl' : 'max-w-5xl'}`}>
         {/* Instructions */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -347,7 +411,7 @@ export default function LyricsEditorPage() {
               <strong>Click any word to edit it.</strong> The timing stays the same.
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              Edited words are highlighted in yellow. Press Enter to save, Escape to cancel.
+              Edited words are highlighted in yellow. <span className="text-orange-400">Orange words</span> may differ from your original lyrics. Press Enter to save, Escape to cancel.
             </p>
           </div>
         </motion.div>
@@ -360,97 +424,125 @@ export default function LyricsEditorPage() {
           </div>
         )}
 
-        {/* Lyrics Editor */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="glass-panel p-6 mb-6"
-        >
-          <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            <Edit3 className="w-5 h-5 inline mr-2 text-cyan-400" />
-            Edit Lyrics
-          </h2>
+        {/* Side-by-side Layout */}
+        <div className={`grid gap-6 ${showComparison && originalLyricsText ? 'lg:grid-cols-2' : 'grid-cols-1'}`}>
+          {/* Lyrics Editor */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="glass-panel p-6"
+          >
+            <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <Edit3 className="w-5 h-5 inline mr-2 text-cyan-400" />
+              AI Generated Lyrics
+            </h2>
 
-          <div className="space-y-4">
-            {lyricsLines.map((line, lineIndex) => (
-              <div key={lineIndex} className="flex flex-wrap gap-2 items-center">
-                <span className="text-xs text-gray-500 w-16 flex-shrink-0">
-                  {formatTime(line[0]?.start || 0)}
-                </span>
-                
-                {line.map((wordData, wordIndex) => {
-                  const globalIndex = lineIndex * 7 + wordIndex;
-                  const isEditing = editingIndex === globalIndex;
-                  const isEdited = wordData.edited;
+            <div className="space-y-4">
+              {lyricsLines.map((line, lineIndex) => (
+                <div key={lineIndex} className="flex flex-wrap gap-2 items-center">
+                  <span className="text-xs text-gray-500 w-16 flex-shrink-0">
+                    {formatTime(line[0]?.start || 0)}
+                  </span>
                   
-                  return (
-                    <div key={globalIndex} className="relative group">
-                      {isEditing ? (
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="text"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            autoFocus
-                            className="px-2 py-1 bg-cyan-500/20 border border-cyan-400 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 w-24"
-                          />
+                  {line.map((wordData, wordIndex) => {
+                    const globalIndex = lineIndex * 7 + wordIndex;
+                    const isEditing = editingIndex === globalIndex;
+                    const isEdited = wordData.edited;
+                    const mismatchInfo = showComparison ? getWordMismatchInfo(lyrics, originalLyricsText, globalIndex) : { isMismatch: false };
+                    
+                    return (
+                      <div key={globalIndex} className="relative group">
+                        {isEditing ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onKeyDown={handleKeyDown}
+                              autoFocus
+                              className="px-2 py-1 bg-cyan-500/20 border border-cyan-400 rounded text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 w-24"
+                            />
+                            <button
+                              onClick={saveEdit}
+                              className="p-1 text-green-400 hover:bg-green-400/20 rounded"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={cancelEdit}
+                              className="p-1 text-red-400 hover:bg-red-400/20 rounded"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
                           <button
-                            onClick={saveEdit}
-                            className="p-1 text-green-400 hover:bg-green-400/20 rounded"
+                            onClick={() => startEditing(globalIndex)}
+                            className={`px-2 py-1 rounded text-sm transition-all ${
+                              isEdited
+                                ? 'bg-yellow-500/30 text-yellow-300 border border-yellow-500/50'
+                                : mismatchInfo.isMismatch
+                                  ? 'bg-orange-500/30 text-orange-300 border border-orange-500/50'
+                                  : 'bg-white/5 text-white hover:bg-white/10 border border-transparent'
+                            }`}
+                            title={mismatchInfo.isMismatch ? `Original may be: "${mismatchInfo.suggestedWord}"` : ''}
                           >
-                            <Check className="w-4 h-4" />
+                            {wordData.word}
                           </button>
+                        )}
+                        
+                        {isEdited && !isEditing && (
                           <button
-                            onClick={cancelEdit}
-                            className="p-1 text-red-400 hover:bg-red-400/20 rounded"
+                            onClick={() => revertWord(globalIndex)}
+                            className="absolute -top-2 -right-2 p-0.5 bg-gray-800 rounded-full text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                            title={`Revert to "${wordData.originalWord}"`}
                           >
-                            <X className="w-4 h-4" />
+                            <RefreshCw className="w-3 h-3" />
                           </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => startEditing(globalIndex)}
-                          className={`px-2 py-1 rounded text-sm transition-all ${
-                            isEdited
-                              ? 'bg-yellow-500/30 text-yellow-300 border border-yellow-500/50'
-                              : 'bg-white/5 text-white hover:bg-white/10 border border-transparent'
-                          }`}
-                        >
-                          {wordData.word}
-                        </button>
-                      )}
-                      
-                      {isEdited && !isEditing && (
-                        <button
-                          onClick={() => revertWord(globalIndex)}
-                          className="absolute -top-2 -right-2 p-0.5 bg-gray-800 rounded-full text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                          title={`Revert to "${wordData.originalWord}"`}
-                        >
-                          <RefreshCw className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-
-          {lyrics.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-gray-400">No lyrics available</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
+
+            {lyrics.length === 0 && (
+              <div className="text-center py-12">
+                <p className="text-gray-400">No lyrics available</p>
+              </div>
+            )}
+          </motion.div>
+
+          {/* Original Lyrics Panel */}
+          {showComparison && originalLyricsText && (
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="glass-panel p-6"
+            >
+              <h2 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <FileText className="w-5 h-5 inline mr-2 text-purple-400" />
+                Your Original Lyrics
+              </h2>
+              
+              <div className="max-h-[600px] overflow-y-auto">
+                <pre className={`text-sm whitespace-pre-wrap font-sans leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {originalLyricsText}
+                </pre>
+              </div>
+            </motion.div>
           )}
-        </motion.div>
+        </div>
 
         {/* Stats */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="grid grid-cols-3 gap-4 mb-6"
+          className="grid grid-cols-3 gap-4 mb-6 mt-6"
         >
           <div className="glass-panel p-4 text-center">
             <p className="text-2xl font-bold text-white">{lyrics.length}</p>
