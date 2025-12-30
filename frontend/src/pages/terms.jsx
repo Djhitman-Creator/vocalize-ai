@@ -87,19 +87,19 @@ export default function TermsOfService() {
               </h2>
               <p className="mb-3">
                 Karatrack Studio is intended for <strong>personal, non-commercial use only</strong>. 
-                Permitted uses include:
+                You are solely responsible for ensuring you have the legal right to process any audio you upload. This may include:
               </p>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Creating karaoke versions of music you have legally purchased for personal enjoyment</li>
-                <li>Processing original compositions you have created</li>
-                <li>Creating karaoke tracks for private performances where you hold appropriate licenses</li>
-                <li>Educational purposes where fair use applies</li>
+                <li>Music you have created or composed yourself</li>
+                <li>Music for which you have obtained explicit permission or a license from the copyright holder</li>
+                <li>Music that is in the public domain</li>
+                <li>Uses that qualify as fair use under applicable law (consult a legal professional if unsure)</li>
               </ul>
               <p className="mt-4">
                 <strong>Prohibited uses include:</strong>
               </p>
               <ul className="list-disc pl-6 space-y-2 mt-2">
-                <li>Uploading copyrighted music without authorization</li>
+                <li>Uploading copyrighted music without authorization from the copyright holder</li>
                 <li>Distributing, selling, or commercially exploiting processed content without proper rights</li>
                 <li>Using the Service to infringe upon any third party's intellectual property</li>
                 <li>Circumventing any technological protection measures</li>
