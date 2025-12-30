@@ -624,7 +624,7 @@ export default function PricingPage() {
             Purchase additional credits anytime
           </p>
           <p className="text-sm text-gray-500 text-center mb-10">
-            Credits cost: 480p = 3 credits • 720p = 5 credits • 1080p = 7 credits
+            Credits cost: 480p = 3 credits • 720p = 5 credits • 1080p = 7 credits • 4K = 9 credits • 4K = 9 credits
           </p>
 
           <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
@@ -689,7 +689,8 @@ export default function PricingPage() {
               <h3 className="font-semibold text-white mb-2">How do credits work?</h3>
               <p className="text-gray-400 text-sm">
                 Each karaoke track costs credits based on video quality: 480p costs 3 credits, 
-                720p costs 5 credits, and 1080p costs 7 credits. Credits reset monthly with your subscription.
+                720p costs 5 credits, 1080p costs 7 credits, and 4K costs 9 credits. Credits 
+                accumulate month to month and expire 90 days after they are granted.
               </p>
             </div>
             
@@ -704,8 +705,8 @@ export default function PricingPage() {
             <div className="glass-panel p-6">
               <h3 className="font-semibold text-white mb-2">Can I change plans anytime?</h3>
               <p className="text-gray-400 text-sm">
-                Yes! You can upgrade or downgrade your plan at any time. Changes take effect 
-                immediately, and we'll prorate any differences.
+                Yes! You can upgrade or downgrade your plan at any time. Your existing credits 
+                transfer with you to your new plan.
               </p>
             </div>
             
