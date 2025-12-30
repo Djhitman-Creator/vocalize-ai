@@ -36,7 +36,8 @@ import {
   Type,
   Eye,
   Save,
-  RotateCcw
+  RotateCcw,
+  Image
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -113,6 +114,7 @@ export default function UploadPage() {
   // Custom watermark (Studio only)
   const [customWatermark, setCustomWatermark] = useState(null);
   const [watermarkPreview, setWatermarkPreview] = useState(null);
+  const [hasSavedWatermark, setHasSavedWatermark] = useState(false);
   
   // UI state
   const [isUploading, setIsUploading] = useState(false);
@@ -242,9 +244,10 @@ export default function UploadPage() {
       }
     }
     
-    // Load saved watermark preview (Studio only)
+    // Load saved watermark indicator (Studio only)
+    // Note: We just flag that a default exists, actual preview would need fresh upload
     if (profile.default_watermark_url && tier === 'studio') {
-      setWatermarkPreview(profile.default_watermark_url);
+      setHasSavedWatermark(true);
     }
   };
 
@@ -280,9 +283,17 @@ export default function UploadPage() {
         upload_preferences: preferences
       };
       
-      // If there's a watermark preview URL (already uploaded), save it
-      if (watermarkPreview && isStudioUser()) {
-        updateData.default_watermark_url = watermarkPreview;
+      // Handle watermark: save new one, keep existing, or clear
+      if (isStudioUser()) {
+        if (watermarkPreview) {
+          // New watermark uploaded this session
+          updateData.default_watermark_url = watermarkPreview;
+          setHasSavedWatermark(true);
+        } else if (!hasSavedWatermark) {
+          // User cleared the watermark
+          updateData.default_watermark_url = null;
+        }
+        // If hasSavedWatermark is true but no new preview, keep existing (don't update)
       }
       
       const { error } = await supabase
@@ -938,7 +949,17 @@ export default function UploadPage() {
                       {watermarkPreview ? (
                         <div className="relative inline-block">
                           <img src={watermarkPreview} alt="Watermark preview" className="h-16 max-w-[200px] object-contain rounded-lg border border-white/20 bg-black/20 p-2" />
-                          <button type="button" onClick={() => { setCustomWatermark(null); setWatermarkPreview(null); }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                          <button type="button" onClick={() => { setCustomWatermark(null); setWatermarkPreview(null); setHasSavedWatermark(false); }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : hasSavedWatermark ? (
+                        <div className="relative inline-block">
+                          <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-green-500/30 bg-green-500/10">
+                            <Image className="w-5 h-5 text-green-400" />
+                            <span className="text-sm text-green-400">Default logo saved</span>
+                          </div>
+                          <button type="button" onClick={() => { setHasSavedWatermark(false); }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors" title="Remove default logo">
                             <X className="w-4 h-4" />
                           </button>
                         </div>
