@@ -106,10 +106,60 @@ export default function TermsOfService() {
               </ul>
             </section>
 
+            {/* Subscriptions & Credits */}
+            <section>
+              <h2 className={`text-xl font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                4. Subscriptions, Credits & Billing
+              </h2>
+              <p className="mb-3">
+                Karatrack Studio operates on a credit-based subscription model. By subscribing to a paid plan, 
+                you agree to the following terms:
+              </p>
+              
+              <h3 className={`text-lg font-semibold mt-4 mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Credit Allocation
+              </h3>
+              <ul className="list-disc pl-6 space-y-2">
+                <li>Credits are allocated to your account upon subscription purchase or renewal</li>
+                <li>Each plan includes a specific number of credits per billing cycle</li>
+                <li>Credits may be used to process audio files and generate karaoke videos</li>
+              </ul>
+
+              <h3 className={`text-lg font-semibold mt-4 mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Credit Expiration Policy
+              </h3>
+              <div className={`p-4 rounded-lg ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30' : 'bg-yellow-50 border border-yellow-200'}`}>
+                <ul className="list-disc pl-6 space-y-2">
+                  <li><strong>Credits expire 90 days after they are granted.</strong> This applies to both subscription credits and any bonus credits.</li>
+                  <li>Credits roll over from month to month as long as they are less than 90 days old. Credits older than 90 days will automatically expire and be removed from your account.</li>
+                  <li>We will send you an email notification before your credits expire to give you an opportunity to use them.</li>
+                  <li><strong>No refunds or credit will be issued for expired credits.</strong></li>
+                </ul>
+              </div>
+
+              <h3 className={`text-lg font-semibold mt-4 mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Subscription Cancellation
+              </h3>
+              <ul className="list-disc pl-6 space-y-2">
+                <li>You may cancel your subscription at any time through your account settings</li>
+                <li>Upon cancellation, you will retain access to your remaining credits until they expire (90 days from when they were granted)</li>
+                <li>No prorated refunds will be issued for partial billing periods</li>
+              </ul>
+
+              <h3 className={`text-lg font-semibold mt-4 mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Refund Policy
+              </h3>
+              <ul className="list-disc pl-6 space-y-2">
+                <li>Subscription fees are generally non-refundable</li>
+                <li>Refund requests for technical issues may be considered on a case-by-case basis</li>
+                <li>To request a refund, contact support@karatrack.com within 7 days of purchase</li>
+              </ul>
+            </section>
+
             {/* Copyright Policy */}
             <section>
               <h2 className={`text-xl font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                4. Copyright Policy & DMCA Compliance
+                5. Copyright Policy & DMCA Compliance
               </h2>
               <p>
                 Karatrack Studio respects intellectual property rights and complies with the 
@@ -133,7 +183,7 @@ export default function TermsOfService() {
             {/* Indemnification */}
             <section>
               <h2 className={`text-xl font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                5. Indemnification
+                6. Indemnification
               </h2>
               <p>
                 You agree to indemnify, defend, and hold harmless Karatrack Studio, its owners, 
@@ -153,7 +203,7 @@ export default function TermsOfService() {
             {/* Limitation of Liability */}
             <section>
               <h2 className={`text-xl font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                6. Limitation of Liability
+                7. Limitation of Liability
               </h2>
               <p>
                 Karatrack Studio provides a tool for audio processing. We act solely as a service 
@@ -180,7 +230,7 @@ export default function TermsOfService() {
             {/* Disclaimer */}
             <section>
               <h2 className={`text-xl font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                7. Disclaimer of Warranties
+                8. Disclaimer of Warranties
               </h2>
               <p>
                 THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, 
@@ -196,7 +246,7 @@ export default function TermsOfService() {
             {/* Account Termination */}
             <section>
               <h2 className={`text-xl font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                8. Account Termination
+                9. Account Termination
               </h2>
               <p>
                 We reserve the right to suspend or terminate your account and access to the Service 
@@ -212,7 +262,7 @@ export default function TermsOfService() {
             {/* Modifications */}
             <section>
               <h2 className={`text-xl font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                9. Modifications to Terms
+                10. Modifications to Terms
               </h2>
               <p>
                 We reserve the right to modify these Terms at any time. We will notify users of 
@@ -225,7 +275,7 @@ export default function TermsOfService() {
             {/* Governing Law */}
             <section>
               <h2 className={`text-xl font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                10. Governing Law
+                11. Governing Law
               </h2>
               <p>
                 These Terms shall be governed by and construed in accordance with the laws of the 
@@ -238,7 +288,7 @@ export default function TermsOfService() {
             {/* Contact */}
             <section>
               <h2 className={`text-xl font-semibold mb-3 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                11. Contact Information
+                12. Contact Information
               </h2>
               <p>
                 If you have any questions about these Terms, please contact us at:
@@ -269,7 +319,7 @@ export default function TermsOfService() {
       {/* Footer */}
       <footer className="border-t border-white/10 px-6 py-8 mt-12">
         <div className="max-w-4xl mx-auto text-center text-gray-500 text-sm">
-          <p>© 2024 Karatrack Studio. All rights reserved.</p>
+          <p>© 2025 Karatrack Studio. All rights reserved.</p>
           <div className="flex justify-center gap-6 mt-4">
             <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
