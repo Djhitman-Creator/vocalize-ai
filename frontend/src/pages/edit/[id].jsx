@@ -6,7 +6,7 @@
  * Place this at: frontend/src/pages/edit/[id].jsx
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -52,6 +52,11 @@ export default function LyricsEditorPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [originalLyricsText, setOriginalLyricsText] = useState(''); // User's pasted lyrics
   const [showComparison, setShowComparison] = useState(true); // Toggle comparison view
+  
+  // Refs for synchronized scrolling
+  const leftPanelRef = useRef(null);
+  const rightPanelRef = useRef(null);
+  const isScrolling = useRef(false);
 
   // Group lyrics into lines for display
   const groupLyricsIntoLines = (words, wordsPerLine = 7) => {
@@ -211,6 +216,41 @@ export default function LyricsEditorPage() {
     }));
     setLyrics(originalLyrics);
     setHasChanges(false);
+  };
+
+  // Synchronized scrolling between panels
+  const handleLeftScroll = () => {
+    if (isScrolling.current) return;
+    if (!leftPanelRef.current || !rightPanelRef.current) return;
+    
+    isScrolling.current = true;
+    const leftPanel = leftPanelRef.current;
+    const rightPanel = rightPanelRef.current;
+    
+    // Calculate scroll percentage
+    const scrollPercent = leftPanel.scrollTop / (leftPanel.scrollHeight - leftPanel.clientHeight);
+    
+    // Apply to right panel
+    rightPanel.scrollTop = scrollPercent * (rightPanel.scrollHeight - rightPanel.clientHeight);
+    
+    setTimeout(() => { isScrolling.current = false; }, 50);
+  };
+
+  const handleRightScroll = () => {
+    if (isScrolling.current) return;
+    if (!leftPanelRef.current || !rightPanelRef.current) return;
+    
+    isScrolling.current = true;
+    const leftPanel = leftPanelRef.current;
+    const rightPanel = rightPanelRef.current;
+    
+    // Calculate scroll percentage
+    const scrollPercent = rightPanel.scrollTop / (rightPanel.scrollHeight - rightPanel.clientHeight);
+    
+    // Apply to left panel
+    leftPanel.scrollTop = scrollPercent * (leftPanel.scrollHeight - leftPanel.clientHeight);
+    
+    setTimeout(() => { isScrolling.current = false; }, 50);
   };
 
   // Submit and render video
@@ -438,7 +478,11 @@ export default function LyricsEditorPage() {
               AI Generated Lyrics
             </h2>
 
-            <div className="space-y-4">
+            <div 
+              ref={leftPanelRef}
+              onScroll={handleLeftScroll}
+              className="space-y-4 max-h-[600px] overflow-y-auto pr-2"
+            >
               {lyricsLines.map((line, lineIndex) => (
                 <div key={lineIndex} className="flex flex-wrap gap-2 items-center">
                   <span className="text-xs text-gray-500 w-16 flex-shrink-0">
@@ -528,7 +572,11 @@ export default function LyricsEditorPage() {
                 Your Original Lyrics
               </h2>
               
-              <div className="max-h-[600px] overflow-y-auto">
+              <div 
+                ref={rightPanelRef}
+                onScroll={handleRightScroll}
+                className="max-h-[600px] overflow-y-auto pr-2"
+              >
                 <pre className={`text-sm whitespace-pre-wrap font-sans leading-relaxed ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   {originalLyricsText}
                 </pre>
