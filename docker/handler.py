@@ -64,9 +64,11 @@ COLOR_COUNTDOWN = (255, 200, 0)  # Gold for countdown dots
 
 # Timing
 INTRO_DURATION = 4  # Reduced from 5 to 4 seconds
-COUNTDOWN_THRESHOLD = 5
-INTRO_COUNTDOWN_THRESHOLD = 10
-COUNTDOWN_DOTS = 3
+COUNTDOWN_THRESHOLD = 3  # Show countdown for gaps >= 3 seconds
+INTRO_COUNTDOWN_THRESHOLD = 3  # Show countdown for intros >= 3 seconds
+COUNTDOWN_DOTS = 6  # 6 dots, one lights up every 0.5 seconds = 3 second countdown
+COUNTDOWN_DOT_INTERVAL = 0.5  # Seconds between each dot lighting up
+FADEOUT_DURATION = 3  # Seconds to fade out lyrics at end
 
 # Display mode settings
 WORDS_PER_LINE = 7
@@ -823,52 +825,81 @@ def create_intro_frame(artist, title, frame_num, total_frames, width, height, co
     return img
 
 
-def create_countdown_frame_with_preview(dots_remaining, width, height, lyrics, gap_end_time, total_dots=COUNTDOWN_DOTS):
-    """Create countdown frame with dots AND preview of upcoming lyrics."""
-    img = create_frame(width, height)
+def create_countdown_frame_with_preview(countdown_time, width, height, lyrics, gap_end_time, display_mode, colors=None, total_dots=COUNTDOWN_DOTS):
+    """
+    Create countdown frame with 6 dots ABOVE upcoming lyrics.
+    
+    - Shows 6 small circles/dots at top
+    - One lights up every 0.5 seconds (3 second countdown total)
+    - Upcoming lyrics are visible below in the user's chosen display mode style
+    """
+    # First, create the lyrics frame using the same display mode the user chose
+    # This ensures consistency with how lyrics will look when singing starts
+    if display_mode == 'scroll':
+        img = create_scroll_frame(gap_end_time, lyrics, width, height, colors)
+    elif display_mode == 'page':
+        img = create_page_frame(gap_end_time, lyrics, width, height, colors)
+    else:
+        img = create_overwrite_frame(gap_end_time, lyrics, width, height, colors)
+    
     draw = ImageDraw.Draw(img)
     
     scale = width / 1920
-    font_countdown = get_font(int(FONT_SIZE_COUNTDOWN * scale))
-    font_lyrics = get_font(int(FONT_SIZE_LYRICS * scale))
-    line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale)
-    padding = int(PADDING_LEFT_RIGHT * scale)
     
-    dots = " ● " * dots_remaining
-    dots_gray = " ○ " * (total_dots - dots_remaining)
-    full_text = dots_gray + dots
+    # Calculate how many dots should be lit based on countdown time
+    # countdown_time goes from 3.0 down to 0
+    # At 3.0s remaining: 0 dots lit
+    # At 2.5s remaining: 1 dot lit
+    # At 2.0s remaining: 2 dots lit
+    # etc.
+    elapsed = (COUNTDOWN_DOTS * COUNTDOWN_DOT_INTERVAL) - countdown_time
+    dots_lit = int(elapsed / COUNTDOWN_DOT_INTERVAL)
+    dots_lit = max(0, min(total_dots, dots_lit))
     
-    dots_y = height // 4
-    draw_centered_text(draw, full_text.strip(), dots_y, font_countdown, COLOR_COUNTDOWN, width)
+    # Draw the countdown dots - positioned at top of screen, ABOVE the lyrics
+    dot_radius = int(12 * scale)
+    dot_spacing = int(20 * scale)
+    total_dots_width = (total_dots * dot_radius * 2) + ((total_dots - 1) * dot_spacing)
+    dots_start_x = (width - total_dots_width) // 2
+    dots_y = int(height * 0.12)  # 12% from top - well above the lyrics area
     
-    upcoming_words = [w for w in lyrics if w['start'] >= gap_end_time - 0.5]
+    # Get background color for the dot background bar
+    bg_color = colors.get('bg_1', COLOR_BG) if colors else COLOR_BG
     
-    if upcoming_words:
-        lines = []
-        current_line = []
-        for word in upcoming_words:
-            current_line.append(word)
-            if len(current_line) >= WORDS_PER_LINE:
-                lines.append(current_line)
-                current_line = []
-                if len(lines) >= 4:
-                    break
-        if current_line and len(lines) < 4:
-            lines.append(current_line)
+    # Draw a subtle background bar behind the dots for visibility
+    bar_padding = int(20 * scale)
+    bar_height = dot_radius * 2 + bar_padding * 2
+    bar_y = dots_y - bar_padding
+    
+    # Draw background bar (simple rectangle)
+    draw.rectangle(
+        [(dots_start_x - bar_padding, bar_y), 
+         (dots_start_x + total_dots_width + bar_padding, bar_y + bar_height)],
+        fill=bg_color
+    )
+    
+    # Draw each dot as a circle (ellipse)
+    for i in range(total_dots):
+        center_x = dots_start_x + dot_radius + i * (dot_radius * 2 + dot_spacing)
+        center_y = dots_y + dot_radius
         
-        preview_start_y = height // 2
+        if i < dots_lit:
+            # Lit dot - gold/yellow filled
+            fill_color = COLOR_COUNTDOWN
+            outline_color = (255, 220, 50)  # Brighter outline
+        else:
+            # Unlit dot - dim gray
+            fill_color = (60, 60, 60)
+            outline_color = (80, 80, 80)
         
-        for i, line in enumerate(lines[:4]):
-            y = preview_start_y + (i * line_height)
-            line_text = ' '.join([w['word'] for w in line])
-            
-            if i == 0:
-                color = COLOR_TEXT
-            else:
-                fade = 1 - (i * 0.2)
-                color = tuple(int(c * fade) for c in COLOR_UPCOMING)
-            
-            draw_centered_text(draw, line_text, y, font_lyrics, color, width, padding)
+        # Draw circle (ellipse with equal width/height)
+        draw.ellipse(
+            [(center_x - dot_radius, center_y - dot_radius),
+             (center_x + dot_radius, center_y + dot_radius)],
+            fill=fill_color,
+            outline=outline_color,
+            width=2
+        )
     
     return img
 
@@ -1162,6 +1193,42 @@ def create_lyrics_frame(current_time, lyrics, display_mode, width, height, color
         return create_overwrite_frame(current_time, lyrics, width, height, colors)
 
 
+def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, height, colors=None, fade_opacity=1.0):
+    """
+    Create frame with lyrics that fades out.
+    
+    fade_opacity: 1.0 = fully visible, 0.0 = fully faded
+    """
+    # Create the base frame with background
+    img = create_frame(width, height, colors)
+    
+    if fade_opacity <= 0:
+        return img  # Fully faded, just return background
+    
+    # Create the lyrics frame
+    if display_mode == 'scroll':
+        lyrics_frame = create_scroll_frame(current_time, lyrics, width, height, colors)
+    elif display_mode == 'page':
+        lyrics_frame = create_page_frame(current_time, lyrics, width, height, colors)
+    else:
+        lyrics_frame = create_overwrite_frame(current_time, lyrics, width, height, colors)
+    
+    # Blend the lyrics frame with the background based on opacity
+    if fade_opacity < 1.0:
+        # Convert to RGBA for blending
+        bg_rgba = img.convert('RGBA')
+        lyrics_rgba = lyrics_frame.convert('RGBA')
+        
+        # Create a mask with the fade opacity
+        mask = Image.new('L', img.size, int(255 * fade_opacity))
+        
+        # Composite the images
+        result = Image.composite(lyrics_rgba, bg_rgba, mask)
+        return result.convert('RGB')
+    
+    return lyrics_frame
+
+
 def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None):
     """Generate video with lyrics and countdown"""
     print(f"🎬 Generating video (mode: {display_mode})...")
@@ -1247,15 +1314,61 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     
     intro_frames = int(INTRO_DURATION * FPS)
     
+    # Detect gaps for countdown (with offset applied)
+    offset_gaps = []
+    for gap in gaps:
+        offset_gap = gap.copy()
+        offset_gap['start'] = gap['start'] + INTRO_DURATION
+        offset_gap['end'] = gap['end'] + INTRO_DURATION
+        offset_gaps.append(offset_gap)
+    
+    # Check for long intro before first lyrics (only if not already detected)
+    # The detect_silence_gaps function may have already found this gap
+    if offset_lyrics:
+        first_lyric_time = offset_lyrics[0]['start']
+        intro_gap_time = first_lyric_time - INTRO_DURATION  # Time after intro screen before first lyric
+        
+        # Only add intro gap if:
+        # 1. Gap is long enough (>= 3 seconds)
+        # 2. We don't already have a gap that covers this period
+        has_intro_gap = any(g.get('is_intro', False) for g in offset_gaps)
+        
+        if intro_gap_time >= COUNTDOWN_THRESHOLD and not has_intro_gap:
+            # Add countdown before first lyrics
+            countdown_start = first_lyric_time - (COUNTDOWN_DOTS * COUNTDOWN_DOT_INTERVAL)
+            offset_gaps.insert(0, {
+                'start': INTRO_DURATION,
+                'end': first_lyric_time,
+                'duration': intro_gap_time,
+                'is_intro': True,
+                'countdown_start': countdown_start
+            })
+            print(f"   ➕ Added intro countdown gap: {INTRO_DURATION}s to {first_lyric_time:.2f}s")
+    
+    # Calculate countdown start times for each gap
+    for gap in offset_gaps:
+        if 'countdown_start' not in gap:
+            gap['countdown_start'] = gap['end'] - (COUNTDOWN_DOTS * COUNTDOWN_DOT_INTERVAL)
+    
+    # Get last lyric end time for fadeout
+    last_lyric_end = offset_lyrics[-1]['end'] if offset_lyrics else total_duration
+    fadeout_start = last_lyric_end
+    fadeout_end = min(last_lyric_end + FADEOUT_DURATION, total_duration)
+    
     # Debug: Log timing info
     print(f"   📊 Timing debug:")
     print(f"      Total duration (with intro): {total_duration:.2f}s")
     print(f"      Intro duration: {INTRO_DURATION}s ({intro_frames} frames)")
     print(f"      Total frames: {total_frames}")
+    print(f"      Countdown gaps: {len(offset_gaps)}")
+    for i, gap in enumerate(offset_gaps):
+        print(f"         Gap {i+1}: countdown starts at {gap.get('countdown_start', 0):.2f}s, lyrics resume at {gap['end']:.2f}s")
+    print(f"      Fadeout: {fadeout_start:.2f}s - {fadeout_end:.2f}s")
     if offset_lyrics:
         print(f"      First lyric '{offset_lyrics[0]['word']}' at {offset_lyrics[0]['start']:.2f}s (frame {int(offset_lyrics[0]['start'] * FPS)})")
     
     first_lyric_logged = False
+    countdown_gaps_logged = set()  # Track which gaps we've logged
     
     for frame_num in range(total_frames):
         current_time = frame_num / FPS
@@ -1264,13 +1377,57 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
             # Show intro screen during the silence period
             frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height, colors)
         else:
-            # Debug: Log when first lyric should appear
-            if not first_lyric_logged and offset_lyrics and current_time >= offset_lyrics[0]['start']:
-                print(f"   📊 First lyric should appear now: frame {frame_num}, current_time={current_time:.2f}s")
-                first_lyric_logged = True
+            # Check if we're in a countdown period
+            in_countdown = False
+            for gap_idx, gap in enumerate(offset_gaps):
+                countdown_start = gap.get('countdown_start', gap['end'] - (COUNTDOWN_DOTS * COUNTDOWN_DOT_INTERVAL))
+                if countdown_start <= current_time < gap['end']:
+                    # We're in a countdown period
+                    in_countdown = True
+                    countdown_remaining = gap['end'] - current_time
+                    
+                    # Debug: Log first time we enter this countdown gap
+                    if gap_idx not in countdown_gaps_logged:
+                        print(f"   🔵 COUNTDOWN GAP {gap_idx+1}: frame {frame_num}, time={current_time:.2f}s, remaining={countdown_remaining:.2f}s, lyrics resume at {gap['end']:.2f}s")
+                        countdown_gaps_logged.add(gap_idx)
+                    
+                    frame = create_countdown_frame_with_preview(
+                        countdown_remaining, 
+                        width, 
+                        height, 
+                        offset_lyrics, 
+                        gap['end'],
+                        display_mode,
+                        colors
+                    )
+                    break
             
-            # Show lyrics (using offset timestamps)
-            frame = create_lyrics_frame(current_time, offset_lyrics, display_mode, width, height, colors)
+            if not in_countdown:
+                # Debug: Log when first lyric should appear
+                if not first_lyric_logged and offset_lyrics and current_time >= offset_lyrics[0]['start']:
+                    print(f"   📊 First lyric should appear now: frame {frame_num}, current_time={current_time:.2f}s")
+                    first_lyric_logged = True
+                
+                # Check if we're in fadeout period
+                if current_time >= fadeout_start:
+                    # Calculate fade opacity (1.0 at start, 0.0 at end)
+                    fade_progress = (current_time - fadeout_start) / FADEOUT_DURATION
+                    fade_progress = min(1.0, fade_progress)
+                    fade_opacity = 1.0 - fade_progress
+                    
+                    # Create lyrics frame with fade
+                    frame = create_lyrics_frame_with_fade(
+                        current_time, 
+                        offset_lyrics, 
+                        display_mode, 
+                        width, 
+                        height, 
+                        colors,
+                        fade_opacity
+                    )
+                else:
+                    # Normal lyrics display
+                    frame = create_lyrics_frame(current_time, offset_lyrics, display_mode, width, height, colors)
         
         # Apply watermark for free tier, or custom watermark for Studio
         if apply_watermark_to_video:
@@ -1405,6 +1562,9 @@ def handler(event):
                 results['vocals_audio_url'] = input_data.get('vocals_audio_url')
             
             gaps = detect_silence_gaps(lyrics)
+            print(f"   Found {len(gaps)} gaps for countdown (threshold: {COUNTDOWN_THRESHOLD}s)")
+            for i, gap in enumerate(gaps):
+                print(f"      Gap {i+1}: {gap['start']:.2f}s - {gap['end']:.2f}s ({gap['duration']:.2f}s) {'[INTRO]' if gap.get('is_intro') else ''}")
             results['lyrics'] = lyrics
             
             # Skip to video generation (handled below)
@@ -1480,7 +1640,9 @@ def handler(event):
                     lyrics = apply_profanity_filter(lyrics)
                 
                 gaps = detect_silence_gaps(lyrics)
-                print(f"   Found {len(gaps)} gaps for countdown")
+                print(f"   Found {len(gaps)} gaps for countdown (threshold: {COUNTDOWN_THRESHOLD}s)")
+                for i, gap in enumerate(gaps):
+                    print(f"      Gap {i+1}: {gap['start']:.2f}s - {gap['end']:.2f}s ({gap['duration']:.2f}s) {'[INTRO]' if gap.get('is_intro') else ''}")
                 
                 results['lyrics'] = lyrics
             
