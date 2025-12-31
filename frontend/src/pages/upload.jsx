@@ -518,8 +518,14 @@ export default function UploadPage() {
       formData.append('font_size', fontSize);
       
       // Custom watermark (Studio only)
-      if (customWatermark && isStudioUser()) {
-        formData.append('custom_watermark', customWatermark);
+      if (isStudioUser()) {
+        if (customWatermark) {
+          // New watermark uploaded this session - send the file
+          formData.append('custom_watermark', customWatermark);
+        } else if (hasSavedWatermark && profile?.default_watermark_url) {
+          // Use saved watermark URL from profile
+          formData.append('custom_watermark_url', profile.default_watermark_url);
+        }
       }
       
       // Email notification
