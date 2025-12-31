@@ -958,9 +958,12 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None):
     if colors:
         upcoming_color = tuple(int(c * 0.7) for c in text_color)
     
+    # Get font size scale (default 1.0)
+    font_size_scale = colors.get('font_size_scale', 1.0) if colors else 1.0
+    
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale))
-    line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale)
+    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale))
+    line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
     lines = group_lyrics_into_lines(lyrics)
@@ -1037,9 +1040,12 @@ def create_page_frame(current_time, lyrics, width, height, colors=None):
     sung_color = colors.get('sung', COLOR_SUNG) if colors else COLOR_SUNG
     highlight_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
     
+    # Get font size scale (default 1.0)
+    font_size_scale = colors.get('font_size_scale', 1.0) if colors else 1.0
+    
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale))
-    line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale)
+    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale))
+    line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
     lines = group_lyrics_into_lines(lyrics)
@@ -1115,9 +1121,12 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None):
     if colors:
         upcoming_color = tuple(int(c * 0.7) for c in text_color)
     
+    # Get font size scale (default 1.0)
+    font_size_scale = colors.get('font_size_scale', 1.0) if colors else 1.0
+    
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale))
-    line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale)
+    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale))
+    line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
     # Group lyrics into lines
@@ -1259,12 +1268,21 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
             'outline_color': '#000000',
             'sung_color': '#00d4ff',
             'font': 'arial',
+            'font_size': 'normal',
         }
     
     # Parse colors from hex to RGB tuples
     def hex_to_rgb(hex_color):
         hex_color = hex_color.lstrip('#')
         return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    
+    # Font size scale mapping
+    font_size_scales = {
+        'normal': 1.0,
+        'large': 1.15,
+        'xlarge': 1.3
+    }
+    font_size_scale = font_size_scales.get(style_options.get('font_size', 'normal'), 1.0)
     
     colors = {
         'bg_1': hex_to_rgb(style_options.get('bg_color_1', '#1a1a2e')),
@@ -1274,9 +1292,10 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         'sung': hex_to_rgb(style_options.get('sung_color', '#00d4ff')),
         'use_gradient': style_options.get('use_gradient', True),
         'gradient_direction': style_options.get('gradient_direction', 'to bottom'),
+        'font_size_scale': font_size_scale,
     }
     
-    print(f"   🎨 Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}")
+    print(f"   🎨 Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}, font_scale={font_size_scale}")
     
     if video_quality == '4k':
         width, height = 3840, 2160
@@ -1516,6 +1535,7 @@ def handler(event):
             'outline_color': input_data.get('outline_color', '#000000'),
             'sung_color': input_data.get('sung_color', '#00d4ff'),
             'font': input_data.get('font', 'arial'),
+            'font_size': input_data.get('font_size', 'normal'),  # 'normal', 'large', 'xlarge'
         }
         
         print(f"🎤 Processing project: {project_id}")
