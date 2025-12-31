@@ -534,27 +534,69 @@ export default function UploadPage() {
       // Processing mode for lyrics review
       formData.append('processing_mode', reviewLyrics ? 'transcribe_only' : 'full');
 
-      setUploadProgress(30);
+      setUploadProgress(10);
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/projects`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
-          },
-          body: formData
+      // Upload with retry logic for reliability
+      const uploadWithRetry = async (retries = 3) => {
+        for (let attempt = 1; attempt <= retries; attempt++) {
+          try {
+            console.log(`Upload attempt ${attempt}/${retries}...`);
+            setUploadProgress(10 + (attempt - 1) * 5);
+            
+            // Create abort controller with 5 minute timeout for large files
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+            
+            const response = await fetch(
+              `${process.env.NEXT_PUBLIC_API_URL}/api/projects`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${session.access_token}`
+                },
+                body: formData,
+                signal: controller.signal
+              }
+            );
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(errorData.error || 'Upload failed');
+            }
+            
+            return await response.json();
+            
+          } catch (err) {
+            console.error(`Upload attempt ${attempt} failed:`, err);
+            
+            // Don't retry on specific errors
+            if (err.message?.includes('Insufficient credits') || 
+                err.message?.includes('Lyrics are required') ||
+                err.message?.includes('Invalid file type')) {
+              throw err;
+            }
+            
+            // If it's the last attempt, throw the error
+            if (attempt === retries) {
+              if (err.name === 'AbortError') {
+                throw new Error('Upload timed out. Please check your connection and try again.');
+              }
+              throw new Error(err.message || 'Upload failed after multiple attempts. Please try again.');
+            }
+            
+            // Wait before retrying (exponential backoff: 2s, 4s, 8s)
+            const waitTime = Math.pow(2, attempt) * 1000;
+            console.log(`Waiting ${waitTime}ms before retry...`);
+            setError(`Connection issue. Retrying in ${waitTime/1000}s... (Attempt ${attempt + 1}/${retries})`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            setError(null);
+          }
         }
-      );
+      };
 
-      setUploadProgress(70);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
-      }
-
-      const projectData = await response.json();
+      const projectData = await uploadWithRetry(3);
       setUploadProgress(100);
 
       setTimeout(() => {
