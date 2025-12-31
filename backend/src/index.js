@@ -641,8 +641,16 @@ app.get('/api/projects/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Middleware to extend timeout for upload endpoints
+const extendTimeout = (req, res, next) => {
+  // Set 5 minute timeout for upload requests
+  req.setTimeout(5 * 60 * 1000);
+  res.setTimeout(5 * 60 * 1000);
+  next();
+};
+
 // UPDATED: Project creation with subscription_tier for watermark logic
-app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
+app.post('/api/projects', authMiddleware, extendTimeout, projectUpload, async (req, res) => {
   try {
     const { 
       title, 
@@ -1878,10 +1886,15 @@ app.use((req, res) => {
 });
 
 // START SERVER
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 Karatrack Studio API running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📧 Email notifications: ${process.env.BREVO_API_KEY ? 'enabled' : 'disabled'}`);
 });
+
+// Increase server timeouts for large file uploads (5 minutes)
+server.timeout = 5 * 60 * 1000; // 5 minutes
+server.keepAliveTimeout = 5 * 60 * 1000;
+server.headersTimeout = 5 * 60 * 1000 + 1000; // Slightly longer than keepAliveTimeout
 
 module.exports = app;
