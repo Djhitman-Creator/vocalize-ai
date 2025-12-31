@@ -278,6 +278,7 @@ async function sendToRunPod(projectId, audioUrl, options) {
         outline_color: options.outline_color || '#000000',
         sung_color: options.sung_color || '#00d4ff',
         font: options.font || 'arial',
+        font_size: options.font_size || 'normal',
         
         // Processing mode for two-stage flow
         processing_mode: options.processing_mode || 'full',
@@ -664,10 +665,13 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       outline_color,
       sung_color,
       font,
+      font_size,
       // Email notification preference
       notify_on_complete,
       // Processing mode for lyrics review
-      processing_mode
+      processing_mode,
+      // Saved watermark URL (Studio users)
+      custom_watermark_url: savedWatermarkUrl
     } = req.body;
     
     const file = req.files?.audio?.[0];
@@ -724,6 +728,15 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       } else {
         console.log('⚠️ Custom watermark ignored - user is not Studio tier');
       }
+    } else if (savedWatermarkUrl) {
+      // Use saved watermark URL from profile (Studio tier only)
+      const userProfileForWatermark = await getUserProfile(req.user.id);
+      if (userProfileForWatermark.subscription_tier === 'studio') {
+        customWatermarkUrl = savedWatermarkUrl;
+        console.log(`📸 Using saved watermark: ${customWatermarkUrl}`);
+      } else {
+        console.log('⚠️ Saved watermark ignored - user is not Studio tier');
+      }
     }
 
     // Update user's track count
@@ -764,6 +777,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         outline_color: outline_color || '#000000',
         sung_color: sung_color || '#00d4ff',
         font: font || 'arial',
+        font_size: font_size || 'normal',
         // Email notification preference
         notify_on_complete: notify_on_complete !== 'false' && notify_on_complete !== false,
         // Custom watermark for Studio users
@@ -800,6 +814,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       outline_color: outline_color || '#000000',
       sung_color: sung_color || '#00d4ff',
       font: font || 'arial',
+      font_size: font_size || 'normal',
       // Processing mode
       processing_mode: processing_mode || 'full',
       // NEW: Subscription tier for watermark logic
@@ -1005,6 +1020,7 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       outline_color: project.outline_color || '#000000',
       sung_color: project.sung_color || '#F4E409',
       font: project.font || 'arial',
+      font_size: project.font_size || 'normal',
       // Render-only specific
       processed_audio_url: project.processed_audio_url,
       vocals_audio_url: project.vocals_audio_url,
