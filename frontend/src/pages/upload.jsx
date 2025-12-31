@@ -794,21 +794,37 @@ export default function UploadPage() {
                   className="rounded-xl overflow-hidden aspect-video flex items-center justify-center p-6"
                   style={getBackgroundStyle()}
                 >
-                  <div className="text-center space-y-2">
-                    {SAMPLE_LYRICS.split('\n').map((line, i) => (
-                      <p
-                        key={i}
-                        style={{
-                          fontFamily: getCurrentFontFamily(),
-                          color: i === 0 ? sungColor : textColor,
-                          textShadow: `-1px -1px 0 ${outlineColor}, 1px -1px 0 ${outlineColor}, -1px 1px 0 ${outlineColor}, 1px 1px 0 ${outlineColor}`,
-                          fontSize: '1.1rem',
-                          fontWeight: 'bold'
-                        }}
-                      >
-                        {line}
-                      </p>
-                    ))}
+                  <div className="text-center" style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: fontSize === 'xlarge' ? '0.75rem' : fontSize === 'large' ? '0.6rem' : '0.5rem'
+                  }}>
+                    {SAMPLE_LYRICS.split('\n').map((line, i) => {
+                      // Font size mapping for preview
+                      const fontSizeMap = {
+                        'normal': '1.1rem',
+                        'large': '1.25rem',
+                        'xlarge': '1.45rem'
+                      };
+                      const previewFontSize = fontSizeMap[fontSize] || '1.1rem';
+                      
+                      return (
+                        <p
+                          key={i}
+                          style={{
+                            fontFamily: getCurrentFontFamily(),
+                            color: i === 0 ? sungColor : textColor,
+                            textShadow: `-1px -1px 0 ${outlineColor}, 1px -1px 0 ${outlineColor}, -1px 1px 0 ${outlineColor}, 1px 1px 0 ${outlineColor}`,
+                            fontSize: previewFontSize,
+                            fontWeight: 'bold',
+                            transition: 'all 0.2s ease',
+                            margin: 0
+                          }}
+                        >
+                          {line}
+                        </p>
+                      );
+                    })}
                   </div>
                 </div>
               </motion.div>
