@@ -59,6 +59,13 @@ const FONT_OPTIONS = [
   { value: 'impact', label: 'Impact', family: 'Impact, sans-serif' },
 ];
 
+// Font size options
+const FONT_SIZE_OPTIONS = [
+  { value: 'normal', label: 'Normal', scale: 1.0 },
+  { value: 'large', label: 'Large', scale: 1.15 },
+  { value: 'xlarge', label: 'X-Large', scale: 1.3 },
+];
+
 // Default settings
 const DEFAULT_SETTINGS = {
   bgColor1: '#1a1a2e',
@@ -69,6 +76,7 @@ const DEFAULT_SETTINGS = {
   outlineColor: '#000000',
   sungColor: '#00d4ff',
   selectedFont: 'arial',
+  fontSize: 'normal',  // 'normal', 'large', 'xlarge'
   videoQuality: '480p',
   displayMode: 'auto',
   processingType: 'remove_vocals',
@@ -110,6 +118,7 @@ export default function UploadPage() {
   const [outlineColor, setOutlineColor] = useState('#000000');
   const [sungColor, setSungColor] = useState('#00d4ff');
   const [selectedFont, setSelectedFont] = useState('arial');
+  const [fontSize, setFontSize] = useState('normal');
   
   // Custom watermark (Studio only)
   const [customWatermark, setCustomWatermark] = useState(null);
@@ -210,6 +219,7 @@ export default function UploadPage() {
     if (prefs.outlineColor) setOutlineColor(prefs.outlineColor);
     if (prefs.sungColor) setSungColor(prefs.sungColor);
     if (prefs.selectedFont) setSelectedFont(prefs.selectedFont);
+    if (prefs.fontSize) setFontSize(prefs.fontSize);
     
     // Processing settings
     if (prefs.displayMode) setDisplayMode(prefs.displayMode);
@@ -271,6 +281,7 @@ export default function UploadPage() {
         outlineColor,
         sungColor,
         selectedFont,
+        fontSize,
         videoQuality,
         displayMode,
         processingType,
@@ -324,6 +335,7 @@ export default function UploadPage() {
     setOutlineColor(DEFAULT_SETTINGS.outlineColor);
     setSungColor(DEFAULT_SETTINGS.sungColor);
     setSelectedFont(DEFAULT_SETTINGS.selectedFont);
+    setFontSize(DEFAULT_SETTINGS.fontSize);
     setDisplayMode(DEFAULT_SETTINGS.displayMode);
     setProcessingType(DEFAULT_SETTINGS.processingType);
     setCleanVersion(DEFAULT_SETTINGS.cleanVersion);
@@ -503,6 +515,7 @@ export default function UploadPage() {
       formData.append('outline_color', outlineColor);
       formData.append('sung_color', sungColor);
       formData.append('font', selectedFont);
+      formData.append('font_size', fontSize);
       
       // Custom watermark (Studio only)
       if (customWatermark && isStudioUser()) {
@@ -854,7 +867,7 @@ export default function UploadPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   {/* Font Selection */}
-                  <div className="col-span-2">
+                  <div>
                     <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Font</label>
                     <select
                       value={selectedFont}
@@ -863,6 +876,20 @@ export default function UploadPage() {
                     >
                       {FONT_OPTIONS.map(font => (
                         <option key={font.value} value={font.value}>{font.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Font Size */}
+                  <div>
+                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Font Size</label>
+                    <select
+                      value={fontSize}
+                      onChange={(e) => setFontSize(e.target.value)}
+                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                    >
+                      {FONT_SIZE_OPTIONS.map(size => (
+                        <option key={size.value} value={size.value}>{size.label}</option>
                       ))}
                     </select>
                   </div>
