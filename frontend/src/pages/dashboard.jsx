@@ -33,6 +33,11 @@ const supabase = createClient(
 // Polling interval in milliseconds (5 seconds)
 const POLL_INTERVAL = 5000;
 
+// Global storage for dropped file (survives navigation)
+if (typeof window !== 'undefined') {
+  window.__droppedAudioFile = window.__droppedAudioFile || null;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -41,6 +46,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState(null);
   const { isDark, toggleTheme } = useTheme();
+  
+  // Drag and drop state
+  const [isDragging, setIsDragging] = useState(false);
   
   // Notification state
   const [notifications, setNotifications] = useState([]);
@@ -450,15 +458,61 @@ export default function DashboardPage() {
           transition={{ delay: 0.4 }}
           className="mb-8"
         >
-          <Link href="/upload" className="block">
-            <div className="dropzone cursor-pointer group">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-400/20 to-purple-500/20 flex items-center justify-center group-hover:from-cyan-400/40 group-hover:to-purple-500/40 transition-all">
-                <Upload className="w-8 h-8 text-cyan-500" />
-              </div>
-              <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Upload New Track</h3>
-              <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Drop your audio file or click to browse</p>
+          <div 
+            className={`dropzone cursor-pointer group transition-all ${
+              isDragging ? 'border-cyan-400 bg-cyan-400/10 scale-[1.02]' : ''
+            }`}
+            onClick={() => router.push('/upload')}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragging(true);
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragging(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragging(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDragging(false);
+              
+              const files = e.dataTransfer.files;
+              if (files && files.length > 0) {
+                const file = files[0];
+                const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp3', 'audio/x-wav', 'audio/x-m4a', 'audio/mp4'];
+                
+                if (audioTypes.includes(file.type) || file.name.match(/\.(mp3|wav|flac|m4a)$/i)) {
+                  // Store file in global variable for upload page to access
+                  window.__droppedAudioFile = file;
+                  console.log('File dropped:', file.name);
+                  router.push('/upload');
+                } else {
+                  addNotification('Please drop an audio file (MP3, WAV, FLAC, M4A)', 'error');
+                }
+              }
+            }}
+          >
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br flex items-center justify-center transition-all ${
+              isDragging 
+                ? 'from-cyan-400/40 to-purple-500/40' 
+                : 'from-cyan-400/20 to-purple-500/20 group-hover:from-cyan-400/40 group-hover:to-purple-500/40'
+            }`}>
+              <Upload className={`w-8 h-8 ${isDragging ? 'text-cyan-400' : 'text-cyan-500'}`} />
             </div>
-          </Link>
+            <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {isDragging ? 'Drop your file here!' : 'Upload New Track'}
+            </h3>
+            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+              {isDragging ? 'Release to start uploading' : 'Drop your audio file or click to browse'}
+            </p>
+          </div>
         </motion.div>
 
         {/* Recent Projects */}

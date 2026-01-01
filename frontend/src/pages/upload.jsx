@@ -193,6 +193,23 @@ export default function UploadPage() {
     loadProfile();
   }, [router]);
 
+  // Check for dropped file from dashboard
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.__droppedAudioFile) {
+      const file = window.__droppedAudioFile;
+      console.log('Loading dropped file:', file.name);
+      
+      setAudioFile(file);
+      
+      // Auto-fill title from filename (remove extension)
+      const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
+      setTitle(nameWithoutExt);
+      
+      // Clear the global so it doesn't reload on subsequent visits
+      window.__droppedAudioFile = null;
+    }
+  }, []);
+
   // Load saved preferences when profile is available
   useEffect(() => {
     if (profile && !preferencesLoaded) {
