@@ -608,6 +608,72 @@ app.get('/api/user/credits/history', authMiddleware, async (req, res) => {
   }
 });
 
+// UPLOAD DEFAULT WATERMARK (Studio tier only)
+// This uploads the watermark to R2 and saves the URL to the profile
+const watermarkUpload = upload.single('watermark');
+
+app.post('/api/profile/watermark', authMiddleware, watermarkUpload, async (req, res) => {
+  try {
+    // Verify user is Studio tier
+    const profile = await getUserProfile(req.user.id);
+    if (profile.subscription_tier !== 'studio') {
+      return res.status(403).json({ error: 'Custom watermarks are only available for Studio tier' });
+    }
+
+    const watermarkFile = req.file;
+    if (!watermarkFile) {
+      return res.status(400).json({ error: 'No watermark file provided' });
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    if (!allowedTypes.includes(watermarkFile.mimetype)) {
+      return res.status(400).json({ error: 'Invalid file type. Please upload a JPG, PNG, or WebP image.' });
+    }
+
+    // Upload to R2
+    const watermarkKey = `watermarks/${req.user.id}/default-watermark-${Date.now()}${watermarkFile.originalname.substring(watermarkFile.originalname.lastIndexOf('.'))}`;
+    const watermarkUrl = await uploadToR2(watermarkFile.buffer, watermarkKey, watermarkFile.mimetype);
+    
+    console.log(`📸 Default watermark uploaded for user ${req.user.id}: ${watermarkUrl}`);
+
+    // Save URL to profile
+    const { error } = await supabase
+      .from('profiles')
+      .update({ default_watermark_url: watermarkUrl })
+      .eq('id', req.user.id);
+
+    if (error) throw error;
+
+    res.json({ 
+      success: true, 
+      watermark_url: watermarkUrl,
+      message: 'Default watermark saved successfully'
+    });
+
+  } catch (error) {
+    console.error('Watermark upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE DEFAULT WATERMARK
+app.delete('/api/profile/watermark', authMiddleware, async (req, res) => {
+  try {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ default_watermark_url: null })
+      .eq('id', req.user.id);
+
+    if (error) throw error;
+
+    res.json({ success: true, message: 'Default watermark removed' });
+  } catch (error) {
+    console.error('Watermark delete error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // PROJECTS
 app.get('/api/projects', authMiddleware, async (req, res) => {
   try {
