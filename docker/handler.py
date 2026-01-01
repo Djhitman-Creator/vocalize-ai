@@ -226,10 +226,115 @@ def download_file(url, destination):
     return destination
 
 
-def get_font(size):
-    """Get font, fallback to default if custom not available"""
+# Font file mapping - maps font names to file paths
+# These fonts need to be installed in the Docker container
+FONT_PATHS = {
+    'arial': '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',  # Arial-like fallback
+    'roboto': '/usr/share/fonts/custom/Roboto-Bold.ttf',
+    'poppins': '/usr/share/fonts/custom/Poppins-Bold.ttf',
+    'montserrat': '/usr/share/fonts/custom/Montserrat-Bold.ttf',
+    'oswald': '/usr/share/fonts/custom/Oswald-Bold.ttf',
+    'playfair': '/usr/share/fonts/custom/PlayfairDisplay-Bold.ttf',
+    'bebas': '/usr/share/fonts/custom/BebasNeue-Regular.ttf',
+    'impact': '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',  # Impact fallback to DejaVu
+}
+
+# Google Fonts download URLs
+FONT_URLS = {
+    'roboto': 'https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf',
+    'poppins': 'https://github.com/itfoundry/Poppins/raw/master/products/Poppins-Bold.ttf',
+    'montserrat': 'https://github.com/JulietaUla/Montserrat/raw/master/fonts/ttf/Montserrat-Bold.ttf',
+    'oswald': 'https://github.com/googlefonts/OswaldFont/raw/main/fonts/ttf/Oswald-Bold.ttf',
+    'playfair': 'https://github.com/clauseggers/Playfair-Display/raw/master/fonts/PlayfairDisplay-Bold.ttf',
+    'bebas': 'https://github.com/dharmatype/Bebas-Neue/raw/master/fonts/BebasNeue-Regular.ttf',
+}
+
+# Default fallback font
+DEFAULT_FONT = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
+
+# Cache for loaded fonts
+_font_cache = {}
+_fonts_initialized = False
+
+def ensure_fonts_directory():
+    """Create custom fonts directory if it doesn't exist."""
+    font_dir = '/usr/share/fonts/custom'
+    if not os.path.exists(font_dir):
+        os.makedirs(font_dir, exist_ok=True)
+    return font_dir
+
+def download_font(font_name):
+    """Download a font if it's not installed."""
+    if font_name not in FONT_URLS:
+        return None
+    
+    font_path = FONT_PATHS.get(font_name)
+    if font_path and os.path.exists(font_path):
+        return font_path
+    
     try:
-        return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size)
+        ensure_fonts_directory()
+        url = FONT_URLS[font_name]
+        font_path = FONT_PATHS[font_name]
+        
+        print(f"   📥 Downloading font: {font_name}...")
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        
+        with open(font_path, 'wb') as f:
+            f.write(response.content)
+        
+        print(f"   ✅ Font downloaded: {font_name}")
+        return font_path
+    except Exception as e:
+        print(f"   ⚠️ Failed to download font {font_name}: {e}")
+        return None
+
+def initialize_fonts():
+    """Pre-download all custom fonts."""
+    global _fonts_initialized
+    if _fonts_initialized:
+        return
+    
+    print("🔤 Initializing fonts...")
+    ensure_fonts_directory()
+    
+    for font_name in FONT_URLS.keys():
+        font_path = FONT_PATHS.get(font_name)
+        if not font_path or not os.path.exists(font_path):
+            download_font(font_name)
+    
+    _fonts_initialized = True
+    print("✅ Fonts initialized")
+
+def get_font(size, font_name='arial'):
+    """Get font by name with fallback to default"""
+    cache_key = f"{font_name}_{size}"
+    
+    if cache_key in _font_cache:
+        return _font_cache[cache_key]
+    
+    # Try the requested font
+    font_path = FONT_PATHS.get(font_name, DEFAULT_FONT)
+    
+    # If font doesn't exist, try to download it
+    if not os.path.exists(font_path) and font_name in FONT_URLS:
+        downloaded_path = download_font(font_name)
+        if downloaded_path:
+            font_path = downloaded_path
+    
+    try:
+        font = ImageFont.truetype(font_path, size)
+        _font_cache[cache_key] = font
+        return font
+    except Exception as e:
+        print(f"   ⚠️ Font '{font_name}' failed ({e}), using fallback...")
+    
+    # Fallback to default
+    try:
+        font = ImageFont.truetype(DEFAULT_FONT, size)
+        _font_cache[cache_key] = font
+        return font
     except:
         return ImageFont.load_default()
 
@@ -800,10 +905,11 @@ def create_intro_frame(artist, title, frame_num, total_frames, width, height, co
     # Get colors or use defaults
     text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
     sung_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
+    font_name = colors.get('font', 'arial') if colors else 'arial'
     
     scale = width / 1920
-    font_artist = get_font(int(FONT_SIZE_ARTIST * scale))
-    font_title = get_font(int(FONT_SIZE_TITLE * scale))
+    font_artist = get_font(int(FONT_SIZE_ARTIST * scale), font_name)
+    font_title = get_font(int(FONT_SIZE_TITLE * scale), font_name)
     
     progress = frame_num / total_frames
     if progress < 0.2:
@@ -958,11 +1064,12 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None):
     if colors:
         upcoming_color = tuple(int(c * 0.7) for c in text_color)
     
-    # Get font size scale (default 1.0)
+    # Get font settings
     font_size_scale = colors.get('font_size_scale', 1.0) if colors else 1.0
+    font_name = colors.get('font', 'arial') if colors else 'arial'
     
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale))
+    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name)
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
@@ -1040,11 +1147,12 @@ def create_page_frame(current_time, lyrics, width, height, colors=None):
     sung_color = colors.get('sung', COLOR_SUNG) if colors else COLOR_SUNG
     highlight_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
     
-    # Get font size scale (default 1.0)
+    # Get font settings
     font_size_scale = colors.get('font_size_scale', 1.0) if colors else 1.0
+    font_name = colors.get('font', 'arial') if colors else 'arial'
     
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale))
+    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name)
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
@@ -1121,11 +1229,12 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None):
     if colors:
         upcoming_color = tuple(int(c * 0.7) for c in text_color)
     
-    # Get font size scale (default 1.0)
+    # Get font settings
     font_size_scale = colors.get('font_size_scale', 1.0) if colors else 1.0
+    font_name = colors.get('font', 'arial') if colors else 'arial'
     
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale))
+    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name)
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
@@ -1293,9 +1402,10 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         'use_gradient': style_options.get('use_gradient', True),
         'gradient_direction': style_options.get('gradient_direction', 'to bottom'),
         'font_size_scale': font_size_scale,
+        'font': style_options.get('font', 'arial'),
     }
     
-    print(f"   🎨 Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}, font_scale={font_size_scale}")
+    print(f"   🎨 Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}, font={colors['font']}, font_scale={font_size_scale}")
     
     if video_quality == '4k':
         width, height = 3840, 2160
@@ -1495,6 +1605,9 @@ def handler(event):
     """RunPod handler function"""
     callback_url = None
     project_id = None
+    
+    # Initialize fonts on first run
+    initialize_fonts()
     
     try:
         input_data = event['input']
