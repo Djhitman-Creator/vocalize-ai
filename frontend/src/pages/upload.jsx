@@ -269,8 +269,8 @@ export default function UploadPage() {
     setPreferencesMessage(null);
     
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
       
       const preferences = {
         bgColor1,
@@ -290,27 +290,67 @@ export default function UploadPage() {
         reviewLyrics
       };
       
+      // Handle watermark upload for Studio users
+      let savedWatermarkUrl = null;
+      if (isStudioUser() && customWatermark) {
+        // Upload watermark to R2 via backend endpoint
+        setPreferencesMessage({ type: 'info', text: 'Uploading watermark...' });
+        
+        const formData = new FormData();
+        formData.append('watermark', customWatermark);
+        
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/profile/watermark`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            body: formData
+          }
+        );
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to upload watermark');
+        }
+        
+        const result = await response.json();
+        savedWatermarkUrl = result.watermark_url;
+        setHasSavedWatermark(true);
+        
+        // Update local profile state with the new URL
+        setProfile(prev => ({ ...prev, default_watermark_url: savedWatermarkUrl }));
+        
+        console.log('Watermark uploaded to R2:', savedWatermarkUrl);
+      }
+      
+      // Save other preferences to profile
       const updateData = {
         upload_preferences: preferences
       };
       
-      // Handle watermark: save new one, keep existing, or clear
-      if (isStudioUser()) {
-        if (watermarkPreview) {
-          // New watermark uploaded this session
-          updateData.default_watermark_url = watermarkPreview;
-          setHasSavedWatermark(true);
-        } else if (!hasSavedWatermark) {
-          // User cleared the watermark
-          updateData.default_watermark_url = null;
+      // Handle watermark URL in profile (only if we didn't just upload one)
+      if (isStudioUser() && !customWatermark) {
+        if (!hasSavedWatermark) {
+          // User cleared the watermark - delete it
+          await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/profile/watermark`,
+            {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${session.access_token}`
+              }
+            }
+          );
         }
-        // If hasSavedWatermark is true but no new preview, keep existing (don't update)
+        // If hasSavedWatermark is true but no new upload, keep existing (don't update)
       }
       
       const { error } = await supabase
         .from('profiles')
         .update(updateData)
-        .eq('id', user.id);
+        .eq('id', session.user.id);
       
       if (error) throw error;
       
@@ -922,9 +962,17 @@ export default function UploadPage() {
                   <div className={`mb-4 p-2 rounded-lg text-xs flex items-center gap-2 ${
                     preferencesMessage.type === 'success' 
                       ? 'bg-green-500/10 border border-green-500/30 text-green-400' 
+                      : preferencesMessage.type === 'info'
+                      ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400'
                       : 'bg-red-500/10 border border-red-500/30 text-red-400'
                   }`}>
-                    {preferencesMessage.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                    {preferencesMessage.type === 'success' ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : preferencesMessage.type === 'info' ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4" />
+                    )}
                     {preferencesMessage.text}
                   </div>
                 )}
