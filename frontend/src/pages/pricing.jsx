@@ -252,6 +252,7 @@ export default function PricingPage() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(null);
+  const [buyingCredits, setBuyingCredits] = useState(null);
   const [showComparison, setShowComparison] = useState(false);
 
   useEffect(() => {
@@ -363,6 +364,60 @@ export default function PricingPage() {
     } catch (err) {
       console.error('Portal error:', err);
       alert(err.message);
+    }
+  };
+
+  // Handle credit package purchase
+  const handleBuyCredits = async (credits) => {
+    // If not logged in, redirect to signup
+    if (!user) {
+      router.push('/signup?redirect=pricing');
+      return;
+    }
+
+    setBuyingCredits(credits);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // Get the credit package by credits amount
+      const { data: packageData } = await supabase
+        .from('credit_packages')
+        .select('id, stripe_price_id')
+        .eq('credits', credits)
+        .eq('is_active', true)
+        .single();
+
+      if (!packageData?.stripe_price_id) {
+        throw new Error('Credit package not found');
+      }
+
+      // Create Stripe checkout session for credit purchase
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/buy-credits`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          package_id: packageData.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout');
+      }
+
+      // Redirect to Stripe checkout
+      window.location.href = data.url;
+
+    } catch (err) {
+      console.error('Buy credits error:', err);
+      alert(err.message);
+    } finally {
+      setBuyingCredits(null);
     }
   };
 
@@ -660,13 +715,13 @@ export default function PricingPage() {
                     if (!user) {
                       router.push('/signup');
                     } else {
-                      // TODO: Implement credit purchase
-                      alert('Credit purchase coming soon!');
+                      handleBuyCredits(pkg.credits);
                     }
                   }}
-                  className="w-full glass-button py-2 text-sm text-white hover:bg-white/10"
+                  disabled={buyingCredits === pkg.credits}
+                  className="w-full glass-button py-2 text-sm text-white hover:bg-white/10 disabled:opacity-50"
                 >
-                  Buy Credits
+                  {buyingCredits === pkg.credits ? 'Processing...' : 'Buy Credits'}
                 </button>
               </motion.div>
             ))}
