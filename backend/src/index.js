@@ -278,7 +278,6 @@ async function sendToRunPod(projectId, audioUrl, options) {
         outline_color: options.outline_color || '#000000',
         sung_color: options.sung_color || '#00d4ff',
         font: options.font || 'arial',
-        font_size: options.font_size || 'normal',
         
         // Processing mode for two-stage flow
         processing_mode: options.processing_mode || 'full',
@@ -608,72 +607,6 @@ app.get('/api/user/credits/history', authMiddleware, async (req, res) => {
   }
 });
 
-// UPLOAD DEFAULT WATERMARK (Studio tier only)
-// This uploads the watermark to R2 and saves the URL to the profile
-const watermarkUpload = upload.single('watermark');
-
-app.post('/api/profile/watermark', authMiddleware, watermarkUpload, async (req, res) => {
-  try {
-    // Verify user is Studio tier
-    const profile = await getUserProfile(req.user.id);
-    if (profile.subscription_tier !== 'studio') {
-      return res.status(403).json({ error: 'Custom watermarks are only available for Studio tier' });
-    }
-
-    const watermarkFile = req.file;
-    if (!watermarkFile) {
-      return res.status(400).json({ error: 'No watermark file provided' });
-    }
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-    if (!allowedTypes.includes(watermarkFile.mimetype)) {
-      return res.status(400).json({ error: 'Invalid file type. Please upload a JPG, PNG, or WebP image.' });
-    }
-
-    // Upload to R2
-    const watermarkKey = `watermarks/${req.user.id}/default-watermark-${Date.now()}${watermarkFile.originalname.substring(watermarkFile.originalname.lastIndexOf('.'))}`;
-    const watermarkUrl = await uploadToR2(watermarkFile.buffer, watermarkKey, watermarkFile.mimetype);
-    
-    console.log(`📸 Default watermark uploaded for user ${req.user.id}: ${watermarkUrl}`);
-
-    // Save URL to profile
-    const { error } = await supabase
-      .from('profiles')
-      .update({ default_watermark_url: watermarkUrl })
-      .eq('id', req.user.id);
-
-    if (error) throw error;
-
-    res.json({ 
-      success: true, 
-      watermark_url: watermarkUrl,
-      message: 'Default watermark saved successfully'
-    });
-
-  } catch (error) {
-    console.error('Watermark upload error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// DELETE DEFAULT WATERMARK
-app.delete('/api/profile/watermark', authMiddleware, async (req, res) => {
-  try {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ default_watermark_url: null })
-      .eq('id', req.user.id);
-
-    if (error) throw error;
-
-    res.json({ success: true, message: 'Default watermark removed' });
-  } catch (error) {
-    console.error('Watermark delete error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // PROJECTS
 app.get('/api/projects', authMiddleware, async (req, res) => {
   try {
@@ -707,16 +640,8 @@ app.get('/api/projects/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// Middleware to extend timeout for upload endpoints
-const extendTimeout = (req, res, next) => {
-  // Set 5 minute timeout for upload requests
-  req.setTimeout(5 * 60 * 1000);
-  res.setTimeout(5 * 60 * 1000);
-  next();
-};
-
 // UPDATED: Project creation with subscription_tier for watermark logic
-app.post('/api/projects', authMiddleware, extendTimeout, projectUpload, async (req, res) => {
+app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
   try {
     const { 
       title, 
@@ -739,13 +664,10 @@ app.post('/api/projects', authMiddleware, extendTimeout, projectUpload, async (r
       outline_color,
       sung_color,
       font,
-      font_size,
       // Email notification preference
       notify_on_complete,
       // Processing mode for lyrics review
-      processing_mode,
-      // Saved watermark URL (Studio users)
-      custom_watermark_url: savedWatermarkUrl
+      processing_mode
     } = req.body;
     
     const file = req.files?.audio?.[0];
@@ -802,15 +724,6 @@ app.post('/api/projects', authMiddleware, extendTimeout, projectUpload, async (r
       } else {
         console.log('⚠️ Custom watermark ignored - user is not Studio tier');
       }
-    } else if (savedWatermarkUrl) {
-      // Use saved watermark URL from profile (Studio tier only)
-      const userProfileForWatermark = await getUserProfile(req.user.id);
-      if (userProfileForWatermark.subscription_tier === 'studio') {
-        customWatermarkUrl = savedWatermarkUrl;
-        console.log(`📸 Using saved watermark: ${customWatermarkUrl}`);
-      } else {
-        console.log('⚠️ Saved watermark ignored - user is not Studio tier');
-      }
     }
 
     // Update user's track count
@@ -851,7 +764,6 @@ app.post('/api/projects', authMiddleware, extendTimeout, projectUpload, async (r
         outline_color: outline_color || '#000000',
         sung_color: sung_color || '#00d4ff',
         font: font || 'arial',
-        font_size: font_size || 'normal',
         // Email notification preference
         notify_on_complete: notify_on_complete !== 'false' && notify_on_complete !== false,
         // Custom watermark for Studio users
@@ -888,7 +800,6 @@ app.post('/api/projects', authMiddleware, extendTimeout, projectUpload, async (r
       outline_color: outline_color || '#000000',
       sung_color: sung_color || '#00d4ff',
       font: font || 'arial',
-      font_size: font_size || 'normal',
       // Processing mode
       processing_mode: processing_mode || 'full',
       // NEW: Subscription tier for watermark logic
@@ -1094,7 +1005,6 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       outline_color: project.outline_color || '#000000',
       sung_color: project.sung_color || '#F4E409',
       font: project.font || 'arial',
-      font_size: project.font_size || 'normal',
       // Render-only specific
       processed_audio_url: project.processed_audio_url,
       vocals_audio_url: project.vocals_audio_url,
@@ -1202,11 +1112,46 @@ app.get('/api/plans', async (req, res) => {
   }
 });
 
+// Check if user has upgrade discount available
+app.get('/api/stripe/upgrade-discount', authMiddleware, async (req, res) => {
+  try {
+    const profile = await getUserProfile(req.user.id);
+    
+    // User gets ONE 20% discount on their first upgrade
+    const hasDiscount = !profile.upgrade_discount_used && 
+                        profile.subscription_tier && 
+                        profile.subscription_tier !== 'free' &&
+                        profile.subscription_tier !== 'studio'; // Can't upgrade from Studio
+    
+    res.json({
+      has_discount: hasDiscount,
+      discount_percent: hasDiscount ? 20 : 0,
+      current_tier: profile.subscription_tier || 'free',
+      message: hasDiscount 
+        ? 'You have a one-time 20% discount available on your next upgrade!' 
+        : null
+    });
+  } catch (error) {
+    console.error('Upgrade discount check error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper: Get tier level for comparison (higher number = higher tier)
+function getTierLevel(tier) {
+  const levels = {
+    'free': 0,
+    'starter': 1,
+    'pro': 2,
+    'studio': 3
+  };
+  return levels[tier?.toLowerCase()] ?? 0;
+}
+
 app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
   try {
     const { price_id } = req.body;
     const profile = await getUserProfile(req.user.id);
-    let isUpgrade = false;
 
     let customerId = profile.stripe_customer_id;
     if (!customerId) {
@@ -1222,27 +1167,193 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
         .eq('id', req.user.id);
     }
 
-    // If user has existing subscription, cancel it first (no proration - they keep credits)
+    // Get the new plan details
+    const { data: newPlan } = await supabase
+      .from('subscription_plans')
+      .select('tier, credits_per_month')
+      .eq('stripe_price_id', price_id)
+      .single();
+
+    if (!newPlan) {
+      return res.status(400).json({ error: 'Invalid plan selected' });
+    }
+
+    const currentTierLevel = getTierLevel(profile.subscription_tier);
+    const newTierLevel = getTierLevel(newPlan.tier);
+
+    console.log(`📦 Plan change: ${profile.subscription_tier} (${currentTierLevel}) -> ${newPlan.tier} (${newTierLevel})`);
+
+    // If user has existing subscription, handle upgrade vs downgrade differently
     if (profile.stripe_subscription_id) {
-      console.log(`📦 User has existing subscription: ${profile.stripe_subscription_id}`);
-      
       try {
-        // Cancel the old subscription immediately
-        await stripe.subscriptions.cancel(profile.stripe_subscription_id);
-        console.log(`   ✅ Old subscription canceled`);
-        isUpgrade = true;
+        const existingSubscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
         
-        // Clear the subscription ID in database
-        await supabase
-          .from('profiles')
-          .update({ stripe_subscription_id: null })
-          .eq('id', req.user.id);
-      } catch (cancelError) {
-        console.log(`   ⚠️ Could not cancel subscription: ${cancelError.message}`);
+        if (existingSubscription.status === 'active' || existingSubscription.status === 'trialing') {
+          const subscriptionItemId = existingSubscription.items.data[0].id;
+
+          if (newTierLevel > currentTierLevel) {
+            // UPGRADE: Update immediately, NO proration (user pays full price)
+            // User keeps their existing credits + gets new tier's credits
+            console.log(`   ⬆️ Upgrading immediately (no proration - full price)`);
+            
+            // Check if user has upgrade discount available
+            const hasDiscount = !profile.upgrade_discount_used;
+            let couponId = null;
+            
+            if (hasDiscount && process.env.STRIPE_UPGRADE_COUPON_ID) {
+              couponId = process.env.STRIPE_UPGRADE_COUPON_ID;
+              console.log(`   🎫 Applying 20% upgrade discount coupon`);
+            }
+            
+            const updateParams = {
+              items: [{
+                id: subscriptionItemId,
+                price: price_id,
+              }],
+              proration_behavior: 'none',  // No proration - user pays full price for new tier
+              billing_cycle_anchor: 'now', // Reset billing cycle to now
+              metadata: {
+                previous_tier: profile.subscription_tier,
+                new_tier: newPlan.tier,
+                change_type: 'upgrade',
+                discount_applied: hasDiscount ? 'true' : 'false'
+              }
+            };
+            
+            // Apply coupon if available (one-time 20% discount)
+            if (couponId) {
+              updateParams.coupon = couponId;
+            }
+            
+            const updatedSubscription = await stripe.subscriptions.update(
+              profile.stripe_subscription_id, 
+              updateParams
+            );
+
+            // Update profile immediately (and mark discount as used if applied)
+            const profileUpdate = { subscription_tier: newPlan.tier };
+            if (hasDiscount) {
+              profileUpdate.upgrade_discount_used = true;
+            }
+            
+            await supabase
+              .from('profiles')
+              .update(profileUpdate)
+              .eq('id', req.user.id);
+
+            // Update subscriptions table
+            await supabase
+              .from('subscriptions')
+              .upsert({
+                user_id: req.user.id,
+                stripe_subscription_id: profile.stripe_subscription_id,
+                stripe_price_id: price_id,
+                tier: newPlan.tier,
+                status: updatedSubscription.status
+              }, { onConflict: 'user_id' });
+
+            // Add upgrade credits (user keeps existing + gets new tier's credits)
+            console.log(`   Adding ${newPlan.credits_per_month} upgrade credits`);
+            await addCreditsWithExpiration(
+              req.user.id,
+              newPlan.credits_per_month,
+              'upgrade',
+              `Upgraded to ${newPlan.tier} - ${newPlan.credits_per_month} credits`
+            );
+
+            const discountMessage = hasDiscount && couponId
+              ? ' Your 20% upgrade discount has been applied!'
+              : '';
+
+            return res.json({ 
+              success: true,
+              message: `Upgraded to ${newPlan.tier}! Your new plan is active immediately and you've received ${newPlan.credits_per_month} credits.${discountMessage}`,
+              redirect: `${process.env.FRONTEND_URL}/dashboard?upgraded=true`,
+              discount_applied: hasDiscount && couponId
+            });
+
+          } else if (newTierLevel < currentTierLevel) {
+            // DOWNGRADE: Schedule for end of billing period using subscription schedule
+            console.log(`   ⬇️ Scheduling downgrade for period end`);
+            
+            // Check if there's already a schedule attached
+            let schedule;
+            if (existingSubscription.schedule) {
+              // Update existing schedule
+              schedule = await stripe.subscriptionSchedules.update(existingSubscription.schedule, {
+                phases: [
+                  {
+                    items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
+                    start_date: existingSubscription.current_period_start,
+                    end_date: existingSubscription.current_period_end,
+                  },
+                  {
+                    items: [{ price: price_id, quantity: 1 }],
+                    start_date: existingSubscription.current_period_end,
+                  }
+                ],
+                metadata: {
+                  previous_tier: profile.subscription_tier,
+                  new_tier: newPlan.tier,
+                  change_type: 'downgrade'
+                }
+              });
+            } else {
+              // Create new schedule from the subscription
+              schedule = await stripe.subscriptionSchedules.create({
+                from_subscription: profile.stripe_subscription_id,
+                phases: [
+                  {
+                    items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
+                    start_date: existingSubscription.current_period_start,
+                    end_date: existingSubscription.current_period_end,
+                  },
+                  {
+                    items: [{ price: price_id, quantity: 1 }],
+                    start_date: existingSubscription.current_period_end,
+                  }
+                ],
+                metadata: {
+                  previous_tier: profile.subscription_tier,
+                  new_tier: newPlan.tier,
+                  change_type: 'downgrade'
+                }
+              });
+            }
+
+            // Store the scheduled downgrade in our database
+            await supabase
+              .from('profiles')
+              .update({
+                scheduled_tier: newPlan.tier,
+                scheduled_tier_date: new Date(existingSubscription.current_period_end * 1000).toISOString()
+              })
+              .eq('id', req.user.id);
+
+            const periodEnd = new Date(existingSubscription.current_period_end * 1000);
+            const formattedDate = periodEnd.toLocaleDateString('en-US', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric'
+            });
+
+            console.log(`   ✅ Downgrade scheduled for ${formattedDate}`);
+
+            return res.json({ 
+              success: true,
+              message: `Your plan will change to ${newPlan.tier} on ${formattedDate}. You'll keep your ${profile.subscription_tier} benefits until then.`,
+              redirect: `${process.env.FRONTEND_URL}/dashboard?downgrade_scheduled=true`,
+              effective_date: periodEnd.toISOString()
+            });
+          }
+        }
+      } catch (subError) {
+        console.log(`   ⚠️ Could not update existing subscription: ${subError.message}`);
+        // Fall through to create new checkout session
       }
     }
 
-    // Create new checkout session
+    // No existing subscription or subscription update failed - create new checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
@@ -1252,7 +1363,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
       cancel_url: `${process.env.FRONTEND_URL}/pricing`,
       metadata: { 
         user_id: req.user.id,
-        is_upgrade: isUpgrade ? 'true' : 'false'  // Track if this is an upgrade
+        is_upgrade: 'false'
       },
     });
 
@@ -1316,6 +1427,94 @@ app.post('/api/stripe/portal', authMiddleware, async (req, res) => {
     res.json({ url: session.url });
   } catch (error) {
     console.error('Stripe portal error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get subscription status including scheduled changes
+app.get('/api/stripe/subscription-status', authMiddleware, async (req, res) => {
+  try {
+    const profile = await getUserProfile(req.user.id);
+    
+    if (!profile.stripe_subscription_id) {
+      return res.json({
+        has_subscription: false,
+        tier: profile.subscription_tier || 'free'
+      });
+    }
+
+    const subscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
+    
+    let scheduledChange = null;
+    if (subscription.schedule) {
+      const schedule = await stripe.subscriptionSchedules.retrieve(subscription.schedule);
+      if (schedule.phases && schedule.phases.length > 1) {
+        const nextPhase = schedule.phases[1];
+        const nextPriceId = nextPhase.items[0].price;
+        
+        const { data: nextPlan } = await supabase
+          .from('subscription_plans')
+          .select('tier')
+          .eq('stripe_price_id', nextPriceId)
+          .single();
+        
+        if (nextPlan) {
+          scheduledChange = {
+            new_tier: nextPlan.tier,
+            effective_date: new Date(nextPhase.start_date * 1000).toISOString()
+          };
+        }
+      }
+    }
+
+    res.json({
+      has_subscription: true,
+      tier: profile.subscription_tier,
+      status: subscription.status,
+      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      scheduled_change: scheduledChange
+    });
+  } catch (error) {
+    console.error('Subscription status error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cancel a scheduled downgrade
+app.post('/api/stripe/cancel-scheduled-change', authMiddleware, async (req, res) => {
+  try {
+    const profile = await getUserProfile(req.user.id);
+    
+    if (!profile.stripe_subscription_id) {
+      return res.status(400).json({ error: 'No active subscription' });
+    }
+
+    const subscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
+    
+    if (!subscription.schedule) {
+      return res.status(400).json({ error: 'No scheduled change to cancel' });
+    }
+
+    // Release the schedule, keeping the current subscription as-is
+    await stripe.subscriptionSchedules.release(subscription.schedule);
+
+    // Clear the scheduled tier from our database
+    await supabase
+      .from('profiles')
+      .update({
+        scheduled_tier: null,
+        scheduled_tier_date: null
+      })
+      .eq('id', req.user.id);
+
+    console.log(`✅ Scheduled change cancelled for user ${req.user.id}`);
+
+    res.json({ 
+      success: true, 
+      message: 'Scheduled plan change has been cancelled. You will stay on your current plan.'
+    });
+  } catch (error) {
+    console.error('Cancel scheduled change error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1469,6 +1668,8 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           .update({
             subscription_tier: 'free',
             stripe_subscription_id: null,
+            scheduled_tier: null,
+            scheduled_tier_date: null,
           })
           .eq('stripe_customer_id', subscription.customer);
         
@@ -1485,6 +1686,65 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             .delete()
             .eq('user_id', profile.id);
           console.log(`✅ Subscription record deleted from subscriptions table`);
+        }
+        break;
+      }
+
+      // Handle subscription schedule updates (for scheduled downgrades)
+      case 'subscription_schedule.updated':
+      case 'subscription_schedule.completed': {
+        const schedule = event.data.object;
+        console.log(`📅 Subscription schedule ${event.type}: ${schedule.id}`);
+        
+        // When a schedule completes, the subscription has moved to the next phase
+        // Update the user's tier to match the new plan
+        if (event.type === 'subscription_schedule.completed' && schedule.subscription) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(schedule.subscription);
+            const customerId = subscription.customer;
+            const priceId = subscription.items.data[0].price.id;
+            
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('stripe_customer_id', customerId)
+              .single();
+            
+            if (profile) {
+              const { data: plan } = await supabase
+                .from('subscription_plans')
+                .select('tier, credits_per_month')
+                .eq('stripe_price_id', priceId)
+                .single();
+              
+              if (plan) {
+                console.log(`   📦 Schedule completed - updating tier to ${plan.tier}`);
+                
+                await supabase
+                  .from('profiles')
+                  .update({
+                    subscription_tier: plan.tier,
+                    scheduled_tier: null,
+                    scheduled_tier_date: null,
+                  })
+                  .eq('id', profile.id);
+                
+                await supabase
+                  .from('subscriptions')
+                  .upsert({
+                    user_id: profile.id,
+                    stripe_subscription_id: subscription.id,
+                    stripe_price_id: priceId,
+                    tier: plan.tier,
+                    status: subscription.status
+                  }, { onConflict: 'user_id' });
+                
+                console.log(`   ✅ User ${profile.id} downgraded to ${plan.tier}`);
+              }
+            }
+          } catch (scheduleError) {
+            console.error('   ❌ Error processing schedule completion:', scheduleError);
+          }
         }
         break;
       }
@@ -1952,15 +2212,10 @@ app.use((req, res) => {
 });
 
 // START SERVER
-const server = app.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`🚀 Karatrack Studio API running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📧 Email notifications: ${process.env.BREVO_API_KEY ? 'enabled' : 'disabled'}`);
 });
-
-// Increase server timeouts for large file uploads (5 minutes)
-server.timeout = 5 * 60 * 1000; // 5 minutes
-server.keepAliveTimeout = 5 * 60 * 1000;
-server.headersTimeout = 5 * 60 * 1000 + 1000; // Slightly longer than keepAliveTimeout
 
 module.exports = app;
