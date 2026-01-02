@@ -37,7 +37,8 @@ import {
   Eye,
   Save,
   RotateCcw,
-  Image
+  Image,
+  Lock
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -1162,8 +1163,8 @@ export default function UploadPage() {
                   <input type="checkbox" checked={notifyOnComplete} onChange={(e) => setNotifyOnComplete(e.target.checked)} className="sr-only" />
                 </label>
 
-                {/* Review Lyrics Checkbox - Pro/Studio Only */}
-                {isPremiumUser() && (
+                {/* Review Lyrics Checkbox - Visible to all, locked for Free/Starter */}
+                {isPremiumUser() ? (
                   <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${reviewLyrics ? 'bg-yellow-500/20 border border-yellow-400' : 'bg-white/5 border border-transparent hover:bg-white/10'}`}>
                     <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${reviewLyrics ? 'bg-yellow-500 border-yellow-500' : 'border-gray-500'}`}>
                       {reviewLyrics && <CheckCircle className="w-3 h-3 text-white" />}
@@ -1177,6 +1178,23 @@ export default function UploadPage() {
                     </div>
                     <input type="checkbox" checked={reviewLyrics} onChange={(e) => setReviewLyrics(e.target.checked)} className="sr-only" />
                   </label>
+                ) : (
+                  <div className={`flex items-start gap-3 p-3 rounded-xl mb-3 bg-white/5 border border-white/10 opacity-75`}>
+                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 border-gray-600 bg-gray-700/50`}>
+                      <Lock className="w-3 h-3 text-gray-500" />
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        ✏️ Review & edit lyrics before rendering
+                        <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-yellow-500/50 to-orange-500/50 text-white/70 text-xs rounded-full">PRO</span>
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Preview AI-generated lyrics and fix any mistakes before your video is created</p>
+                      <Link href="/pricing" className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-medium rounded-lg hover:opacity-90 transition-opacity">
+                        <Zap className="w-3 h-3" />
+                        Upgrade to Pro
+                      </Link>
+                    </div>
+                  </div>
                 )}
 
                 {/* Rights Checkbox */}
