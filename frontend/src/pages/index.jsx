@@ -209,10 +209,10 @@ const FeaturesSection = ({ isDark }) => {
 
 const PricingSection = ({ isDark }) => {
   const plans = [
-    { name: 'Free', price: 0, features: ['5 credits/month', '10MB max file size', '480p video export', 'Chat support'], popular: false },
-    { name: 'Starter', price: 9.99, features: ['25 credits/month', '50MB max file size', '1080p video export', 'Email support'], popular: false },
-    { name: 'Pro', price: 24.99, features: ['75 credits/month', '100MB max file size', '1080p video export', 'Priority support'], popular: true },
-    { name: 'Studio', price: 49.99, features: ['200 credits/month', '500MB max file size', '4K video export', 'Dedicated support'], popular: false },
+    { name: 'Free', price: 0, features: ['5 credits/month', '480p video quality', 'Karatrack watermark', 'Chat support'], popular: false },
+    { name: 'Starter', price: 9.99, features: ['25 credits/month', '1080p video quality', 'No watermark', 'Color customization', 'Email support'], popular: false },
+    { name: 'Pro', price: 24.99, features: ['75 credits/month', '1080p video quality', 'No watermark', 'Edit lyrics before render', 'Email support'], popular: true },
+    { name: 'Studio', price: 49.99, features: ['200 credits/month', '4K video quality', 'Custom logo watermark', 'Edit lyrics before render', 'Full style control', 'Priority support'], popular: false },
   ];
 
   return (
@@ -223,7 +223,7 @@ const PricingSection = ({ isDark }) => {
             Simple <span className="text-gradient">Pricing</span>
           </h2>
           <p className={`text-lg max-w-xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Choose the plan that fits your needs.
+            Choose the plan that fits your needs. Upgrade or downgrade anytime.
           </p>
         </motion.div>
         <div className="grid md:grid-cols-4 gap-6">
@@ -278,7 +278,7 @@ const UploadSection = ({ isDark }) => (
         <h3 className={`font-display text-2xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Drop your audio file here</h3>
         <p className={`mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>or click to browse • MP3, WAV, FLAC supported</p>
         <div className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-          Max file size: <span className="text-cyan-500">Up to 500MB</span> (varies by plan)
+          Quality options: <span className="text-cyan-500">480p, 1080p, and 4K</span> (varies by plan)
         </div>
       </motion.div>
       <div className="grid md:grid-cols-3 gap-8 mt-16">
