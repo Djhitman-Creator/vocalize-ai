@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Music, Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
+import { Music, Mail, Lock, Eye, EyeOff, User, RefreshCw, CheckCircle } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -23,6 +23,11 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  
+  // Resend email state
+  const [resending, setResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const [resendError, setResendError] = useState('');
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -68,6 +73,30 @@ export default function SignupPage() {
     }
   };
 
+  // Resend confirmation email
+  const handleResendEmail = async () => {
+    setResending(true);
+    setResendError('');
+    setResendSuccess(false);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email,
+      });
+
+      if (error) throw error;
+
+      setResendSuccess(true);
+      // Reset success message after 5 seconds
+      setTimeout(() => setResendSuccess(false), 5000);
+    } catch (err) {
+      setResendError(err.message);
+    } finally {
+      setResending(false);
+    }
+  };
+
   if (success) {
     return (
       <div className="min-h-screen bg-animated-dark flex items-center justify-center px-6 py-12">
@@ -84,6 +113,36 @@ export default function SignupPage() {
             <p className="text-gray-400 mb-6">
               We've sent a confirmation link to <span className="text-cyan-400">{email}</span>
             </p>
+            
+            {/* Resend Email Section */}
+            <div className="mb-6 p-4 rounded-lg bg-white/5 border border-white/10">
+              <p className="text-sm text-gray-400 mb-3">
+                Didn't receive the email? Check your spam folder or resend it.
+              </p>
+              
+              {resendSuccess && (
+                <div className="flex items-center justify-center gap-2 text-green-400 text-sm mb-3">
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Confirmation email sent!</span>
+                </div>
+              )}
+              
+              {resendError && (
+                <div className="text-red-400 text-sm mb-3">
+                  {resendError}
+                </div>
+              )}
+              
+              <button
+                onClick={handleResendEmail}
+                disabled={resending}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/50 rounded-lg text-cyan-400 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className={`w-4 h-4 ${resending ? 'animate-spin' : ''}`} />
+                {resending ? 'Sending...' : 'Resend Confirmation Email'}
+              </button>
+            </div>
+            
             <Link href="/login" className="text-cyan-400 hover:text-cyan-300 font-medium">
               Back to Sign In
             </Link>
