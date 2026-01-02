@@ -463,7 +463,7 @@ def get_custom_watermark(url):
 
 
 def apply_watermark(frame, video_width, video_height):
-    """Apply watermark (logo + text) to bottom-left of frame"""
+    """Apply watermark (logo at bottom-left, text at bottom-center) to frame"""
     
     # Get logo
     logo = get_watermark_logo()
@@ -480,18 +480,12 @@ def apply_watermark(frame, video_width, video_height):
     text_width = text_bbox[2] - text_bbox[0]
     text_height = text_bbox[3] - text_bbox[1]
     
-    # Calculate total height needed (logo + text + spacing)
-    total_height = text_height + 8  # Start with text height + spacing
-    if logo:
-        total_height += logo.height
-    
-    # Position from bottom-left with enough room for everything
-    x_pos = WATERMARK_PADDING
-    bottom_margin = WATERMARK_PADDING + 10  # Extra margin from bottom
+    # Bottom margin for both logo and text
+    bottom_margin = WATERMARK_PADDING + 15  # Safe margin from bottom edge
     
     if logo:
-        # Position logo at bottom-left (but with margin)
-        logo_x = x_pos
+        # Position logo at bottom-left
+        logo_x = WATERMARK_PADDING
         logo_y = video_height - bottom_margin - logo.height
         
         # Create semi-transparent version of logo
@@ -502,15 +496,10 @@ def apply_watermark(frame, video_width, video_height):
         
         # Paste logo onto frame
         watermarked.paste(logo_with_opacity, (logo_x, logo_y), logo_with_opacity)
-        
-        # Position text ABOVE the logo, left-aligned with logo
-        # Ensure text doesn't go off the left edge
-        text_x = max(WATERMARK_PADDING, logo_x)
-        text_y = logo_y - text_height - 5  # 5px gap above logo
-    else:
-        # No logo, just put text at bottom-left
-        text_x = x_pos
-        text_y = video_height - bottom_margin - text_height
+    
+    # Position text at BOTTOM CENTER
+    text_x = (video_width - text_width) // 2  # Center horizontally
+    text_y = video_height - bottom_margin - text_height  # Same bottom margin as logo
     
     # Draw text with slight transparency effect (draw outline then text)
     # Semi-transparent white text
