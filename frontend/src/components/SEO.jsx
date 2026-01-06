@@ -35,8 +35,8 @@ const SITE_NAME = 'Karatrack Studio';
 const SITE_URL = 'https://studio.karatrack.com';
 const DEFAULT_TITLE = 'Karatrack Studio - AI-Powered Karaoke Video Creator';
 const DEFAULT_DESCRIPTION = 'Transform any song into a professional karaoke video with AI. Remove vocals, add synchronized scrolling lyrics, and export stunning MP4 videos in minutes.';
-const DEFAULT_IMAGE = `${SITE_URL}/og-image.png`; // You'll need to create this image
-const TWITTER_HANDLE = '@karatrack'; // Update if you have a Twitter account
+const DEFAULT_IMAGE = `${SITE_URL}/og-image.png`;
+const TWITTER_HANDLE = '@karatrack';
 
 export default function SEO({
   title,
@@ -94,11 +94,11 @@ export default function SEO({
       <meta name="twitter:description" content={metaDescription} />
       <meta name="twitter:image" content={ogImage} />
       
-      {/* Favicon - make sure these files exist in /public */}
+      {/* Favicon */}
       <link rel="icon" href="/favicon.ico" />
       <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
       <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-      <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+      <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       
       {/* Theme Color (browser UI color on mobile) */}
       <meta name="theme-color" content="#0a0a14" />
@@ -166,7 +166,7 @@ export function getSoftwareAppSchema() {
     aggregateRating: {
       '@type': 'AggregateRating',
       ratingValue: '4.8',
-      ratingCount: '150', // Update with real numbers when you have them
+      ratingCount: '150',
     },
     featureList: [
       'AI Vocal Removal',
