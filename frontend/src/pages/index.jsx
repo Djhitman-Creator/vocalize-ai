@@ -55,7 +55,10 @@ const Navigation = ({ isDark, toggleTheme, credits }) => (
         <div className="flex items-center gap-4">
           <CreditBadge credits={credits} isDark={isDark} />
           <ThemeToggle isDark={isDark} toggle={toggleTheme} />
-          <Link href="/signup">
+          <Link href="/login" className={`text-sm font-medium transition-colors ${isDark ? 'text-gray-300 hover:text-cyan-400' : 'text-gray-600 hover:text-cyan-600'}`}>
+            Log In
+          </Link>
+          <Link href="#pricing">
             <button className="glass-button-primary glass-button">Get Started</button>
           </Link>
         </div>
@@ -99,10 +102,10 @@ const HeroSection = ({ isDark }) => (
         transition={{ delay: 0.5 }}
         className="flex flex-col sm:flex-row items-center justify-center gap-4"
       >
-        <Link href="/upload">
+        <Link href="#pricing">
           <button className="glass-button-primary glass-button flex items-center gap-2 text-lg px-8 py-4">
-            <Upload className="w-5 h-5" />
-            Upload Your Track
+            <Sparkles className="w-5 h-5" />
+            Get Started
           </button>
         </Link>
         <button className={`glass-button flex items-center gap-2 text-lg px-8 py-4 ${isDark ? 'text-white' : 'text-gray-800'}`}>
@@ -207,16 +210,16 @@ const FeaturesSection = ({ isDark }) => {
 
 const PricingSection = ({ isDark }) => {
   const plans = [
-    { name: 'Free', price: 0, features: ['5 credits/month', '480p video quality', 'Karatrack watermark', 'Chat support'], popular: false },
-    { name: 'Starter', price: 9.99, features: ['25 credits/month', '1080p video quality', 'No watermark', 'Color customization', 'Email support'], popular: false },
-    { name: 'Pro', price: 24.99, features: ['75 credits/month', '1080p video quality', 'No watermark', 'Edit lyrics before render', 'Email support'], popular: true },
-    { name: 'Studio', price: 49.99, features: ['200 credits/month', '4K video quality', 'Custom logo watermark', 'Edit lyrics before render', 'Full style control', 'Priority support'], popular: false },
+    { name: 'Free', tier: 'free', price: 0, features: ['5 credits/month', '480p video quality', 'Karatrack watermark', 'Chat support'], popular: false },
+    { name: 'Starter', tier: 'starter', price: 9.99, features: ['25 credits/month', '1080p video quality', 'No watermark', 'Color customization', 'Email support'], popular: false },
+    { name: 'Pro', tier: 'pro', price: 24.99, features: ['75 credits/month', '1080p video quality', 'No watermark', 'Edit lyrics before render', 'Email support'], popular: true },
+    { name: 'Studio', tier: 'studio', price: 49.99, features: ['200 credits/month', '4K video quality', 'Custom logo watermark', 'Edit lyrics before render', 'Full style control', 'Priority support'], popular: false },
   ];
 
   return (
     <section id="pricing" className="py-32 px-6">
       <div className="max-w-6xl mx-auto">
-        <motion.div initial={{ y: 30, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} className="text-center mb-16">
+        <motion.div initial={{ y: 30, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} className="text-center mb-8">
           <h2 className={`font-display text-4xl md:text-5xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Simple <span className="text-gradient">Pricing</span>
           </h2>
@@ -224,6 +227,22 @@ const PricingSection = ({ isDark }) => {
             Choose the plan that fits your needs. Upgrade or downgrade anytime.
           </p>
         </motion.div>
+        
+        {/* Select a plan message */}
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }} 
+          whileInView={{ y: 0, opacity: 1 }} 
+          viewport={{ once: true }}
+          className="text-center mb-12"
+        >
+          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
+            <Sparkles className="w-4 h-4 text-cyan-500" />
+            <span className={`text-sm font-medium ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+              Select a plan to get started
+            </span>
+          </div>
+        </motion.div>
+
         <div className="grid md:grid-cols-4 gap-6">
           {plans.map((plan, i) => (
             <motion.div key={i} initial={{ y: 30, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className={`feature-card relative ${plan.popular ? 'border-cyan-500/50' : ''}`}>
@@ -245,14 +264,26 @@ const PricingSection = ({ isDark }) => {
                   </li>
                 ))}
               </ul>
-              <Link href={plan.price === 0 ? '/signup' : '/pricing'}>
+              <Link href={`/signup?plan=${plan.tier}`}>
                 <button className={`w-full ${plan.popular ? 'glass-button-primary' : ''} glass-button ${!plan.popular && (isDark ? 'text-white' : 'text-gray-800')}`}>
-                  {plan.price === 0 ? 'Get Started' : 'Subscribe'}
+                  {plan.price === 0 ? 'Get Started Free' : 'Get Started'}
                 </button>
               </Link>
             </motion.div>
           ))}
         </div>
+        
+        {/* Link to full pricing page */}
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }} 
+          whileInView={{ y: 0, opacity: 1 }} 
+          viewport={{ once: true }}
+          className="text-center mt-8"
+        >
+          <Link href="/pricing" className={`text-sm ${isDark ? 'text-gray-400 hover:text-cyan-400' : 'text-gray-600 hover:text-cyan-600'} transition-colors`}>
+            View full pricing details & compare features →
+          </Link>
+        </motion.div>
       </div>
     </section>
   );
