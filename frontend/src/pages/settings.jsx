@@ -218,9 +218,7 @@ export default function SettingsPage() {
       <nav className={`border-b ${isDark ? 'border-white/10' : 'border-gray-200'} px-6 py-4`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
-              <Music className="w-6 h-6 text-white" />
-            </div>
+            <img src="/logo.png" alt="Karatrack Studio" className="h-10 w-auto" />
             <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
           </Link>
 

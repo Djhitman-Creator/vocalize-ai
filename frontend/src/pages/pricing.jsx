@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { 
-  Music, 
-  Check, 
-  X, 
-  Zap, 
-  ArrowLeft, 
+import {
+  Music,
+  Check,
+  X,
+  Zap,
+  ArrowLeft,
   Sparkles,
   Palette,
   Edit3,
@@ -131,19 +131,19 @@ const featureComparison = [
   {
     category: 'Credits & Quality',
     features: [
-      { 
-        name: 'Monthly credits', 
-        free: '5', 
-        starter: '25', 
-        pro: '75', 
+      {
+        name: 'Monthly credits',
+        free: '5',
+        starter: '25',
+        pro: '75',
         studio: '200',
         type: 'text'
       },
-      { 
-        name: 'Max video quality', 
-        free: '480p', 
-        starter: '1080p', 
-        pro: '1080p', 
+      {
+        name: 'Max video quality',
+        free: '480p',
+        starter: '1080p',
+        pro: '1080p',
         studio: '4K',
         type: 'text'
       },
@@ -152,11 +152,11 @@ const featureComparison = [
   {
     category: 'Branding',
     features: [
-      { 
-        name: 'Watermark', 
-        free: 'Karatrack logo', 
-        starter: 'None', 
-        pro: 'None', 
+      {
+        name: 'Watermark',
+        free: 'Karatrack logo',
+        starter: 'None',
+        pro: 'None',
         studio: 'Your logo',
         type: 'text'
       },
@@ -165,27 +165,27 @@ const featureComparison = [
   {
     category: 'Customization',
     features: [
-      { 
-        name: 'Color customization', 
-        free: false, 
-        starter: true, 
-        pro: true, 
+      {
+        name: 'Color customization',
+        free: false,
+        starter: true,
+        pro: true,
         studio: true,
         type: 'boolean'
       },
-      { 
-        name: 'Adjust lyrics color & outline', 
-        free: false, 
-        starter: false, 
-        pro: false, 
+      {
+        name: 'Adjust lyrics color & outline',
+        free: false,
+        starter: false,
+        pro: false,
         studio: true,
         type: 'boolean'
       },
-      { 
-        name: 'Edit lyrics before render', 
-        free: false, 
-        starter: false, 
-        pro: true, 
+      {
+        name: 'Edit lyrics before render',
+        free: false,
+        starter: false,
+        pro: true,
         studio: true,
         type: 'boolean'
       },
@@ -194,27 +194,27 @@ const featureComparison = [
   {
     category: 'Support',
     features: [
-      { 
-        name: 'Chat support', 
-        free: true, 
-        starter: true, 
-        pro: true, 
+      {
+        name: 'Chat support',
+        free: true,
+        starter: true,
+        pro: true,
         studio: true,
         type: 'boolean'
       },
-      { 
-        name: 'Email support', 
-        free: false, 
-        starter: true, 
-        pro: true, 
+      {
+        name: 'Email support',
+        free: false,
+        starter: true,
+        pro: true,
         studio: true,
         type: 'boolean'
       },
-      { 
-        name: 'Priority support', 
-        free: false, 
-        starter: false, 
-        pro: false, 
+      {
+        name: 'Priority support',
+        free: false,
+        starter: false,
+        pro: false,
         studio: true,
         type: 'boolean'
       },
@@ -249,7 +249,7 @@ const FeatureValue = ({ value, type }) => {
   if (type === 'text') {
     return <span className="text-white font-medium">{value}</span>;
   }
-  
+
   if (value === true) {
     return (
       <div className="flex justify-center">
@@ -259,7 +259,7 @@ const FeatureValue = ({ value, type }) => {
       </div>
     );
   }
-  
+
   return (
     <div className="flex justify-center">
       <div className="w-6 h-6 rounded-full bg-gray-500/20 flex items-center justify-center">
@@ -446,7 +446,7 @@ export default function PricingPage() {
 
   return (
     <>
-      <SEO 
+      <SEO
         title="Pricing & Plans"
         description="Choose the perfect Karatrack Studio plan. From free to Studio tier - get AI vocal removal, synchronized lyrics, and professional karaoke video exports. Plans start at $9.99/month."
         path="/pricing"
@@ -457,9 +457,7 @@ export default function PricingPage() {
         <nav className="border-b border-white/10 px-6 py-4">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
-                <Music className="w-6 h-6 text-white" />
-              </div>
+              <img src="/logo.png" alt="Karatrack Studio" className="h-10 w-auto" />
               <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
             </Link>
 
@@ -592,11 +590,9 @@ export default function PricingPage() {
                   <button
                     onClick={() => handleSubscribe(plan.tier)}
                     disabled={isCurrentPlan || subscribing === plan.tier || loading}
-                    className={`w-full glass-button py-3 ${
-                      plan.popular ? 'glass-button-primary' : ''
-                    } ${isCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''} ${
-                      !plan.popular && !isCurrentPlan ? 'text-white hover:bg-white/10' : ''
-                    }`}
+                    className={`w-full glass-button py-3 ${plan.popular ? 'glass-button-primary' : ''
+                      } ${isCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''} ${!plan.popular && !isCurrentPlan ? 'text-white hover:bg-white/10' : ''
+                      }`}
                   >
                     {subscribing === plan.tier ? (
                       <span className="flex items-center justify-center gap-2">
@@ -637,7 +633,7 @@ export default function PricingPage() {
           {/* Feature Comparison Table */}
           <motion.div
             initial={false}
-            animate={{ 
+            animate={{
               height: showComparison ? 'auto' : 0,
               opacity: showComparison ? 1 : 0
             }}
@@ -669,7 +665,7 @@ export default function PricingPage() {
                       </tr>
                       {/* Features in Category */}
                       {category.features.map((feature, featIndex) => (
-                        <tr 
+                        <tr
                           key={`feat-${catIndex}-${featIndex}`}
                           className="border-b border-white/5 hover:bg-white/5 transition-colors"
                         >
@@ -768,37 +764,37 @@ export default function PricingPage() {
             <h2 className="font-display text-3xl font-bold text-white text-center mb-10">
               Frequently Asked Questions
             </h2>
-            
+
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               <div className="glass-panel p-6">
                 <h3 className="font-semibold text-white mb-2">How do credits work?</h3>
                 <p className="text-gray-400 text-sm">
-                  Each karaoke track costs credits based on video quality: 480p costs 3 credits, 
-                  720p costs 5 credits, 1080p costs 7 credits, and 4K costs 9 credits. Credits 
+                  Each karaoke track costs credits based on video quality: 480p costs 3 credits,
+                  720p costs 5 credits, 1080p costs 7 credits, and 4K costs 9 credits. Credits
                   accumulate month to month and expire 90 days after they are granted.
                 </p>
               </div>
-              
+
               <div className="glass-panel p-6">
                 <h3 className="font-semibold text-white mb-2">What is "Edit lyrics before render"?</h3>
                 <p className="text-gray-400 text-sm">
-                  Pro and Studio users can review and edit the AI-transcribed lyrics before the final video is created. 
+                  Pro and Studio users can review and edit the AI-transcribed lyrics before the final video is created.
                   This lets you fix any transcription errors for a perfect result.
                 </p>
               </div>
-              
+
               <div className="glass-panel p-6">
                 <h3 className="font-semibold text-white mb-2">Can I change plans anytime?</h3>
                 <p className="text-gray-400 text-sm">
-                  Yes! You can upgrade or downgrade your plan at any time. Your existing credits 
+                  Yes! You can upgrade or downgrade your plan at any time. Your existing credits
                   transfer with you to your new plan.
                 </p>
               </div>
-              
+
               <div className="glass-panel p-6">
                 <h3 className="font-semibold text-white mb-2">What's the watermark on Free tier?</h3>
                 <p className="text-gray-400 text-sm">
-                  Free tier videos include a small Karatrack logo and link at the bottom. 
+                  Free tier videos include a small Karatrack logo and link at the bottom.
                   Upgrade to Starter or higher to remove it, or go Studio to add your own logo!
                 </p>
               </div>

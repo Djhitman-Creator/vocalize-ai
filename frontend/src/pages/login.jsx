@@ -59,9 +59,7 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="text-center mb-8">
             <Link href="/" className="inline-flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
-                <Music className="w-7 h-7 text-white" />
-              </div>
+              <img src="/logo.png" alt="Karatrack Studio" className="h-12 w-auto" />
               <span className="font-display font-bold text-2xl text-gradient">Karatrack Studio</span>
             </Link>
           </div>
