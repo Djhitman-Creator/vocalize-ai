@@ -5,13 +5,13 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useTheme } from '../context/ThemeContext';
 import SEO, { getOrganizationSchema, getSoftwareAppSchema } from '../components/SEO';
-import { 
-  Upload, 
-  Music, 
-  Mic2, 
-  FileVideo, 
-  Sparkles, 
-  Moon, 
+import {
+  Upload,
+  Music,
+  Mic2,
+  FileVideo,
+  Sparkles,
+  Moon,
   Sun,
   Zap,
   Play,
@@ -35,7 +35,7 @@ const CreditBadge = ({ credits, isDark }) => (
 );
 
 const Navigation = ({ isDark, toggleTheme, credits }) => (
-  <motion.nav 
+  <motion.nav
     initial={{ y: -20, opacity: 0 }}
     animate={{ y: 0, opacity: 1 }}
     transition={{ duration: 0.5 }}
@@ -44,9 +44,7 @@ const Navigation = ({ isDark, toggleTheme, credits }) => (
     <div className="max-w-7xl mx-auto">
       <div className="glass-panel px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
-            <Music className="w-6 h-6 text-white" />
-          </div>
+          <img src="/logo.png" alt="Karatrack Studio" className="h-10 w-auto" />
           <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
         </div>
         <div className="hidden md:flex items-center gap-8">
@@ -118,21 +116,20 @@ const HeroSection = ({ isDark }) => (
         initial={{ y: 30, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.55 }}
-        className={`max-w-2xl mx-auto mt-8 p-4 rounded-xl ${
-          isDark 
-            ? 'bg-white/5 border border-white/10' 
+        className={`max-w-2xl mx-auto mt-8 p-4 rounded-xl ${isDark
+            ? 'bg-white/5 border border-white/10'
             : 'bg-gray-50 border border-gray-200'
-        }`}
+          }`}
       >
         <div className="flex items-start gap-3">
           <Scale className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
           <div className="text-left">
             <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              <strong>For personal use only.</strong> By using Karatrack Studio, you confirm you have 
+              <strong>For personal use only.</strong> By using Karatrack Studio, you confirm you have
               the rights to any music you upload — either through ownership, license, or original creation.
             </p>
-            <Link 
-              href="/terms" 
+            <Link
+              href="/terms"
               className={`text-sm mt-2 inline-block ${isDark ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'}`}
             >
               Read our Terms of Service →
@@ -304,9 +301,7 @@ const Footer = ({ isDark }) => (
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
-            <Music className="w-4 h-4 text-white" />
-          </div>
+          <img src="/logo.png" alt="Karatrack Studio" className="h-8 w-auto" />
           <span className="font-display font-bold text-gradient">Karatrack Studio</span>
         </div>
         <div className={`flex items-center gap-8 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -328,7 +323,7 @@ export default function HomePage() {
 
   return (
     <>
-      <SEO 
+      <SEO
         title={null}
         description="Transform any song into a professional karaoke video with AI. Remove vocals, add synchronized scrolling lyrics, and export stunning MP4 videos in minutes."
         path="/"
