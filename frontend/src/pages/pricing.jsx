@@ -19,6 +19,7 @@ import {
   Crown
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+import SEO, { getOrganizationSchema } from '../components/SEO';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -221,6 +222,28 @@ const featureComparison = [
   },
 ];
 
+// Pricing structured data for SEO
+const getPricingSchema = () => ({
+  "@context": "https://schema.org",
+  "@type": "Product",
+  "name": "Karatrack Studio",
+  "description": "AI-powered karaoke video creation platform with vocal removal and synchronized lyrics",
+  "brand": {
+    "@type": "Brand",
+    "name": "Karatrack"
+  },
+  "offers": plans.filter(p => p.price > 0).map(plan => ({
+    "@type": "Offer",
+    "name": `${plan.name} Plan`,
+    "description": plan.description,
+    "price": plan.price,
+    "priceCurrency": "USD",
+    "priceValidUntil": new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    "availability": "https://schema.org/InStock",
+    "url": "https://studio.karatrack.com/pricing"
+  }))
+});
+
 // Helper component to render feature value in comparison table
 const FeatureValue = ({ value, type }) => {
   if (type === 'text') {
@@ -422,359 +445,367 @@ export default function PricingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-animated-dark">
-      {/* Navigation */}
-      <nav className="border-b border-white/10 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
-              <Music className="w-6 h-6 text-white" />
+    <>
+      <SEO 
+        title="Pricing & Plans"
+        description="Choose the perfect Karatrack Studio plan. From free to Studio tier - get AI vocal removal, synchronized lyrics, and professional karaoke video exports. Plans start at $9.99/month."
+        path="/pricing"
+        structuredData={[getOrganizationSchema(), getPricingSchema()]}
+      />
+      <div className="min-h-screen bg-animated-dark">
+        {/* Navigation */}
+        <nav className="border-b border-white/10 px-6 py-4">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
+                <Music className="w-6 h-6 text-white" />
+              </div>
+              <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
+            </Link>
+
+            <div className="flex items-center gap-4">
+              {user ? (
+                <>
+                  <div className="credit-badge">
+                    <div className="credit-badge-icon">
+                      <Zap className="w-3 h-3 text-white" />
+                    </div>
+                    <span className="text-sm text-white">{profile?.credits_remaining || 0} Credits</span>
+                  </div>
+                  <Link href="/dashboard">
+                    <button className="glass-button">Dashboard</button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/login">
+                    <button className="glass-button">Log In</button>
+                  </Link>
+                  <Link href="/signup">
+                    <button className="glass-button-primary glass-button">Sign Up</button>
+                  </Link>
+                </>
+              )}
             </div>
-            <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
+          </div>
+        </nav>
+
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto px-6 py-16">
+          <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8">
+            <ArrowLeft className="w-5 h-5" />
+            Back to Home
           </Link>
 
-          <div className="flex items-center gap-4">
-            {user ? (
-              <>
-                <div className="credit-badge">
-                  <div className="credit-badge-icon">
-                    <Zap className="w-3 h-3 text-white" />
-                  </div>
-                  <span className="text-sm text-white">{profile?.credits_remaining || 0} Credits</span>
-                </div>
-                <Link href="/dashboard">
-                  <button className="glass-button">Dashboard</button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Link href="/login">
-                  <button className="glass-button">Log In</button>
-                </Link>
-                <Link href="/signup">
-                  <button className="glass-button-primary glass-button">Sign Up</button>
-                </Link>
-              </>
-            )}
-          </div>
-        </div>
-      </nav>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-16">
-        <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8">
-          <ArrowLeft className="w-5 h-5" />
-          Back to Home
-        </Link>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
-        >
-          <h1 className="font-display text-4xl md:text-5xl font-bold mb-4 text-white">
-            Simple <span className="text-gradient">Pricing</span>
-          </h1>
-          <p className="text-lg text-gray-400 max-w-xl mx-auto">
-            Choose the plan that fits your needs. Upgrade or downgrade anytime.
-          </p>
-
-          {profile?.subscription_tier && profile.subscription_tier !== 'free' && (
-            <div className="mt-6">
-              <p className="text-gray-400 mb-2">
-                Current plan: <span className="text-cyan-400 font-semibold capitalize">{profile.subscription_tier}</span>
-              </p>
-              <button
-                onClick={handleManageSubscription}
-                className="text-sm text-purple-400 hover:text-purple-300 underline"
-              >
-                Manage Subscription
-              </button>
-            </div>
-          )}
-        </motion.div>
-
-        {/* Pricing Cards */}
-        <div className="grid md:grid-cols-4 gap-6 mb-12">
-          {plans.map((plan, i) => {
-            const isCurrentPlan = profile?.subscription_tier === plan.tier;
-            const isUpgrade = profile && plans.findIndex(p => p.tier === profile.subscription_tier) < i;
-
-            return (
-              <motion.div
-                key={plan.tier}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className={`feature-card relative ${plan.popular ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/10' : ''} ${isCurrentPlan ? 'ring-2 ring-green-500/50' : ''}`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-cyan-400 to-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" />
-                      MOST POPULAR
-                    </span>
-                  </div>
-                )}
-
-                {isCurrentPlan && (
-                  <div className="absolute -top-3 right-4">
-                    <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-                      CURRENT
-                    </span>
-                  </div>
-                )}
-
-                {/* Plan Header */}
-                <div className="mb-6">
-                  <h3 className="font-display text-xl font-semibold mb-1 text-white">{plan.name}</h3>
-                  <p className="text-sm text-gray-400">{plan.description}</p>
-                </div>
-
-                {/* Price */}
-                <div className="mb-6">
-                  <span className="text-4xl font-bold text-white">${plan.price}</span>
-                  <span className="text-gray-400">/month</span>
-                </div>
-
-                {/* Credits Badge */}
-                <div className="mb-6 inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 rounded-full px-3 py-1.5">
-                  <Zap className="w-4 h-4 text-cyan-400" />
-                  <span className="text-sm font-medium text-white">{plan.credits} credits/month</span>
-                </div>
-
-                {/* Features List */}
-                <ul className="space-y-3 mb-8">
-                  {plan.highlights.map((highlight, j) => (
-                    <li key={j} className="flex items-start gap-2 text-sm">
-                      <Check className="w-4 h-4 text-cyan-500 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-300">
-                        {highlight.text}
-                        {highlight.note && (
-                          <span className="text-gray-500 ml-1">({highlight.note})</span>
-                        )}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                {/* Subscribe Button */}
-                <button
-                  onClick={() => handleSubscribe(plan.tier)}
-                  disabled={isCurrentPlan || subscribing === plan.tier || loading}
-                  className={`w-full glass-button py-3 ${
-                    plan.popular ? 'glass-button-primary' : ''
-                  } ${isCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''} ${
-                    !plan.popular && !isCurrentPlan ? 'text-white hover:bg-white/10' : ''
-                  }`}
-                >
-                  {subscribing === plan.tier ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Processing...
-                    </span>
-                  ) : isCurrentPlan ? (
-                    'Current Plan'
-                  ) : plan.tier === 'free' ? (
-                    'Get Started Free'
-                  ) : isUpgrade ? (
-                    'Upgrade Now'
-                  ) : (
-                    'Subscribe'
-                  )}
-                </button>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* Compare All Features Button */}
-        <div className="text-center mb-8">
-          <button
-            onClick={() => setShowComparison(!showComparison)}
-            className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-16"
           >
-            {showComparison ? 'Hide' : 'Compare all'} features
-            <motion.span
-              animate={{ rotate: showComparison ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              ▼
-            </motion.span>
-          </button>
-        </div>
+            <h1 className="font-display text-4xl md:text-5xl font-bold mb-4 text-white">
+              Simple <span className="text-gradient">Pricing</span>
+            </h1>
+            <p className="text-lg text-gray-400 max-w-xl mx-auto">
+              Choose the plan that fits your needs. Upgrade or downgrade anytime.
+            </p>
 
-        {/* Feature Comparison Table */}
-        <motion.div
-          initial={false}
-          animate={{ 
-            height: showComparison ? 'auto' : 0,
-            opacity: showComparison ? 1 : 0
-          }}
-          transition={{ duration: 0.3 }}
-          className="overflow-hidden"
-        >
-          <div className="glass-panel p-6 mb-16 overflow-x-auto">
-            <table className="w-full min-w-[600px]">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left py-4 px-4 text-gray-400 font-medium">Feature</th>
-                  <th className="text-center py-4 px-4 text-white font-semibold">Free</th>
-                  <th className="text-center py-4 px-4 text-white font-semibold">Starter</th>
-                  <th className="text-center py-4 px-4 text-white font-semibold relative">
-                    Pro
-                    <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-xs text-cyan-400">★</span>
-                  </th>
-                  <th className="text-center py-4 px-4 text-white font-semibold">Studio</th>
-                </tr>
-              </thead>
-              <tbody>
-                {featureComparison.map((category, catIndex) => (
-                  <>
-                    {/* Category Header */}
-                    <tr key={`cat-${catIndex}`} className="bg-white/5">
-                      <td colSpan={5} className="py-3 px-4 text-sm font-semibold text-cyan-400">
-                        {category.category}
-                      </td>
-                    </tr>
-                    {/* Features in Category */}
-                    {category.features.map((feature, featIndex) => (
-                      <tr 
-                        key={`feat-${catIndex}-${featIndex}`}
-                        className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                      >
-                        <td className="py-3 px-4 text-gray-300">{feature.name}</td>
-                        <td className="py-3 px-4 text-center">
-                          <FeatureValue value={feature.free} type={feature.type} />
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <FeatureValue value={feature.starter} type={feature.type} />
-                        </td>
-                        <td className="py-3 px-4 text-center bg-cyan-500/5">
-                          <FeatureValue value={feature.pro} type={feature.type} />
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <FeatureValue value={feature.studio} type={feature.type} />
+            {profile?.subscription_tier && profile.subscription_tier !== 'free' && (
+              <div className="mt-6">
+                <p className="text-gray-400 mb-2">
+                  Current plan: <span className="text-cyan-400 font-semibold capitalize">{profile.subscription_tier}</span>
+                </p>
+                <button
+                  onClick={handleManageSubscription}
+                  className="text-sm text-purple-400 hover:text-purple-300 underline"
+                >
+                  Manage Subscription
+                </button>
+              </div>
+            )}
+          </motion.div>
+
+          {/* Pricing Cards */}
+          <div className="grid md:grid-cols-4 gap-6 mb-12">
+            {plans.map((plan, i) => {
+              const isCurrentPlan = profile?.subscription_tier === plan.tier;
+              const isUpgrade = profile && plans.findIndex(p => p.tier === profile.subscription_tier) < i;
+
+              return (
+                <motion.div
+                  key={plan.tier}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className={`feature-card relative ${plan.popular ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/10' : ''} ${isCurrentPlan ? 'ring-2 ring-green-500/50' : ''}`}
+                >
+                  {plan.popular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="bg-gradient-to-r from-cyan-400 to-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                        <Sparkles className="w-3 h-3" />
+                        MOST POPULAR
+                      </span>
+                    </div>
+                  )}
+
+                  {isCurrentPlan && (
+                    <div className="absolute -top-3 right-4">
+                      <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                        CURRENT
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Plan Header */}
+                  <div className="mb-6">
+                    <h3 className="font-display text-xl font-semibold mb-1 text-white">{plan.name}</h3>
+                    <p className="text-sm text-gray-400">{plan.description}</p>
+                  </div>
+
+                  {/* Price */}
+                  <div className="mb-6">
+                    <span className="text-4xl font-bold text-white">${plan.price}</span>
+                    <span className="text-gray-400">/month</span>
+                  </div>
+
+                  {/* Credits Badge */}
+                  <div className="mb-6 inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 rounded-full px-3 py-1.5">
+                    <Zap className="w-4 h-4 text-cyan-400" />
+                    <span className="text-sm font-medium text-white">{plan.credits} credits/month</span>
+                  </div>
+
+                  {/* Features List */}
+                  <ul className="space-y-3 mb-8">
+                    {plan.highlights.map((highlight, j) => (
+                      <li key={j} className="flex items-start gap-2 text-sm">
+                        <Check className="w-4 h-4 text-cyan-500 flex-shrink-0 mt-0.5" />
+                        <span className="text-gray-300">
+                          {highlight.text}
+                          {highlight.note && (
+                            <span className="text-gray-500 ml-1">({highlight.note})</span>
+                          )}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  {/* Subscribe Button */}
+                  <button
+                    onClick={() => handleSubscribe(plan.tier)}
+                    disabled={isCurrentPlan || subscribing === plan.tier || loading}
+                    className={`w-full glass-button py-3 ${
+                      plan.popular ? 'glass-button-primary' : ''
+                    } ${isCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''} ${
+                      !plan.popular && !isCurrentPlan ? 'text-white hover:bg-white/10' : ''
+                    }`}
+                  >
+                    {subscribing === plan.tier ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Processing...
+                      </span>
+                    ) : isCurrentPlan ? (
+                      'Current Plan'
+                    ) : plan.tier === 'free' ? (
+                      'Get Started Free'
+                    ) : isUpgrade ? (
+                      'Upgrade Now'
+                    ) : (
+                      'Subscribe'
+                    )}
+                  </button>
+                </motion.div>
+              );
+            })}
+          </div>
+
+          {/* Compare All Features Button */}
+          <div className="text-center mb-8">
+            <button
+              onClick={() => setShowComparison(!showComparison)}
+              className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              {showComparison ? 'Hide' : 'Compare all'} features
+              <motion.span
+                animate={{ rotate: showComparison ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                ▼
+              </motion.span>
+            </button>
+          </div>
+
+          {/* Feature Comparison Table */}
+          <motion.div
+            initial={false}
+            animate={{ 
+              height: showComparison ? 'auto' : 0,
+              opacity: showComparison ? 1 : 0
+            }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
+          >
+            <div className="glass-panel p-6 mb-16 overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="text-left py-4 px-4 text-gray-400 font-medium">Feature</th>
+                    <th className="text-center py-4 px-4 text-white font-semibold">Free</th>
+                    <th className="text-center py-4 px-4 text-white font-semibold">Starter</th>
+                    <th className="text-center py-4 px-4 text-white font-semibold relative">
+                      Pro
+                      <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-xs text-cyan-400">★</span>
+                    </th>
+                    <th className="text-center py-4 px-4 text-white font-semibold">Studio</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {featureComparison.map((category, catIndex) => (
+                    <>
+                      {/* Category Header */}
+                      <tr key={`cat-${catIndex}`} className="bg-white/5">
+                        <td colSpan={5} className="py-3 px-4 text-sm font-semibold text-cyan-400">
+                          {category.category}
                         </td>
                       </tr>
-                    ))}
-                  </>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </motion.div>
+                      {/* Features in Category */}
+                      {category.features.map((feature, featIndex) => (
+                        <tr 
+                          key={`feat-${catIndex}-${featIndex}`}
+                          className="border-b border-white/5 hover:bg-white/5 transition-colors"
+                        >
+                          <td className="py-3 px-4 text-gray-300">{feature.name}</td>
+                          <td className="py-3 px-4 text-center">
+                            <FeatureValue value={feature.free} type={feature.type} />
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <FeatureValue value={feature.starter} type={feature.type} />
+                          </td>
+                          <td className="py-3 px-4 text-center bg-cyan-500/5">
+                            <FeatureValue value={feature.pro} type={feature.type} />
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <FeatureValue value={feature.studio} type={feature.type} />
+                          </td>
+                        </tr>
+                      ))}
+                    </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
 
-        {/* Credit Packages */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="mt-20"
-        >
-          <h2 className="font-display text-3xl font-bold text-white text-center mb-4">
-            Need More Credits?
-          </h2>
-          <p className="text-gray-400 text-center mb-4">
-            Purchase additional credits anytime
-          </p>
-          <p className="text-sm text-gray-500 text-center mb-10">
-            Credits cost: 480p = 3 credits • 720p = 5 credits • 1080p = 7 credits • 4K = 9 credits • 4K = 9 credits
-          </p>
+          {/* Credit Packages */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mt-20"
+          >
+            <h2 className="font-display text-3xl font-bold text-white text-center mb-4">
+              Need More Credits?
+            </h2>
+            <p className="text-gray-400 text-center mb-4">
+              Purchase additional credits anytime
+            </p>
+            <p className="text-sm text-gray-500 text-center mb-10">
+              Credits cost: 480p = 3 credits • 720p = 5 credits • 1080p = 7 credits • 4K = 9 credits • 4K = 9 credits
+            </p>
 
-          <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-            {[
-              { credits: 10, price: 4.99, perCredit: '0.50' },
-              { credits: 25, price: 9.99, perCredit: '0.40' },
-              { credits: 50, price: 17.99, perCredit: '0.36', popular: true },
-              { credits: 100, price: 29.99, perCredit: '0.30' },
-            ].map((pkg, i) => (
-              <motion.div
-                key={pkg.credits}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 + i * 0.1 }}
-                className={`glass-panel p-6 text-center relative ${pkg.popular ? 'border-purple-500/50' : ''}`}
-              >
-                {pkg.popular && (
-                  <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-                    <span className="bg-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                      BEST VALUE
-                    </span>
-                  </div>
-                )}
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400/20 to-purple-500/20 flex items-center justify-center mx-auto mb-4">
-                  <Zap className="w-6 h-6 text-cyan-400" />
-                </div>
-                <p className="text-2xl font-bold text-white">{pkg.credits}</p>
-                <p className="text-gray-400 text-sm mb-2">credits</p>
-                <p className="text-xs text-gray-500 mb-4">${pkg.perCredit}/credit</p>
-                <p className="text-xl font-semibold text-gradient mb-4">${pkg.price}</p>
-                <button
-                  onClick={() => {
-                    if (!user) {
-                      router.push('/signup');
-                    } else {
-                      handleBuyCredits(pkg.credits);
-                    }
-                  }}
-                  disabled={buyingCredits === pkg.credits}
-                  className="w-full glass-button py-2 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+            <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
+              {[
+                { credits: 10, price: 4.99, perCredit: '0.50' },
+                { credits: 25, price: 9.99, perCredit: '0.40' },
+                { credits: 50, price: 17.99, perCredit: '0.36', popular: true },
+                { credits: 100, price: 29.99, perCredit: '0.30' },
+              ].map((pkg, i) => (
+                <motion.div
+                  key={pkg.credits}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 + i * 0.1 }}
+                  className={`glass-panel p-6 text-center relative ${pkg.popular ? 'border-purple-500/50' : ''}`}
                 >
-                  {buyingCredits === pkg.credits ? 'Processing...' : 'Buy Credits'}
-                </button>
-              </motion.div>
-            ))}
-          </div>
-        </motion.div>
+                  {pkg.popular && (
+                    <div className="absolute -top-2 left-1/2 -translate-x-1/2">
+                      <span className="bg-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                        BEST VALUE
+                      </span>
+                    </div>
+                  )}
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400/20 to-purple-500/20 flex items-center justify-center mx-auto mb-4">
+                    <Zap className="w-6 h-6 text-cyan-400" />
+                  </div>
+                  <p className="text-2xl font-bold text-white">{pkg.credits}</p>
+                  <p className="text-gray-400 text-sm mb-2">credits</p>
+                  <p className="text-xs text-gray-500 mb-4">${pkg.perCredit}/credit</p>
+                  <p className="text-xl font-semibold text-gradient mb-4">${pkg.price}</p>
+                  <button
+                    onClick={() => {
+                      if (!user) {
+                        router.push('/signup');
+                      } else {
+                        handleBuyCredits(pkg.credits);
+                      }
+                    }}
+                    disabled={buyingCredits === pkg.credits}
+                    className="w-full glass-button py-2 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+                  >
+                    {buyingCredits === pkg.credits ? 'Processing...' : 'Buy Credits'}
+                  </button>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
 
-        {/* FAQ Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          className="mt-20"
-        >
-          <h2 className="font-display text-3xl font-bold text-white text-center mb-10">
-            Frequently Asked Questions
-          </h2>
-          
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <div className="glass-panel p-6">
-              <h3 className="font-semibold text-white mb-2">How do credits work?</h3>
-              <p className="text-gray-400 text-sm">
-                Each karaoke track costs credits based on video quality: 480p costs 3 credits, 
-                720p costs 5 credits, 1080p costs 7 credits, and 4K costs 9 credits. Credits 
-                accumulate month to month and expire 90 days after they are granted.
-              </p>
-            </div>
+          {/* FAQ Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="mt-20"
+          >
+            <h2 className="font-display text-3xl font-bold text-white text-center mb-10">
+              Frequently Asked Questions
+            </h2>
             
-            <div className="glass-panel p-6">
-              <h3 className="font-semibold text-white mb-2">What is "Edit lyrics before render"?</h3>
-              <p className="text-gray-400 text-sm">
-                Pro and Studio users can review and edit the AI-transcribed lyrics before the final video is created. 
-                This lets you fix any transcription errors for a perfect result.
-              </p>
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              <div className="glass-panel p-6">
+                <h3 className="font-semibold text-white mb-2">How do credits work?</h3>
+                <p className="text-gray-400 text-sm">
+                  Each karaoke track costs credits based on video quality: 480p costs 3 credits, 
+                  720p costs 5 credits, 1080p costs 7 credits, and 4K costs 9 credits. Credits 
+                  accumulate month to month and expire 90 days after they are granted.
+                </p>
+              </div>
+              
+              <div className="glass-panel p-6">
+                <h3 className="font-semibold text-white mb-2">What is "Edit lyrics before render"?</h3>
+                <p className="text-gray-400 text-sm">
+                  Pro and Studio users can review and edit the AI-transcribed lyrics before the final video is created. 
+                  This lets you fix any transcription errors for a perfect result.
+                </p>
+              </div>
+              
+              <div className="glass-panel p-6">
+                <h3 className="font-semibold text-white mb-2">Can I change plans anytime?</h3>
+                <p className="text-gray-400 text-sm">
+                  Yes! You can upgrade or downgrade your plan at any time. Your existing credits 
+                  transfer with you to your new plan.
+                </p>
+              </div>
+              
+              <div className="glass-panel p-6">
+                <h3 className="font-semibold text-white mb-2">What's the watermark on Free tier?</h3>
+                <p className="text-gray-400 text-sm">
+                  Free tier videos include a small Karatrack logo and link at the bottom. 
+                  Upgrade to Starter or higher to remove it, or go Studio to add your own logo!
+                </p>
+              </div>
             </div>
-            
-            <div className="glass-panel p-6">
-              <h3 className="font-semibold text-white mb-2">Can I change plans anytime?</h3>
-              <p className="text-gray-400 text-sm">
-                Yes! You can upgrade or downgrade your plan at any time. Your existing credits 
-                transfer with you to your new plan.
-              </p>
-            </div>
-            
-            <div className="glass-panel p-6">
-              <h3 className="font-semibold text-white mb-2">What's the watermark on Free tier?</h3>
-              <p className="text-gray-400 text-sm">
-                Free tier videos include a small Karatrack logo and link at the bottom. 
-                Upgrade to Starter or higher to remove it, or go Studio to add your own logo!
-              </p>
-            </div>
-          </div>
-        </motion.div>
-      </main>
-    </div>
+          </motion.div>
+        </main>
+      </div>
+    </>
   );
 }

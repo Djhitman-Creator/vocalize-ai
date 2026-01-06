@@ -1,0 +1,18 @@
+# Karatrack Studio - robots.txt
+# https://studio.karatrack.com/robots.txt
+
+User-agent: *
+Allow: /
+
+# Block private/authenticated pages from indexing
+Disallow: /dashboard
+Disallow: /upload
+Disallow: /projects/
+Disallow: /api/
+
+# Block utility pages
+Disallow: /auth/
+Disallow: /callback
+
+# Sitemap location
+Sitemap: https://studio.karatrack.com/sitemap.xml

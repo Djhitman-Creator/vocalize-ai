@@ -42,6 +42,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
+import SEO from '../components/SEO';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -674,7 +675,13 @@ export default function UploadPage() {
   };
 
   return (
-    <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
+    <>
+      <SEO 
+        title="Upload Track"
+        description="Upload your music to Karatrack Studio. Remove vocals, add synchronized scrolling lyrics, and export professional karaoke videos with custom styling."
+        path="/upload"
+      />
+      <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
       {/* Navigation */}
       <nav className="border-b border-white/10 px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -1235,5 +1242,6 @@ export default function UploadPage() {
         </form>
       </main>
     </div>
+    </>
   );
 }

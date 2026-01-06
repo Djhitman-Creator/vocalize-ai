@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useTheme } from '../context/ThemeContext';
+import SEO, { getOrganizationSchema, getSoftwareAppSchema } from '../components/SEO';
 import { 
   Upload, 
   Music, 
@@ -326,15 +327,23 @@ export default function HomePage() {
   const [credits, setCredits] = useState(25);
 
   return (
-    <div className={isDark ? 'dark' : ''}>
-      <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
-        <Navigation isDark={isDark} toggleTheme={toggleTheme} credits={credits} />
-        <HeroSection isDark={isDark} />
-        <FeaturesSection isDark={isDark} />
-        <UploadSection isDark={isDark} />
-        <PricingSection isDark={isDark} />
-        <Footer isDark={isDark} />
+    <>
+      <SEO 
+        title={null}
+        description="Transform any song into a professional karaoke video with AI. Remove vocals, add synchronized scrolling lyrics, and export stunning MP4 videos in minutes."
+        path="/"
+        structuredData={[getOrganizationSchema(), getSoftwareAppSchema()]}
+      />
+      <div className={isDark ? 'dark' : ''}>
+        <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
+          <Navigation isDark={isDark} toggleTheme={toggleTheme} credits={credits} />
+          <HeroSection isDark={isDark} />
+          <FeaturesSection isDark={isDark} />
+          <UploadSection isDark={isDark} />
+          <PricingSection isDark={isDark} />
+          <Footer isDark={isDark} />
+        </div>
       </div>
-    </div>
+    </>
   );
 }
