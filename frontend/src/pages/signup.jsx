@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Music, Mail, Lock, Eye, EyeOff, User, RefreshCw, CheckCircle } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, RefreshCw, CheckCircle, Sparkles } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import SEO, { getOrganizationSchema } from '../components/SEO';
 
@@ -12,6 +12,14 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
+
+// Plan details for display
+const planDetails = {
+  free: { name: 'Free', price: 0, credits: 5 },
+  starter: { name: 'Starter', price: 9.99, credits: 25 },
+  pro: { name: 'Pro', price: 24.99, credits: 75 },
+  studio: { name: 'Studio', price: 49.99, credits: 200 },
+};
 
 export default function SignupPage() {
   const router = useRouter();
@@ -25,10 +33,23 @@ export default function SignupPage() {
   const [success, setSuccess] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   
+  // Selected plan from URL
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  
   // Resend email state
   const [resending, setResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [resendError, setResendError] = useState('');
+
+  // Read plan from URL on mount
+  useEffect(() => {
+    if (router.isReady) {
+      const { plan } = router.query;
+      if (plan && planDetails[plan]) {
+        setSelectedPlan(plan);
+      }
+    }
+  }, [router.isReady, router.query]);
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -54,12 +75,19 @@ export default function SignupPage() {
     }
 
     try {
+      // Store selected plan in localStorage for after email verification
+      // Only store if it's a paid plan
+      if (selectedPlan && selectedPlan !== 'free') {
+        localStorage.setItem('karatrack_pending_plan', selectedPlan);
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: name,
+            pending_plan: selectedPlan || 'free', // Also store in user metadata
           },
         },
       });
@@ -98,6 +126,10 @@ export default function SignupPage() {
     }
   };
 
+  // Get the display info for selected plan
+  const planInfo = selectedPlan ? planDetails[selectedPlan] : null;
+  const isPaidPlan = planInfo && planInfo.price > 0;
+
   if (success) {
     return (
       <>
@@ -120,6 +152,16 @@ export default function SignupPage() {
               <p className="text-gray-400 mb-6">
                 We've sent a confirmation link to <span className="text-cyan-400">{email}</span>
               </p>
+              
+              {/* Show selected plan reminder for paid plans */}
+              {isPaidPlan && (
+                <div className="mb-6 p-4 rounded-lg bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30">
+                  <p className="text-sm text-gray-300">
+                    After confirming your email, you'll be redirected to complete your{' '}
+                    <span className="text-cyan-400 font-semibold">{planInfo.name}</span> subscription.
+                  </p>
+                </div>
+              )}
               
               {/* Resend Email Section */}
               <div className="mb-6 p-4 rounded-lg bg-white/5 border border-white/10">
@@ -182,10 +224,42 @@ export default function SignupPage() {
             </Link>
           </div>
 
+          {/* Selected Plan Banner - Shows for paid plans */}
+          {isPaidPlan && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-6 p-4 rounded-xl bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/30"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-400 to-purple-500 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-400">Selected plan</p>
+                    <p className="text-white font-semibold">{planInfo.name} - ${planInfo.price}/mo</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-cyan-400 font-bold">{planInfo.credits}</p>
+                  <p className="text-xs text-gray-400">credits/mo</p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-3">
+                You'll complete payment after verifying your email.
+              </p>
+            </motion.div>
+          )}
+
           {/* Signup Form */}
           <div className="glass-panel p-8">
             <h1 className="text-2xl font-bold text-white text-center mb-2">Create Account</h1>
-            <p className="text-gray-400 text-center mb-8">Start transforming your music today</p>
+            <p className="text-gray-400 text-center mb-8">
+              {isPaidPlan 
+                ? `Get started with ${planInfo.name}` 
+                : 'Start transforming your music today'}
+            </p>
 
             {error && (
               <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-6">
@@ -265,32 +339,41 @@ export default function SignupPage() {
                 </div>
               </div>
 
+              {/* Terms Checkbox */}
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-0 cursor-pointer"
+                />
+                <label htmlFor="terms" className="text-sm text-gray-400 cursor-pointer">
+                  I agree to the{' '}
+                  <Link href="/terms" className="text-cyan-400 hover:text-cyan-300">Terms of Service</Link>
+                  {' '}and{' '}
+                  <Link href="/privacy" className="text-cyan-400 hover:text-cyan-300">Privacy Policy</Link>
+                </label>
+              </div>
+
               {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full glass-button-primary glass-button py-4 text-lg font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? 'Creating account...' : 'Create Account'}
+                {loading ? 'Creating account...' : isPaidPlan ? `Continue with ${planInfo.name}` : 'Create Account'}
               </button>
             </form>
 
-            {/* Terms Checkbox */}
-            <div className="flex items-start gap-3 mt-6">
-              <input
-                type="checkbox"
-                id="terms"
-                checked={acceptedTerms}
-                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-cyan-500 focus:ring-cyan-500 focus:ring-offset-0 cursor-pointer"
-              />
-              <label htmlFor="terms" className="text-sm text-gray-400 cursor-pointer">
-                I agree to the{' '}
-                <Link href="/terms" className="text-cyan-400 hover:text-cyan-300">Terms of Service</Link>
-                {' '}and{' '}
-                <Link href="/privacy" className="text-cyan-400 hover:text-cyan-300">Privacy Policy</Link>
-              </label>
-            </div>
+            {/* Change Plan Link - for paid plans */}
+            {isPaidPlan && (
+              <p className="text-center text-gray-500 text-sm mt-4">
+                <Link href="/pricing" className="text-gray-400 hover:text-cyan-300">
+                  Change plan
+                </Link>
+              </p>
+            )}
 
             {/* Sign In Link */}
             <p className="text-center text-gray-400 mt-6">

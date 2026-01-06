@@ -303,9 +303,9 @@ export default function PricingPage() {
   };
 
   const handleSubscribe = async (tier) => {
-    // If not logged in, redirect to signup
+    // If not logged in, redirect to signup with selected plan
     if (!user) {
-      router.push('/signup?redirect=pricing');
+      router.push(`/signup?plan=${tier}`);
       return;
     }
 
@@ -394,7 +394,7 @@ export default function PricingPage() {
   const handleBuyCredits = async (credits) => {
     // If not logged in, redirect to signup
     if (!user) {
-      router.push('/signup?redirect=pricing');
+      router.push(`/signup?plan=${tier}`);
       return;
     }
 
@@ -739,7 +739,7 @@ export default function PricingPage() {
                   <button
                     onClick={() => {
                       if (!user) {
-                        router.push('/signup');
+                        router.push('/signup?plan=free');
                       } else {
                         handleBuyCredits(pkg.credits);
                       }

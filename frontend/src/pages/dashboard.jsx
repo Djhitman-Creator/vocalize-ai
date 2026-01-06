@@ -54,7 +54,10 @@ export default function DashboardPage() {
   // Notification state
   const [notifications, setNotifications] = useState([]);
   const [completedIds, setCompletedIds] = useState(new Set()); // Track which we've notified about
-
+  
+  // Pending subscription checkout state
+  const [checkingPendingPlan, setCheckingPendingPlan] = useState(false);
+  
   // Add notification
   const addNotification = useCallback((message, type = 'success') => {
     const id = Date.now();
@@ -259,7 +262,7 @@ export default function DashboardPage() {
     }
   };
 
-  if (loading) {
+  if (loading || checkingPendingPlan) {
     return (
       <>
         <SEO 
