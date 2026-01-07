@@ -1761,7 +1761,7 @@ def handler(event):
         print(f"   ðŸ‘¤ Subscription tier: {subscription_tier}")
         print(f"   ðŸŽ¨ Style: bg={style_options['bg_color_1']}, text={style_options['text_color']}, sung={style_options['sung_color']}")
         print(f"   ðŸš€ Using AssemblyAI for precise timing!")
-        print(f"   ðŸ" Lyrics comparison uses NORMALIZED matching (ignores punctuation/case)")
+        print(f"   [4.1] Lyrics comparison uses NORMALIZED matching (ignores punctuation/case)")
         
         # Check processing mode early
         processing_mode = input_data.get('processing_mode', 'full')
