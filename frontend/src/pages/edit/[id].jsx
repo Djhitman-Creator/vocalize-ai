@@ -63,6 +63,8 @@ export default function EditLyricsPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [previewTime, setPreviewTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [previewMode, setPreviewMode] = useState('video'); // 'video' or 'lyrics'
+  const [originalLyricsText, setOriginalLyricsText] = useState('');
 
   // User profile
   const [profile, setProfile] = useState(null);
@@ -126,6 +128,7 @@ export default function EditLyricsPage() {
 
         setLyrics(lyricsWithAutoBreaks);
         setOriginalLyrics(JSON.parse(JSON.stringify(lyricsWithAutoBreaks)));
+        setOriginalLyricsText(projectData.lyrics_text || '');
         setLoading(false);
       } catch (err) {
         console.error('Error loading project:', err);
@@ -440,8 +443,8 @@ export default function EditLyricsPage() {
                 onClick={handleReset}
                 disabled={!hasChanges}
                 className={`px-3 py-1.5 rounded-lg text-sm flex items-center gap-2 transition-colors ${hasChanges
-                    ? 'bg-white/10 hover:bg-white/20 text-white'
-                    : 'bg-white/5 text-gray-500 cursor-not-allowed'
+                  ? 'bg-white/10 hover:bg-white/20 text-white'
+                  : 'bg-white/5 text-gray-500 cursor-not-allowed'
                   }`}
               >
                 <RotateCcw className="w-4 h-4" />
@@ -498,10 +501,10 @@ export default function EditLyricsPage() {
                             <button
                               onClick={() => handleWordClick(wordData.globalIndex)}
                               className={`px-2 py-1 rounded text-sm transition-all ${isSelected
-                                  ? 'bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-500'
-                                  : isDark
-                                    ? 'hover:bg-white/10 text-gray-300'
-                                    : 'hover:bg-gray-200 text-gray-700'
+                                ? 'bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-500'
+                                : isDark
+                                  ? 'hover:bg-white/10 text-gray-300'
+                                  : 'hover:bg-gray-200 text-gray-700'
                                 }`}
                             >
                               {wordData.word}
@@ -552,6 +555,28 @@ export default function EditLyricsPage() {
                 Preview
               </h2>
               <div className="flex items-center gap-2">
+                {showPreview && (
+                  <div className="flex rounded-lg overflow-hidden border border-white/20">
+                    <button
+                      onClick={() => setPreviewMode('video')}
+                      className={`px-3 py-1.5 text-sm transition-colors ${previewMode === 'video'
+                          ? 'bg-cyan-500 text-white'
+                          : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                        }`}
+                    >
+                      Video
+                    </button>
+                    <button
+                      onClick={() => setPreviewMode('lyrics')}
+                      className={`px-3 py-1.5 text-sm transition-colors ${previewMode === 'lyrics'
+                          ? 'bg-purple-500 text-white'
+                          : 'bg-white/10 text-gray-300 hover:bg-white/20'
+                        }`}
+                    >
+                      Original Lyrics
+                    </button>
+                  </div>
+                )}
                 <button
                   onClick={() => {
                     setShowPreview(!showPreview);
@@ -570,59 +595,73 @@ export default function EditLyricsPage() {
 
             {showPreview ? (
               <div>
-                {/* Karaoke preview simulation */}
-                <div
-                  className="rounded-xl p-6 mb-4 min-h-[300px] flex flex-col items-center justify-center"
-                  style={{ background: 'linear-gradient(to bottom, #1a1a2e, #16213e)' }}
-                >
-                  {lyricsLines.slice(
-                    Math.max(0, lyricsLines.findIndex(line =>
-                      line.some(w => w.globalIndex === getCurrentWordIndex)
-                    ) - 1),
-                    lyricsLines.findIndex(line =>
-                      line.some(w => w.globalIndex === getCurrentWordIndex)
-                    ) + 3
-                  ).map((line, idx) => (
-                    <div key={idx} className="text-center mb-2">
-                      {line.map((wordData) => (
-                        <span
-                          key={wordData.globalIndex}
-                          className={`text-lg mx-1 transition-colors ${wordData.globalIndex === getCurrentWordIndex
-                              ? 'text-cyan-400 font-bold'
-                              : wordData.globalIndex < getCurrentWordIndex
-                                ? 'text-cyan-600'
-                                : 'text-white'
-                            }`}
-                        >
-                          {wordData.word}
-                        </span>
+                {previewMode === 'video' ? (
+                  <>
+                    {/* Karaoke preview simulation */}
+                    <div
+                      className="rounded-xl p-6 mb-4 min-h-[300px] flex flex-col items-center justify-center"
+                      style={{ background: 'linear-gradient(to bottom, #1a1a2e, #16213e)' }}
+                    >
+                      {lyricsLines.slice(
+                        Math.max(0, lyricsLines.findIndex(line =>
+                          line.some(w => w.globalIndex === getCurrentWordIndex)
+                        ) - 1),
+                        lyricsLines.findIndex(line =>
+                          line.some(w => w.globalIndex === getCurrentWordIndex)
+                        ) + 3
+                      ).map((line, idx) => (
+                        <div key={idx} className="text-center mb-2">
+                          {line.map((wordData) => (
+                            <span
+                              key={wordData.globalIndex}
+                              className={`text-lg mx-1 transition-colors ${wordData.globalIndex === getCurrentWordIndex
+                                ? 'text-cyan-400 font-bold'
+                                : wordData.globalIndex < getCurrentWordIndex
+                                  ? 'text-cyan-600'
+                                  : 'text-white'
+                                }`}
+                            >
+                              {wordData.word}
+                            </span>
+                          ))}
+                        </div>
                       ))}
                     </div>
-                  ))}
-                </div>
 
-                {/* Playback controls */}
-                <div className="flex items-center justify-center gap-4">
-                  <button
-                    onClick={() => setPreviewTime(0)}
-                    className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                    {/* Playback controls */}
+                    <div className="flex items-center justify-center gap-4">
+                      <button
+                        onClick={() => setPreviewTime(0)}
+                        className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                      >
+                        <RotateCcw className="w-4 h-4 text-white" />
+                      </button>
+                      <button
+                        onClick={() => setIsPlaying(!isPlaying)}
+                        className="p-3 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90 transition-opacity"
+                      >
+                        {isPlaying ? (
+                          <Pause className="w-5 h-5 text-white" />
+                        ) : (
+                          <Play className="w-5 h-5 text-white ml-0.5" />
+                        )}
+                      </button>
+                      <span className="text-sm text-gray-400 w-20 text-center">
+                        {previewTime.toFixed(1)}s
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div
+                    className="rounded-xl p-6 min-h-[300px] max-h-[400px] overflow-y-auto"
+                    style={{ background: 'linear-gradient(to bottom, #1a1a2e, #16213e)' }}
                   >
-                    <RotateCcw className="w-4 h-4 text-white" />
-                  </button>
-                  <button
-                    onClick={() => setIsPlaying(!isPlaying)}
-                    className="p-3 rounded-full bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90 transition-opacity"
-                  >
-                    {isPlaying ? (
-                      <Pause className="w-5 h-5 text-white" />
-                    ) : (
-                      <Play className="w-5 h-5 text-white ml-0.5" />
-                    )}
-                  </button>
-                  <span className="text-sm text-gray-400 w-20 text-center">
-                    {previewTime.toFixed(1)}s
-                  </span>
-                </div>
+                    <h3 className="text-purple-400 text-sm font-medium mb-3">Your Uploaded Lyrics:</h3>
+                    <pre className="text-white text-sm whitespace-pre-wrap font-sans leading-relaxed">
+                      {originalLyricsText || 'No original lyrics available'}
+                    </pre>
+                  </div>
+                )}
               </div>
             ) : (
               <div className={`text-center py-12 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -637,8 +676,8 @@ export default function EditLyricsPage() {
         <div className="flex items-center justify-between mt-8 pt-6 border-t border-white/10">
           <Link href="/dashboard">
             <button className={`px-6 py-3 rounded-xl font-medium transition-colors ${isDark
-                ? 'bg-white/10 text-white hover:bg-white/20'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              ? 'bg-white/10 text-white hover:bg-white/20'
+              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}>
               Cancel
             </button>
