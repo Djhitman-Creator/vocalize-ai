@@ -23,6 +23,7 @@ import {
   Edit3
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import AppNavigation from '../components/AppNavigation';
 import { createClient } from '@supabase/supabase-js';
 import SEO from '../components/SEO';
 
@@ -362,41 +363,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Navigation */}
-        <nav className="border-b border-white/10 px-6 py-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <Link href="/dashboard" className="flex items-center gap-3">
-              <img src="/logo.png" alt="Karatrack Studio" className="h-10 w-auto" />
-              <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
-            </Link>
-
-            <div className="flex items-center gap-6">
-              <Link href="/upload" className="text-gray-400 hover:text-white">Upload</Link>
-              <Link href="/pricing" className="text-gray-400 hover:text-white">Pricing</Link>
-              <Link href="/settings" className="text-gray-400 hover:text-white">Settings</Link>
-
-              <div className="credit-badge">
-                <div className="credit-badge-icon">
-                  <Zap className="w-3 h-3 text-white" />
-                </div>
-                <span className="text-sm text-white">{profile?.credits_remaining || 0} Credits</span>
-              </div>
-
-              <button
-                onClick={toggleTheme}
-                className="glass-button p-3 rounded-xl"
-              >
-                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </button>
-
-              <button
-                onClick={handleLogout}
-                className="glass-button p-3 rounded-xl text-gray-400 hover:text-white"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        </nav>
+        <AppNavigation profile={profile} />
 
         {/* Main Content */}
         <main className="max-w-7xl mx-auto px-6 py-8">

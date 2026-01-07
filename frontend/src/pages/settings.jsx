@@ -23,6 +23,7 @@ import {
   Download
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
+import AppNavigation from '../components/AppNavigation';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -215,32 +216,7 @@ export default function SettingsPage() {
   return (
     <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
       {/* Navigation */}
-      <nav className={`border-b ${isDark ? 'border-white/10' : 'border-gray-200'} px-6 py-4`}>
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-3">
-            <img src="/logo.png" alt="Karatrack Studio" className="h-10 w-auto" />
-            <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
-          </Link>
-
-          <div className="flex items-center gap-6">
-            {profile && (
-              <div className="credit-badge">
-                <div className="credit-badge-icon">
-                  <Zap className="w-3 h-3 text-white" />
-                </div>
-                <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-800'}`}>{profile.credits_remaining || 0} Credits</span>
-              </div>
-            )}
-            <button onClick={toggleTheme} className="glass-button p-3 rounded-xl">
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-            <button onClick={handleLogout} className={`glass-button py-2 px-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              <LogOut className="w-4 h-4" />
-              Log Out
-            </button>
-          </div>
-        </div>
-      </nav>
+      <AppNavigation profile={profile} />
 
       <main className="max-w-2xl mx-auto px-6 py-12">
         <Link href="/dashboard" className={`inline-flex items-center gap-2 mb-8 transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
