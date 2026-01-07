@@ -1019,12 +1019,15 @@ def create_countdown_frame_with_preview(countdown_time, width, height, lyrics, g
     """
     # First, create the lyrics frame using the same display mode the user chose
     # This ensures consistency with how lyrics will look when singing starts
+    # Use gap_end_time - 0.1 to show lyrics WITHOUT highlighting the first word
+    # (the first word highlights when current_time >= word start time)
+    preview_time = gap_end_time - 0.1
     if display_mode == 'scroll':
-        img = create_scroll_frame(gap_end_time, lyrics, width, height, colors)
+        img = create_scroll_frame(preview_time, lyrics, width, height, colors)
     elif display_mode == 'page':
-        img = create_page_frame(gap_end_time, lyrics, width, height, colors)
+        img = create_page_frame(preview_time, lyrics, width, height, colors)
     else:
-        img = create_overwrite_frame(gap_end_time, lyrics, width, height, colors)
+        img = create_overwrite_frame(preview_time, lyrics, width, height, colors)
     
     draw = ImageDraw.Draw(img)
     
