@@ -203,34 +203,34 @@ function extractR2Key(url) {
 async function getSignedDownloadUrl(url, filename = null) {
   const key = extractR2Key(url);
   if (!key) return null;
-  
+
   const commandOptions = {
     Bucket: process.env.CLOUDFLARE_R2_BUCKET,
     Key: key,
   };
-  
+
   // Add Content-Disposition to force download with custom filename
   if (filename) {
     commandOptions.ResponseContentDisposition = `attachment; filename="${filename}"`;
   }
-  
+
   const command = new GetObjectCommand(commandOptions);
   return getSignedUrl(r2Client, command, { expiresIn: 3600 });
 }
 
 function calculateCreditsNeeded(options) {
   let credits = 0;
-  
+
   // Base processing cost
   if (options.processing_type === 'both') {
     credits += 2;  // Both vocal versions
   } else {
     credits += 1;  // Single version
   }
-  
+
   // Lyrics always included now
   credits += 1;
-  
+
   // Quality-based pricing (480p=3, 720p=5, 1080p=7 total for basic track)
   if (options.video_quality === '480p') {
     credits += 1;   // Total: 1+1+1 = 3 credits
@@ -243,7 +243,7 @@ function calculateCreditsNeeded(options) {
   } else {
     credits += 1;   // Default to 480p pricing
   }
-  
+
   return credits;
 }
 
@@ -263,12 +263,12 @@ async function sendToRunPod(projectId, audioUrl, options) {
         song_title: options.song_title,
         track_number: options.track_number,
         callback_url: `${process.env.API_URL}/api/webhooks/runpod`,
-        
+
         // Lyrics and display options
         lyrics_text: options.lyrics_text || null,
         display_mode: options.display_mode || 'auto',
         clean_version: options.clean_version || false,
-        
+
         // Style customization options
         bg_color_1: options.bg_color_1 || '#1a1a2e',
         bg_color_2: options.bg_color_2 || '#16213e',
@@ -278,16 +278,16 @@ async function sendToRunPod(projectId, audioUrl, options) {
         outline_color: options.outline_color || '#000000',
         sung_color: options.sung_color || '#00d4ff',
         font: options.font || 'arial',
-        
+
         // Processing mode for two-stage flow
         processing_mode: options.processing_mode || 'full',
-        
+
         // NEW: Subscription tier for watermark logic
         subscription_tier: options.subscription_tier || 'free',
-        
+
         // Custom watermark URL for Studio users
         custom_watermark_url: options.custom_watermark_url || null,
-        
+
         // For render_only mode
         processed_audio_url: options.processed_audio_url || null,
         vocals_audio_url: options.vocals_audio_url || null,
@@ -308,35 +308,35 @@ async function sendToRunPod(projectId, audioUrl, options) {
 async function sendCompletionEmail(project, downloadUrl) {
   try {
     console.log(`📧 Attempting to send completion email for project ${project.id}`);
-    
+
     // Method 1: Try to get email from profiles table
     let userEmail = null;
     let userName = null;
-    
+
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('email, full_name')
       .eq('id', project.user_id)
       .single();
-    
+
     if (profile?.email) {
       userEmail = profile.email;
       userName = profile.full_name || userEmail.split('@')[0];
       console.log(`   Found email in profiles: ${userEmail}`);
     }
-    
+
     // Method 2: If not in profiles, try auth.users via SQL
     if (!userEmail) {
       const { data: authData, error: authError } = await supabase
         .rpc('get_user_email', { user_id: project.user_id });
-      
+
       if (authData) {
         userEmail = authData;
         userName = userEmail.split('@')[0];
         console.log(`   Found email via RPC: ${userEmail}`);
       }
     }
-    
+
     // Method 3: Try the admin API
     if (!userEmail) {
       try {
@@ -350,7 +350,7 @@ async function sendCompletionEmail(project, downloadUrl) {
         console.log(`   Admin API failed: ${adminErr.message}`);
       }
     }
-    
+
     if (!userEmail) {
       console.error('❌ Could not get user email for notification - no email found');
       return;
@@ -359,17 +359,17 @@ async function sendCompletionEmail(project, downloadUrl) {
     console.log(`   Sending email to: ${userEmail}`);
 
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    
+
     sendSmtpEmail.subject = `🎵 Your karaoke track "${project.title}" is ready!`;
-    sendSmtpEmail.sender = { 
-      name: 'Karatrack Studio', 
-      email: 'notifications@karatrack.com' 
+    sendSmtpEmail.sender = {
+      name: 'Karatrack Studio',
+      email: 'notifications@karatrack.com'
     };
-    sendSmtpEmail.to = [{ 
-      email: userEmail, 
-      name: userName 
+    sendSmtpEmail.to = [{
+      email: userEmail,
+      name: userName
     }];
-    
+
     sendSmtpEmail.htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -435,7 +435,7 @@ async function sendCompletionEmail(project, downloadUrl) {
       </body>
       </html>
     `;
-    
+
     sendSmtpEmail.textContent = `
 Hey ${userName}!
 
@@ -450,7 +450,7 @@ This link expires in 1 hour. You can always download again from your dashboard a
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
     console.log(`✅ Completion email sent to ${userEmail} for project ${project.id}`);
-    
+
   } catch (error) {
     console.error('❌ Error sending completion email:');
     console.error('   Message:', error.message);
@@ -464,22 +464,22 @@ This link expires in 1 hour. You can always download again from your dashboard a
 async function sendFailureEmail(project, errorMessage) {
   try {
     console.log(`📧 Attempting to send failure email for project ${project.id}`);
-    
+
     // Get user email (same method as sendCompletionEmail)
     let userEmail = null;
     let userName = null;
-    
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('email, full_name')
       .eq('id', project.user_id)
       .single();
-    
+
     if (profile?.email) {
       userEmail = profile.email;
       userName = profile.full_name || userEmail.split('@')[0];
     }
-    
+
     if (!userEmail) {
       try {
         const { data: authUser } = await supabase.auth.admin.getUserById(project.user_id);
@@ -491,24 +491,24 @@ async function sendFailureEmail(project, errorMessage) {
         console.log(`   Admin API failed: ${adminErr.message}`);
       }
     }
-    
+
     if (!userEmail) {
       console.error('❌ Could not get user email for failure notification');
       return;
     }
 
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    
+
     sendSmtpEmail.subject = `⚠️ Issue processing "${project.title}"`;
-    sendSmtpEmail.sender = { 
-      name: 'Karatrack Studio', 
-      email: 'notifications@karatrack.com' 
+    sendSmtpEmail.sender = {
+      name: 'Karatrack Studio',
+      email: 'notifications@karatrack.com'
     };
-    sendSmtpEmail.to = [{ 
-      email: userEmail, 
-      name: userName 
+    sendSmtpEmail.to = [{
+      email: userEmail,
+      name: userName
     }];
-    
+
     sendSmtpEmail.htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -566,7 +566,7 @@ async function sendFailureEmail(project, errorMessage) {
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
     console.log(`✅ Failure email sent to ${userEmail} for project ${project.id}`);
-    
+
   } catch (error) {
     console.error('Error sending failure email:', error);
   }
@@ -643,13 +643,13 @@ app.get('/api/projects/:id', authMiddleware, async (req, res) => {
 // UPDATED: Project creation with subscription_tier for watermark logic
 app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
   try {
-    const { 
-      title, 
-      processing_type, 
-      include_lyrics, 
-      video_quality, 
-      artist_name, 
-      song_title, 
+    const {
+      title,
+      processing_type,
+      include_lyrics,
+      video_quality,
+      artist_name,
+      song_title,
       track_number,
       // Lyrics and display options
       lyrics_text,
@@ -669,7 +669,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       // Processing mode for lyrics review
       processing_mode
     } = req.body;
-    
+
     const file = req.files?.audio?.[0];
     const thumbnailFile = req.files?.thumbnail?.[0];
     const customWatermarkFile = req.files?.custom_watermark?.[0];
@@ -680,8 +680,8 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
 
     // Validate lyrics are provided (required for accurate sync)
     if (!lyrics_text || lyrics_text.trim().length < 50) {
-      return res.status(400).json({ 
-        error: 'Lyrics are required for accurate sync. Please paste the complete song lyrics (minimum 50 characters).' 
+      return res.status(400).json({
+        error: 'Lyrics are required for accurate sync. Please paste the complete song lyrics (minimum 50 characters).'
       });
     }
 
@@ -864,6 +864,79 @@ app.post('/api/projects/:id/thumbnail', authMiddleware, upload.single('thumbnail
   }
 });
 
+// Retry a failed project
+app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
+  try {
+    const { data: project, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (error || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    if (project.status !== 'failed') {
+      return res.status(400).json({ error: 'Only failed projects can be retried' });
+    }
+
+    // Update status to processing
+    await supabase
+      .from('projects')
+      .update({
+        status: 'processing',
+        error_message: null,
+        processing_started_at: new Date().toISOString()
+      })
+      .eq('id', project.id);
+
+    // Get user's subscription tier
+    const userProfile = await getUserProfile(req.user.id);
+
+    // Resubmit to RunPod
+    const runpodJobId = await sendToRunPod(project.id, project.original_file_url, {
+      processing_type: project.processing_type,
+      include_lyrics: project.include_lyrics,
+      video_quality: project.video_quality,
+      thumbnail_url: project.thumbnail_url,
+      artist_name: project.artist_name,
+      song_title: project.song_title,
+      track_number: project.track_number,
+      lyrics_text: project.lyrics_text,
+      display_mode: project.display_mode || 'auto',
+      clean_version: project.clean_version || false,
+      bg_color_1: project.bg_color_1,
+      bg_color_2: project.bg_color_2,
+      use_gradient: project.use_gradient,
+      gradient_direction: project.gradient_direction,
+      text_color: project.text_color,
+      outline_color: project.outline_color,
+      sung_color: project.sung_color,
+      font: project.font,
+      processing_mode: 'full',
+      subscription_tier: userProfile.subscription_tier || 'free',
+      custom_watermark_url: project.custom_watermark_url,
+    });
+
+    await supabase
+      .from('projects')
+      .update({ runpod_job_id: runpodJobId })
+      .eq('id', project.id);
+
+    res.json({
+      success: true,
+      message: 'Project resubmitted',
+      runpod_job_id: runpodJobId
+    });
+
+  } catch (error) {
+    console.error('Retry error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/projects/:id/download', authMiddleware, async (req, res) => {
   try {
     const { data: project, error } = await supabase
@@ -943,7 +1016,7 @@ app.get('/api/projects/:id/lyrics', authMiddleware, async (req, res) => {
 app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
   try {
     const { edited_lyrics } = req.body;
-    
+
     if (!edited_lyrics || !Array.isArray(edited_lyrics)) {
       return res.status(400).json({ error: 'edited_lyrics array is required' });
     }
@@ -961,8 +1034,8 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
 
     // Check if project is in a state where we can render
     if (!['awaiting_review', 'transcribed'].includes(project.status)) {
-      return res.status(400).json({ 
-        error: `Cannot render project with status: ${project.status}. Project must be awaiting review.` 
+      return res.status(400).json({
+        error: `Cannot render project with status: ${project.status}. Project must be awaiting review.`
       });
     }
 
@@ -1050,8 +1123,8 @@ app.post('/api/projects/:id/transcribe', authMiddleware, async (req, res) => {
 
     // Check if project is in a state where we can start transcription
     if (project.status !== 'queued') {
-      return res.status(400).json({ 
-        error: `Cannot transcribe project with status: ${project.status}` 
+      return res.status(400).json({
+        error: `Cannot transcribe project with status: ${project.status}`
       });
     }
 
@@ -1116,19 +1189,19 @@ app.get('/api/plans', async (req, res) => {
 app.get('/api/stripe/upgrade-discount', authMiddleware, async (req, res) => {
   try {
     const profile = await getUserProfile(req.user.id);
-    
+
     // User gets ONE 20% discount on their first upgrade
-    const hasDiscount = !profile.upgrade_discount_used && 
-                        profile.subscription_tier && 
-                        profile.subscription_tier !== 'free' &&
-                        profile.subscription_tier !== 'studio'; // Can't upgrade from Studio
-    
+    const hasDiscount = !profile.upgrade_discount_used &&
+      profile.subscription_tier &&
+      profile.subscription_tier !== 'free' &&
+      profile.subscription_tier !== 'studio'; // Can't upgrade from Studio
+
     res.json({
       has_discount: hasDiscount,
       discount_percent: hasDiscount ? 20 : 0,
       current_tier: profile.subscription_tier || 'free',
-      message: hasDiscount 
-        ? 'You have a one-time 20% discount available on your next upgrade!' 
+      message: hasDiscount
+        ? 'You have a one-time 20% discount available on your next upgrade!'
         : null
     });
   } catch (error) {
@@ -1187,7 +1260,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
     if (profile.stripe_subscription_id) {
       try {
         const existingSubscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
-        
+
         if (existingSubscription.status === 'active' || existingSubscription.status === 'trialing') {
           const subscriptionItemId = existingSubscription.items.data[0].id;
 
@@ -1195,16 +1268,16 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
             // UPGRADE: Update immediately, NO proration (user pays full price)
             // User keeps their existing credits + gets new tier's credits
             console.log(`   ⬆️ Upgrading immediately (no proration - full price)`);
-            
+
             // Check if user has upgrade discount available
             const hasDiscount = !profile.upgrade_discount_used;
             let couponId = null;
-            
+
             if (hasDiscount && process.env.STRIPE_UPGRADE_COUPON_ID) {
               couponId = process.env.STRIPE_UPGRADE_COUPON_ID;
               console.log(`   🎫 Applying 20% upgrade discount coupon`);
             }
-            
+
             const updateParams = {
               items: [{
                 id: subscriptionItemId,
@@ -1219,14 +1292,14 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
                 discount_applied: hasDiscount ? 'true' : 'false'
               }
             };
-            
+
             // Apply coupon if available (one-time 20% discount)
             if (couponId) {
               updateParams.coupon = couponId;
             }
-            
+
             const updatedSubscription = await stripe.subscriptions.update(
-              profile.stripe_subscription_id, 
+              profile.stripe_subscription_id,
               updateParams
             );
 
@@ -1235,7 +1308,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
             if (hasDiscount) {
               profileUpdate.upgrade_discount_used = true;
             }
-            
+
             await supabase
               .from('profiles')
               .update(profileUpdate)
@@ -1265,7 +1338,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
               ? ' Your 20% upgrade discount has been applied!'
               : '';
 
-            return res.json({ 
+            return res.json({
               success: true,
               message: `Upgraded to ${newPlan.tier}! Your new plan is active immediately and you've received ${newPlan.credits_per_month} credits.${discountMessage}`,
               redirect: `${process.env.FRONTEND_URL}/dashboard?upgraded=true`,
@@ -1275,7 +1348,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
           } else if (newTierLevel < currentTierLevel) {
             // DOWNGRADE: Schedule for end of billing period using subscription schedule
             console.log(`   ⬇️ Scheduling downgrade for period end`);
-            
+
             // Check if there's already a schedule attached
             let schedule;
             if (existingSubscription.schedule) {
@@ -1339,7 +1412,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
 
             console.log(`   ✅ Downgrade scheduled for ${formattedDate}`);
 
-            return res.json({ 
+            return res.json({
               success: true,
               message: `Your plan will change to ${newPlan.tier} on ${formattedDate}. You'll keep your ${profile.subscription_tier} benefits until then.`,
               redirect: `${process.env.FRONTEND_URL}/dashboard?downgrade_scheduled=true`,
@@ -1361,7 +1434,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
       line_items: [{ price: price_id, quantity: 1 }],
       success_url: `${process.env.FRONTEND_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/pricing`,
-      metadata: { 
+      metadata: {
         user_id: req.user.id,
         is_upgrade: 'false'
       },
@@ -1435,7 +1508,7 @@ app.post('/api/stripe/portal', authMiddleware, async (req, res) => {
 app.get('/api/stripe/subscription-status', authMiddleware, async (req, res) => {
   try {
     const profile = await getUserProfile(req.user.id);
-    
+
     if (!profile.stripe_subscription_id) {
       return res.json({
         has_subscription: false,
@@ -1444,20 +1517,20 @@ app.get('/api/stripe/subscription-status', authMiddleware, async (req, res) => {
     }
 
     const subscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
-    
+
     let scheduledChange = null;
     if (subscription.schedule) {
       const schedule = await stripe.subscriptionSchedules.retrieve(subscription.schedule);
       if (schedule.phases && schedule.phases.length > 1) {
         const nextPhase = schedule.phases[1];
         const nextPriceId = nextPhase.items[0].price;
-        
+
         const { data: nextPlan } = await supabase
           .from('subscription_plans')
           .select('tier')
           .eq('stripe_price_id', nextPriceId)
           .single();
-        
+
         if (nextPlan) {
           scheduledChange = {
             new_tier: nextPlan.tier,
@@ -1484,13 +1557,13 @@ app.get('/api/stripe/subscription-status', authMiddleware, async (req, res) => {
 app.post('/api/stripe/cancel-scheduled-change', authMiddleware, async (req, res) => {
   try {
     const profile = await getUserProfile(req.user.id);
-    
+
     if (!profile.stripe_subscription_id) {
       return res.status(400).json({ error: 'No active subscription' });
     }
 
     const subscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
-    
+
     if (!subscription.schedule) {
       return res.status(400).json({ error: 'No scheduled change to cancel' });
     }
@@ -1509,8 +1582,8 @@ app.post('/api/stripe/cancel-scheduled-change', authMiddleware, async (req, res)
 
     console.log(`✅ Scheduled change cancelled for user ${req.user.id}`);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: 'Scheduled plan change has been cancelled. You will stay on your current plan.'
     });
   } catch (error) {
@@ -1537,7 +1610,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
-        
+
         // Handle credit purchases
         if (session.metadata.type === 'credit_purchase') {
           await addCreditsWithExpiration(
@@ -1547,27 +1620,27 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             `Purchased ${session.metadata.credits} credits`
           );
         }
-        
+
         // Handle subscription credits (both new signups AND upgrades get credits)
         if (session.mode === 'subscription') {
           const isUpgrade = session.metadata.is_upgrade === 'true';
           console.log(`🆕 Subscription checkout completed for user: ${session.metadata.user_id} (upgrade: ${isUpgrade})`);
-          
+
           // Get the subscription to find the price/plan
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
           const priceId = subscription.items.data[0].price.id;
-          
+
           const { data: plan } = await supabase
             .from('subscription_plans')
             .select('tier, credits_per_month')
             .eq('stripe_price_id', priceId)
             .single();
-          
+
           if (plan) {
-            const description = isUpgrade 
+            const description = isUpgrade
               ? `Upgraded to ${plan.tier} - ${plan.credits_per_month} credits`
               : `${plan.tier} subscription - ${plan.credits_per_month} monthly credits`;
-            
+
             console.log(`   Adding ${plan.credits_per_month} credits for ${plan.tier} subscription (expires in 90 days)`);
             await addCreditsWithExpiration(
               session.metadata.user_id,
@@ -1601,7 +1674,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           console.log(`✅ Found profile: ${profile.id}`);
           const priceId = subscription.items.data[0].price.id;
           console.log(`   Price ID from subscription: ${priceId}`);
-          
+
           const { data: plan, error: planError } = await supabase
             .from('subscription_plans')
             .select('tier, credits_per_month')
@@ -1615,7 +1688,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
 
           if (plan) {
             console.log(`✅ Found plan: ${plan.tier} (${plan.credits_per_month} credits)`);
-            
+
             const { error: updateError } = await supabase
               .from('profiles')
               .update({
@@ -1661,7 +1734,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
         console.log(`🗑️ Subscription deleted for customer: ${subscription.customer}`);
-        
+
         // Update profile
         await supabase
           .from('profiles')
@@ -1672,14 +1745,14 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             scheduled_tier_date: null,
           })
           .eq('stripe_customer_id', subscription.customer);
-        
+
         // Also delete from subscriptions table
         const { data: profile } = await supabase
           .from('profiles')
           .select('id')
           .eq('stripe_customer_id', subscription.customer)
           .single();
-        
+
         if (profile) {
           await supabase
             .from('subscriptions')
@@ -1695,7 +1768,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       case 'subscription_schedule.completed': {
         const schedule = event.data.object;
         console.log(`📅 Subscription schedule ${event.type}: ${schedule.id}`);
-        
+
         // When a schedule completes, the subscription has moved to the next phase
         // Update the user's tier to match the new plan
         if (event.type === 'subscription_schedule.completed' && schedule.subscription) {
@@ -1703,23 +1776,23 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             const subscription = await stripe.subscriptions.retrieve(schedule.subscription);
             const customerId = subscription.customer;
             const priceId = subscription.items.data[0].price.id;
-            
+
             const { data: profile } = await supabase
               .from('profiles')
               .select('id')
               .eq('stripe_customer_id', customerId)
               .single();
-            
+
             if (profile) {
               const { data: plan } = await supabase
                 .from('subscription_plans')
                 .select('tier, credits_per_month')
                 .eq('stripe_price_id', priceId)
                 .single();
-              
+
               if (plan) {
                 console.log(`   📦 Schedule completed - updating tier to ${plan.tier}`);
-                
+
                 await supabase
                   .from('profiles')
                   .update({
@@ -1728,7 +1801,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
                     scheduled_tier_date: null,
                   })
                   .eq('id', profile.id);
-                
+
                 await supabase
                   .from('subscriptions')
                   .upsert({
@@ -1738,7 +1811,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
                     tier: plan.tier,
                     status: subscription.status
                   }, { onConflict: 'user_id' });
-                
+
                 console.log(`   ✅ User ${profile.id} downgraded to ${plan.tier}`);
               }
             }
@@ -1807,7 +1880,7 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
     // Handle transcription completed (two-stage processing)
     if (status === 'transcribed' && results) {
       console.log(`📋 Project ${project_id} transcription complete - awaiting review`);
-      
+
       const { data: updateData, error: updateError } = await supabase
         .from('projects')
         .update({
@@ -1827,7 +1900,7 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
       }
 
       // Don't send email - user needs to review lyrics first
-      
+
     } else if (status === 'completed' && results) {
       const { data: updateData, error: updateError } = await supabase
         .from('projects')
@@ -1853,15 +1926,15 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         // Generate download URL for email
         const baseFilename = `${project.track_number || 'KT-01'} - ${project.artist_name || 'Unknown Artist'} - ${project.song_title || 'Untitled'}`;
         const sanitizedFilename = baseFilename.replace(/[<>:"/\\|?*]/g, '');
-        
+
         let downloadUrl = `${process.env.FRONTEND_URL}/dashboard`;
         if (results.video_url) {
           downloadUrl = await getSignedDownloadUrl(results.video_url, `${sanitizedFilename}.mp4`);
         }
-        
+
         await sendCompletionEmail(project, downloadUrl);
       }
-      
+
     } else if (status === 'failed') {
       const { error: updateError } = await supabase
         .from('projects')
@@ -1902,12 +1975,12 @@ async function addCreditsWithExpiration(userId, amount, source, description, day
     p_description: description,
     p_days_until_expiry: daysUntilExpiry
   });
-  
+
   if (error) {
     console.error('Error adding credits with expiration:', error);
     throw error;
   }
-  
+
   return data;
 }
 
@@ -1920,13 +1993,13 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
 
   try {
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    
+
     sendSmtpEmail.to = [{ email }];
-    sendSmtpEmail.sender = { 
-      name: 'Karatrack Studio', 
-      email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com' 
+    sendSmtpEmail.sender = {
+      name: 'Karatrack Studio',
+      email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com'
     };
-    
+
     if (daysLeft <= 1) {
       sendSmtpEmail.subject = '⚠️ Your Karatrack credits expire TOMORROW!';
     } else if (daysLeft <= 7) {
@@ -1934,14 +2007,14 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
     } else {
       sendSmtpEmail.subject = `📢 ${creditsExpiring} credits expiring in ${daysLeft} days`;
     }
-    
+
     const formattedDate = new Date(expirationDate).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
-    
+
     sendSmtpEmail.htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -1996,7 +2069,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
       </body>
       </html>
     `;
-    
+
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
     console.log(`📧 Expiration warning sent to ${email} (${daysLeft} days left)`);
   } catch (error) {
@@ -2010,14 +2083,14 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
 
   try {
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    
+
     sendSmtpEmail.to = [{ email }];
-    sendSmtpEmail.sender = { 
-      name: 'Karatrack Studio', 
-      email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com' 
+    sendSmtpEmail.sender = {
+      name: 'Karatrack Studio',
+      email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com'
     };
     sendSmtpEmail.subject = `😢 ${expiredAmount} credits have expired`;
-    
+
     sendSmtpEmail.htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -2052,7 +2125,7 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
       </body>
       </html>
     `;
-    
+
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
     console.log(`📧 Credits expired notification sent to ${email}`);
   } catch (error) {
@@ -2072,7 +2145,7 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
   }
 
   console.log('🕐 Running credit expiration check...');
-  
+
   try {
     const results = {
       expired: 0,
@@ -2083,20 +2156,20 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
 
     // 1. Expire old credits
     const { data: expiredUsers, error: expireError } = await supabase.rpc('expire_old_credits');
-    
+
     if (expireError) {
       console.error('Error expiring credits:', expireError);
     } else if (expiredUsers && expiredUsers.length > 0) {
       for (const user of expiredUsers) {
         results.expired += user.expired_amount;
-        
+
         // Get user email and send notification
         const { data: profile } = await supabase
           .from('profiles')
           .select('email')
           .eq('id', user.user_id)
           .single();
-        
+
         if (profile?.email) {
           await sendCreditsExpiredEmail(profile.email, user.expired_amount);
         }
@@ -2123,12 +2196,12 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
           daysLeft,
           batch.expires_at
         );
-        
+
         await supabase
           .from('credit_batches')
           .update({ expired_notified_14d: true })
           .eq('id', batch.id);
-        
+
         results.warnings_14d++;
       }
     }
@@ -2152,12 +2225,12 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
           daysLeft,
           batch.expires_at
         );
-        
+
         await supabase
           .from('credit_batches')
           .update({ expired_notified_7d: true })
           .eq('id', batch.id);
-        
+
         results.warnings_7d++;
       }
     }
@@ -2179,19 +2252,19 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
           1,
           batch.expires_at
         );
-        
+
         await supabase
           .from('credit_batches')
           .update({ expired_notified_1d: true })
           .eq('id', batch.id);
-        
+
         results.warnings_1d++;
       }
     }
 
     console.log('✅ Credit expiration check complete:', results);
     res.json({ success: true, results });
-    
+
   } catch (error) {
     console.error('Credit expiration check failed:', error);
     res.status(500).json({ error: error.message });

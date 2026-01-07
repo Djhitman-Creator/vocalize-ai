@@ -48,22 +48,22 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState(null);
   const { isDark, toggleTheme } = useTheme();
-  
+
   // Drag and drop state
   const [isDragging, setIsDragging] = useState(false);
-  
+
   // Notification state
   const [notifications, setNotifications] = useState([]);
   const [completedIds, setCompletedIds] = useState(new Set()); // Track which we've notified about
-  
+
   // Pending subscription checkout state
   const [checkingPendingPlan, setCheckingPendingPlan] = useState(false);
-  
+
   // Add notification
   const addNotification = useCallback((message, type = 'success') => {
     const id = Date.now();
     setNotifications(prev => [...prev, { id, message, type }]);
-    
+
     // Auto-remove after 5 seconds
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
@@ -94,17 +94,17 @@ export default function DashboardPage() {
               const oldProject = projects.find(p => p.id === project.id);
               if (oldProject && ['processing', 'rendering'].includes(oldProject.status)) {
                 addNotification(`🎉 "${project.title}" is ready for download!`, 'success');
-                
+
                 // Play notification sound (optional)
                 try {
                   const audio = new Audio('/notification.mp3');
                   audio.volume = 0.5;
-                  audio.play().catch(() => {}); // Ignore if no sound file
-                } catch (e) {}
+                  audio.play().catch(() => { }); // Ignore if no sound file
+                } catch (e) { }
               }
               setCompletedIds(prev => new Set([...prev, project.id]));
             }
-            
+
             // Check for awaiting_review (transcription completed)
             if (project.status === 'awaiting_review' && !completedIds.has(project.id)) {
               const oldProject = projects.find(p => p.id === project.id);
@@ -113,7 +113,7 @@ export default function DashboardPage() {
               }
               setCompletedIds(prev => new Set([...prev, project.id]));
             }
-            
+
             // Check for failed projects
             if (project.status === 'failed' && !completedIds.has(project.id)) {
               const oldProject = projects.find(p => p.id === project.id);
@@ -124,7 +124,7 @@ export default function DashboardPage() {
             }
           });
         }
-        
+
         setProjects(projectsData);
       }
     } catch (err) {
@@ -156,18 +156,18 @@ export default function DashboardPage() {
 
         // Initial fetch of projects
         await fetchProjects(user.id, false);
-        
+
         // Initialize completedIds with already-completed projects
         const { data: projectsData } = await supabase
           .from('projects')
           .select('id, status')
           .eq('user_id', user.id)
           .in('status', ['completed', 'failed']);
-        
+
         if (projectsData) {
           setCompletedIds(new Set(projectsData.map(p => p.id)));
         }
-        
+
       } catch (err) {
         console.error('Error:', err);
       } finally {
@@ -190,15 +190,15 @@ export default function DashboardPage() {
   // Polling effect - only poll when there are processing projects
   useEffect(() => {
     if (!user) return;
-    
-    const hasActiveProjects = projects.some(p => 
+
+    const hasActiveProjects = projects.some(p =>
       ['processing', 'transcribing', 'rendering'].includes(p.status)
     );
-    
+
     if (!hasActiveProjects) return;
-    
+
     console.log('🔄 Starting polling - active projects detected');
-    
+
     const pollInterval = setInterval(() => {
       fetchProjects(user.id, true);
     }, POLL_INTERVAL);
@@ -217,9 +217,9 @@ export default function DashboardPage() {
   const handleDownload = async (project) => {
     try {
       setDownloadingId(project.id);
-      
+
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         alert('Please log in again');
         return;
@@ -266,7 +266,7 @@ export default function DashboardPage() {
   if (loading || checkingPendingPlan) {
     return (
       <>
-        <SEO 
+        <SEO
           title="Dashboard"
           description="Manage your karaoke projects in Karatrack Studio. View processing status, download completed videos, and upload new tracks."
           path="/dashboard"
@@ -318,13 +318,13 @@ export default function DashboardPage() {
   };
 
   // Count processing projects (all active statuses)
-  const processingCount = projects.filter(p => 
+  const processingCount = projects.filter(p =>
     ['processing', 'transcribing', 'rendering'].includes(p.status)
   ).length;
 
   return (
     <>
-      <SEO 
+      <SEO
         title="Dashboard"
         description="Manage your karaoke projects in Karatrack Studio. View processing status, download completed videos, and upload new tracks."
         path="/dashboard"
@@ -339,19 +339,18 @@ export default function DashboardPage() {
                 initial={{ opacity: 0, x: 100, scale: 0.9 }}
                 animate={{ opacity: 1, x: 0, scale: 1 }}
                 exit={{ opacity: 0, x: 100, scale: 0.9 }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg backdrop-blur-md ${
-                  notification.type === 'success' 
-                    ? 'bg-green-500/20 border border-green-500/50' 
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg backdrop-blur-md ${notification.type === 'success'
+                    ? 'bg-green-500/20 border border-green-500/50'
                     : notification.type === 'error'
-                    ? 'bg-red-500/20 border border-red-500/50'
-                    : 'bg-cyan-500/20 border border-cyan-500/50'
-                }`}
+                      ? 'bg-red-500/20 border border-red-500/50'
+                      : 'bg-cyan-500/20 border border-cyan-500/50'
+                  }`}
               >
                 {notification.type === 'success' && <CheckCircle className="w-5 h-5 text-green-400" />}
                 {notification.type === 'error' && <AlertCircle className="w-5 h-5 text-red-400" />}
                 {notification.type === 'info' && <Bell className="w-5 h-5 text-cyan-400" />}
                 <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{notification.message}</span>
-                <button 
+                <button
                   onClick={() => removeNotification(notification.id)}
                   className="ml-2 text-gray-400 hover:text-white"
                 >
@@ -440,10 +439,9 @@ export default function DashboardPage() {
             transition={{ delay: 0.4 }}
             className="mb-8"
           >
-            <div 
-              className={`dropzone cursor-pointer group transition-all ${
-                isDragging ? 'border-cyan-400 bg-cyan-400/10 scale-[1.02]' : ''
-              }`}
+            <div
+              className={`dropzone cursor-pointer group transition-all ${isDragging ? 'border-cyan-400 bg-cyan-400/10 scale-[1.02]' : ''
+                }`}
               onClick={() => router.push('/upload')}
               onDragOver={(e) => {
                 e.preventDefault();
@@ -464,12 +462,12 @@ export default function DashboardPage() {
                 e.preventDefault();
                 e.stopPropagation();
                 setIsDragging(false);
-                
+
                 const files = e.dataTransfer.files;
                 if (files && files.length > 0) {
                   const file = files[0];
                   const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp3', 'audio/x-wav', 'audio/x-m4a', 'audio/mp4'];
-                  
+
                   if (audioTypes.includes(file.type) || file.name.match(/\.(mp3|wav|flac|m4a)$/i)) {
                     // Store file in global variable for upload page to access
                     window.__droppedAudioFile = file;
@@ -481,11 +479,10 @@ export default function DashboardPage() {
                 }
               }}
             >
-              <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br flex items-center justify-center transition-all ${
-                isDragging 
-                  ? 'from-cyan-400/40 to-purple-500/40' 
+              <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br flex items-center justify-center transition-all ${isDragging
+                  ? 'from-cyan-400/40 to-purple-500/40'
                   : 'from-cyan-400/20 to-purple-500/20 group-hover:from-cyan-400/40 group-hover:to-purple-500/40'
-              }`}>
+                }`}>
                 <Upload className={`w-8 h-8 ${isDragging ? 'text-cyan-400' : 'text-cyan-500'}`} />
               </div>
               <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -513,7 +510,7 @@ export default function DashboardPage() {
                   </span>
                 )}
               </div>
-              <button 
+              <button
                 onClick={handleRefresh}
                 className="text-sm text-gray-400 hover:text-cyan-400 transition-colors"
               >
@@ -529,29 +526,26 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-4">
                 {projects.map((project, i) => (
-                  <motion.div 
-                    key={project.id} 
-                    className={`glass-panel p-4 flex items-center justify-between ${
-                      ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'border border-yellow-500/30' : 
-                      project.status === 'awaiting_review' ? 'border border-purple-500/30' : ''
-                    }`}
+                  <motion.div
+                    key={project.id}
+                    className={`glass-panel p-4 flex items-center justify-between ${['processing', 'transcribing', 'rendering'].includes(project.status) ? 'border border-yellow-500/30' :
+                        project.status === 'awaiting_review' ? 'border border-purple-500/30' : ''
+                      }`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.05 }}
                   >
                     <div className="flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        project.status === 'completed' ? 'bg-green-500/20' :
-                        ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'bg-yellow-500/20' :
-                        project.status === 'awaiting_review' ? 'bg-purple-500/20' :
-                        project.status === 'failed' ? 'bg-red-500/20' : 'bg-white/5'
-                      }`}>
-                        <Music className={`w-6 h-6 ${
-                          project.status === 'completed' ? 'text-green-400' :
-                          ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'text-yellow-400' :
-                          project.status === 'awaiting_review' ? 'text-purple-400' :
-                          project.status === 'failed' ? 'text-red-400' : 'text-cyan-400'
-                        }`} />
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${project.status === 'completed' ? 'bg-green-500/20' :
+                          ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'bg-yellow-500/20' :
+                            project.status === 'awaiting_review' ? 'bg-purple-500/20' :
+                              project.status === 'failed' ? 'bg-red-500/20' : 'bg-white/5'
+                        }`}>
+                        <Music className={`w-6 h-6 ${project.status === 'completed' ? 'text-green-400' :
+                            ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'text-yellow-400' :
+                              project.status === 'awaiting_review' ? 'text-purple-400' :
+                                project.status === 'failed' ? 'text-red-400' : 'text-cyan-400'
+                          }`} />
                       </div>
                       <div>
                         <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{project.title}</h3>
@@ -563,16 +557,15 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
                         {getStatusIcon(project.status)}
-                        <span className={`text-sm ${
-                          project.status === 'completed' ? 'text-green-400' :
-                          ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'text-yellow-400' :
-                          project.status === 'awaiting_review' ? 'text-purple-400' :
-                          project.status === 'failed' ? 'text-red-400' : 'text-gray-400'
-                        }`}>
+                        <span className={`text-sm ${project.status === 'completed' ? 'text-green-400' :
+                            ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'text-yellow-400' :
+                              project.status === 'awaiting_review' ? 'text-purple-400' :
+                                project.status === 'failed' ? 'text-red-400' : 'text-gray-400'
+                          }`}>
                           {getStatusText(project.status)}
                         </span>
                       </div>
-                      
+
                       {/* Download Button - only show for completed projects */}
                       {project.status === 'completed' && (
                         <button
@@ -593,7 +586,7 @@ export default function DashboardPage() {
                           )}
                         </button>
                       )}
-                      
+
                       {/* Review Lyrics Button - for awaiting_review projects */}
                       {project.status === 'awaiting_review' && (
                         <Link href={`/edit/${project.id}`}>
@@ -603,14 +596,40 @@ export default function DashboardPage() {
                           </button>
                         </Link>
                       )}
-                      
+
                       {/* Retry button for failed projects */}
                       {project.status === 'failed' && (
-                        <Link href="/upload">
-                          <button className="ml-2 px-4 py-2 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 font-medium hover:bg-red-500/30 transition-colors">
-                            Retry
-                          </button>
-                        </Link>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const { data: { session } } = await supabase.auth.getSession();
+                              if (!session) return;
+
+                              const response = await fetch(
+                                `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${project.id}/retry`,
+                                {
+                                  method: 'POST',
+                                  headers: {
+                                    'Authorization': `Bearer ${session.access_token}`
+                                  }
+                                }
+                              );
+
+                              if (response.ok) {
+                                addNotification('🔄 Retrying your track...', 'info');
+                                fetchProjects(user.id, false);
+                              } else {
+                                const error = await response.json();
+                                addNotification(`❌ ${error.error || 'Retry failed'}`, 'error');
+                              }
+                            } catch (err) {
+                              addNotification('❌ Failed to retry', 'error');
+                            }
+                          }}
+                          className="ml-2 px-4 py-2 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 font-medium hover:bg-red-500/30 transition-colors"
+                        >
+                          Retry
+                        </button>
                       )}
                     </div>
                   </motion.div>
