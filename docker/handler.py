@@ -71,6 +71,7 @@ INTRO_COUNTDOWN_THRESHOLD = 3  # Show countdown for intros >= 3 seconds
 COUNTDOWN_DOTS = 6  # 6 dots, one lights up every 0.5 seconds = 3 second countdown
 COUNTDOWN_DOT_INTERVAL = 0.5  # Seconds between each dot lighting up
 FADEOUT_DURATION = 3  # Seconds to fade out lyrics at end
+OUTRO_TEXT_FADE_IN = 1.0  # Seconds to fade in outro text
 
 # Display mode settings
 WORDS_PER_LINE = 7
@@ -1451,7 +1452,7 @@ def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, hei
     return lyrics_frame
 
 
-def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None):
+    def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None):
     """Generate video with lyrics and countdown"""
     print(f"ðŸŽ¬ Generating video (mode: {display_mode})...")
     print(f"   ðŸ‘¤ Subscription tier: {subscription_tier}")
@@ -1587,6 +1588,12 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     last_lyric_end = offset_lyrics[-1]['end'] if offset_lyrics else total_duration
     fadeout_start = last_lyric_end
     fadeout_end = min(last_lyric_end + FADEOUT_DURATION, total_duration)
+
+    # Outro text timing (starts after fadeout ends)
+    outro_start = fadeout_end if offset_lyrics else INTRO_DURATION + 2
+    has_outro_text = outro_text and subscription_tier == 'studio'
+    if has_outro_text:
+        print(f"   📝 Outro text enabled: '{outro_text[:50]}...' (starts at {outro_start:.2f}s)")
     
     # Debug: Log timing info
     print(f"   ðŸ“Š Timing debug:")
@@ -1662,6 +1669,36 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
                     # Normal lyrics display
                     frame = create_lyrics_frame(current_time, offset_lyrics, display_mode, width, height, colors)
         
+        # Render outro text after lyrics have faded out
+            if has_outro_text and current_time >= outro_start:
+                # Calculate fade-in alpha for outro text
+                outro_elapsed = current_time - outro_start
+                outro_alpha = min(1.0, outro_elapsed / OUTRO_TEXT_FADE_IN)
+                
+                draw = ImageDraw.Draw(frame)
+                font_path = get_font_path(colors.get('font', 'arial') if colors else 'arial')
+                outro_font_size = int(48 * scale)
+                try:
+                    outro_font = ImageFont.truetype(font_path, outro_font_size)
+                except:
+                    outro_font = ImageFont.load_default()
+                
+                # Split outro text into lines
+                outro_lines = outro_text.strip().split('\n')
+                line_height = int(outro_font_size * 1.5)
+                total_height = len(outro_lines) * line_height
+                start_y = (height - total_height) // 2
+                
+                text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
+                outro_color = tuple(int(c * outro_alpha) for c in text_color)
+                
+                for i, line in enumerate(outro_lines):
+                    line_y = start_y + i * line_height
+                    bbox = draw.textbbox((0, 0), line, font=outro_font)
+                    text_width = bbox[2] - bbox[0]
+                    text_x = (width - text_width) // 2
+                    draw.text((text_x, line_y), line, font=outro_font, fill=outro_color)
+
         # Apply watermark for free tier, or custom watermark for Studio
         if apply_watermark_to_video:
             frame = apply_watermark(frame, width, height)
@@ -1916,17 +1953,18 @@ def handler(event):
         audio_for_video = instrumental_path if instrumental_path else audio_path
         
         generate_video(
-            audio_for_video, 
-            lyrics, 
-            gaps, 
-            track_info, 
-            video_path, 
-            video_quality,
-            selected_display_mode,
-            style_options,
-            subscription_tier,  # Pass subscription tier for watermark logic
-            custom_watermark_url  # Pass custom watermark URL for Studio users
-        )
+              audio_for_video,
+              lyrics,
+              gaps,
+              track_info,
+              video_path,
+              video_quality,
+              selected_display_mode,
+              style_options,
+              subscription_tier,  # Pass subscription tier for watermark logic
+              custom_watermark_url,  # Pass custom watermark URL for Studio users
+              input_data.get('outro_text')  # Pass outro text for Studio users
+          )
         
         video_key = f"processed/{project_id}/video.mp4"
         results['video_url'] = upload_to_r2(video_path, video_key)

@@ -287,6 +287,8 @@ async function sendToRunPod(projectId, audioUrl, options) {
 
         // Custom watermark URL for Studio users
         custom_watermark_url: options.custom_watermark_url || null,
+        // Outro text for Studio users
+        outro_text: options.outro_text || null,
 
         // For render_only mode
         processed_audio_url: options.processed_audio_url || null,
@@ -768,6 +770,8 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         notify_on_complete: notify_on_complete !== 'false' && notify_on_complete !== false,
         // Custom watermark for Studio users
         custom_watermark_url: customWatermarkUrl,
+        // Outro text for Studio users
+        outro_text: req.body.outro_text || null,
       })
       .select()
       .single();
@@ -806,6 +810,8 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       subscription_tier: userProfile.subscription_tier || 'free',
       // Custom watermark URL for Studio users
       custom_watermark_url: customWatermarkUrl,
+      // Outro text for Studio users
+        outro_text: req.body.outro_text || null,
     });
 
     // Set appropriate status based on processing mode
@@ -918,6 +924,7 @@ app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
       processing_mode: 'full',
       subscription_tier: userProfile.subscription_tier || 'free',
       custom_watermark_url: project.custom_watermark_url,
+      outro_text: project.outro_text || null,
     });
 
     await supabase
@@ -1086,6 +1093,7 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       subscription_tier: userProfile.subscription_tier || 'free',
       // FIX: Include custom watermark URL from PROJECT (not profile) for Studio tier re-renders
       custom_watermark_url: project.custom_watermark_url || null,
+      outro_text: project.outro_text || null,
     });
 
     await supabase

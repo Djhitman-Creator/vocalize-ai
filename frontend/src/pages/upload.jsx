@@ -97,7 +97,7 @@ Finding magic in the morning dew`;
 export default function UploadPage() {
   const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
-  
+
   // Form state
   const [audioFile, setAudioFile] = useState(null);
   const [title, setTitle] = useState('');
@@ -111,7 +111,7 @@ export default function UploadPage() {
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
   const [notifyOnComplete, setNotifyOnComplete] = useState(true);
   const [reviewLyrics, setReviewLyrics] = useState(false);
-  
+
   // Style customization
   const [bgColor1, setBgColor1] = useState('#1a1a2e');
   const [bgColor2, setBgColor2] = useState('#16213e');
@@ -122,12 +122,13 @@ export default function UploadPage() {
   const [sungColor, setSungColor] = useState('#00d4ff');
   const [selectedFont, setSelectedFont] = useState('arial');
   const [fontSize, setFontSize] = useState('normal');
-  
+
   // Custom watermark (Studio only)
   const [customWatermark, setCustomWatermark] = useState(null);
+  const [outroText, setOutroText] = useState('');
   const [watermarkPreview, setWatermarkPreview] = useState(null);
   const [hasSavedWatermark, setHasSavedWatermark] = useState(false);
-  
+
   // UI state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -146,30 +147,30 @@ export default function UploadPage() {
           router.push('/login');
           return;
         }
-        
+
         // Get profile
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single();
-        
+
         if (profileError) {
           console.error('Profile error:', profileError);
         }
-        
+
         console.log('Profile loaded:', profileData);
-        
+
         // Try to get subscription
         let subData = null;
-        
+
         const { data: sub1, error: err1 } = await supabase
           .from('subscriptions')
           .select('*, subscription_plans(*)')
           .eq('user_id', user.id)
           .eq('status', 'active')
           .maybeSingle();
-        
+
         if (sub1) {
           subData = sub1;
         } else {
@@ -178,12 +179,12 @@ export default function UploadPage() {
             .select('*, subscription_plans(*)')
             .eq('user_id', user.id)
             .maybeSingle();
-          
+
           if (sub2) {
             subData = sub2;
           }
         }
-        
+
         // Combine profile with subscription
         setProfile({
           ...profileData,
@@ -201,13 +202,13 @@ export default function UploadPage() {
     if (typeof window !== 'undefined' && window.__droppedAudioFile) {
       const file = window.__droppedAudioFile;
       console.log('Loading dropped file:', file.name);
-      
+
       setAudioFile(file);
-      
+
       // Auto-fill title from filename (remove extension)
       const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
       setTitle(nameWithoutExt);
-      
+
       // Clear the global so it doesn't reload on subsequent visits
       window.__droppedAudioFile = null;
     }
@@ -224,12 +225,12 @@ export default function UploadPage() {
   // Load saved preferences from profile
   const loadSavedPreferences = () => {
     if (!profile) return;
-    
+
     const prefs = profile.upload_preferences || {};
     const tier = profile?.subscription_tier?.toLowerCase() || 'free';
-    
+
     console.log('Loading saved preferences:', prefs);
-    
+
     // Visual settings
     if (prefs.bgColor1) setBgColor1(prefs.bgColor1);
     if (prefs.bgColor2) setBgColor2(prefs.bgColor2);
@@ -240,16 +241,16 @@ export default function UploadPage() {
     if (prefs.sungColor) setSungColor(prefs.sungColor);
     if (prefs.selectedFont) setSelectedFont(prefs.selectedFont);
     if (prefs.fontSize) setFontSize(prefs.fontSize);
-    
+
     // Processing settings
     if (prefs.displayMode) setDisplayMode(prefs.displayMode);
     if (prefs.processingType) setProcessingType(prefs.processingType);
     if (prefs.cleanVersion !== undefined) setCleanVersion(prefs.cleanVersion);
-    
+
     // Checkbox settings
     if (prefs.notifyOnComplete !== undefined) setNotifyOnComplete(prefs.notifyOnComplete);
     if (prefs.reviewLyrics !== undefined) setReviewLyrics(prefs.reviewLyrics);
-    
+
     // Video quality - respect tier limits
     if (prefs.videoQuality) {
       const savedQuality = prefs.videoQuality;
@@ -273,7 +274,7 @@ export default function UploadPage() {
         setVideoQuality('720p');
       }
     }
-    
+
     // Load saved watermark indicator (Studio only)
     // Note: We just flag that a default exists, actual preview would need fresh upload
     if (profile.default_watermark_url && tier === 'studio') {
@@ -284,14 +285,14 @@ export default function UploadPage() {
   // Save preferences to database
   const savePreferences = async () => {
     if (!profile) return;
-    
+
     setSavingPreferences(true);
     setPreferencesMessage(null);
-    
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
-      
+
       const preferences = {
         bgColor1,
         bgColor2,
@@ -309,16 +310,16 @@ export default function UploadPage() {
         notifyOnComplete,
         reviewLyrics
       };
-      
+
       // Handle watermark upload for Studio users
       let savedWatermarkUrl = null;
       if (isStudioUser() && customWatermark) {
         // Upload watermark to R2 via backend endpoint
         setPreferencesMessage({ type: 'info', text: 'Uploading watermark...' });
-        
+
         const formData = new FormData();
         formData.append('watermark', customWatermark);
-        
+
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/profile/watermark`,
           {
@@ -329,27 +330,27 @@ export default function UploadPage() {
             body: formData
           }
         );
-        
+
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.error || 'Failed to upload watermark');
         }
-        
+
         const result = await response.json();
         savedWatermarkUrl = result.watermark_url;
         setHasSavedWatermark(true);
-        
+
         // Update local profile state with the new URL
         setProfile(prev => ({ ...prev, default_watermark_url: savedWatermarkUrl }));
-        
+
         console.log('Watermark uploaded to R2:', savedWatermarkUrl);
       }
-      
+
       // Save other preferences to profile
       const updateData = {
         upload_preferences: preferences
       };
-      
+
       // Handle watermark URL in profile (only if we didn't just upload one)
       if (isStudioUser() && !customWatermark) {
         if (!hasSavedWatermark) {
@@ -366,17 +367,17 @@ export default function UploadPage() {
         }
         // If hasSavedWatermark is true but no new upload, keep existing (don't update)
       }
-      
+
       const { error } = await supabase
         .from('profiles')
         .update(updateData)
         .eq('id', session.user.id);
-      
+
       if (error) throw error;
-      
+
       setPreferencesMessage({ type: 'success', text: 'Settings saved as default!' });
       setTimeout(() => setPreferencesMessage(null), 3000);
-      
+
     } catch (err) {
       console.error('Save preferences error:', err);
       setPreferencesMessage({ type: 'error', text: err.message });
@@ -401,7 +402,7 @@ export default function UploadPage() {
     setCleanVersion(DEFAULT_SETTINGS.cleanVersion);
     setNotifyOnComplete(DEFAULT_SETTINGS.notifyOnComplete);
     setReviewLyrics(DEFAULT_SETTINGS.reviewLyrics);
-    
+
     const tier = profile?.subscription_tier?.toLowerCase() || 'free';
     if (tier === 'free') {
       setVideoQuality('480p');
@@ -410,7 +411,7 @@ export default function UploadPage() {
     } else {
       setVideoQuality('720p');
     }
-    
+
     setPreferencesMessage({ type: 'success', text: 'Reset to defaults!' });
     setTimeout(() => setPreferencesMessage(null), 3000);
   };
@@ -418,10 +419,10 @@ export default function UploadPage() {
   // Check if user has Pro or Studio plan
   const isPremiumUser = () => {
     if (!profile) return false;
-    
+
     const planName = profile?.subscription?.subscription_plans?.name?.toLowerCase() || '';
     if (planName.includes('pro') || planName.includes('studio')) return true;
-    
+
     const fieldsToCheck = ['plan_name', 'subscription_tier', 'current_plan', 'plan', 'tier', 'subscription_plan'];
     for (const field of fieldsToCheck) {
       if (profile[field]) {
@@ -429,7 +430,7 @@ export default function UploadPage() {
         if (value.includes('pro') || value.includes('studio')) return true;
       }
     }
-    
+
     return false;
   };
 
@@ -547,7 +548,7 @@ export default function UploadPage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         router.push('/login');
         return;
@@ -565,7 +566,7 @@ export default function UploadPage() {
       formData.append('lyrics_text', lyrics.trim());
       formData.append('display_mode', displayMode);
       formData.append('clean_version', cleanVersion.toString());
-      
+
       // Style options
       formData.append('bg_color_1', bgColor1);
       formData.append('bg_color_2', bgColor2);
@@ -576,7 +577,7 @@ export default function UploadPage() {
       formData.append('sung_color', sungColor);
       formData.append('font', selectedFont);
       formData.append('font_size', fontSize);
-      
+
       // Custom watermark (Studio only)
       if (isStudioUser()) {
         if (customWatermark) {
@@ -586,11 +587,16 @@ export default function UploadPage() {
           // Use saved watermark URL from profile
           formData.append('custom_watermark_url', profile.default_watermark_url);
         }
+
+        // Outro text (Studio only)
+        if (outroText.trim()) {
+          formData.append('outro_text', outroText.trim());
+        }
       }
-      
+
       // Email notification
       formData.append('notify_on_complete', notifyOnComplete.toString());
-      
+
       // Processing mode for lyrics review
       formData.append('processing_mode', reviewLyrics ? 'transcribe_only' : 'full');
 
@@ -602,11 +608,11 @@ export default function UploadPage() {
           try {
             console.log(`Upload attempt ${attempt}/${retries}...`);
             setUploadProgress(10 + (attempt - 1) * 5);
-            
+
             // Create abort controller with 5 minute timeout for large files
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5 * 60 * 1000);
-            
+
             const response = await fetch(
               `${process.env.NEXT_PUBLIC_API_URL}/api/projects`,
               {
@@ -618,26 +624,26 @@ export default function UploadPage() {
                 signal: controller.signal
               }
             );
-            
+
             clearTimeout(timeoutId);
-            
+
             if (!response.ok) {
               const errorData = await response.json();
               throw new Error(errorData.error || 'Upload failed');
             }
-            
+
             return await response.json();
-            
+
           } catch (err) {
             console.error(`Upload attempt ${attempt} failed:`, err);
-            
+
             // Don't retry on specific errors
-            if (err.message?.includes('Insufficient credits') || 
-                err.message?.includes('Lyrics are required') ||
-                err.message?.includes('Invalid file type')) {
+            if (err.message?.includes('Insufficient credits') ||
+              err.message?.includes('Lyrics are required') ||
+              err.message?.includes('Invalid file type')) {
               throw err;
             }
-            
+
             // If it's the last attempt, throw the error
             if (attempt === retries) {
               if (err.name === 'AbortError') {
@@ -645,11 +651,11 @@ export default function UploadPage() {
               }
               throw new Error(err.message || 'Upload failed after multiple attempts. Please try again.');
             }
-            
+
             // Wait before retrying (exponential backoff: 2s, 4s, 8s)
             const waitTime = Math.pow(2, attempt) * 1000;
             console.log(`Waiting ${waitTime}ms before retry...`);
-            setError(`Connection issue. Retrying in ${waitTime/1000}s... (Attempt ${attempt + 1}/${retries})`);
+            setError(`Connection issue. Retrying in ${waitTime / 1000}s... (Attempt ${attempt + 1}/${retries})`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
             setError(null);
           }
@@ -677,550 +683,576 @@ export default function UploadPage() {
 
   return (
     <>
-      <SEO 
+      <SEO
         title="Upload Track"
         description="Upload your music to Karatrack Studio. Remove vocals, add synchronized scrolling lyrics, and export professional karaoke videos with custom styling."
         path="/upload"
       />
       <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
-      
-      {/* Navigation */}
-      <AppNavigation profile={profile} />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        <Link href="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </Link>
+        {/* Navigation */}
+        <AppNavigation profile={profile} />
 
-        {/* Error Display */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-            <p className="text-red-400">{error}</p>
-          </div>
-        )}
+        {/* Main Content */}
+        <main className="max-w-7xl mx-auto px-6 py-8">
+          <Link href="/dashboard" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </Link>
 
-        <form onSubmit={handleSubmit}>
-          <div className="grid lg:grid-cols-2 gap-8">
-            
-            {/* LEFT COLUMN - File & Track Info */}
-            <div className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="glass-panel p-6"
-              >
-                <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  <FileAudio className="w-5 h-5 text-cyan-400" />
-                  Audio & Track Info
-                </h2>
-
-                {/* Audio Upload */}
-                <div
-                  {...getAudioRootProps()}
-                  className={`dropzone cursor-pointer transition-all mb-4 p-4 ${
-                    isAudioDragActive ? 'border-cyan-400 bg-cyan-400/10' : ''
-                  } ${audioFile ? 'border-green-400 bg-green-400/5' : ''}`}
-                >
-                  <input {...getAudioInputProps()} />
-                  {audioFile ? (
-                    <div className="flex items-center gap-3">
-                      <CheckCircle className="w-5 h-5 text-green-400" />
-                      <span className={`flex-1 truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{audioFile.name}</span>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); setAudioFile(null); }} className="p-1 hover:bg-white/10 rounded">
-                        <X className="w-4 h-4 text-gray-400" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="text-center py-4">
-                      <Upload className="w-8 h-8 text-cyan-400 mx-auto mb-2" />
-                      <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Drop audio file or click to browse</p>
-                      <p className="text-xs text-gray-500 mt-1">MP3, WAV, FLAC (max 500MB)</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Track Info Grid */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Disc ID</label>
-                    <input
-                      type="text"
-                      value={trackNumber}
-                      onChange={(e) => setTrackNumber(e.target.value)}
-                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Artist *</label>
-                    <input
-                      type="text"
-                      value={artistName}
-                      onChange={(e) => setArtistName(e.target.value)}
-                      placeholder="Artist name"
-                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Song Title *</label>
-                    <input
-                      type="text"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Song title"
-                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Output Quality</label>
-                    <select
-                      value={videoQuality}
-                      onChange={(e) => setVideoQuality(e.target.value)}
-                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-                    >
-                      {getQualityOptions().map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                    {isFreeUser() && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        <Link href="/pricing" className="text-cyan-400 hover:underline">Upgrade</Link> for HD quality
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Lyric Display</label>
-                    <select
-                      value={displayMode}
-                      onChange={(e) => setDisplayMode(e.target.value)}
-                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-                    >
-                      <option value="auto">Auto</option>
-                      <option value="scroll">Scroll</option>
-                      <option value="page">Page-by-Page</option>
-                      <option value="overwrite">Overwrite</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Clean Lyrics</label>
-                    <select
-                      value={cleanVersion ? 'on' : 'off'}
-                      onChange={(e) => setCleanVersion(e.target.value === 'on')}
-                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-                    >
-                      <option value="off">OFF</option>
-                      <option value="on">ON</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Processing</label>
-                    <select
-                      value={processingType}
-                      onChange={(e) => setProcessingType(e.target.value)}
-                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-                    >
-                      <option value="remove_vocals">Remove All Vocals</option>
-                      <option value="guide_vocals">Guide Vocals</option>
-                    </select>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Lyrics Input */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="glass-panel p-6"
-              >
-                <h2 className={`text-lg font-semibold mb-2 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  <Type className="w-5 h-5 text-cyan-400" />
-                  Lyrics *
-                </h2>
-                
-                {/* AI Disclaimer */}
-                {!isPremiumUser() ? (
-                  <div className={`mb-3 p-2 rounded-lg text-xs ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
-                    ⚡ Lyrics are synced using AI for precise timing. Some words may vary slightly. <Link href="/pricing" className="text-cyan-400 hover:underline font-medium">Upgrade to Pro or Studio</Link> to review and edit lyrics before rendering.
-                  </div>
-                ) : (
-                  <div className={`mb-3 p-2 rounded-lg text-xs ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
-                    ⚡ Lyrics are synced using AI for precise timing. Use the "Review & edit lyrics" option below to fine-tune timing before rendering.
-                  </div>
-                )}
-                
-                <textarea
-                  value={lyrics}
-                  onChange={(e) => setLyrics(e.target.value)}
-                  placeholder={`Paste lyrics here...\n\nExample:\n${SAMPLE_LYRICS}`}
-                  rows={8}
-                  className="glass-input w-full px-3 py-2 rounded-lg text-sm resize-none"
-                />
-                <div className="flex justify-between mt-2 text-xs text-gray-500">
-                  <span className={lyrics.length < 50 ? 'text-yellow-400' : 'text-green-400'}>
-                    {lyrics.length} chars {lyrics.length < 50 && '(min 50)'}
-                  </span>
-                  <span>~{lyrics.split(/\s+/).filter(w => w).length} words</span>
-                </div>
-              </motion.div>
+          {/* Error Display */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/30 rounded-xl flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+              <p className="text-red-400">{error}</p>
             </div>
+          )}
 
-            {/* RIGHT COLUMN - Style Customization & Preview */}
-            <div className="space-y-6">
-              {/* Live Preview */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="glass-panel p-6"
-              >
-                <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  <Eye className="w-5 h-5 text-cyan-400" />
-                  Live Preview
-                </h2>
-                
-                {/* Preview Box */}
-                <div
-                  className="rounded-xl overflow-hidden aspect-video flex items-center justify-center p-6"
-                  style={getBackgroundStyle()}
+          <form onSubmit={handleSubmit}>
+            <div className="grid lg:grid-cols-2 gap-8">
+
+              {/* LEFT COLUMN - File & Track Info */}
+              <div className="space-y-6">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="glass-panel p-6"
                 >
-                  <div className="text-center" style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    gap: fontSize === 'xlarge' ? '0.75rem' : fontSize === 'large' ? '0.6rem' : '0.5rem'
-                  }}>
-                    {SAMPLE_LYRICS.split('\n').map((line, i) => {
-                      // Font size mapping for preview
-                      const fontSizeMap = {
-                        'normal': '1.1rem',
-                        'large': '1.25rem',
-                        'xlarge': '1.45rem'
-                      };
-                      const previewFontSize = fontSizeMap[fontSize] || '1.1rem';
-                      
-                      return (
-                        <p
-                          key={i}
-                          style={{
-                            fontFamily: getCurrentFontFamily(),
-                            color: i === 0 ? sungColor : textColor,
-                            textShadow: `-1px -1px 0 ${outlineColor}, 1px -1px 0 ${outlineColor}, -1px 1px 0 ${outlineColor}, 1px 1px 0 ${outlineColor}`,
-                            fontSize: previewFontSize,
-                            fontWeight: 'bold',
-                            transition: 'all 0.2s ease',
-                            margin: 0
-                          }}
-                        >
-                          {line}
-                        </p>
-                      );
-                    })}
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Style Customization - Paid users only */}
-              {!isFreeUser() ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="glass-panel p-6"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className={`text-lg font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    <Palette className="w-5 h-5 text-cyan-400" />
-                    Style Customization
-                  </h2>
-                  
-                  {/* Save/Reset Buttons */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={resetToDefaults}
-                      className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-                      title="Reset to defaults"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={savePreferences}
-                      disabled={savingPreferences}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
-                    >
-                      {savingPreferences ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Save className="w-3 h-3" />
-                      )}
-                      Save as Default
-                    </button>
-                  </div>
-                </div>
-
-                {/* Preferences Message */}
-                {preferencesMessage && (
-                  <div className={`mb-4 p-2 rounded-lg text-xs flex items-center gap-2 ${
-                    preferencesMessage.type === 'success' 
-                      ? 'bg-green-500/10 border border-green-500/30 text-green-400' 
-                      : preferencesMessage.type === 'info'
-                      ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400'
-                      : 'bg-red-500/10 border border-red-500/30 text-red-400'
-                  }`}>
-                    {preferencesMessage.type === 'success' ? (
-                      <CheckCircle className="w-4 h-4" />
-                    ) : preferencesMessage.type === 'info' ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4" />
-                    )}
-                    {preferencesMessage.text}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Font Selection */}
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Font</label>
-                    <select
-                      value={selectedFont}
-                      onChange={(e) => setSelectedFont(e.target.value)}
-                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-                    >
-                      {FONT_OPTIONS.map(font => (
-                        <option key={font.value} value={font.value}>{font.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Font Size */}
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Font Size</label>
-                    <select
-                      value={fontSize}
-                      onChange={(e) => setFontSize(e.target.value)}
-                      className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-                    >
-                      {FONT_SIZE_OPTIONS.map(size => (
-                        <option key={size.value} value={size.value}>{size.label}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Background Colors */}
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Background {useGradient ? '(Start)' : ''}
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={bgColor1} onChange={(e) => setBgColor1(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
-                      <input type="text" value={bgColor1} onChange={(e) => setBgColor1(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {useGradient ? 'Background (End)' : 'Gradient (Off)'}
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={bgColor2} onChange={(e) => setBgColor2(e.target.value)} disabled={!useGradient} className={`w-10 h-10 rounded-lg cursor-pointer border-0 ${!useGradient && 'opacity-50'}`} />
-                      <input type="text" value={bgColor2} onChange={(e) => setBgColor2(e.target.value)} disabled={!useGradient} className={`glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase ${!useGradient && 'opacity-50'}`} />
-                    </div>
-                  </div>
-
-                  {/* Gradient Toggle & Direction */}
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Gradient</label>
-                    <select value={useGradient ? 'on' : 'off'} onChange={(e) => setUseGradient(e.target.value === 'on')} className="glass-input w-full px-3 py-2 rounded-lg text-sm">
-                      <option value="on">ON</option>
-                      <option value="off">OFF</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Direction</label>
-                    <select value={gradientDirection} onChange={(e) => setGradientDirection(e.target.value)} disabled={!useGradient} className={`glass-input w-full px-3 py-2 rounded-lg text-sm ${!useGradient && 'opacity-50'}`}>
-                      <option value="to bottom">Top → Bottom</option>
-                      <option value="to top">Bottom → Top</option>
-                      <option value="to right">Left → Right</option>
-                      <option value="to left">Right → Left</option>
-                      <option value="to bottom right">Diagonal ↘</option>
-                      <option value="to bottom left">Diagonal ↙</option>
-                    </select>
-                  </div>
-
-                  {/* Text Colors */}
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Text Color</label>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
-                      <input type="text" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Text Outline</label>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={outlineColor} onChange={(e) => setOutlineColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
-                      <input type="text" value={outlineColor} onChange={(e) => setOutlineColor(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
-                    </div>
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Sung Color (After Read)</label>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={sungColor} onChange={(e) => setSungColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
-                      <input type="text" value={sungColor} onChange={(e) => setSungColor(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
-                      <span className="text-xs text-gray-500">← First line shows this color</span>
-                    </div>
-                  </div>
-
-                  {/* Custom Watermark - Studio Only */}
-                  {isStudioUser() && (
-                    <div className="col-span-2 pt-4 border-t border-white/10">
-                      <label className={`block text-xs font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Custom Watermark
-                        <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs rounded-full">STUDIO</span>
-                      </label>
-                      <p className={`text-xs mb-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-                        Add your logo to the bottom-right corner of your videos (PNG recommended, max 2MB)
-                      </p>
-                      
-                      {watermarkPreview ? (
-                        <div className="relative inline-block">
-                          <img src={watermarkPreview} alt="Watermark preview" className="h-16 max-w-[200px] object-contain rounded-lg border border-white/20 bg-black/20 p-2" />
-                          <button type="button" onClick={() => { setCustomWatermark(null); setWatermarkPreview(null); setHasSavedWatermark(false); }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : hasSavedWatermark ? (
-                        <div className="relative inline-block">
-                          <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-green-500/30 bg-green-500/10">
-                            <Image className="w-5 h-5 text-green-400" />
-                            <span className="text-sm text-green-400">Default logo saved</span>
-                          </div>
-                          <button type="button" onClick={() => { setHasSavedWatermark(false); }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors" title="Remove default logo">
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <label className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 border-dashed ${isDark ? 'border-white/20 hover:border-cyan-400/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-gray-50'}`}>
-                          <Upload className="w-5 h-5 text-cyan-400" />
-                          <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Click to upload your logo</span>
-                          <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={(e) => { const file = e.target.files[0]; if (file) { if (file.size > 2 * 1024 * 1024) { setError('Watermark image must be under 2MB'); return; } setCustomWatermark(file); setWatermarkPreview(URL.createObjectURL(file)); } }} className="sr-only" />
-                        </label>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-              ) : (
-                /* Free tier upgrade prompt */
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-panel p-6">
                   <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    <Palette className="w-5 h-5 text-gray-500" />
-                    Style Customization
-                    <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-xs rounded-full">STARTER+</span>
+                    <FileAudio className="w-5 h-5 text-cyan-400" />
+                    Audio & Track Info
                   </h2>
-                  <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-3`}>Unlock custom colors, fonts, and branding options with a paid subscription.</p>
-                    <Link href="/pricing" className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
-                      <Zap className="w-4 h-4" />
-                      Upgrade to Unlock
-                    </Link>
+
+                  {/* Audio Upload */}
+                  <div
+                    {...getAudioRootProps()}
+                    className={`dropzone cursor-pointer transition-all mb-4 p-4 ${isAudioDragActive ? 'border-cyan-400 bg-cyan-400/10' : ''
+                      } ${audioFile ? 'border-green-400 bg-green-400/5' : ''}`}
+                  >
+                    <input {...getAudioInputProps()} />
+                    {audioFile ? (
+                      <div className="flex items-center gap-3">
+                        <CheckCircle className="w-5 h-5 text-green-400" />
+                        <span className={`flex-1 truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{audioFile.name}</span>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setAudioFile(null); }} className="p-1 hover:bg-white/10 rounded">
+                          <X className="w-4 h-4 text-gray-400" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-4">
+                        <Upload className="w-8 h-8 text-cyan-400 mx-auto mb-2" />
+                        <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Drop audio file or click to browse</p>
+                        <p className="text-xs text-gray-500 mt-1">MP3, WAV, FLAC (max 500MB)</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Track Info Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Disc ID</label>
+                      <input
+                        type="text"
+                        value={trackNumber}
+                        onChange={(e) => setTrackNumber(e.target.value)}
+                        className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Artist *</label>
+                      <input
+                        type="text"
+                        value={artistName}
+                        onChange={(e) => setArtistName(e.target.value)}
+                        placeholder="Artist name"
+                        className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Song Title *</label>
+                      <input
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="Song title"
+                        className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Output Quality</label>
+                      <select
+                        value={videoQuality}
+                        onChange={(e) => setVideoQuality(e.target.value)}
+                        className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                      >
+                        {getQualityOptions().map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                      {isFreeUser() && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          <Link href="/pricing" className="text-cyan-400 hover:underline">Upgrade</Link> for HD quality
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Lyric Display</label>
+                      <select
+                        value={displayMode}
+                        onChange={(e) => setDisplayMode(e.target.value)}
+                        className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                      >
+                        <option value="auto">Auto</option>
+                        <option value="scroll">Scroll</option>
+                        <option value="page">Page-by-Page</option>
+                        <option value="overwrite">Overwrite</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Clean Lyrics</label>
+                      <select
+                        value={cleanVersion ? 'on' : 'off'}
+                        onChange={(e) => setCleanVersion(e.target.value === 'on')}
+                        className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                      >
+                        <option value="off">OFF</option>
+                        <option value="on">ON</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Processing</label>
+                      <select
+                        value={processingType}
+                        onChange={(e) => setProcessingType(e.target.value)}
+                        className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                      >
+                        <option value="remove_vocals">Remove All Vocals</option>
+                        <option value="guide_vocals">Guide Vocals</option>
+                      </select>
+                    </div>
                   </div>
                 </motion.div>
-              )}
 
-              {/* Rights Confirmation & Submit */}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-panel p-6">
-                {/* Email Notification Checkbox */}
-                <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${notifyOnComplete ? 'bg-purple-500/20 border border-purple-400' : 'bg-white/5 border border-transparent hover:bg-white/10'}`}>
-                  <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${notifyOnComplete ? 'bg-purple-500 border-purple-500' : 'border-gray-500'}`}>
-                    {notifyOnComplete && <CheckCircle className="w-3 h-3 text-white" />}
-                  </div>
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>📧 Notify me when processing is complete</p>
-                    <p className="text-xs text-gray-500 mt-1">We'll email you a download link when your karaoke track is ready</p>
-                  </div>
-                  <input type="checkbox" checked={notifyOnComplete} onChange={(e) => setNotifyOnComplete(e.target.checked)} className="sr-only" />
-                </label>
+                {/* Lyrics Input */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="glass-panel p-6"
+                >
+                  <h2 className={`text-lg font-semibold mb-2 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    <Type className="w-5 h-5 text-cyan-400" />
+                    Lyrics *
+                  </h2>
 
-                {/* Review Lyrics Checkbox - Visible to all, locked for Free/Starter */}
-                {isPremiumUser() ? (
-                  <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${reviewLyrics ? 'bg-yellow-500/20 border border-yellow-400' : 'bg-white/5 border border-transparent hover:bg-white/10'}`}>
-                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${reviewLyrics ? 'bg-yellow-500 border-yellow-500' : 'border-gray-500'}`}>
-                      {reviewLyrics && <CheckCircle className="w-3 h-3 text-white" />}
+                  {/* AI Disclaimer */}
+                  {!isPremiumUser() ? (
+                    <div className={`mb-3 p-2 rounded-lg text-xs ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
+                      ⚡ Lyrics are synced using AI for precise timing. Some words may vary slightly. <Link href="/pricing" className="text-cyan-400 hover:underline font-medium">Upgrade to Pro or Studio</Link> to review and edit lyrics before rendering.
                     </div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        ✏️ Review & edit lyrics before rendering
-                        <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs rounded-full">PRO</span>
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">Preview AI-generated lyrics and fix any mistakes before your video is created</p>
+                  ) : (
+                    <div className={`mb-3 p-2 rounded-lg text-xs ${isDark ? 'bg-yellow-500/10 border border-yellow-500/30 text-yellow-300' : 'bg-yellow-50 border border-yellow-200 text-yellow-700'}`}>
+                      ⚡ Lyrics are synced using AI for precise timing. Use the "Review & edit lyrics" option below to fine-tune timing before rendering.
                     </div>
-                    <input type="checkbox" checked={reviewLyrics} onChange={(e) => setReviewLyrics(e.target.checked)} className="sr-only" />
-                  </label>
+                  )}
+
+                  <textarea
+                    value={lyrics}
+                    onChange={(e) => setLyrics(e.target.value)}
+                    placeholder={`Paste lyrics here...\n\nExample:\n${SAMPLE_LYRICS}`}
+                    rows={8}
+                    className="glass-input w-full px-3 py-2 rounded-lg text-sm resize-none"
+                  />
+                  <div className="flex justify-between mt-2 text-xs text-gray-500">
+                    <span className={lyrics.length < 50 ? 'text-yellow-400' : 'text-green-400'}>
+                      {lyrics.length} chars {lyrics.length < 50 && '(min 50)'}
+                    </span>
+                    <span>~{lyrics.split(/\s+/).filter(w => w).length} words</span>
+                  </div>
+                </motion.div>
+              </div>
+
+              {/* RIGHT COLUMN - Style Customization & Preview */}
+              <div className="space-y-6">
+                {/* Live Preview */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="glass-panel p-6"
+                >
+                  <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    <Eye className="w-5 h-5 text-cyan-400" />
+                    Live Preview
+                  </h2>
+
+                  {/* Preview Box */}
+                  <div
+                    className="rounded-xl overflow-hidden aspect-video flex items-center justify-center p-6"
+                    style={getBackgroundStyle()}
+                  >
+                    <div className="text-center" style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: fontSize === 'xlarge' ? '0.75rem' : fontSize === 'large' ? '0.6rem' : '0.5rem'
+                    }}>
+                      {SAMPLE_LYRICS.split('\n').map((line, i) => {
+                        // Font size mapping for preview
+                        const fontSizeMap = {
+                          'normal': '1.1rem',
+                          'large': '1.25rem',
+                          'xlarge': '1.45rem'
+                        };
+                        const previewFontSize = fontSizeMap[fontSize] || '1.1rem';
+
+                        return (
+                          <p
+                            key={i}
+                            style={{
+                              fontFamily: getCurrentFontFamily(),
+                              color: i === 0 ? sungColor : textColor,
+                              textShadow: `-1px -1px 0 ${outlineColor}, 1px -1px 0 ${outlineColor}, -1px 1px 0 ${outlineColor}, 1px 1px 0 ${outlineColor}`,
+                              fontSize: previewFontSize,
+                              fontWeight: 'bold',
+                              transition: 'all 0.2s ease',
+                              margin: 0
+                            }}
+                          >
+                            {line}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Style Customization - Paid users only */}
+                {!isFreeUser() ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="glass-panel p-6"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className={`text-lg font-semibold flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        <Palette className="w-5 h-5 text-cyan-400" />
+                        Style Customization
+                      </h2>
+
+                      {/* Save/Reset Buttons */}
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={resetToDefaults}
+                          className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                          title="Reset to defaults"
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={savePreferences}
+                          disabled={savingPreferences}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+                        >
+                          {savingPreferences ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Save className="w-3 h-3" />
+                          )}
+                          Save as Default
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Preferences Message */}
+                    {preferencesMessage && (
+                      <div className={`mb-4 p-2 rounded-lg text-xs flex items-center gap-2 ${preferencesMessage.type === 'success'
+                        ? 'bg-green-500/10 border border-green-500/30 text-green-400'
+                        : preferencesMessage.type === 'info'
+                          ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400'
+                          : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                        }`}>
+                        {preferencesMessage.type === 'success' ? (
+                          <CheckCircle className="w-4 h-4" />
+                        ) : preferencesMessage.type === 'info' ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4" />
+                        )}
+                        {preferencesMessage.text}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Font Selection */}
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Font</label>
+                        <select
+                          value={selectedFont}
+                          onChange={(e) => setSelectedFont(e.target.value)}
+                          className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                        >
+                          {FONT_OPTIONS.map(font => (
+                            <option key={font.value} value={font.value}>{font.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Font Size */}
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Font Size</label>
+                        <select
+                          value={fontSize}
+                          onChange={(e) => setFontSize(e.target.value)}
+                          className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+                        >
+                          {FONT_SIZE_OPTIONS.map(size => (
+                            <option key={size.value} value={size.value}>{size.label}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Background Colors */}
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Background {useGradient ? '(Start)' : ''}
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={bgColor1} onChange={(e) => setBgColor1(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                          <input type="text" value={bgColor1} onChange={(e) => setBgColor1(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          {useGradient ? 'Background (End)' : 'Gradient (Off)'}
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={bgColor2} onChange={(e) => setBgColor2(e.target.value)} disabled={!useGradient} className={`w-10 h-10 rounded-lg cursor-pointer border-0 ${!useGradient && 'opacity-50'}`} />
+                          <input type="text" value={bgColor2} onChange={(e) => setBgColor2(e.target.value)} disabled={!useGradient} className={`glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase ${!useGradient && 'opacity-50'}`} />
+                        </div>
+                      </div>
+
+                      {/* Gradient Toggle & Direction */}
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Gradient</label>
+                        <select value={useGradient ? 'on' : 'off'} onChange={(e) => setUseGradient(e.target.value === 'on')} className="glass-input w-full px-3 py-2 rounded-lg text-sm">
+                          <option value="on">ON</option>
+                          <option value="off">OFF</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Direction</label>
+                        <select value={gradientDirection} onChange={(e) => setGradientDirection(e.target.value)} disabled={!useGradient} className={`glass-input w-full px-3 py-2 rounded-lg text-sm ${!useGradient && 'opacity-50'}`}>
+                          <option value="to bottom">Top → Bottom</option>
+                          <option value="to top">Bottom → Top</option>
+                          <option value="to right">Left → Right</option>
+                          <option value="to left">Right → Left</option>
+                          <option value="to bottom right">Diagonal ↘</option>
+                          <option value="to bottom left">Diagonal ↙</option>
+                        </select>
+                      </div>
+
+                      {/* Text Colors */}
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Text Color</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                          <input type="text" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Text Outline</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={outlineColor} onChange={(e) => setOutlineColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                          <input type="text" value={outlineColor} onChange={(e) => setOutlineColor(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
+                        </div>
+                      </div>
+
+                      <div className="col-span-2">
+                        <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Sung Color (After Read)</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={sungColor} onChange={(e) => setSungColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                          <input type="text" value={sungColor} onChange={(e) => setSungColor(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
+                          <span className="text-xs text-gray-500">← First line shows this color</span>
+                        </div>
+                      </div>
+
+                      {/* Outro Text - Studio only */}
+                      {profile?.subscription_tier === 'studio' && (
+                        <div className={`glass-panel p-6 ${isDark ? 'bg-white/5' : 'bg-white/80'}`}>
+                          <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            <Type className="w-5 h-5 text-purple-400" />
+                            Outro Text
+                            <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full">Studio</span>
+                          </h3>
+                          <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Add custom text that appears after the lyrics end (website, dedication, credits, etc.)
+                          </p>
+                          <textarea
+                            value={outroText}
+                            onChange={(e) => setOutroText(e.target.value)}
+                            placeholder="e.g. Created with love for Mom's 60th birthday ❤️&#10;www.mywebsite.com"
+                            maxLength={200}
+                            rows={3}
+                            className={`w-full px-4 py-3 rounded-xl border transition-colors resize-none ${isDark
+                              ? 'bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-purple-500'
+                              : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-purple-500'
+                              } focus:outline-none`}
+                          />
+                          <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {outroText.length}/200 characters
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Custom Watermark - Studio Only */}
+                      {isStudioUser() && (
+                        <div className="col-span-2 pt-4 border-t border-white/10">
+                          <label className={`block text-xs font-medium mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Custom Watermark
+                            <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs rounded-full">STUDIO</span>
+                          </label>
+                          <p className={`text-xs mb-2 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                            Add your logo to the bottom-right corner of your videos (PNG recommended, max 2MB)
+                          </p>
+
+                          {watermarkPreview ? (
+                            <div className="relative inline-block">
+                              <img src={watermarkPreview} alt="Watermark preview" className="h-16 max-w-[200px] object-contain rounded-lg border border-white/20 bg-black/20 p-2" />
+                              <button type="button" onClick={() => { setCustomWatermark(null); setWatermarkPreview(null); setHasSavedWatermark(false); }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : hasSavedWatermark ? (
+                            <div className="relative inline-block">
+                              <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-green-500/30 bg-green-500/10">
+                                <Image className="w-5 h-5 text-green-400" />
+                                <span className="text-sm text-green-400">Default logo saved</span>
+                              </div>
+                              <button type="button" onClick={() => { setHasSavedWatermark(false); }} className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors" title="Remove default logo">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 border-dashed ${isDark ? 'border-white/20 hover:border-cyan-400/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-gray-50'}`}>
+                              <Upload className="w-5 h-5 text-cyan-400" />
+                              <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Click to upload your logo</span>
+                              <input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={(e) => { const file = e.target.files[0]; if (file) { if (file.size > 2 * 1024 * 1024) { setError('Watermark image must be under 2MB'); return; } setCustomWatermark(file); setWatermarkPreview(URL.createObjectURL(file)); } }} className="sr-only" />
+                            </label>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
                 ) : (
-                  <div className={`flex items-start gap-3 p-3 rounded-xl mb-3 bg-white/5 border border-white/10 opacity-75`}>
-                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 border-gray-600 bg-gray-700/50`}>
-                      <Lock className="w-3 h-3 text-gray-500" />
-                    </div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        ✏️ Review & edit lyrics before rendering
-                        <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-yellow-500/50 to-orange-500/50 text-white/70 text-xs rounded-full">PRO</span>
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">Preview AI-generated lyrics and fix any mistakes before your video is created</p>
-                      <Link href="/pricing" className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-medium rounded-lg hover:opacity-90 transition-opacity">
-                        <Zap className="w-3 h-3" />
-                        Upgrade to Pro
+                  /* Free tier upgrade prompt */
+                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass-panel p-6">
+                    <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <Palette className="w-5 h-5 text-gray-500" />
+                      Style Customization
+                      <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-xs rounded-full">STARTER+</span>
+                    </h2>
+                    <div className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+                      <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'} mb-3`}>Unlock custom colors, fonts, and branding options with a paid subscription.</p>
+                      <Link href="/pricing" className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity">
+                        <Zap className="w-4 h-4" />
+                        Upgrade to Unlock
                       </Link>
                     </div>
-                  </div>
+                  </motion.div>
                 )}
 
-                {/* Rights Checkbox */}
-                <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-4 ${rightsConfirmed ? 'bg-cyan-500/20 border border-cyan-400' : 'bg-white/5 border border-red-500/50 hover:bg-white/10'}`}>
-                  <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${rightsConfirmed ? 'bg-cyan-500 border-cyan-500' : 'border-gray-500'}`}>
-                    {rightsConfirmed && <CheckCircle className="w-3 h-3 text-white" />}
-                  </div>
-                  <div className="flex-1">
-                    <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>I confirm I have the legal right to use this audio</p>
-                    <p className="text-xs text-gray-500 mt-1">I own, have licensed, or created this content. <Link href="/terms" className="text-cyan-400 hover:underline">Terms of Service</Link></p>
-                  </div>
-                  <input type="checkbox" checked={rightsConfirmed} onChange={(e) => setRightsConfirmed(e.target.checked)} className="sr-only" />
-                </label>
+                {/* Rights Confirmation & Submit */}
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass-panel p-6">
+                  {/* Email Notification Checkbox */}
+                  <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${notifyOnComplete ? 'bg-purple-500/20 border border-purple-400' : 'bg-white/5 border border-transparent hover:bg-white/10'}`}>
+                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${notifyOnComplete ? 'bg-purple-500 border-purple-500' : 'border-gray-500'}`}>
+                      {notifyOnComplete && <CheckCircle className="w-3 h-3 text-white" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>📧 Notify me when processing is complete</p>
+                      <p className="text-xs text-gray-500 mt-1">We'll email you a download link when your karaoke track is ready</p>
+                    </div>
+                    <input type="checkbox" checked={notifyOnComplete} onChange={(e) => setNotifyOnComplete(e.target.checked)} className="sr-only" />
+                  </label>
 
-                {/* Submit Button */}
-                <button type="submit" disabled={isUploading || !rightsConfirmed} className={`w-full py-4 px-6 rounded-xl text-white font-semibold text-lg transition-all flex items-center justify-center gap-3 ${rightsConfirmed ? 'bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90' : 'bg-gray-600 cursor-not-allowed'} disabled:opacity-50`}>
-                  {isUploading ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      <span>Processing... {uploadProgress}%</span>
-                    </>
+                  {/* Review Lyrics Checkbox - Visible to all, locked for Free/Starter */}
+                  {isPremiumUser() ? (
+                    <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${reviewLyrics ? 'bg-yellow-500/20 border border-yellow-400' : 'bg-white/5 border border-transparent hover:bg-white/10'}`}>
+                      <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${reviewLyrics ? 'bg-yellow-500 border-yellow-500' : 'border-gray-500'}`}>
+                        {reviewLyrics && <CheckCircle className="w-3 h-3 text-white" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          ✏️ Review & edit lyrics before rendering
+                          <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs rounded-full">PRO</span>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">Preview AI-generated lyrics and fix any mistakes before your video is created</p>
+                      </div>
+                      <input type="checkbox" checked={reviewLyrics} onChange={(e) => setReviewLyrics(e.target.checked)} className="sr-only" />
+                    </label>
                   ) : (
-                    <>
-                      <Upload className="w-5 h-5" />
-                      <span>{!rightsConfirmed ? 'Confirm Rights to Continue' : reviewLyrics ? 'Process & Review Lyrics' : 'Create Karaoke Track'}</span>
-                    </>
+                    <div className={`flex items-start gap-3 p-3 rounded-xl mb-3 bg-white/5 border border-white/10 opacity-75`}>
+                      <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 border-gray-600 bg-gray-700/50`}>
+                        <Lock className="w-3 h-3 text-gray-500" />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          ✏️ Review & edit lyrics before rendering
+                          <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-yellow-500/50 to-orange-500/50 text-white/70 text-xs rounded-full">PRO</span>
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">Preview AI-generated lyrics and fix any mistakes before your video is created</p>
+                        <Link href="/pricing" className="inline-flex items-center gap-1.5 mt-2 px-3 py-1.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs font-medium rounded-lg hover:opacity-90 transition-opacity">
+                          <Zap className="w-3 h-3" />
+                          Upgrade to Pro
+                        </Link>
+                      </div>
+                    </div>
                   )}
-                </button>
-                
-                {isUploading && (
-                  <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
-                    <motion.div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
-                  </div>
-                )}
-              </motion.div>
+
+                  {/* Rights Checkbox */}
+                  <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-4 ${rightsConfirmed ? 'bg-cyan-500/20 border border-cyan-400' : 'bg-white/5 border border-red-500/50 hover:bg-white/10'}`}>
+                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${rightsConfirmed ? 'bg-cyan-500 border-cyan-500' : 'border-gray-500'}`}>
+                      {rightsConfirmed && <CheckCircle className="w-3 h-3 text-white" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>I confirm I have the legal right to use this audio</p>
+                      <p className="text-xs text-gray-500 mt-1">I own, have licensed, or created this content. <Link href="/terms" className="text-cyan-400 hover:underline">Terms of Service</Link></p>
+                    </div>
+                    <input type="checkbox" checked={rightsConfirmed} onChange={(e) => setRightsConfirmed(e.target.checked)} className="sr-only" />
+                  </label>
+
+                  {/* Submit Button */}
+                  <button type="submit" disabled={isUploading || !rightsConfirmed} className={`w-full py-4 px-6 rounded-xl text-white font-semibold text-lg transition-all flex items-center justify-center gap-3 ${rightsConfirmed ? 'bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90' : 'bg-gray-600 cursor-not-allowed'} disabled:opacity-50`}>
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Processing... {uploadProgress}%</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-5 h-5" />
+                        <span>{!rightsConfirmed ? 'Confirm Rights to Continue' : reviewLyrics ? 'Process & Review Lyrics' : 'Create Karaoke Track'}</span>
+                      </>
+                    )}
+                  </button>
+
+                  {isUploading && (
+                    <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
+                      <motion.div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500" initial={{ width: 0 }} animate={{ width: `${uploadProgress}%` }} />
+                    </div>
+                  )}
+                </motion.div>
+              </div>
             </div>
-          </div>
-        </form>
-      </main>
-    </div>
+          </form>
+        </main>
+      </div>
     </>
   );
 }
