@@ -128,6 +128,7 @@ export default function EditLyricsPage() {
         const lyricsWithAutoBreaks = addAutoLineBreaks(lyricsWithBreaks);
 
         setLyrics(lyricsWithAutoBreaks);
+        console.log('Lyrics with confidence:', lyricsWithAutoBreaks.slice(0, 5));
         setOriginalLyrics(JSON.parse(JSON.stringify(lyricsWithAutoBreaks)));
         setOriginalLyricsText(projectData.lyrics_text || '');
         setLoading(false);
