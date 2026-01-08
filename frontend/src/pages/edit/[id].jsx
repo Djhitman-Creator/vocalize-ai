@@ -65,6 +65,7 @@ export default function EditLyricsPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [previewMode, setPreviewMode] = useState('video'); // 'video' or 'lyrics'
   const [originalLyricsText, setOriginalLyricsText] = useState('');
+  const LOW_CONFIDENCE_THRESHOLD = 0.5;
 
   // User profile
   const [profile, setProfile] = useState(null);
@@ -429,6 +430,7 @@ export default function EditLyricsPage() {
             <li>• <strong>⬇️ Move Down</strong> - Moves the selected word to the next line</li>
             <li>• <strong>⬆️ Merge Up</strong> - Merges a line with the one above</li>
             <li>• <span className="text-cyan-400">Cyan indicator</span> shows where each line ends</li>
+            <li>• <span className="text-orange-400 bg-orange-500/20 px-1 rounded">Orange words</span> have low transcription confidence - review these carefully</li>
           </ul>
         </div>
 
@@ -502,10 +504,13 @@ export default function EditLyricsPage() {
                               onClick={() => handleWordClick(wordData.globalIndex)}
                               className={`px-2 py-1 rounded text-sm transition-all ${isSelected
                                 ? 'bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-500'
-                                : isDark
-                                  ? 'hover:bg-white/10 text-gray-300'
-                                  : 'hover:bg-gray-200 text-gray-700'
+                                : wordData.confidence !== undefined && wordData.confidence < LOW_CONFIDENCE_THRESHOLD
+                                  ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
+                                  : isDark
+                                    ? 'hover:bg-white/10 text-gray-300'
+                                    : 'hover:bg-gray-200 text-gray-700'
                                 }`}
+                              title={wordData.confidence !== undefined ? `Confidence: ${(wordData.confidence * 100).toFixed(0)}%` : ''}
                             >
                               {wordData.word}
                             </button>

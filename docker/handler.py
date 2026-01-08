@@ -725,7 +725,8 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
             lyrics.append({
                 'word': word,
                 'start': start,
-                'end': end
+                'end': end,
+                'confidence': word_info.get('confidence', 1.0)
             })
     
     print(f"âœ… AssemblyAI returned {len(lyrics)} words with precise timestamps")
@@ -807,26 +808,57 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
     
     # If difference is small (< 15%), try to align anyway using user words
     # This handles cases where API split/merged a few words differently
-    if diff_percentage < 15 and len(user_words) <= len(api_lyrics):
-        print(f"   🔄 Small difference - using user words with API timestamps (1:1 mapping)")
-        aligned = []
-        matches = 0
-        
-        for i in range(len(user_words)):
-            aligned.append({
-                'word': user_words[i],
-                'start': api_lyrics[i]['start'],
-                'end': api_lyrics[i]['end']
-            })
+    if diff_percentage < 15:
+        if len(user_words) <= len(api_lyrics):
+            # User has fewer/equal words - straightforward mapping
+            print(f"   🔄 Small difference - using user words with API timestamps (1:1 mapping)")
+            aligned = []
+            matches = 0
             
-            # Count matches for logging
-            if words_match_normalized(user_words[i], api_lyrics[i]['word']):
-                matches += 1
-        
-        match_percentage = (matches / len(user_words)) * 100
-        print(f"   📊 Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
-        print(f"✅ Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
-        return aligned
+            for i in range(len(user_words)):
+                aligned.append({
+                    'word': user_words[i],
+                    'start': api_lyrics[i]['start'],
+                    'end': api_lyrics[i]['end'],
+                    'confidence': api_lyrics[i].get('confidence', 1.0)
+                })
+                
+                # Count matches for logging
+                if words_match_normalized(user_words[i], api_lyrics[i]['word']):
+                    matches += 1
+            
+            match_percentage = (matches / len(user_words)) * 100
+            print(f"   📊 Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
+            print(f"✅ Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
+            return aligned
+        else:
+            # User has MORE words than API - fit user words to available timestamps
+            print(f"   🔄 User has more words - fitting {len(user_words)} user words to {len(api_lyrics)} timestamps")
+            aligned = []
+            
+            # Calculate how to distribute extra words across timestamps
+            words_per_slot = len(user_words) / len(api_lyrics)
+            
+            for api_idx in range(len(api_lyrics)):
+                # Calculate how many user words go into this slot
+                start_user_idx = int(api_idx * words_per_slot)
+                end_user_idx = int((api_idx + 1) * words_per_slot)
+                
+                # Combine words for this slot
+                slot_words = user_words[start_user_idx:end_user_idx]
+                combined_word = ' '.join(slot_words) if slot_words else user_words[min(start_user_idx, len(user_words)-1)]
+                
+                aligned.append({
+                    'word': combined_word,
+                    'start': api_lyrics[api_idx]['start'],
+                    'end': api_lyrics[api_idx]['end'],
+                    'confidence': api_lyrics[api_idx].get('confidence', 1.0)
+                })
+            
+            extra_words = len(user_words) - len(api_lyrics)
+            print(f"   📊 Combined {len(user_words)} user words into {len(aligned)} timed slots")
+            print(f"✅ Aligned user lyrics with {extra_words} extra words distributed across timestamps")
+            return aligned
     
     # Word counts too different - use API transcription for perfect timing
     print(f"   ⚠️ Word counts too different - using API transcription for perfect timing")
@@ -1113,8 +1145,7 @@ def group_lyrics_into_lines(lyrics, words_per_line=WORDS_PER_LINE):
     has_custom_breaks = any(word.get('lineBreak', False) for word in lyrics)
     
     if has_custom_breaks:
-        # Use custom line breaks
-        print("   📝 Using custom line breaks from user")
+        # Use custom line breaks (print removed - was causing log spam when called per-frame)
         for word in lyrics:
             current_line.append(word)
             
@@ -1676,12 +1707,9 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
                 outro_alpha = min(1.0, outro_elapsed / OUTRO_TEXT_FADE_IN)
                 
                 draw = ImageDraw.Draw(frame)
-                font_path = get_font_path(colors.get('font', 'arial') if colors else 'arial')
+                scale = width / 1920
                 outro_font_size = int(48 * scale)
-                try:
-                    outro_font = ImageFont.truetype(font_path, outro_font_size)
-                except:
-                    outro_font = ImageFont.load_default()
+                outro_font = get_font(outro_font_size, colors.get('font', 'arial') if colors else 'arial')
                 
                 # Split outro text into lines
                 outro_lines = outro_text.strip().split('\n')
