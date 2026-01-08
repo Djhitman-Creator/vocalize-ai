@@ -16,7 +16,8 @@ import {
   MessageCircle,
   Mail,
   Headphones,
-  Crown
+  Crown,
+  ChevronDown
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import SEO, { getOrganizationSchema } from '../components/SEO';
@@ -625,7 +626,7 @@ export default function PricingPage() {
                 animate={{ rotate: showComparison ? 180 : 0 }}
                 transition={{ duration: 0.2 }}
               >
-                â–¼
+                <ChevronDown className="w-4 h-4" />
               </motion.span>
             </button>
           </div>
@@ -705,7 +706,7 @@ export default function PricingPage() {
               Purchase additional credits anytime
             </p>
             <p className="text-sm text-gray-500 text-center mb-10">
-              Credits cost: 480p = 3 credits â€¢ 720p = 5 credits â€¢ 1080p = 7 credits â€¢ 4K = 9 credits â€¢ 4K = 9 credits
+              Credits cost: 480p = 3 credits • 720p = 5 credits • 1080p = 7 credits • 4K = 9 credits • 4K = 9 credits
             </p>
 
             <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">

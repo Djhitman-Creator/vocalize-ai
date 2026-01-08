@@ -397,7 +397,7 @@ const UploadSection = ({ isDark }) => (
           <Upload className="w-8 sm:w-10 h-8 sm:h-10 text-cyan-500" />
         </div>
         <h3 className={`font-display text-xl sm:text-2xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Drop your audio file here</h3>
-        <p className={`mb-4 text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>or click to browse â€¢ MP3, WAV, FLAC supported</p>
+        <p className={`mb-4 text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>or click to browse • MP3, WAV, FLAC supported</p>
         <div className={`text-xs sm:text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
           Quality options: <span className="text-cyan-500">480p, 1080p, and 4K</span> (varies by plan)
         </div>
