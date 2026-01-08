@@ -767,10 +767,11 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
     4. If counts differ slightly (<15%): Still try to use user words
     5. If too different: Use API transcription for perfect timing
     """
-    # Parse user lyrics into words
-    user_words = parse_lyrics_text(user_lyrics_text)
+    # Parse user lyrics into words with line break tracking
+    user_words, line_break_indices = parse_lyrics_text_with_breaks(user_lyrics_text)
     print(f"   User provided {len(user_words)} words")
     print(f"   AssemblyAI detected {len(api_lyrics)} words")
+    print(f"   User line breaks at indices: {sorted(line_break_indices)[:10]}{'...' if len(line_break_indices) > 10 else ''}")
     
     if len(api_lyrics) == 0:
         print("   ⚠️ No API words - returning empty")
@@ -791,7 +792,9 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
             aligned.append({
                 'word': user_words[i],
                 'start': api_lyrics[i]['start'],
-                'end': api_lyrics[i]['end']
+                'end': api_lyrics[i]['end'],
+                'confidence': api_lyrics[i].get('confidence', 1.0),
+                'lineBreak': i in line_break_indices
             })
             
             # Count how many words match after normalization (for logging)
@@ -800,6 +803,7 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
         
         match_percentage = (matches / len(user_words)) * 100
         print(f"   📊 Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
+        print(f"   📝 Applied {len(line_break_indices)} line breaks from user lyrics")
         print(f"✅ Aligned {len(aligned)} user words with AssemblyAI timestamps")
         return aligned
     
@@ -823,7 +827,8 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
                     'word': user_words[i],
                     'start': api_lyrics[i]['start'],
                     'end': api_lyrics[i]['end'],
-                    'confidence': api_lyrics[i].get('confidence', 1.0)
+                    'confidence': api_lyrics[i].get('confidence', 1.0),
+                    'lineBreak': i in line_break_indices
                 })
                 
                 # Count matches for logging
@@ -832,6 +837,7 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
             
             match_percentage = (matches / len(user_words)) * 100
             print(f"   📊 Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
+            print(f"   📝 Applied {len(line_break_indices)} line breaks from user lyrics")
             print(f"✅ Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
             return aligned
         else:
@@ -851,15 +857,23 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
                 slot_words = user_words[start_user_idx:end_user_idx]
                 combined_word = ' '.join(slot_words) if slot_words else user_words[min(start_user_idx, len(user_words)-1)]
                 
+                # Check if any word in this slot had a line break
+                # Use the LAST line break in the slot (if any word except the last had a break, 
+                # that break is now internal to the combined word)
+                has_line_break = (end_user_idx - 1) in line_break_indices
+                
                 aligned.append({
                     'word': combined_word,
                     'start': api_lyrics[api_idx]['start'],
                     'end': api_lyrics[api_idx]['end'],
-                    'confidence': api_lyrics[api_idx].get('confidence', 1.0)
+                    'confidence': api_lyrics[api_idx].get('confidence', 1.0),
+                    'lineBreak': has_line_break
                 })
             
             extra_words = len(user_words) - len(api_lyrics)
+            applied_breaks = sum(1 for w in aligned if w.get('lineBreak', False))
             print(f"   📊 Combined {len(user_words)} user words into {len(aligned)} timed slots")
+            print(f"   📝 Applied {applied_breaks} line breaks from user lyrics")
             print(f"✅ Aligned user lyrics with {extra_words} extra words distributed across timestamps")
             return aligned
     
@@ -881,6 +895,44 @@ def parse_lyrics_text(lyrics_text):
             words.append(cleaned)
     
     return words
+
+
+def parse_lyrics_text_with_breaks(lyrics_text):
+    """
+    Parse raw lyrics text into words AND track line break positions.
+    
+    Returns:
+        words: List of words
+        line_break_indices: Set of word indices that end a line
+    """
+    # Remove section headers like [Verse 1], [Chorus], etc.
+    text = re.sub(r'\[.*?\]', '', lyrics_text)
+    
+    words = []
+    line_break_indices = set()
+    
+    lines = text.strip().split('\n')
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        line_words = line.split()
+        for word in line_words:
+            cleaned = word.strip()
+            if cleaned and not cleaned.isspace():
+                words.append(cleaned)
+        
+        # Mark the last word of this line as having a line break
+        if words:
+            line_break_indices.add(len(words) - 1)
+    
+    # Remove the very last index (no break needed after final word)
+    if words:
+        line_break_indices.discard(len(words) - 1)
+    
+    return words, line_break_indices
 
 
 def auto_correct_low_confidence_words(api_lyrics, user_lyrics_text):
