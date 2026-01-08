@@ -1084,7 +1084,7 @@ export default function UploadPage() {
 
                       {/* Outro Text - Studio only */}
                       {profile?.subscription_tier === 'studio' && (
-                        <div className={`glass-panel p-6 ${isDark ? 'bg-white/5' : 'bg-white/80'}`}>
+                        <div className={`glass-panel p-6 col-span-full ${isDark ? 'bg-white/5' : 'bg-white/80'}`}>
                           <h3 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                             <Type className="w-5 h-5 text-purple-400" />
                             Outro Text
@@ -1096,9 +1096,9 @@ export default function UploadPage() {
                           <textarea
                             value={outroText}
                             onChange={(e) => setOutroText(e.target.value)}
-                            placeholder="e.g. Created with love for Mom's 60th birthday ❤️&#10;www.mywebsite.com"
+                            placeholder="e.g. Created with love for Mom's 60th birthday ❤️  •  www.mywebsite.com"
                             maxLength={200}
-                            rows={3}
+                            rows={2}
                             className={`w-full px-4 py-3 rounded-xl border transition-colors resize-none ${isDark
                               ? 'bg-white/5 border-white/10 text-white placeholder-gray-500 focus:border-purple-500'
                               : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400 focus:border-purple-500'
