@@ -736,13 +736,16 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
     for i, w in enumerate(lyrics[:5]):
         print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s")
     
-    # If user provided lyrics, use their words but keep AssemblyAI timestamps
+    # If user provided lyrics, auto-correct low-confidence words first
     if user_lyrics_text and len(user_lyrics_text.strip()) > 50:
-        print("ðŸ“ Mapping user lyrics to AssemblyAI timestamps...")
+        print("🔍 Checking for low-confidence words to auto-correct...")
+        lyrics, correction_count = auto_correct_low_confidence_words(lyrics, user_lyrics_text)
+        
+        print("📝 Mapping user lyrics to AssemblyAI timestamps...")
         lyrics = align_user_lyrics_to_timestamps(user_lyrics_text, lyrics)
         
         # Debug: Show first 5 aligned words
-        print("   ðŸ“Š First 5 aligned words timing:")
+        print("   📊 First 5 aligned words timing:")
         for i, w in enumerate(lyrics[:5]):
             print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s")
     
@@ -878,6 +881,102 @@ def parse_lyrics_text(lyrics_text):
             words.append(cleaned)
     
     return words
+
+
+def auto_correct_low_confidence_words(api_lyrics, user_lyrics_text):
+    """
+    Auto-correct low confidence words using user-provided lyrics.
+    
+    For each low-confidence word in API output, check if user's lyrics
+    have a different word at approximately the same position.
+    If so, use the user's word (they probably know their lyrics better than AI).
+    
+    This runs automatically for ALL tiers to ensure quality output.
+    """
+    if not user_lyrics_text or not api_lyrics:
+        return api_lyrics, 0
+    
+    user_words = parse_lyrics_text(user_lyrics_text)
+    if not user_words:
+        return api_lyrics, 0
+    
+    LOW_CONFIDENCE = 0.5
+    corrections = 0
+    corrected_lyrics = []
+    
+    # Track which user words we've used to avoid duplicates
+    used_user_indices = set()
+    
+    for api_idx, api_word in enumerate(api_lyrics):
+        confidence = api_word.get('confidence', 1.0)
+        
+        # Calculate expected position in user lyrics (proportional mapping)
+        position_ratio = api_idx / len(api_lyrics) if len(api_lyrics) > 0 else 0
+        expected_user_idx = int(position_ratio * len(user_words))
+        expected_user_idx = max(0, min(expected_user_idx, len(user_words) - 1))
+        
+        # Search window: look 3 words before and after expected position
+        search_start = max(0, expected_user_idx - 3)
+        search_end = min(len(user_words), expected_user_idx + 4)
+        
+        # First, try to find an exact match (normalized) in search window
+        exact_match_idx = None
+        for i in range(search_start, search_end):
+            if i not in used_user_indices and words_match_normalized(api_word['word'], user_words[i]):
+                exact_match_idx = i
+                break
+        
+        if exact_match_idx is not None:
+            # Found exact match - use user's word (preserves their formatting/punctuation)
+            corrected_lyrics.append({
+                'word': user_words[exact_match_idx],
+                'start': api_word['start'],
+                'end': api_word['end'],
+                'confidence': confidence
+            })
+            used_user_indices.add(exact_match_idx)
+        elif confidence < LOW_CONFIDENCE:
+            # Low confidence, no exact match - trust user's word at this position
+            # Find nearest unused user word
+            best_idx = None
+            for i in range(search_start, search_end):
+                if i not in used_user_indices:
+                    best_idx = i
+                    break
+            
+            if best_idx is not None:
+                user_word = user_words[best_idx]
+                corrected_lyrics.append({
+                    'word': user_word,
+                    'start': api_word['start'],
+                    'end': api_word['end'],
+                    'confidence': confidence,
+                    'auto_corrected': True
+                })
+                used_user_indices.add(best_idx)
+                corrections += 1
+                print(f"      🔧 Auto-corrected: '{api_word['word']}' → '{user_word}' (confidence: {confidence:.0%})")
+            else:
+                # No user word available, keep API word
+                corrected_lyrics.append({
+                    'word': api_word['word'],
+                    'start': api_word['start'],
+                    'end': api_word['end'],
+                    'confidence': confidence
+                })
+        else:
+            # High confidence - trust API transcription
+            corrected_lyrics.append({
+                'word': api_word['word'],
+                'start': api_word['start'],
+                'end': api_word['end'],
+                'confidence': confidence
+            })
+    
+    if corrections > 0:
+        print(f"   ✨ Auto-corrected {corrections} low-confidence words using uploaded lyrics")
+    
+    return corrected_lyrics, corrections
 
 
 def detect_silence_gaps(lyrics, intro_threshold=INTRO_COUNTDOWN_THRESHOLD, mid_threshold=COUNTDOWN_THRESHOLD):
