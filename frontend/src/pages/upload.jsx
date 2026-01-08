@@ -1046,12 +1046,12 @@ export default function UploadPage() {
                       <div>
                         <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Direction</label>
                         <select value={gradientDirection} onChange={(e) => setGradientDirection(e.target.value)} disabled={!useGradient} className={`glass-input w-full px-3 py-2 rounded-lg text-sm ${!useGradient && 'opacity-50'}`}>
-                          <option value="to bottom">Top â†’ Bottom</option>
-                          <option value="to top">Bottom â†’ Top</option>
-                          <option value="to right">Left â†’ Right</option>
-                          <option value="to left">Right â†’ Left</option>
-                          <option value="to bottom right">Diagonal â†˜</option>
-                          <option value="to bottom left">Diagonal â†™</option>
+                          <option value="to bottom">Top to Bottom</option>
+                          <option value="to top">Bottom to Top</option>
+                          <option value="to right">Left to Right</option>
+                          <option value="to left">Right to Left</option>
+                          <option value="to bottom right">Diagonal Down-Right</option>
+                          <option value="to bottom left">Diagonal Down-Left</option>
                         </select>
                       </div>
 
@@ -1077,7 +1077,7 @@ export default function UploadPage() {
                         <div className="flex items-center gap-2">
                           <input type="color" value={sungColor} onChange={(e) => setSungColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
                           <input type="text" value={sungColor} onChange={(e) => setSungColor(e.target.value)} className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase" />
-                          <span className="text-xs text-gray-500">â† First line shows this color</span>
+                          <span className="text-xs text-gray-500">First line shows this color</span>
                         </div>
                       </div>
 
@@ -1095,7 +1095,7 @@ export default function UploadPage() {
                           <textarea
                             value={outroText}
                             onChange={(e) => setOutroText(e.target.value)}
-                            placeholder="e.g. Created with love for Mom's 60th birthday â¤ï¸  â€¢  www.mywebsite.com"
+                            placeholder="e.g. Created with love - www.mywebsite.com"
                             maxLength={200}
                             rows={2}
                             className={`w-full px-4 py-3 rounded-xl border transition-colors resize-none ${isDark
@@ -1174,7 +1174,7 @@ export default function UploadPage() {
                       {notifyOnComplete && <CheckCircle className="w-3 h-3 text-white" />}
                     </div>
                     <div className="flex-1">
-                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>ðŸ“§ Notify me when processing is complete</p>
+                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Notify me when processing is complete</p>
                       <p className="text-xs text-gray-500 mt-1">We'll email you a download link when your karaoke track is ready</p>
                     </div>
                     <input type="checkbox" checked={notifyOnComplete} onChange={(e) => setNotifyOnComplete(e.target.checked)} className="sr-only" />
@@ -1188,7 +1188,7 @@ export default function UploadPage() {
                       </div>
                       <div className="flex-1">
                         <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          âœï¸ Review & edit lyrics before rendering
+                          Review & edit lyrics before rendering
                           <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-yellow-500 to-orange-500 text-white text-xs rounded-full">PRO</span>
                         </p>
                         <p className="text-xs text-gray-500 mt-1">Preview AI-generated lyrics and fix any mistakes before your video is created</p>
@@ -1202,7 +1202,7 @@ export default function UploadPage() {
                       </div>
                       <div className="flex-1">
                         <p className={`text-sm font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                          âœï¸ Review & edit lyrics before rendering
+                          Review & edit lyrics before rendering
                           <span className="ml-2 px-2 py-0.5 bg-gradient-to-r from-yellow-500/50 to-orange-500/50 text-white/70 text-xs rounded-full">PRO</span>
                         </p>
                         <p className="text-xs text-gray-500 mt-1">Preview AI-generated lyrics and fix any mistakes before your video is created</p>
