@@ -43,8 +43,8 @@ const supabase = createClient(
 // Admin emails that can access this page
 const ADMIN_EMAILS = [
   'jboyte72@gmail.com',
-  'djhitman72@gmail.com'
-  // Add more admin emails here
+  'djhitman72@gmail.com',
+  'agent@karatrack.com'
 ];
 
 export default function AdminPage() {
