@@ -1452,10 +1452,10 @@ def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, hei
     return lyrics_frame
 
 
-    def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None):
+def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None):
     """Generate video with lyrics and countdown"""
-    print(f"ðŸŽ¬ Generating video (mode: {display_mode})...")
-    print(f"   ðŸ‘¤ Subscription tier: {subscription_tier}")
+    print(f"🎬 Generating video (mode: {display_mode})...")
+    print(f"   👤 Subscription tier: {subscription_tier}")
     
     # Determine watermark behavior based on tier
     # Free: Karatrack watermark
