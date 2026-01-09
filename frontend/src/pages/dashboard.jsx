@@ -94,7 +94,7 @@ export default function DashboardPage() {
               // Check if this was previously processing or rendering
               const oldProject = projects.find(p => p.id === project.id);
               if (oldProject && ['processing', 'rendering'].includes(oldProject.status)) {
-                addNotification(`ðŸŽ‰ "${project.title}" is ready for download!`, 'success');
+                addNotification(`🎉 "${project.title}" is ready for download!`, 'success');
 
                 // Play notification sound (optional)
                 try {
@@ -110,7 +110,7 @@ export default function DashboardPage() {
             if (project.status === 'awaiting_review' && !completedIds.has(project.id)) {
               const oldProject = projects.find(p => p.id === project.id);
               if (oldProject && oldProject.status === 'transcribing') {
-                addNotification(`âœï¸ "${project.title}" is ready for lyrics review!`, 'success');
+                addNotification(`✏️ "${project.title}" is ready for lyrics review!`, 'success');
               }
               setCompletedIds(prev => new Set([...prev, project.id]));
             }
@@ -119,7 +119,7 @@ export default function DashboardPage() {
             if (project.status === 'failed' && !completedIds.has(project.id)) {
               const oldProject = projects.find(p => p.id === project.id);
               if (oldProject && ['processing', 'transcribing', 'rendering'].includes(oldProject.status)) {
-                addNotification(`âŒ "${project.title}" failed to process`, 'error');
+                addNotification(`❌ "${project.title}" failed to process`, 'error');
               }
               setCompletedIds(prev => new Set([...prev, project.id]));
             }
@@ -289,11 +289,46 @@ export default function DashboardPage() {
   // Show notification if redirected from upload with review mode
   useEffect(() => {
     if (router.query.awaiting_review === 'true') {
-      addNotification('âœï¸ Your track is being transcribed. Click "Review Lyrics" when it\'s ready!', 'info');
+      addNotification('✏️ Your track is being transcribed. Click "Review Lyrics" when it\'s ready!', 'info');
       // Remove the query param from URL without refresh
       router.replace('/dashboard', undefined, { shallow: true });
     }
   }, [router.query.awaiting_review, addNotification, router]);
+
+  // Show notification for successful upgrade
+  useEffect(() => {
+    if (router.query.upgraded === 'true') {
+      addNotification('🎉 Upgrade successful! Your new plan is now active.', 'success');
+      router.replace('/dashboard', undefined, { shallow: true });
+    }
+  }, [router.query.upgraded, addNotification, router]);
+
+  // Show notification for scheduled downgrade
+  useEffect(() => {
+    if (router.query.downgrade_scheduled === 'true' && profile?.scheduled_tier_date) {
+      const effectiveDate = new Date(profile.scheduled_tier_date).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      addNotification(
+        `📅 Downgrade scheduled! You'll switch to ${profile.scheduled_tier} on ${effectiveDate}. You keep all current benefits until then.`,
+        'info'
+      );
+      router.replace('/dashboard', undefined, { shallow: true });
+    } else if (router.query.downgrade_scheduled === 'true') {
+      addNotification('📅 Downgrade scheduled! You\'ll keep your current plan until the end of your billing period.', 'info');
+      router.replace('/dashboard', undefined, { shallow: true });
+    }
+  }, [router.query.downgrade_scheduled, profile?.scheduled_tier, profile?.scheduled_tier_date, addNotification, router]);
+
+  // Show notification for credit purchase
+  useEffect(() => {
+    if (router.query.credits_purchased === 'true') {
+      addNotification('💳 Credits purchased successfully! They\'ve been added to your account.', 'success');
+      router.replace('/dashboard', undefined, { shallow: true });
+    }
+  }, [router.query.credits_purchased, addNotification, router]);
 
   // Polling effect - only poll when there are processing projects
   useEffect(() => {
@@ -305,14 +340,14 @@ export default function DashboardPage() {
 
     if (!hasActiveProjects) return;
 
-    console.log('ðŸ”„ Starting polling - active projects detected');
+    console.log('🔄 Starting polling - active projects detected');
 
     const pollInterval = setInterval(() => {
       fetchProjects(user.id, true);
     }, POLL_INTERVAL);
 
     return () => {
-      console.log('â¹ï¸ Stopping polling');
+      console.log('⏹️ Stopping polling');
       clearInterval(pollInterval);
     };
   }, [user, projects, fetchProjects]);
@@ -658,7 +693,7 @@ export default function DashboardPage() {
                       <div>
                         <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{project.title}</h3>
                         <p className="text-gray-400 text-sm">
-                          {new Date(project.created_at).toLocaleDateString()} â€¢ {project.artist_name || 'Unknown Artist'}
+                          {new Date(project.created_at).toLocaleDateString()} • {project.artist_name || 'Unknown Artist'}
                         </p>
                       </div>
                     </div>
@@ -724,14 +759,14 @@ export default function DashboardPage() {
                               );
 
                               if (response.ok) {
-                                addNotification('ðŸ”„ Retrying your track...', 'info');
+                                addNotification('🔄 Retrying your track...', 'info');
                                 fetchProjects(user.id, false);
                               } else {
                                 const error = await response.json();
-                                addNotification(`âŒ ${error.error || 'Retry failed'}`, 'error');
+                                addNotification(`❌ ${error.error || 'Retry failed'}`, 'error');
                               }
                             } catch (err) {
-                              addNotification('âŒ Failed to retry', 'error');
+                              addNotification('❌ Failed to retry', 'error');
                             }
                           }}
                           className="ml-2 px-4 py-2 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 font-medium hover:bg-red-500/30 transition-colors"
