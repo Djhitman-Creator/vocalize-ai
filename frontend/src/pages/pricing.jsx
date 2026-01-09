@@ -278,6 +278,15 @@ export default function PricingPage() {
   const [subscribing, setSubscribing] = useState(null);
   const [buyingCredits, setBuyingCredits] = useState(null);
   const [showComparison, setShowComparison] = useState(false);
+  
+  // Confirmation modal state
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState(null);
+  const [isUpgrade, setIsUpgrade] = useState(false);
+  
+  // Credit purchase confirmation modal state
+  const [showCreditConfirmModal, setShowCreditConfirmModal] = useState(false);
+  const [pendingCreditPackage, setPendingCreditPackage] = useState(null);
 
   useEffect(() => {
     checkUser();
@@ -303,7 +312,14 @@ export default function PricingPage() {
     }
   };
 
-  const handleSubscribe = async (tier) => {
+  // Helper to get tier level for comparison
+  const getTierLevel = (tier) => {
+    const levels = { 'free': 0, 'starter': 1, 'pro': 2, 'studio': 3 };
+    return levels[tier?.toLowerCase()] ?? 0;
+  };
+
+  // Called when user clicks a plan button - shows confirmation for upgrades
+  const handlePlanClick = (tier) => {
     // If not logged in, redirect to signup with selected plan
     if (!user) {
       router.push(`/signup?plan=${tier}`);
@@ -320,7 +336,37 @@ export default function PricingPage() {
       return;
     }
 
+    // Find the plan details
+    const planDetails = plans.find(p => p.tier === tier);
+    if (!planDetails) return;
+
+    // Check if this is an upgrade (user has existing paid subscription)
+    const currentTierLevel = getTierLevel(profile?.subscription_tier);
+    const newTierLevel = getTierLevel(tier);
+    const userHasSubscription = profile?.subscription_tier && profile.subscription_tier !== 'free';
+    const isUpgradeAction = userHasSubscription && newTierLevel > currentTierLevel;
+
+    // Show confirmation modal for upgrades (immediate charge)
+    // For new subscriptions, Stripe checkout has its own confirmation
+    if (isUpgradeAction) {
+      setPendingPlan(planDetails);
+      setIsUpgrade(true);
+      setShowConfirmModal(true);
+    } else if (userHasSubscription && newTierLevel < currentTierLevel) {
+      // Downgrade - also show confirmation
+      setPendingPlan(planDetails);
+      setIsUpgrade(false);
+      setShowConfirmModal(true);
+    } else {
+      // New subscription - go straight to Stripe checkout (has its own confirmation)
+      handleSubscribe(tier);
+    }
+  };
+
+  // Actually process the subscription after confirmation
+  const handleSubscribe = async (tier) => {
     setSubscribing(tier);
+    setShowConfirmModal(false);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -356,8 +402,7 @@ export default function PricingPage() {
 
       // Check if this was an immediate upgrade (no Stripe checkout needed)
       if (data.success && data.redirect) {
-        // Upgrade was processed immediately - show message and redirect
-        alert(data.message);
+        // Upgrade was processed immediately - redirect to dashboard
         window.location.href = data.redirect;
       } else if (data.url) {
         // New subscription - redirect to Stripe checkout
@@ -371,6 +416,7 @@ export default function PricingPage() {
       alert(err.message);
     } finally {
       setSubscribing(null);
+      setPendingPlan(null);
     }
   };
 
@@ -400,15 +446,31 @@ export default function PricingPage() {
     }
   };
 
-  // Handle credit package purchase
-  const handleBuyCredits = async (credits) => {
+  // Credit packages data
+  const creditPackages = [
+    { credits: 10, price: 4.99, perCredit: '0.50' },
+    { credits: 25, price: 9.99, perCredit: '0.40' },
+    { credits: 50, price: 17.99, perCredit: '0.36', popular: true },
+    { credits: 100, price: 29.99, perCredit: '0.30' },
+  ];
+
+  // Called when user clicks buy credits - shows confirmation
+  const handleCreditClick = (pkg) => {
     // If not logged in, redirect to signup
     if (!user) {
-      router.push(`/signup?plan=${tier}`);
+      router.push('/signup?plan=free');
       return;
     }
 
+    // Show confirmation modal
+    setPendingCreditPackage(pkg);
+    setShowCreditConfirmModal(true);
+  };
+
+  // Handle credit package purchase after confirmation
+  const handleBuyCredits = async (credits) => {
     setBuyingCredits(credits);
+    setShowCreditConfirmModal(false);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -451,6 +513,7 @@ export default function PricingPage() {
       alert(err.message);
     } finally {
       setBuyingCredits(null);
+      setPendingCreditPackage(null);
     }
   };
 
@@ -598,7 +661,7 @@ export default function PricingPage() {
 
                   {/* Subscribe Button */}
                   <button
-                    onClick={() => handleSubscribe(plan.tier)}
+                    onClick={() => handlePlanClick(plan.tier)}
                     disabled={isCurrentPlan || subscribing === plan.tier || loading}
                     className={`w-full glass-button py-3 ${plan.popular ? 'glass-button-primary' : ''
                       } ${isCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''} ${!plan.popular && !isCurrentPlan ? 'text-white hover:bg-white/10' : ''
@@ -715,16 +778,11 @@ export default function PricingPage() {
               Purchase additional credits anytime
             </p>
             <p className="text-sm text-gray-500 text-center mb-10">
-              Credits cost: 480p = 3 credits â€¢ 720p = 5 credits â€¢ 1080p = 7 credits â€¢ 4K = 9 credits â€¢ 4K = 9 credits
+              Credits cost: 480p = 3 credits • 720p = 5 credits • 1080p = 7 credits • 4K = 9 credits
             </p>
 
             <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-              {[
-                { credits: 10, price: 4.99, perCredit: '0.50' },
-                { credits: 25, price: 9.99, perCredit: '0.40' },
-                { credits: 50, price: 17.99, perCredit: '0.36', popular: true },
-                { credits: 100, price: 29.99, perCredit: '0.30' },
-              ].map((pkg, i) => (
+              {creditPackages.map((pkg, i) => (
                 <motion.div
                   key={pkg.credits}
                   initial={{ opacity: 0, y: 20 }}
@@ -747,13 +805,7 @@ export default function PricingPage() {
                   <p className="text-xs text-gray-500 mb-4">${pkg.perCredit}/credit</p>
                   <p className="text-xl font-semibold text-gradient mb-4">${pkg.price}</p>
                   <button
-                    onClick={() => {
-                      if (!user) {
-                        router.push('/signup?plan=free');
-                      } else {
-                        handleBuyCredits(pkg.credits);
-                      }
-                    }}
+                    onClick={() => handleCreditClick(pkg)}
                     disabled={buyingCredits === pkg.credits}
                     className="w-full glass-button py-2 text-sm text-white hover:bg-white/10 disabled:opacity-50"
                   >
@@ -811,6 +863,215 @@ export default function PricingPage() {
             </div>
           </motion.div>
         </main>
+
+        {/* Upgrade/Downgrade Confirmation Modal */}
+        {showConfirmModal && pendingPlan && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-md glass-panel p-6"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
+                  isUpgrade 
+                    ? 'bg-gradient-to-br from-cyan-400 to-purple-500' 
+                    : 'bg-gradient-to-br from-orange-400 to-red-500'
+                }`}>
+                  {isUpgrade ? (
+                    <Sparkles className="w-7 h-7 text-white" />
+                  ) : (
+                    <ArrowLeft className="w-7 h-7 text-white" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">
+                    {isUpgrade ? 'Confirm Upgrade' : 'Confirm Downgrade'}
+                  </h3>
+                  <p className="text-gray-400">
+                    {profile?.subscription_tier} → {pendingPlan.name}
+                  </p>
+                </div>
+              </div>
+
+              {/* Plan Details */}
+              <div className="bg-white/5 rounded-xl p-4 mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-white font-semibold text-lg">{pendingPlan.name} Plan</span>
+                  <span className="text-2xl font-bold text-cyan-400">${pendingPlan.price}<span className="text-sm text-gray-400">/mo</span></span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-300">
+                  <Zap className="w-4 h-4 text-yellow-400" />
+                  <span>{pendingPlan.credits} credits per month</span>
+                </div>
+              </div>
+
+              {/* What happens */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-400 mb-3">What happens next:</h4>
+                <ul className="space-y-2">
+                  {isUpgrade ? (
+                    <>
+                      <li className="flex items-start gap-2 text-sm text-gray-300">
+                        <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                        <span>Your card will be charged <strong className="text-white">${pendingPlan.price}</strong> today</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-sm text-gray-300">
+                        <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                        <span>You'll receive <strong className="text-white">{pendingPlan.credits} credits</strong> immediately</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-sm text-gray-300">
+                        <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                        <span>Your existing credits will be kept</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-sm text-gray-300">
+                        <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                        <span>New billing cycle starts today</span>
+                      </li>
+                    </>
+                  ) : (
+                    <>
+                      <li className="flex items-start gap-2 text-sm text-gray-300">
+                        <Check className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                        <span>You'll keep your current plan until the end of your billing period</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-sm text-gray-300">
+                        <Check className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                        <span>After that, you'll be moved to {pendingPlan.name}</span>
+                      </li>
+                      <li className="flex items-start gap-2 text-sm text-gray-300">
+                        <Check className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
+                        <span>Your existing credits remain until they expire</span>
+                      </li>
+                    </>
+                  )}
+                </ul>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setPendingPlan(null);
+                  }}
+                  className="flex-1 glass-button py-3 text-white hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleSubscribe(pendingPlan.tier)}
+                  disabled={subscribing}
+                  className="flex-1 glass-button glass-button-primary py-3 flex items-center justify-center gap-2"
+                >
+                  {subscribing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Processing...
+                    </>
+                  ) : isUpgrade ? (
+                    <>
+                      <Sparkles className="w-4 h-4" />
+                      Confirm Upgrade
+                    </>
+                  ) : (
+                    'Confirm Downgrade'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Credit Purchase Confirmation Modal */}
+        {showCreditConfirmModal && pendingCreditPackage && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-md glass-panel p-6"
+            >
+              {/* Header */}
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-gradient-to-br from-cyan-400 to-purple-500">
+                  <Zap className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Confirm Purchase</h3>
+                  <p className="text-gray-400">One-time credit purchase</p>
+                </div>
+              </div>
+
+              {/* Package Details */}
+              <div className="bg-white/5 rounded-xl p-4 mb-6">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-white font-semibold text-lg">{pendingCreditPackage.credits} Credits</span>
+                  <span className="text-2xl font-bold text-cyan-400">${pendingCreditPackage.price}</span>
+                </div>
+                <div className="flex items-center gap-2 text-gray-300 text-sm">
+                  <span>${pendingCreditPackage.perCredit} per credit</span>
+                  {pendingCreditPackage.popular && (
+                    <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded text-xs">Best Value</span>
+                  )}
+                </div>
+              </div>
+
+              {/* What happens */}
+              <div className="mb-6">
+                <h4 className="text-sm font-medium text-gray-400 mb-3">What happens next:</h4>
+                <ul className="space-y-2">
+                  <li className="flex items-start gap-2 text-sm text-gray-300">
+                    <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                    <span>You'll be taken to a secure checkout page</span>
+                  </li>
+                  <li className="flex items-start gap-2 text-sm text-gray-300">
+                    <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                    <span>Your card will be charged <strong className="text-white">${pendingCreditPackage.price}</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2 text-sm text-gray-300">
+                    <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                    <span><strong className="text-white">{pendingCreditPackage.credits} credits</strong> will be added to your account immediately</span>
+                  </li>
+                  <li className="flex items-start gap-2 text-sm text-gray-300">
+                    <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                    <span>Credits expire 90 days after purchase</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowCreditConfirmModal(false);
+                    setPendingCreditPackage(null);
+                  }}
+                  className="flex-1 glass-button py-3 text-white hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleBuyCredits(pendingCreditPackage.credits)}
+                  disabled={buyingCredits}
+                  className="flex-1 glass-button glass-button-primary py-3 flex items-center justify-center gap-2"
+                >
+                  {buyingCredits ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4" />
+                      Continue to Checkout
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </div>
     </>
   );
