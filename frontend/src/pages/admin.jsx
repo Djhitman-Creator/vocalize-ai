@@ -30,7 +30,9 @@ import {
   RefreshCw,
   Zap,
   Calendar,
-  DollarSign
+  DollarSign,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -74,6 +76,11 @@ export default function AdminPage() {
   // Messages
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Delete user state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   // Check admin access
   useEffect(() => {
@@ -307,6 +314,63 @@ export default function AdminPage() {
     setSuccessMessage(`Exported ${subscribedUsers.length} emails in Mailchimp format`);
   };
 
+  // Delete user completely (GDPR compliance)
+  const handleDeleteUser = async () => {
+    if (!searchResult) return;
+    
+    // Verify email confirmation matches
+    if (deleteConfirmEmail !== searchResult.email) {
+      setErrorMessage('Email confirmation does not match');
+      return;
+    }
+
+    setDeleting(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      // Call backend API to delete user
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/admin/delete-user`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          user_id: searchResult.id,
+          email: searchResult.email
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete user');
+      }
+
+      setSuccessMessage(`Successfully deleted user ${searchResult.email} and all associated data`);
+      setSearchResult(null);
+      setSearchEmail('');
+      setShowDeleteConfirm(false);
+      setDeleteConfirmEmail('');
+      
+      // Refresh user list
+      loadUsers();
+
+    } catch (err) {
+      console.error('Delete user error:', err);
+      setErrorMessage('Failed to delete user: ' + err.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // Loading state
   if (loading) {
     return (
@@ -360,7 +424,7 @@ export default function AdminPage() {
           >
             <CheckCircle className="w-5 h-5 text-green-400" />
             <span className="text-green-400">{successMessage}</span>
-            <button onClick={() => setSuccessMessage('')} className="ml-auto text-green-400 hover:text-green-300">×</button>
+            <button onClick={() => setSuccessMessage('')} className="ml-auto text-green-400 hover:text-green-300">Ã—</button>
           </motion.div>
         )}
         {errorMessage && (
@@ -371,7 +435,7 @@ export default function AdminPage() {
           >
             <AlertCircle className="w-5 h-5 text-red-400" />
             <span className="text-red-400">{errorMessage}</span>
-            <button onClick={() => setErrorMessage('')} className="ml-auto text-red-400 hover:text-red-300">×</button>
+            <button onClick={() => setErrorMessage('')} className="ml-auto text-red-400 hover:text-red-300">Ã—</button>
           </motion.div>
         )}
 
@@ -469,6 +533,18 @@ export default function AdminPage() {
                       }`}
                     >
                       {searchResult.mailing_list_opt_out ? 'Opted Out' : 'Subscribed'}
+                    </button>
+                  </div>
+
+                  {/* Delete User Button */}
+                  <div className="flex items-center justify-between py-2 border-t border-white/10">
+                    <span className="text-sm text-gray-400">Danger Zone</span>
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="px-3 py-1 rounded text-xs font-medium transition-colors bg-red-500/20 text-red-400 hover:bg-red-500/30 flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Delete User
                     </button>
                   </div>
                 </div>
@@ -575,7 +651,7 @@ export default function AdminPage() {
                 <h3 className="text-cyan-400 font-medium mb-2">Mailchimp Integration</h3>
                 <ol className="text-sm text-gray-400 space-y-1 list-decimal list-inside">
                   <li>Export using "Mailchimp CSV" button</li>
-                  <li>Go to Mailchimp → Audience → Import contacts</li>
+                  <li>Go to Mailchimp â†’ Audience â†’ Import contacts</li>
                   <li>Upload the CSV file</li>
                   <li>Map fields: Email Address, TIER, CREDITS, JOINED</li>
                   <li>Use TIER field to segment by subscription level</li>
@@ -631,6 +707,79 @@ export default function AdminPage() {
           </div>
         </div>
       </main>
+
+      {/* Delete User Confirmation Modal */}
+      {showDeleteConfirm && searchResult && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`w-full max-w-md rounded-2xl p-6 ${isDark ? 'bg-gray-900' : 'bg-white'} border border-red-500/30`}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Delete User Permanently</h3>
+                <p className="text-sm text-gray-400">This action cannot be undone</p>
+              </div>
+            </div>
+
+            <div className="mb-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
+              <p className="text-sm text-red-300 mb-2">
+                <strong>Warning:</strong> This will permanently delete:
+              </p>
+              <ul className="text-sm text-gray-400 list-disc list-inside space-y-1">
+                <li>User account and authentication</li>
+                <li>Profile data</li>
+                <li>All {searchResult.project_count || 0} projects</li>
+                <li>Credit history</li>
+                <li>Stripe subscription (if any)</li>
+              </ul>
+            </div>
+
+            <div className="mb-4">
+              <p className="text-sm text-gray-400 mb-2">
+                Type <span className="text-cyan-400 font-mono">{searchResult.email}</span> to confirm:
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmEmail}
+                onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                placeholder="Enter email to confirm"
+                className="w-full px-4 py-2 rounded-lg bg-white/10 border border-white/20 text-white placeholder-gray-500 focus:outline-none focus:border-red-500"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeleteConfirmEmail('');
+                }}
+                className="flex-1 px-4 py-2 rounded-lg bg-gray-600 hover:bg-gray-500 text-white font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteUser}
+                disabled={deleting || deleteConfirmEmail !== searchResult.email}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Delete Forever
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
