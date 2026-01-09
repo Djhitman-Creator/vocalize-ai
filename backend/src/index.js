@@ -62,9 +62,9 @@ const brevoEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // Log Brevo configuration
 if (process.env.BREVO_API_KEY) {
-  console.log(`ðŸ“§ Email notifications: enabled (API key: ${process.env.BREVO_API_KEY.substring(0, 10)}...)`);
+  console.log(`Ã°Å¸â€œÂ§ Email notifications: enabled (API key: ${process.env.BREVO_API_KEY.substring(0, 10)}...)`);
 } else {
-  console.log('âš ï¸ Email notifications: DISABLED (no BREVO_API_KEY set)');
+  console.log('Ã¢Å¡Â Ã¯Â¸Â Email notifications: DISABLED (no BREVO_API_KEY set)');
 }
 
 const upload = multer({
@@ -309,7 +309,7 @@ async function sendToRunPod(projectId, audioUrl, options) {
 // NEW: Send completion email via Brevo
 async function sendCompletionEmail(project, downloadUrl) {
   try {
-    console.log(`ðŸ“§ Attempting to send completion email for project ${project.id}`);
+    console.log(`Ã°Å¸â€œÂ§ Attempting to send completion email for project ${project.id}`);
 
     // Method 1: Try to get email from profiles table
     let userEmail = null;
@@ -354,7 +354,7 @@ async function sendCompletionEmail(project, downloadUrl) {
     }
 
     if (!userEmail) {
-      console.error('âŒ Could not get user email for notification - no email found');
+      console.error('Ã¢ÂÅ’ Could not get user email for notification - no email found');
       return;
     }
 
@@ -362,7 +362,7 @@ async function sendCompletionEmail(project, downloadUrl) {
 
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
-    sendSmtpEmail.subject = `ðŸŽµ Your karaoke track "${project.title}" is ready!`;
+    sendSmtpEmail.subject = `Ã°Å¸Å½Âµ Your karaoke track "${project.title}" is ready!`;
     sendSmtpEmail.sender = {
       name: 'Karatrack Studio',
       email: 'notifications@karatrack.com'
@@ -383,13 +383,13 @@ async function sendCompletionEmail(project, downloadUrl) {
         <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
           <!-- Header -->
           <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">ðŸŽµ Karatrack Studio</h1>
+            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Ã°Å¸Å½Âµ Karatrack Studio</h1>
           </div>
           
           <!-- Main Content -->
           <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(0, 212, 255, 0.2);">
             <h2 style="color: #ffffff; font-size: 24px; margin: 0 0 20px 0;">
-              Hey ${userName}! ðŸ‘‹
+              Hey ${userName}! Ã°Å¸â€˜â€¹
             </h2>
             
             <p style="color: #a0a0a0; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
@@ -430,7 +430,7 @@ async function sendCompletionEmail(project, downloadUrl) {
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -451,10 +451,10 @@ This link expires in 1 hour. You can always download again from your dashboard a
     `;
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`âœ… Completion email sent to ${userEmail} for project ${project.id}`);
+    console.log(`Ã¢Å“â€¦ Completion email sent to ${userEmail} for project ${project.id}`);
 
   } catch (error) {
-    console.error('âŒ Error sending completion email:');
+    console.error('Ã¢ÂÅ’ Error sending completion email:');
     console.error('   Message:', error.message);
     console.error('   Status:', error.status);
     console.error('   Response:', JSON.stringify(error.response?.body || error.response?.text || 'No response body'));
@@ -465,7 +465,7 @@ This link expires in 1 hour. You can always download again from your dashboard a
 // NEW: Send failure notification email
 async function sendFailureEmail(project, errorMessage) {
   try {
-    console.log(`ðŸ“§ Attempting to send failure email for project ${project.id}`);
+    console.log(`Ã°Å¸â€œÂ§ Attempting to send failure email for project ${project.id}`);
 
     // Get user email (same method as sendCompletionEmail)
     let userEmail = null;
@@ -495,13 +495,13 @@ async function sendFailureEmail(project, errorMessage) {
     }
 
     if (!userEmail) {
-      console.error('âŒ Could not get user email for failure notification');
+      console.error('Ã¢ÂÅ’ Could not get user email for failure notification');
       return;
     }
 
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
-    sendSmtpEmail.subject = `âš ï¸ Issue processing "${project.title}"`;
+    sendSmtpEmail.subject = `Ã¢Å¡Â Ã¯Â¸Â Issue processing "${project.title}"`;
     sendSmtpEmail.sender = {
       name: 'Karatrack Studio',
       email: 'notifications@karatrack.com'
@@ -522,7 +522,7 @@ async function sendFailureEmail(project, errorMessage) {
         <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
           <!-- Header -->
           <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">ðŸŽµ Karatrack Studio</h1>
+            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Ã°Å¸Å½Âµ Karatrack Studio</h1>
           </div>
           
           <!-- Main Content -->
@@ -558,7 +558,7 @@ async function sendFailureEmail(project, errorMessage) {
               Need help? <a href="mailto:support@karatrack.com" style="color: #00d4ff; text-decoration: none;">Contact Support</a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -567,7 +567,7 @@ async function sendFailureEmail(project, errorMessage) {
     `;
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`âœ… Failure email sent to ${userEmail} for project ${project.id}`);
+    console.log(`Ã¢Å“â€¦ Failure email sent to ${userEmail} for project ${project.id}`);
 
   } catch (error) {
     console.error('Error sending failure email:', error);
@@ -613,7 +613,7 @@ app.post('/api/profile/watermark', authMiddleware, upload.single('watermark'), a
     // Upload watermark to R2
     const watermarkKey = `watermarks/${req.user.id}/default-watermark${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
     const watermarkUrl = await uploadToR2(req.file.buffer, watermarkKey, req.file.mimetype);
-    console.log(`📸 Default watermark uploaded for user ${req.user.id}: ${watermarkUrl}`);
+    console.log(`ðŸ“¸ Default watermark uploaded for user ${req.user.id}: ${watermarkUrl}`);
 
     // Save URL to user's profile
     const { error } = await supabase
@@ -645,7 +645,7 @@ app.delete('/api/profile/watermark', authMiddleware, async (req, res) => {
 
     if (error) throw error;
 
-    console.log(`🗑️ Default watermark cleared for user ${req.user.id}`);
+    console.log(`ðŸ—‘ï¸ Default watermark cleared for user ${req.user.id}`);
     res.json({ success: true, message: 'Default watermark removed' });
   } catch (error) {
     console.error('Watermark delete error:', error);
@@ -665,6 +665,121 @@ app.get('/api/user/credits/history', authMiddleware, async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error('Credits history error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// ADMIN ENDPOINTS
+// ============================================
+
+// Admin emails that can perform admin actions
+const ADMIN_EMAILS = [
+  'jboyte72@gmail.com',
+  'djhitman72@gmail.com',
+  'agent@karatrack.com'
+];
+
+// Delete user completely (GDPR compliance)
+app.delete('/api/admin/delete-user', authMiddleware, async (req, res) => {
+  try {
+    const { user_id, email } = req.body;
+
+    // Verify requester is an admin
+    if (!ADMIN_EMAILS.includes(req.user.email)) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    if (!user_id || !email) {
+      return res.status(400).json({ error: 'User ID and email are required' });
+    }
+
+    console.log(`🗑️ Admin ${req.user.email} deleting user: ${email} (${user_id})`);
+
+    // 1. Get user's Stripe customer ID to cancel subscription
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('stripe_customer_id, stripe_subscription_id')
+      .eq('id', user_id)
+      .single();
+
+    // 2. Cancel Stripe subscription if exists
+    if (profile?.stripe_subscription_id) {
+      try {
+        await stripe.subscriptions.cancel(profile.stripe_subscription_id);
+        console.log(`   ✓ Cancelled Stripe subscription: ${profile.stripe_subscription_id}`);
+      } catch (stripeErr) {
+        console.log(`   ⚠️ Could not cancel subscription: ${stripeErr.message}`);
+      }
+    }
+
+    // 3. Delete user's projects (and associated files would need R2 cleanup eventually)
+    const { data: projects } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('user_id', user_id);
+    
+    if (projects?.length > 0) {
+      const { error: projectsError } = await supabase
+        .from('projects')
+        .delete()
+        .eq('user_id', user_id);
+      
+      if (projectsError) {
+        console.log(`   ⚠️ Error deleting projects: ${projectsError.message}`);
+      } else {
+        console.log(`   ✓ Deleted ${projects.length} projects`);
+      }
+    }
+
+    // 4. Delete user's credit batches
+    const { error: creditsError } = await supabase
+      .from('credit_batches')
+      .delete()
+      .eq('user_id', user_id);
+    
+    if (creditsError) {
+      console.log(`   ⚠️ Error deleting credit batches: ${creditsError.message}`);
+    } else {
+      console.log(`   ✓ Deleted credit batches`);
+    }
+
+    // 5. Delete user's profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', user_id);
+    
+    if (profileError) {
+      console.log(`   ⚠️ Error deleting profile: ${profileError.message}`);
+    } else {
+      console.log(`   ✓ Deleted profile`);
+    }
+
+    // 6. Delete user from Supabase Auth (requires service key)
+    const { error: authError } = await supabase.auth.admin.deleteUser(user_id);
+    
+    if (authError) {
+      console.log(`   ⚠️ Error deleting auth user: ${authError.message}`);
+      // Continue anyway - the user data is already deleted
+    } else {
+      console.log(`   ✓ Deleted auth user`);
+    }
+
+    console.log(`✅ Successfully deleted user: ${email}`);
+
+    res.json({ 
+      success: true, 
+      message: `User ${email} and all associated data have been deleted`,
+      deleted: {
+        projects: projects?.length || 0,
+        profile: true,
+        auth: !authError
+      }
+    });
+
+  } catch (error) {
+    console.error('Delete user error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -782,9 +897,9 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       if (userProfileForWatermark.subscription_tier === 'studio') {
         const watermarkKey = `watermarks/${req.user.id}/${projectId}-watermark${customWatermarkFile.originalname.substring(customWatermarkFile.originalname.lastIndexOf('.'))}`;
         customWatermarkUrl = await uploadToR2(customWatermarkFile.buffer, watermarkKey, customWatermarkFile.mimetype);
-        console.log(`ðŸ“¸ Custom watermark uploaded: ${customWatermarkUrl}`);
+        console.log(`Ã°Å¸â€œÂ¸ Custom watermark uploaded: ${customWatermarkUrl}`);
       } else {
-        console.log('âš ï¸ Custom watermark ignored - user is not Studio tier');
+        console.log('Ã¢Å¡Â Ã¯Â¸Â Custom watermark ignored - user is not Studio tier');
       }
     }
 
@@ -1322,7 +1437,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
     const currentTierLevel = getTierLevel(profile.subscription_tier);
     const newTierLevel = getTierLevel(newPlan.tier);
 
-    console.log(`ðŸ“¦ Plan change: ${profile.subscription_tier} (${currentTierLevel}) -> ${newPlan.tier} (${newTierLevel})`);
+    console.log(`Ã°Å¸â€œÂ¦ Plan change: ${profile.subscription_tier} (${currentTierLevel}) -> ${newPlan.tier} (${newTierLevel})`);
 
     // If user has existing subscription, handle upgrade vs downgrade differently
     if (profile.stripe_subscription_id) {
@@ -1335,7 +1450,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
           if (newTierLevel > currentTierLevel) {
             // UPGRADE: Update immediately, NO proration (user pays full price)
             // User keeps their existing credits + gets new tier's credits
-            console.log(`   â¬†ï¸ Upgrading immediately (no proration - full price)`);
+            console.log(`   Ã¢Â¬â€ Ã¯Â¸Â Upgrading immediately (no proration - full price)`);
 
             // Check if user has upgrade discount available
             const hasDiscount = !profile.upgrade_discount_used;
@@ -1343,7 +1458,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
 
             if (hasDiscount && process.env.STRIPE_UPGRADE_COUPON_ID) {
               couponId = process.env.STRIPE_UPGRADE_COUPON_ID;
-              console.log(`   ðŸŽ« Applying 20% upgrade discount coupon`);
+              console.log(`   Ã°Å¸Å½Â« Applying 20% upgrade discount coupon`);
             }
 
             const updateParams = {
@@ -1415,7 +1530,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
 
           } else if (newTierLevel < currentTierLevel) {
             // DOWNGRADE: Schedule for end of billing period using subscription schedule
-            console.log(`   â¬‡ï¸ Scheduling downgrade for period end`);
+            console.log(`   Ã¢Â¬â€¡Ã¯Â¸Â Scheduling downgrade for period end`);
 
             // Check if there's already a schedule attached
             let schedule;
@@ -1478,7 +1593,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
               year: 'numeric'
             });
 
-            console.log(`   âœ… Downgrade scheduled for ${formattedDate}`);
+            console.log(`   Ã¢Å“â€¦ Downgrade scheduled for ${formattedDate}`);
 
             return res.json({
               success: true,
@@ -1489,7 +1604,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
           }
         }
       } catch (subError) {
-        console.log(`   âš ï¸ Could not update existing subscription: ${subError.message}`);
+        console.log(`   Ã¢Å¡Â Ã¯Â¸Â Could not update existing subscription: ${subError.message}`);
         // Fall through to create new checkout session
       }
     }
@@ -1648,7 +1763,7 @@ app.post('/api/stripe/cancel-scheduled-change', authMiddleware, async (req, res)
       })
       .eq('id', req.user.id);
 
-    console.log(`âœ… Scheduled change cancelled for user ${req.user.id}`);
+    console.log(`Ã¢Å“â€¦ Scheduled change cancelled for user ${req.user.id}`);
 
     res.json({
       success: true,
@@ -1662,15 +1777,15 @@ app.post('/api/stripe/cancel-scheduled-change', authMiddleware, async (req, res)
 
 // WEBHOOKS
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
-  console.log('ðŸ”” Stripe webhook received');
+  console.log('Ã°Å¸â€â€ Stripe webhook received');
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    console.log(`âœ… Webhook verified: ${event.type}`);
+    console.log(`Ã¢Å“â€¦ Webhook verified: ${event.type}`);
   } catch (err) {
-    console.error('âŒ Webhook signature verification failed:', err.message);
+    console.error('Ã¢ÂÅ’ Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -1692,7 +1807,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         // Handle subscription credits (both new signups AND upgrades get credits)
         if (session.mode === 'subscription') {
           const isUpgrade = session.metadata.is_upgrade === 'true';
-          console.log(`ðŸ†• Subscription checkout completed for user: ${session.metadata.user_id} (upgrade: ${isUpgrade})`);
+          console.log(`Ã°Å¸â€ â€¢ Subscription checkout completed for user: ${session.metadata.user_id} (upgrade: ${isUpgrade})`);
 
           // Get the subscription to find the price/plan
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
@@ -1725,7 +1840,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         const customerId = subscription.customer;
-        console.log(`ðŸ“¦ Subscription ${event.type} for customer: ${customerId}`);
+        console.log(`Ã°Å¸â€œÂ¦ Subscription ${event.type} for customer: ${customerId}`);
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -1734,12 +1849,12 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           .single();
 
         if (profileError) {
-          console.error('âŒ Error finding profile by stripe_customer_id:', profileError);
+          console.error('Ã¢ÂÅ’ Error finding profile by stripe_customer_id:', profileError);
           console.log('   Looking for customer ID:', customerId);
         }
 
         if (profile) {
-          console.log(`âœ… Found profile: ${profile.id}`);
+          console.log(`Ã¢Å“â€¦ Found profile: ${profile.id}`);
           const priceId = subscription.items.data[0].price.id;
           console.log(`   Price ID from subscription: ${priceId}`);
 
@@ -1750,12 +1865,12 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             .single();
 
           if (planError) {
-            console.error('âŒ Error finding plan by stripe_price_id:', planError);
+            console.error('Ã¢ÂÅ’ Error finding plan by stripe_price_id:', planError);
             console.log('   Looking for price ID:', priceId);
           }
 
           if (plan) {
-            console.log(`âœ… Found plan: ${plan.tier} (${plan.credits_per_month} credits)`);
+            console.log(`Ã¢Å“â€¦ Found plan: ${plan.tier} (${plan.credits_per_month} credits)`);
 
             const { error: updateError } = await supabase
               .from('profiles')
@@ -1766,9 +1881,9 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               .eq('id', profile.id);
 
             if (updateError) {
-              console.error('âŒ Error updating profile:', updateError);
+              console.error('Ã¢ÂÅ’ Error updating profile:', updateError);
             } else {
-              console.log(`âœ… Profile updated to tier: ${plan.tier}`);
+              console.log(`Ã¢Å“â€¦ Profile updated to tier: ${plan.tier}`);
             }
 
             // ALSO upsert into subscriptions table (THIS WAS MISSING - caused "Failed to Fetch" errors)
@@ -1783,25 +1898,25 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               }, { onConflict: 'user_id' });
 
             if (subError) {
-              console.error('âŒ Error upserting subscription record:', subError);
+              console.error('Ã¢ÂÅ’ Error upserting subscription record:', subError);
             } else {
-              console.log(`âœ… Subscription record created/updated in subscriptions table`);
+              console.log(`Ã¢Å“â€¦ Subscription record created/updated in subscriptions table`);
             }
 
             // Note: Credits are now added in checkout.session.completed handler
             // This allows us to check metadata and skip credits for upgrades
           } else {
-            console.log('âŒ No plan found for price ID:', priceId);
+            console.log('Ã¢ÂÅ’ No plan found for price ID:', priceId);
           }
         } else {
-          console.log('âŒ No profile found for customer ID:', customerId);
+          console.log('Ã¢ÂÅ’ No profile found for customer ID:', customerId);
         }
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        console.log(`ðŸ—‘ï¸ Subscription deleted for customer: ${subscription.customer}`);
+        console.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â Subscription deleted for customer: ${subscription.customer}`);
 
         // Update profile
         await supabase
@@ -1826,7 +1941,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             .from('subscriptions')
             .delete()
             .eq('user_id', profile.id);
-          console.log(`âœ… Subscription record deleted from subscriptions table`);
+          console.log(`Ã¢Å“â€¦ Subscription record deleted from subscriptions table`);
         }
         break;
       }
@@ -1835,7 +1950,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       case 'subscription_schedule.updated':
       case 'subscription_schedule.completed': {
         const schedule = event.data.object;
-        console.log(`ðŸ“… Subscription schedule ${event.type}: ${schedule.id}`);
+        console.log(`Ã°Å¸â€œâ€¦ Subscription schedule ${event.type}: ${schedule.id}`);
 
         // When a schedule completes, the subscription has moved to the next phase
         // Update the user's tier to match the new plan
@@ -1859,7 +1974,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
                 .single();
 
               if (plan) {
-                console.log(`   ðŸ“¦ Schedule completed - updating tier to ${plan.tier}`);
+                console.log(`   Ã°Å¸â€œÂ¦ Schedule completed - updating tier to ${plan.tier}`);
 
                 await supabase
                   .from('profiles')
@@ -1880,11 +1995,11 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
                     status: subscription.status
                   }, { onConflict: 'user_id' });
 
-                console.log(`   âœ… User ${profile.id} downgraded to ${plan.tier}`);
+                console.log(`   Ã¢Å“â€¦ User ${profile.id} downgraded to ${plan.tier}`);
               }
             }
           } catch (scheduleError) {
-            console.error('   âŒ Error processing schedule completion:', scheduleError);
+            console.error('   Ã¢ÂÅ’ Error processing schedule completion:', scheduleError);
           }
         }
         break;
@@ -1907,7 +2022,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               .single();
 
             if (plan) {
-              console.log(`ðŸ“… Monthly renewal for ${profile.subscription_tier}: adding ${plan.credits_per_month} credits`);
+              console.log(`Ã°Å¸â€œâ€¦ Monthly renewal for ${profile.subscription_tier}: adding ${plan.credits_per_month} credits`);
               await addCreditsWithExpiration(
                 profile.id,
                 plan.credits_per_month,
@@ -1947,7 +2062,7 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
 
     // Handle transcription completed (two-stage processing)
     if (status === 'transcribed' && results) {
-      console.log(`ðŸ“‹ Project ${project_id} transcription complete - awaiting review`);
+      console.log(`Ã°Å¸â€œâ€¹ Project ${project_id} transcription complete - awaiting review`);
 
       const { data: updateData, error: updateError } = await supabase
         .from('projects')
@@ -1962,9 +2077,9 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         .select();
 
       if (updateError) {
-        console.error('âŒ Failed to update project status:', updateError);
+        console.error('Ã¢ÂÅ’ Failed to update project status:', updateError);
       } else {
-        console.log('âœ… Project status updated to awaiting_review:', updateData);
+        console.log('Ã¢Å“â€¦ Project status updated to awaiting_review:', updateData);
       }
 
       // Don't send email - user needs to review lyrics first
@@ -1984,9 +2099,9 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         .select();
 
       if (updateError) {
-        console.error('âŒ Failed to update project status:', updateError);
+        console.error('Ã¢ÂÅ’ Failed to update project status:', updateError);
       } else {
-        console.log('âœ… Project status updated to completed:', updateData);
+        console.log('Ã¢Å“â€¦ Project status updated to completed:', updateData);
       }
 
       // Send completion email if enabled
@@ -2014,7 +2129,7 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         .eq('id', project_id);
 
       if (updateError) {
-        console.error('âŒ Failed to update project status:', updateError);
+        console.error('Ã¢ÂÅ’ Failed to update project status:', updateError);
       }
 
       // Send failure email if enabled
@@ -2055,7 +2170,7 @@ async function addCreditsWithExpiration(userId, amount, source, description, day
 // Helper: Send expiration warning email
 async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expirationDate) {
   if (!process.env.BREVO_API_KEY) {
-    console.log('âš ï¸ Brevo not configured, skipping expiration email');
+    console.log('Ã¢Å¡Â Ã¯Â¸Â Brevo not configured, skipping expiration email');
     return;
   }
 
@@ -2069,11 +2184,11 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
     };
 
     if (daysLeft <= 1) {
-      sendSmtpEmail.subject = 'âš ï¸ Your Karatrack credits expire TOMORROW!';
+      sendSmtpEmail.subject = 'Ã¢Å¡Â Ã¯Â¸Â Your Karatrack credits expire TOMORROW!';
     } else if (daysLeft <= 7) {
-      sendSmtpEmail.subject = `âš ï¸ ${creditsExpiring} credits expiring in ${daysLeft} days`;
+      sendSmtpEmail.subject = `Ã¢Å¡Â Ã¯Â¸Â ${creditsExpiring} credits expiring in ${daysLeft} days`;
     } else {
-      sendSmtpEmail.subject = `ðŸ“¢ ${creditsExpiring} credits expiring in ${daysLeft} days`;
+      sendSmtpEmail.subject = `Ã°Å¸â€œÂ¢ ${creditsExpiring} credits expiring in ${daysLeft} days`;
     }
 
     const formattedDate = new Date(expirationDate).toLocaleDateString('en-US', {
@@ -2100,14 +2215,14 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
       <body>
         <div class="container">
           <div class="header">
-            <h1>ðŸŽ¤ Karatrack Studio</h1>
+            <h1>Ã°Å¸Å½Â¤ Karatrack Studio</h1>
           </div>
           <div class="content">
             <h2>Your credits are expiring soon!</h2>
             
             <div class="warning-box">
               <strong>${creditsExpiring} credits</strong> will expire on <strong>${formattedDate}</strong>
-              ${daysLeft <= 1 ? '<br><br>âš ï¸ This is your final reminder!' : ''}
+              ${daysLeft <= 1 ? '<br><br>Ã¢Å¡Â Ã¯Â¸Â This is your final reminder!' : ''}
             </div>
             
             <p>Don't let your credits go to waste! Use them to create amazing karaoke tracks before they expire.</p>
@@ -2121,7 +2236,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             
             <center>
               <a href="${process.env.FRONTEND_URL}/upload" class="cta-button">
-                ðŸŽ¬ Create a Karaoke Track Now
+                Ã°Å¸Å½Â¬ Create a Karaoke Track Now
               </a>
             </center>
             
@@ -2130,7 +2245,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             </p>
           </div>
           <div class="footer">
-            <p>Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
+            <p>Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
             <p>Questions? Reply to this email or visit our support page.</p>
           </div>
         </div>
@@ -2139,7 +2254,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
     `;
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`ðŸ“§ Expiration warning sent to ${email} (${daysLeft} days left)`);
+    console.log(`Ã°Å¸â€œÂ§ Expiration warning sent to ${email} (${daysLeft} days left)`);
   } catch (error) {
     console.error('Failed to send expiration email:', error);
   }
@@ -2157,7 +2272,7 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
       name: 'Karatrack Studio',
       email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com'
     };
-    sendSmtpEmail.subject = `ðŸ˜¢ ${expiredAmount} credits have expired`;
+    sendSmtpEmail.subject = `Ã°Å¸ËœÂ¢ ${expiredAmount} credits have expired`;
 
     sendSmtpEmail.htmlContent = `
       <!DOCTYPE html>
@@ -2174,7 +2289,7 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
       <body>
         <div class="container">
           <div class="header">
-            <h1>ðŸŽ¤ Karatrack Studio</h1>
+            <h1>Ã°Å¸Å½Â¤ Karatrack Studio</h1>
           </div>
           <div class="content">
             <h2>Your credits have expired</h2>
@@ -2185,7 +2300,7 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
             
             <center>
               <a href="${process.env.FRONTEND_URL}/pricing" class="cta-button">
-                ðŸŽ¯ Get More Credits
+                Ã°Å¸Å½Â¯ Get More Credits
               </a>
             </center>
           </div>
@@ -2195,7 +2310,7 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
     `;
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`ðŸ“§ Credits expired notification sent to ${email}`);
+    console.log(`Ã°Å¸â€œÂ§ Credits expired notification sent to ${email}`);
   } catch (error) {
     console.error('Failed to send expired email:', error);
   }
@@ -2212,7 +2327,7 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  console.log('ðŸ• Running credit expiration check...');
+  console.log('Ã°Å¸â€¢Â Running credit expiration check...');
 
   try {
     const results = {
@@ -2242,7 +2357,7 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
           await sendCreditsExpiredEmail(profile.email, user.expired_amount);
         }
       }
-      console.log(`ðŸ’€ Expired ${results.expired} credits for ${expiredUsers.length} users`);
+      console.log(`Ã°Å¸â€™â‚¬ Expired ${results.expired} credits for ${expiredUsers.length} users`);
     }
 
     // 2. Send 14-day warnings
@@ -2330,7 +2445,7 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
       }
     }
 
-    console.log('âœ… Credit expiration check complete:', results);
+    console.log('Ã¢Å“â€¦ Credit expiration check complete:', results);
     res.json({ success: true, results });
 
   } catch (error) {
@@ -2354,9 +2469,9 @@ app.use((req, res) => {
 
 // START SERVER
 app.listen(PORT, () => {
-  console.log(`ðŸš€ Karatrack Studio API running on port ${PORT}`);
-  console.log(`ðŸ“Š Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`ðŸ“§ Email notifications: ${process.env.BREVO_API_KEY ? 'enabled' : 'disabled'}`);
+  console.log(`Ã°Å¸Å¡â‚¬ Karatrack Studio API running on port ${PORT}`);
+  console.log(`Ã°Å¸â€œÅ  Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Ã°Å¸â€œÂ§ Email notifications: ${process.env.BREVO_API_KEY ? 'enabled' : 'disabled'}`);
 });
 
 module.exports = app;
