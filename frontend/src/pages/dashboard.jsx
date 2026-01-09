@@ -64,10 +64,11 @@ export default function DashboardPage() {
     const id = Date.now();
     setNotifications(prev => [...prev, { id, message, type }]);
 
-    // Auto-remove after 5 seconds
+    // Auto-remove after 5 seconds for success, 10 seconds for errors
+    const duration = type === 'error' ? 10000 : 5000;
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 5000);
+    }, duration);
   }, []);
 
   // Remove notification
@@ -208,21 +209,35 @@ export default function DashboardPage() {
       console.log('📋 Pending plan detected:', planToActivate);
       setCheckingPendingPlan(true);
       
+      // Small delay to ensure auth session is fully established after email confirmation
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session) {
           console.error('No session for pending plan checkout');
+          addNotification('Session not ready. Please click your plan again on the pricing page.', 'error');
           setCheckingPendingPlan(false);
           return;
         }
         
+        console.log('📋 Session found, fetching plan data for:', planToActivate);
+        
         // Get the Stripe price ID for this plan
-        const { data: planData } = await supabase
+        const { data: planData, error: planError } = await supabase
           .from('subscription_plans')
           .select('stripe_price_id')
           .eq('tier', planToActivate)
           .single();
+        
+        if (planError) {
+          console.error('Plan fetch error:', planError);
+          addNotification(`Could not find plan "${planToActivate}". Please select from pricing page.`, 'error');
+          localStorage.removeItem('karatrack_pending_plan');
+          setCheckingPendingPlan(false);
+          return;
+        }
         
         if (!planData?.stripe_price_id) {
           console.error('Plan not found:', planToActivate);
@@ -230,6 +245,8 @@ export default function DashboardPage() {
           setCheckingPendingPlan(false);
           return;
         }
+        
+        console.log('📋 Creating checkout session with price:', planData.stripe_price_id);
         
         // Clear the pending plan from localStorage BEFORE redirect
         // This prevents redirect loops if user cancels checkout
@@ -250,6 +267,7 @@ export default function DashboardPage() {
         const data = await response.json();
         
         if (!response.ok) {
+          console.error('Checkout API error:', data);
           throw new Error(data.error || 'Failed to create checkout');
         }
         
@@ -259,7 +277,8 @@ export default function DashboardPage() {
         
       } catch (err) {
         console.error('Pending plan checkout error:', err);
-        addNotification('Failed to start subscription checkout. Please try again from the pricing page.', 'error');
+        console.error('Error details:', err.message);
+        addNotification(`Failed to start checkout: ${err.message}. Please try from the pricing page.`, 'error');
         setCheckingPendingPlan(false);
       }
     };
