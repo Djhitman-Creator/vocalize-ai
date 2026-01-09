@@ -36,6 +36,97 @@ const CreditBadge = ({ credits, isDark }) => (
   </div>
 );
 
+// ============================================
+// VIDEO MODAL COMPONENT (NEW)
+// ============================================
+const VideoModal = ({ isOpen, onClose, isDark }) => {
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          onClick={onClose}
+        >
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          
+          {/* Modal Content */}
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="relative w-full max-w-4xl z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              onClick={onClose}
+              className="absolute -top-12 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
+              aria-label="Close video"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            
+            {/* Video Container */}
+            <div className={`rounded-2xl overflow-hidden shadow-2xl ${isDark ? 'bg-gray-900' : 'bg-white'}`}>
+              {/* Video Header */}
+              <div className={`px-4 py-3 border-b ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
+                <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  🎤 Karatrack Studio Demo
+                </h3>
+              </div>
+              
+              {/* Video Player */}
+              <div className="aspect-video bg-black">
+                {/* 
+                  IMPORTANT: Replace the src URL below with your actual video URL
+                  Options:
+                  1. Cloudflare R2: https://pub-xxxxx.r2.dev/videos/demo.mp4
+                  2. YouTube embed: Use iframe instead of video tag
+                */}
+                <video
+                  controls
+                  autoPlay
+                  className="w-full h-full"
+                >
+                  {/* Demo video hosted on Cloudflare R2 */}
+                  <source src="https://pub-71dae0f9e45e4d8e8d1eedd472780341.r2.dev/assets/freekaratrack-demo.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                
+                {/* 
+                  ALTERNATIVE: YouTube Embed (uncomment and replace video tag above)
+                  <iframe
+                    className="w-full h-full"
+                    src="https://www.youtube.com/embed/YOUR_VIDEO_ID?autoplay=1"
+                    title="Karatrack Studio Demo"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                */}
+              </div>
+              
+              {/* Video Footer */}
+              <div className={`px-4 py-3 border-t ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
+                <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  See how easy it is to create professional karaoke videos in minutes!
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 const Navigation = ({ isDark, toggleTheme, credits }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -158,7 +249,8 @@ const Navigation = ({ isDark, toggleTheme, credits }) => {
   );
 };
 
-const HeroSection = ({ isDark }) => (
+// UPDATED: HeroSection now accepts onWatchDemo callback
+const HeroSection = ({ isDark, onWatchDemo }) => (
   <section className="min-h-screen flex items-center justify-center px-6 pt-32 pb-20">
     <div className="max-w-6xl mx-auto text-center">
       <motion.div
@@ -185,7 +277,7 @@ const HeroSection = ({ isDark }) => (
         transition={{ delay: 0.4 }}
         className={`text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-12 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
       >
-        Remove vocals, add guide vocals for practice, add scrolling lyrics, and export stunning music videos â€” all powered by cutting-edge AI.
+        Remove vocals, add guide vocals for practice, add scrolling lyrics, and export stunning music videos — all powered by cutting-edge AI.
       </motion.p>
       <motion.div
         initial={{ y: 30, opacity: 0 }}
@@ -199,7 +291,11 @@ const HeroSection = ({ isDark }) => (
             Get Started
           </button>
         </Link>
-        <button className={`glass-button flex items-center gap-2 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 ${isDark ? 'text-white' : 'text-gray-800'}`}>
+        {/* UPDATED: Watch Demo button now triggers the modal */}
+        <button 
+          onClick={onWatchDemo}
+          className={`glass-button flex items-center gap-2 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 ${isDark ? 'text-white' : 'text-gray-800'}`}
+        >
           <Play className="w-5 h-5" />
           Watch Demo
         </button>
@@ -220,18 +316,19 @@ const HeroSection = ({ isDark }) => (
           <div className="text-left">
             <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               <strong>For personal use only.</strong> By using Karatrack Studio, you confirm you have
-              the rights to any music you upload â€” either through ownership, license, or original creation.
+              the rights to any music you upload — either through ownership, license, or original creation.
             </p>
             <Link
               href="/terms"
               className={`text-sm mt-2 inline-block ${isDark ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'}`}
             >
-              Read our Terms of Service â†’
+              Read our Terms of Service →
             </Link>
           </div>
         </div>
       </motion.div>
 
+      {/* Stats Grid */}
       <motion.div
         initial={{ y: 40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -264,7 +361,7 @@ const HeroSection = ({ isDark }) => (
 const FeaturesSection = ({ isDark }) => {
   const features = [
     { icon: <Mic2 className="w-8 h-8" />, title: 'Vocal Removal', description: 'Remove all vocals from any track with studio-quality precision using advanced AI separation.' },
-    { icon: <Music className="w-8 h-8" />, title: 'Guide Vocals', description: 'Reduce the lead vocal by 70% â€” great for practice and learning new songs.' },
+    { icon: <Music className="w-8 h-8" />, title: 'Guide Vocals', description: 'Reduce the lead vocal by 70% — great for practice and learning new songs.' },
     { icon: <FileVideo className="w-8 h-8" />, title: 'Scrolling Lyrics', description: 'AI automatically transcribes and syncs lyrics with smooth, karaoke-style animations.' },
     { icon: <Sparkles className="w-8 h-8" />, title: 'Video Export', description: 'Export your processed track as a beautiful MP4 video with custom thumbnails.*' },
   ];
@@ -373,7 +470,7 @@ const PricingSection = ({ isDark }) => {
           className="text-center mt-6 sm:mt-8"
         >
           <Link href="/pricing" className={`text-xs sm:text-sm ${isDark ? 'text-gray-400 hover:text-cyan-400' : 'text-gray-600 hover:text-cyan-600'} transition-colors`}>
-            View full pricing details & compare features â†’
+            View full pricing details & compare features →
           </Link>
         </motion.div>
       </div>
@@ -433,7 +530,7 @@ const Footer = ({ isDark }) => (
           <a href="mailto:support@karatrack.com" className="hover:text-cyan-500 transition-colors">Contact</a>
         </div>
         <div className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          Â© 2025 Karatrack Studio. All rights reserved.
+          © 2025 Karatrack Studio. All rights reserved.
         </div>
       </div>
     </div>
@@ -443,6 +540,9 @@ const Footer = ({ isDark }) => (
 export default function HomePage() {
   const { isDark, toggleTheme } = useTheme();
   const [credits, setCredits] = useState(25);
+  
+  // NEW: State for video modal
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
   return (
     <>
@@ -455,11 +555,21 @@ export default function HomePage() {
       <div className={isDark ? 'dark' : ''}>
         <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
           <Navigation isDark={isDark} toggleTheme={toggleTheme} credits={credits} />
-          <HeroSection isDark={isDark} />
+          
+          {/* UPDATED: Pass the modal open handler to HeroSection */}
+          <HeroSection isDark={isDark} onWatchDemo={() => setIsVideoModalOpen(true)} />
+          
           <FeaturesSection isDark={isDark} />
           <UploadSection isDark={isDark} />
           <PricingSection isDark={isDark} />
           <Footer isDark={isDark} />
+          
+          {/* NEW: Video Modal */}
+          <VideoModal 
+            isOpen={isVideoModalOpen} 
+            onClose={() => setIsVideoModalOpen(false)} 
+            isDark={isDark}
+          />
         </div>
       </div>
     </>
