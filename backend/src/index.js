@@ -1536,17 +1536,22 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
               // Check if there's already a schedule attached
               let schedule;
               if (existingSubscription.schedule) {
-                // Update existing schedule
+                // Retrieve existing schedule to get its current phase
+                const existingSchedule = await stripe.subscriptionSchedules.retrieve(existingSubscription.schedule);
+                
+                // Update existing schedule - keep current phase, add new phase for downgrade
                 schedule = await stripe.subscriptionSchedules.update(existingSubscription.schedule, {
+                  end_behavior: 'release',
                   phases: [
                     {
                       items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
-                      start_date: existingSubscription.current_period_start,
+                      start_date: existingSchedule.phases[0].start_date,
                       end_date: existingSubscription.current_period_end,
                     },
                     {
                       items: [{ price: price_id, quantity: 1 }],
                       start_date: existingSubscription.current_period_end,
+                      iterations: 1,
                     }
                   ],
                   metadata: {
@@ -1557,12 +1562,19 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
                 });
               } else {
                 // Create new schedule from the subscription
+                // When using from_subscription, Stripe auto-creates first phase
+                // We just need to add the second phase via update after creation
                 schedule = await stripe.subscriptionSchedules.create({
                   from_subscription: profile.stripe_subscription_id,
+                });
+
+                // Now update the schedule to add the downgrade phase
+                schedule = await stripe.subscriptionSchedules.update(schedule.id, {
+                  end_behavior: 'release',
                   phases: [
                     {
                       items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
-                      start_date: existingSubscription.current_period_start,
+                      start_date: schedule.phases[0].start_date,
                       end_date: existingSubscription.current_period_end,
                     },
                     {
