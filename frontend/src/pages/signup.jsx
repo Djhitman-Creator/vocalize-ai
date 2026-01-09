@@ -40,6 +40,9 @@ export default function SignupPage() {
   const [resending, setResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
   const [resendError, setResendError] = useState('');
+  
+  // Track if email was confirmed (detected from other tab)
+  const [emailConfirmed, setEmailConfirmed] = useState(false);
 
   // Read plan from URL on mount
   useEffect(() => {
@@ -50,6 +53,34 @@ export default function SignupPage() {
       }
     }
   }, [router.isReady, router.query]);
+
+  // Listen for auth state changes to detect when email is confirmed in another tab
+  useEffect(() => {
+    if (!success) return; // Only listen when showing the "check email" screen
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event);
+      
+      // If user signed in (confirmed email in other tab), update this tab
+      if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
+        setEmailConfirmed(true);
+      }
+    });
+    
+    // Also check periodically if the user is now confirmed
+    const checkInterval = setInterval(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email_confirmed_at) {
+        setEmailConfirmed(true);
+        clearInterval(checkInterval);
+      }
+    }, 3000); // Check every 3 seconds
+    
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(checkInterval);
+    };
+  }, [success]);
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -131,6 +162,48 @@ export default function SignupPage() {
   const isPaidPlan = planInfo && planInfo.price > 0;
 
   if (success) {
+    // If email was confirmed in another tab, show a different message
+    if (emailConfirmed) {
+      return (
+        <>
+          <SEO 
+            title="Email Confirmed!"
+            description="Your email has been verified. You can close this tab."
+            path="/signup"
+          />
+          <div className="min-h-screen bg-animated-dark flex items-center justify-center px-6 py-12">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-full max-w-md"
+            >
+              <div className="glass-panel p-8 text-center">
+                <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
+                  <CheckCircle className="w-8 h-8 text-green-400" />
+                </div>
+                <h1 className="text-2xl font-bold text-white mb-2">Email Confirmed! ✓</h1>
+                <p className="text-gray-400 mb-6">
+                  Your account has been verified. You can safely close this tab.
+                </p>
+                
+                <div className="mb-6 p-4 rounded-lg bg-green-500/10 border border-green-500/30">
+                  <p className="text-sm text-green-300">
+                    {isPaidPlan 
+                      ? 'Continue in the other tab to complete your subscription checkout.'
+                      : 'Continue in the other tab to access your dashboard.'}
+                  </p>
+                </div>
+                
+                <Link href="/dashboard" className="glass-button glass-button-primary px-6 py-3 inline-block">
+                  Or continue here →
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        </>
+      );
+    }
+    
     return (
       <>
         <SEO 
@@ -310,7 +383,7 @@ export default function SignupPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-12 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors"
-                    placeholder="••••••••"
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                     required
                   />
                   <button
@@ -333,7 +406,7 @@ export default function SignupPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors"
-                    placeholder="••••••••"
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                     required
                   />
                 </div>

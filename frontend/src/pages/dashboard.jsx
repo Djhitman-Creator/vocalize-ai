@@ -93,7 +93,7 @@ export default function DashboardPage() {
               // Check if this was previously processing or rendering
               const oldProject = projects.find(p => p.id === project.id);
               if (oldProject && ['processing', 'rendering'].includes(oldProject.status)) {
-                addNotification(`🎉 "${project.title}" is ready for download!`, 'success');
+                addNotification(`ðŸŽ‰ "${project.title}" is ready for download!`, 'success');
 
                 // Play notification sound (optional)
                 try {
@@ -109,7 +109,7 @@ export default function DashboardPage() {
             if (project.status === 'awaiting_review' && !completedIds.has(project.id)) {
               const oldProject = projects.find(p => p.id === project.id);
               if (oldProject && oldProject.status === 'transcribing') {
-                addNotification(`✏️ "${project.title}" is ready for lyrics review!`, 'success');
+                addNotification(`âœï¸ "${project.title}" is ready for lyrics review!`, 'success');
               }
               setCompletedIds(prev => new Set([...prev, project.id]));
             }
@@ -118,7 +118,7 @@ export default function DashboardPage() {
             if (project.status === 'failed' && !completedIds.has(project.id)) {
               const oldProject = projects.find(p => p.id === project.id);
               if (oldProject && ['processing', 'transcribing', 'rendering'].includes(oldProject.status)) {
-                addNotification(`❌ "${project.title}" failed to process`, 'error');
+                addNotification(`âŒ "${project.title}" failed to process`, 'error');
               }
               setCompletedIds(prev => new Set([...prev, project.id]));
             }
@@ -178,10 +178,99 @@ export default function DashboardPage() {
     checkUser();
   }, [router]);
 
+  // Check for pending subscription plan after email verification
+  // This handles the case where user selected a paid plan during signup
+  useEffect(() => {
+    const checkPendingPlan = async () => {
+      // Only run if user is loaded and profile exists
+      if (!user || !profile) return;
+      
+      // Check localStorage for pending plan
+      const pendingPlan = localStorage.getItem('karatrack_pending_plan');
+      
+      // Also check user metadata as fallback
+      const metadataPlan = user.user_metadata?.pending_plan;
+      
+      const planToActivate = pendingPlan || metadataPlan;
+      
+      // Skip if no pending plan, or if it's free, or if user already has a paid subscription
+      if (!planToActivate || planToActivate === 'free') {
+        return;
+      }
+      
+      // Skip if user already has the plan they selected (or any paid plan)
+      if (profile.subscription_tier && profile.subscription_tier !== 'free') {
+        // Clear the pending plan since they already have a subscription
+        localStorage.removeItem('karatrack_pending_plan');
+        return;
+      }
+      
+      console.log('📋 Pending plan detected:', planToActivate);
+      setCheckingPendingPlan(true);
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          console.error('No session for pending plan checkout');
+          setCheckingPendingPlan(false);
+          return;
+        }
+        
+        // Get the Stripe price ID for this plan
+        const { data: planData } = await supabase
+          .from('subscription_plans')
+          .select('stripe_price_id')
+          .eq('tier', planToActivate)
+          .single();
+        
+        if (!planData?.stripe_price_id) {
+          console.error('Plan not found:', planToActivate);
+          localStorage.removeItem('karatrack_pending_plan');
+          setCheckingPendingPlan(false);
+          return;
+        }
+        
+        // Clear the pending plan from localStorage BEFORE redirect
+        // This prevents redirect loops if user cancels checkout
+        localStorage.removeItem('karatrack_pending_plan');
+        
+        // Create Stripe checkout session
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/create-checkout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            price_id: planData.stripe_price_id,
+          }),
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to create checkout');
+        }
+        
+        // Redirect to Stripe checkout
+        console.log('🚀 Redirecting to Stripe checkout for', planToActivate);
+        window.location.href = data.url;
+        
+      } catch (err) {
+        console.error('Pending plan checkout error:', err);
+        addNotification('Failed to start subscription checkout. Please try again from the pricing page.', 'error');
+        setCheckingPendingPlan(false);
+      }
+    };
+    
+    checkPendingPlan();
+  }, [user, profile, addNotification]);
+
   // Show notification if redirected from upload with review mode
   useEffect(() => {
     if (router.query.awaiting_review === 'true') {
-      addNotification('✏️ Your track is being transcribed. Click "Review Lyrics" when it\'s ready!', 'info');
+      addNotification('âœï¸ Your track is being transcribed. Click "Review Lyrics" when it\'s ready!', 'info');
       // Remove the query param from URL without refresh
       router.replace('/dashboard', undefined, { shallow: true });
     }
@@ -197,14 +286,14 @@ export default function DashboardPage() {
 
     if (!hasActiveProjects) return;
 
-    console.log('🔄 Starting polling - active projects detected');
+    console.log('ðŸ”„ Starting polling - active projects detected');
 
     const pollInterval = setInterval(() => {
       fetchProjects(user.id, true);
     }, POLL_INTERVAL);
 
     return () => {
-      console.log('⏹️ Stopping polling');
+      console.log('â¹ï¸ Stopping polling');
       clearInterval(pollInterval);
     };
   }, [user, projects, fetchProjects]);
@@ -550,7 +639,7 @@ export default function DashboardPage() {
                       <div>
                         <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{project.title}</h3>
                         <p className="text-gray-400 text-sm">
-                          {new Date(project.created_at).toLocaleDateString()} • {project.artist_name || 'Unknown Artist'}
+                          {new Date(project.created_at).toLocaleDateString()} â€¢ {project.artist_name || 'Unknown Artist'}
                         </p>
                       </div>
                     </div>
@@ -616,14 +705,14 @@ export default function DashboardPage() {
                               );
 
                               if (response.ok) {
-                                addNotification('🔄 Retrying your track...', 'info');
+                                addNotification('ðŸ”„ Retrying your track...', 'info');
                                 fetchProjects(user.id, false);
                               } else {
                                 const error = await response.json();
-                                addNotification(`❌ ${error.error || 'Retry failed'}`, 'error');
+                                addNotification(`âŒ ${error.error || 'Retry failed'}`, 'error');
                               }
                             } catch (err) {
-                              addNotification('❌ Failed to retry', 'error');
+                              addNotification('âŒ Failed to retry', 'error');
                             }
                           }}
                           className="ml-2 px-4 py-2 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 font-medium hover:bg-red-500/30 transition-colors"
