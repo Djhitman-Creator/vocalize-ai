@@ -713,7 +713,7 @@ app.delete('/api/admin/delete-user', authMiddleware, async (req, res) => {
       }
     }
 
-    // 3. Delete user's projects (and associated files would need R2 cleanup eventually)
+    // 3. Delete user's projects
     const { data: projects } = await supabase
       .from('projects')
       .select('id')
@@ -756,12 +756,11 @@ app.delete('/api/admin/delete-user', authMiddleware, async (req, res) => {
       console.log(`   ✓ Deleted profile`);
     }
 
-    // 6. Delete user from Supabase Auth (requires service key)
+    // 6. Delete user from Supabase Auth
     const { error: authError } = await supabase.auth.admin.deleteUser(user_id);
     
     if (authError) {
       console.log(`   ⚠️ Error deleting auth user: ${authError.message}`);
-      // Continue anyway - the user data is already deleted
     } else {
       console.log(`   ✓ Deleted auth user`);
     }
@@ -1528,87 +1527,95 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
               discount_applied: hasDiscount && couponId
             });
 
+
           } else if (newTierLevel < currentTierLevel) {
             // DOWNGRADE: Schedule for end of billing period using subscription schedule
-            console.log(`   Ã¢Â¬â€¡Ã¯Â¸Â Scheduling downgrade for period end`);
+            console.log(`   ⬇️ Scheduling downgrade for period end`);
 
-            // Check if there's already a schedule attached
-            let schedule;
-            if (existingSubscription.schedule) {
-              // Update existing schedule
-              schedule = await stripe.subscriptionSchedules.update(existingSubscription.schedule, {
-                phases: [
-                  {
-                    items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
-                    start_date: existingSubscription.current_period_start,
-                    end_date: existingSubscription.current_period_end,
-                  },
-                  {
-                    items: [{ price: price_id, quantity: 1 }],
-                    start_date: existingSubscription.current_period_end,
+            try {
+              // Check if there's already a schedule attached
+              let schedule;
+              if (existingSubscription.schedule) {
+                // Update existing schedule
+                schedule = await stripe.subscriptionSchedules.update(existingSubscription.schedule, {
+                  phases: [
+                    {
+                      items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
+                      start_date: existingSubscription.current_period_start,
+                      end_date: existingSubscription.current_period_end,
+                    },
+                    {
+                      items: [{ price: price_id, quantity: 1 }],
+                      start_date: existingSubscription.current_period_end,
+                    }
+                  ],
+                  metadata: {
+                    previous_tier: profile.subscription_tier,
+                    new_tier: newPlan.tier,
+                    change_type: 'downgrade'
                   }
-                ],
-                metadata: {
-                  previous_tier: profile.subscription_tier,
-                  new_tier: newPlan.tier,
-                  change_type: 'downgrade'
-                }
+                });
+              } else {
+                // Create new schedule from the subscription
+                schedule = await stripe.subscriptionSchedules.create({
+                  from_subscription: profile.stripe_subscription_id,
+                  phases: [
+                    {
+                      items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
+                      start_date: existingSubscription.current_period_start,
+                      end_date: existingSubscription.current_period_end,
+                    },
+                    {
+                      items: [{ price: price_id, quantity: 1 }],
+                      start_date: existingSubscription.current_period_end,
+                    }
+                  ],
+                  metadata: {
+                    previous_tier: profile.subscription_tier,
+                    new_tier: newPlan.tier,
+                    change_type: 'downgrade'
+                  }
+                });
+              }
+
+              // Store the scheduled downgrade in our database
+              await supabase
+                .from('profiles')
+                .update({
+                  scheduled_tier: newPlan.tier,
+                  scheduled_tier_date: new Date(existingSubscription.current_period_end * 1000).toISOString()
+                })
+                .eq('id', req.user.id);
+
+              const periodEnd = new Date(existingSubscription.current_period_end * 1000);
+              const formattedDate = periodEnd.toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
               });
-            } else {
-              // Create new schedule from the subscription
-              schedule = await stripe.subscriptionSchedules.create({
-                from_subscription: profile.stripe_subscription_id,
-                phases: [
-                  {
-                    items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
-                    start_date: existingSubscription.current_period_start,
-                    end_date: existingSubscription.current_period_end,
-                  },
-                  {
-                    items: [{ price: price_id, quantity: 1 }],
-                    start_date: existingSubscription.current_period_end,
-                  }
-                ],
-                metadata: {
-                  previous_tier: profile.subscription_tier,
-                  new_tier: newPlan.tier,
-                  change_type: 'downgrade'
-                }
+
+              console.log(`   ✅ Downgrade scheduled for ${formattedDate}`);
+
+              return res.json({
+                success: true,
+                message: `Your plan will change to ${newPlan.tier} on ${formattedDate}. You'll keep your ${profile.subscription_tier} benefits until then.`,
+                redirect: `${process.env.FRONTEND_URL}/dashboard?downgrade_scheduled=true`,
+                effective_date: periodEnd.toISOString()
+              });
+            } catch (scheduleError) {
+              console.error(`   ❌ Downgrade schedule failed:`, scheduleError.message);
+              // Return error instead of falling through to checkout
+              return res.status(500).json({ 
+                error: `Failed to schedule downgrade: ${scheduleError.message}. Please try again or contact support.` 
               });
             }
-
-            // Store the scheduled downgrade in our database
-            await supabase
-              .from('profiles')
-              .update({
-                scheduled_tier: newPlan.tier,
-                scheduled_tier_date: new Date(existingSubscription.current_period_end * 1000).toISOString()
-              })
-              .eq('id', req.user.id);
-
-            const periodEnd = new Date(existingSubscription.current_period_end * 1000);
-            const formattedDate = periodEnd.toLocaleDateString('en-US', {
-              month: 'long',
-              day: 'numeric',
-              year: 'numeric'
-            });
-
-            console.log(`   Ã¢Å“â€¦ Downgrade scheduled for ${formattedDate}`);
-
-            return res.json({
-              success: true,
-              message: `Your plan will change to ${newPlan.tier} on ${formattedDate}. You'll keep your ${profile.subscription_tier} benefits until then.`,
-              redirect: `${process.env.FRONTEND_URL}/dashboard?downgrade_scheduled=true`,
-              effective_date: periodEnd.toISOString()
-            });
           }
         }
       } catch (subError) {
-        console.log(`   Ã¢Å¡Â Ã¯Â¸Â Could not update existing subscription: ${subError.message}`);
-        // Fall through to create new checkout session
+        console.log(`   ⚠️ Could not process subscription change: ${subError.message}`);
+        // Fall through to create new checkout session only for NEW subscriptions
       }
     }
-
     // No existing subscription or subscription update failed - create new checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
