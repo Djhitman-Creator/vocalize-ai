@@ -354,8 +354,17 @@ export default function PricingPage() {
         throw new Error(data.error || 'Failed to create checkout');
       }
 
-      // Redirect to Stripe checkout
-      window.location.href = data.url;
+      // Check if this was an immediate upgrade (no Stripe checkout needed)
+      if (data.success && data.redirect) {
+        // Upgrade was processed immediately - show message and redirect
+        alert(data.message);
+        window.location.href = data.redirect;
+      } else if (data.url) {
+        // New subscription - redirect to Stripe checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error('Unexpected response from server');
+      }
 
     } catch (err) {
       console.error('Subscribe error:', err);
@@ -650,7 +659,7 @@ export default function PricingPage() {
                     <th className="text-center py-4 px-4 text-white font-semibold">Starter</th>
                     <th className="text-center py-4 px-4 text-white font-semibold relative">
                       Pro
-                      <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-xs text-cyan-400">â˜…</span>
+                      <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-xs text-cyan-400">Ã¢Ëœâ€¦</span>
                     </th>
                     <th className="text-center py-4 px-4 text-white font-semibold">Studio</th>
                   </tr>
@@ -706,7 +715,7 @@ export default function PricingPage() {
               Purchase additional credits anytime
             </p>
             <p className="text-sm text-gray-500 text-center mb-10">
-              Credits cost: 480p = 3 credits • 720p = 5 credits • 1080p = 7 credits • 4K = 9 credits • 4K = 9 credits
+              Credits cost: 480p = 3 credits â€¢ 720p = 5 credits â€¢ 1080p = 7 credits â€¢ 4K = 9 credits â€¢ 4K = 9 credits
             </p>
 
             <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
