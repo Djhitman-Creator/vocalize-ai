@@ -574,6 +574,140 @@ async function sendFailureEmail(project, errorMessage) {
   }
 }
 
+// NEW: Send downgrade scheduled confirmation email
+async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, newTier, effectiveDate) {
+  if (!process.env.BREVO_API_KEY) {
+    console.log('⚠️ Brevo not configured, skipping downgrade email');
+    return;
+  }
+
+  try {
+    const formattedDate = new Date(effectiveDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+
+    sendSmtpEmail.subject = `📅 Your plan change is scheduled`;
+    sendSmtpEmail.sender = {
+      name: 'Karatrack Studio',
+      email: 'notifications@karatrack.com'
+    };
+    sendSmtpEmail.to = [{
+      email: userEmail,
+      name: userName
+    }];
+
+    sendSmtpEmail.htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f0f1a;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+          <!-- Header -->
+          <div style="text-align: center; margin-bottom: 40px;">
+            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">🎤 Karatrack Studio</h1>
+          </div>
+          
+          <!-- Main Content -->
+          <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(0, 212, 255, 0.2);">
+            <h2 style="color: #ffffff; font-size: 24px; margin: 0 0 20px 0;">
+              Plan Change Confirmed 📅
+            </h2>
+            
+            <p style="color: #a0a0a0; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+              Hey ${userName}, your subscription change has been scheduled.
+            </p>
+            
+            <!-- Plan Change Info -->
+            <div style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 10px 0;">
+                    <p style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 4px 0;">Current Plan</p>
+                    <p style="color: #00d4ff; font-size: 18px; font-weight: bold; margin: 0; text-transform: capitalize;">${currentTier}</p>
+                  </td>
+                  <td style="text-align: center; color: #666; font-size: 24px;">→</td>
+                  <td style="text-align: right; padding: 10px 0;">
+                    <p style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 4px 0;">New Plan</p>
+                    <p style="color: #a855f7; font-size: 18px; font-weight: bold; margin: 0; text-transform: capitalize;">${newTier}</p>
+                  </td>
+                </tr>
+              </table>
+              <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 15px;">
+                <p style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 4px 0;">Effective Date</p>
+                <p style="color: #ffffff; font-size: 16px; margin: 0;">${formattedDate}</p>
+              </div>
+            </div>
+            
+            <div style="background: rgba(0, 212, 255, 0.1); border-left: 4px solid #00d4ff; padding: 15px; border-radius: 0 8px 8px 0; margin-bottom: 30px;">
+              <p style="color: #ffffff; font-size: 14px; margin: 0;">
+                <strong>What this means:</strong><br><br>
+                • You'll keep all ${currentTier} benefits until ${formattedDate}<br>
+                • Your existing credits remain valid until they expire<br>
+                • No action needed - the change happens automatically
+              </p>
+            </div>
+            
+            <p style="color: #666; font-size: 14px; margin: 0;">
+              Changed your mind? You can cancel this scheduled change from your 
+              <a href="${process.env.FRONTEND_URL}/settings" style="color: #00d4ff; text-decoration: none;">account settings</a>
+              before the effective date.
+            </p>
+          </div>
+          
+          <!-- Footer -->
+          <div style="text-align: center; margin-top: 40px;">
+            <p style="color: #666; font-size: 14px; margin: 0 0 10px 0;">
+              <a href="${process.env.FRONTEND_URL}/dashboard" style="color: #00d4ff; text-decoration: none;">
+                Go to Dashboard
+              </a>
+            </p>
+            <p style="color: #444; font-size: 12px; margin: 0;">
+              © ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    sendSmtpEmail.textContent = `
+Hey ${userName},
+
+Your subscription change has been scheduled.
+
+Current Plan: ${currentTier}
+New Plan: ${newTier}
+Effective Date: ${formattedDate}
+
+What this means:
+- You'll keep all ${currentTier} benefits until ${formattedDate}
+- Your existing credits remain valid until they expire
+- No action needed - the change happens automatically
+
+Changed your mind? You can cancel this scheduled change from your account settings before the effective date.
+
+Visit your dashboard: ${process.env.FRONTEND_URL}/dashboard
+
+- Karatrack Studio
+    `;
+
+    await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
+    console.log(`📧 Downgrade scheduled email sent to ${userEmail}`);
+
+  } catch (error) {
+    console.error('Error sending downgrade email:', error);
+    // Don't throw - email failure shouldn't break the flow
+  }
+}
+
 // ============================================
 // API ROUTES
 // ============================================
@@ -665,120 +799,6 @@ app.get('/api/user/credits/history', authMiddleware, async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error('Credits history error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============================================
-// ADMIN ENDPOINTS
-// ============================================
-
-// Admin emails that can perform admin actions
-const ADMIN_EMAILS = [
-  'jboyte72@gmail.com',
-  'djhitman72@gmail.com',
-  'agent@karatrack.com'
-];
-
-// Delete user completely (GDPR compliance)
-app.delete('/api/admin/delete-user', authMiddleware, async (req, res) => {
-  try {
-    const { user_id, email } = req.body;
-
-    // Verify requester is an admin
-    if (!ADMIN_EMAILS.includes(req.user.email)) {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    if (!user_id || !email) {
-      return res.status(400).json({ error: 'User ID and email are required' });
-    }
-
-    console.log(`🗑️ Admin ${req.user.email} deleting user: ${email} (${user_id})`);
-
-    // 1. Get user's Stripe customer ID to cancel subscription
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('stripe_customer_id, stripe_subscription_id')
-      .eq('id', user_id)
-      .single();
-
-    // 2. Cancel Stripe subscription if exists
-    if (profile?.stripe_subscription_id) {
-      try {
-        await stripe.subscriptions.cancel(profile.stripe_subscription_id);
-        console.log(`   ✓ Cancelled Stripe subscription: ${profile.stripe_subscription_id}`);
-      } catch (stripeErr) {
-        console.log(`   ⚠️ Could not cancel subscription: ${stripeErr.message}`);
-      }
-    }
-
-    // 3. Delete user's projects
-    const { data: projects } = await supabase
-      .from('projects')
-      .select('id')
-      .eq('user_id', user_id);
-    
-    if (projects?.length > 0) {
-      const { error: projectsError } = await supabase
-        .from('projects')
-        .delete()
-        .eq('user_id', user_id);
-      
-      if (projectsError) {
-        console.log(`   ⚠️ Error deleting projects: ${projectsError.message}`);
-      } else {
-        console.log(`   ✓ Deleted ${projects.length} projects`);
-      }
-    }
-
-    // 4. Delete user's credit batches
-    const { error: creditsError } = await supabase
-      .from('credit_batches')
-      .delete()
-      .eq('user_id', user_id);
-    
-    if (creditsError) {
-      console.log(`   ⚠️ Error deleting credit batches: ${creditsError.message}`);
-    } else {
-      console.log(`   ✓ Deleted credit batches`);
-    }
-
-    // 5. Delete user's profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', user_id);
-    
-    if (profileError) {
-      console.log(`   ⚠️ Error deleting profile: ${profileError.message}`);
-    } else {
-      console.log(`   ✓ Deleted profile`);
-    }
-
-    // 6. Delete user from Supabase Auth
-    const { error: authError } = await supabase.auth.admin.deleteUser(user_id);
-    
-    if (authError) {
-      console.log(`   ⚠️ Error deleting auth user: ${authError.message}`);
-    } else {
-      console.log(`   ✓ Deleted auth user`);
-    }
-
-    console.log(`✅ Successfully deleted user: ${email}`);
-
-    res.json({ 
-      success: true, 
-      message: `User ${email} and all associated data have been deleted`,
-      deleted: {
-        projects: projects?.length || 0,
-        profile: true,
-        auth: !authError
-      }
-    });
-
-  } catch (error) {
-    console.error('Delete user error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1551,7 +1571,6 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
                     {
                       items: [{ price: price_id, quantity: 1 }],
                       start_date: existingSubscription.current_period_end,
-                      iterations: 1,
                     }
                   ],
                   metadata: {
@@ -1608,6 +1627,17 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
 
               console.log(`   ✅ Downgrade scheduled for ${formattedDate}`);
 
+              // Send confirmation email
+              const userEmail = req.user.email;
+              const userName = profile.full_name || userEmail.split('@')[0];
+              sendDowngradeScheduledEmail(
+                userEmail,
+                userName,
+                profile.subscription_tier,
+                newPlan.tier,
+                periodEnd.toISOString()
+              ).catch(err => console.error('Downgrade email error:', err));
+
               return res.json({
                 success: true,
                 message: `Your plan will change to ${newPlan.tier} on ${formattedDate}. You'll keep your ${profile.subscription_tier} benefits until then.`,
@@ -1628,6 +1658,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
         // Fall through to create new checkout session only for NEW subscriptions
       }
     }
+
     // No existing subscription or subscription update failed - create new checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
