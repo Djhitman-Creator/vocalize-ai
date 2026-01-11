@@ -26,6 +26,12 @@ const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/clien
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const Stripe = require('stripe');
 const axios = require('axios');
+// OpenAI for chatbot
+const OpenAI = require('openai');
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 // NEW: Import Brevo SDK
 const SibApiV3Sdk = require('sib-api-v3-sdk');
@@ -707,6 +713,186 @@ Visit your dashboard: ${process.env.FRONTEND_URL}/dashboard
     // Don't throw - email failure shouldn't break the flow
   }
 }
+
+// ============================================
+// AI CHATBOT ENDPOINT
+// ============================================
+
+app.post('/api/chat', authMiddleware, async (req, res) => {
+  try {
+    const { message, conversationHistory = [] } = req.body;
+
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    if (message.length > 1000) {
+      return res.status(400).json({ error: 'Message too long. Please keep it under 1000 characters.' });
+    }
+
+    const profile = await getUserProfile(req.user.id);
+    
+    const { data: recentProjects } = await supabase
+      .from('projects')
+      .select('id, title, status, created_at, video_quality')
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const projectContext = recentProjects && recentProjects.length > 0
+      ? recentProjects.map(p => `- "${p.title}" (${p.status})`).join('\n')
+      : 'No projects yet';
+
+    const isPaidUser = ['starter', 'pro', 'studio'].includes(profile.subscription_tier?.toLowerCase());
+
+    const systemPrompt = `You are a friendly, helpful assistant for Karatrack Studio - an AI-powered karaoke video creation platform. Your job is to help users understand how to use the software and solve any confusion they have.
+
+## HOW KARATRACK WORKS
+1. User uploads an audio file (MP3, WAV, or FLAC)
+2. User pastes the song lyrics into the lyrics box
+3. User selects video quality and style options (colors, fonts, background)
+4. AI removes vocals from the audio using Demucs technology
+5. AI syncs the lyrics to the music using AssemblyAI word-level timing
+6. A karaoke video is generated with scrolling lyrics
+7. User downloads the finished MP4 video
+
+## SUBSCRIPTION TIERS & CREDITS
+- Free: 3 credits/month, 480p video, Karatrack watermark on videos
+- Starter ($9.99/mo): 25 credits/month, up to 1080p, no watermark, customize colors
+- Pro ($24.99/mo): 75 credits/month, up to 1080p, can edit lyrics timing before rendering
+- Studio ($49.99/mo): 200 credits/month, up to 4K, add your own logo, custom outro, full style control
+
+## CREDIT COSTS
+- 480p video: 3 credits
+- 720p video: 5 credits
+- 1080p video: 7 credits
+- 4K video: 9 credits
+- Credits expire 90 days after being added
+- Extra credit packs can be purchased anytime
+
+## CURRENT USER INFO
+- Tier: ${profile.subscription_tier || 'free'}
+- Credits: ${profile.credits_remaining || 0}
+- Recent projects:
+${projectContext}
+
+## COMMON QUESTIONS
+
+**"How long does processing take?"**
+Usually 5-15 minutes depending on song length and server load. You'll get an email when it's done (if notifications are enabled).
+
+**"Why are my lyrics not syncing correctly?"**
+Make sure you paste the complete, accurate lyrics when uploading. The AI matches what you provide to the audio. Pro/Studio users can edit timing before the final render.
+
+**"How do I remove the watermark?"**
+Upgrade to Starter ($9.99/mo) or higher to remove the Karatrack watermark from your videos.
+
+**"Can I edit the lyrics after uploading?"**
+Pro and Studio subscribers can review and edit lyrics timing before the final video is rendered.
+
+**"What audio formats are supported?"**
+MP3, WAV, and FLAC files up to 500MB.
+
+**"Why did my project fail?"**
+This can happen with very low quality audio or unusual formats. Try a different audio file. Failed projects don't use credits.
+
+**"How do I get a refund?"**
+Billing questions should be handled through the Priority Support form on the dashboard (paid users only).
+
+## YOUR GUIDELINES
+- Be friendly, concise, and helpful
+- Focus on explaining how to use Karatrack features
+- Keep responses under 150 words unless the user needs detailed instructions
+- If a user has a complex account/billing issue, ${isPaidUser ? 'direct them to use the Priority Support button on their dashboard' : 'let them know that support is available to paid subscribers'}
+- Don\'t mention copyright or licensing unless the user specifically asks
+- If you don\'t know something, be honest and say so
+- Never make up features that don\'t exist`;
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory.slice(-10),
+      { role: 'user', content: message }
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: messages,
+      max_tokens: 400,
+      temperature: 0.7
+    });
+
+    res.json({ 
+      response: completion.choices[0].message.content
+    });
+
+  } catch (error) {
+    console.error('Chat error:', error);
+    
+    if (error.code === 'insufficient_quota') {
+      return res.status(503).json({ error: 'Chat service temporarily unavailable. Please try again later.' });
+    }
+    
+    res.status(500).json({ error: 'Failed to get response. Please try again.' });
+  }
+});
+
+// Guest chat endpoint (not logged in)
+app.post('/api/chat/guest', async (req, res) => {
+  try {
+    const { message, conversationHistory = [] } = req.body;
+
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    if (message.length > 500) {
+      return res.status(400).json({ error: 'Message too long. Please keep it under 500 characters.' });
+    }
+
+    const systemPrompt = `You are a friendly, helpful assistant for Karatrack Studio - an AI-powered karaoke video creation platform.
+
+## HOW KARATRACK WORKS
+1. Upload an audio file (MP3, WAV, or FLAC)
+2. Paste the song lyrics
+3. Choose video quality and style options
+4. AI removes vocals and syncs lyrics automatically
+5. Download your finished karaoke video (MP4)
+
+## SUBSCRIPTION TIERS
+- Free: 3 credits/month, 480p video quality
+- Starter ($9.99/mo): 25 credits/month, 1080p, no watermark
+- Pro ($24.99/mo): 75 credits/month, edit lyrics before rendering
+- Studio ($49.99/mo): 200 credits/month, 4K quality, custom branding
+
+## YOUR GUIDELINES
+- Be friendly and concise (under 100 words)
+- Help users understand what Karatrack does
+- Encourage them to sign up for a free account to try it out
+- If they have detailed questions, suggest creating an account for personalized help
+- Don\'t mention copyright or licensing unless specifically asked`;
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory.slice(-6),
+      { role: 'user', content: message }
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: messages,
+      max_tokens: 250,
+      temperature: 0.7
+    });
+
+    res.json({ 
+      response: completion.choices[0].message.content
+    });
+
+  } catch (error) {
+    console.error('Guest chat error:', error);
+    res.status(500).json({ error: 'Failed to get response. Please try again.' });
+  }
+});
 
 // ============================================
 // API ROUTES
