@@ -1,13 +1,18 @@
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
+import ChatBot from '../components/ChatBot';
 import '../styles/globals.css';
-import { ThemeProvider } from '../context/ThemeContext';
-import { appWithTranslation } from 'next-i18next';
 
-function App({ Component, pageProps }) {
+// Wrapper component to access theme
+function ChatBotWrapper() {
+  const { isDark } = useTheme();
+  return <ChatBot isDark={isDark} />;
+}
+
+export default function App({ Component, pageProps }) {
   return (
     <ThemeProvider>
       <Component {...pageProps} />
+      <ChatBotWrapper />
     </ThemeProvider>
   );
 }
-
-export default appWithTranslation(App);
