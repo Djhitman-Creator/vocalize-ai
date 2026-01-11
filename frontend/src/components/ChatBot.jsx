@@ -11,7 +11,6 @@ import {
   Bot,
   User
 } from 'lucide-react';
-import { supabase } from '../lib/supabaseClient';
 
 const STORAGE_KEY = 'karatrack_chat_history';
 const INITIAL_MESSAGE = {
@@ -24,13 +23,14 @@ export default function ChatBot({ isDark = true }) {
   const [messages, setMessages] = useState([INITIAL_MESSAGE]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userTier, setUserTier] = useState('free');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
   // Load chat history from localStorage on mount
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -46,53 +46,14 @@ export default function ChatBot({ isDark = true }) {
 
   // Save chat history to localStorage when messages change
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     } catch (e) {
       console.error('Failed to save chat history:', e);
     }
   }, [messages]);
-
-  // Check auth status and get user tier
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setIsAuthenticated(!!session);
-      
-      if (session) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('subscription_tier')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profile) {
-          setUserTier(profile.subscription_tier || 'free');
-        }
-      }
-    };
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setIsAuthenticated(!!session);
-      
-      if (session) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('subscription_tier')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profile) {
-          setUserTier(profile.subscription_tier || 'free');
-        }
-      } else {
-        setUserTier('free');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -108,6 +69,26 @@ export default function ChatBot({ isDark = true }) {
 
   const isPaidUser = ['starter', 'pro', 'studio'].includes(userTier?.toLowerCase());
 
+  // Get auth token from localStorage (Supabase stores it there)
+  const getAuthToken = () => {
+    if (typeof window === 'undefined') return null;
+    
+    try {
+      // Supabase stores the session in localStorage
+      const storageKey = Object.keys(localStorage).find(key => 
+        key.startsWith('sb-') && key.endsWith('-auth-token')
+      );
+      
+      if (storageKey) {
+        const session = JSON.parse(localStorage.getItem(storageKey));
+        return session?.access_token || null;
+      }
+    } catch (e) {
+      console.error('Failed to get auth token:', e);
+    }
+    return null;
+  };
+
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -120,13 +101,14 @@ export default function ChatBot({ isDark = true }) {
     setIsLoading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const token = getAuthToken();
       
       const conversationHistory = newMessages
         .slice(1)
         .map(m => ({ role: m.role, content: m.content }));
 
-      const endpoint = session 
+      // Use authenticated endpoint if we have a token, otherwise use guest
+      const endpoint = token 
         ? `${process.env.NEXT_PUBLIC_API_URL}/api/chat`
         : `${process.env.NEXT_PUBLIC_API_URL}/api/chat/guest`;
 
@@ -134,8 +116,8 @@ export default function ChatBot({ isDark = true }) {
         'Content-Type': 'application/json',
       };
 
-      if (session) {
-        headers['Authorization'] = `Bearer ${session.access_token}`;
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
       }
 
       const response = await fetch(endpoint, {
@@ -153,15 +135,18 @@ export default function ChatBot({ isDark = true }) {
         throw new Error(data.error || 'Failed to get response');
       }
 
+      // Update user tier if returned from API
+      if (data.userTier) {
+        setUserTier(data.userTier);
+      }
+
       setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
 
     } catch (error) {
       console.error('Chat error:', error);
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: isPaidUser 
-          ? "I'm having trouble connecting right now. Please try again, or use the Priority Support button on your dashboard for direct assistance."
-          : "I'm having trouble connecting right now. Please try again in a moment."
+        content: "I'm having trouble connecting right now. Please try again in a moment."
       }]);
     } finally {
       setIsLoading(false);
@@ -176,7 +161,9 @@ export default function ChatBot({ isDark = true }) {
       }
     ];
     setMessages(clearedMessages);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(clearedMessages));
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(clearedMessages));
+    }
   };
 
   return (
