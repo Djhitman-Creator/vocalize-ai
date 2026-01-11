@@ -80,7 +80,7 @@ const VideoModal = ({ isOpen, onClose, isDark }) => {
               {/* Video Header */}
               <div className={`px-4 py-3 border-b ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
                 <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  ðŸŽ¤ Karatrack Studio Demo
+                  Karatrack Studio Demo
                 </h3>
               </div>
               
@@ -279,7 +279,7 @@ const HeroSection = ({ isDark, onWatchDemo }) => (
         transition={{ delay: 0.4 }}
         className={`text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-12 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
       >
-        Remove vocals, add guide vocals for practice, add scrolling lyrics, and export stunning music videos â€” all powered by cutting-edge AI.
+        Remove vocals, add guide vocals for practice, add scrolling lyrics, and export stunning music videos Ã¢â‚¬â€ all powered by cutting-edge AI.
       </motion.p>
       <motion.div
         initial={{ y: 30, opacity: 0 }}
@@ -318,13 +318,13 @@ const HeroSection = ({ isDark, onWatchDemo }) => (
           <div className="text-left">
             <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               <strong>For personal use only.</strong> By using Karatrack Studio, you confirm you have
-              the rights to any music you upload â€” either through ownership, license, or original creation.
+              the rights to any music you upload Ã¢â‚¬â€ either through ownership, license, or original creation.
             </p>
             <Link
               href="/terms"
               className={`text-sm mt-2 inline-block ${isDark ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'}`}
             >
-              Read our Terms of Service â†’
+              Read our Terms of Service 
             </Link>
           </div>
         </div>
@@ -363,7 +363,7 @@ const HeroSection = ({ isDark, onWatchDemo }) => (
 const FeaturesSection = ({ isDark }) => {
   const features = [
     { icon: <Mic2 className="w-8 h-8" />, title: 'Vocal Removal', description: 'Remove all vocals from any track with studio-quality precision using advanced AI separation.' },
-    { icon: <Music className="w-8 h-8" />, title: 'Guide Vocals', description: 'Reduce the lead vocal by 70% â€” great for practice and learning new songs.' },
+    { icon: <Music className="w-8 h-8" />, title: 'Guide Vocals', description: 'Reduce the lead vocal by 70% Ã¢â‚¬â€ great for practice and learning new songs.' },
     { icon: <FileVideo className="w-8 h-8" />, title: 'Scrolling Lyrics', description: 'AI automatically transcribes and syncs lyrics with smooth, karaoke-style animations.' },
     { icon: <Sparkles className="w-8 h-8" />, title: 'Video Export', description: 'Export your processed track as a beautiful MP4 video with custom thumbnails.*' },
   ];
@@ -472,7 +472,7 @@ const PricingSection = ({ isDark }) => {
           className="text-center mt-6 sm:mt-8"
         >
           <Link href="/pricing" className={`text-xs sm:text-sm ${isDark ? 'text-gray-400 hover:text-cyan-400' : 'text-gray-600 hover:text-cyan-600'} transition-colors`}>
-            View full pricing details & compare features â†’
+            View full pricing details & compare features 
           </Link>
         </motion.div>
       </div>
@@ -496,7 +496,7 @@ const UploadSection = ({ isDark }) => (
           <Upload className="w-8 sm:w-10 h-8 sm:h-10 text-cyan-500" />
         </div>
         <h3 className={`font-display text-xl sm:text-2xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Drop your audio file here</h3>
-        <p className={`mb-4 text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>or click to browse â€¢ MP3, WAV, FLAC supported</p>
+        <p className={`mb-4 text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>or click to browse - MP3, WAV, FLAC supported</p>
         <div className={`text-xs sm:text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
           Quality options: <span className="text-cyan-500">480p, 1080p, and 4K</span> (varies by plan)
         </div>
@@ -532,7 +532,7 @@ const Footer = ({ isDark }) => (
           <a href="mailto:support@karatrack.com" className="hover:text-cyan-500 transition-colors">Contact</a>
         </div>
         <div className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          Â© 2025 Karatrack Studio. All rights reserved.
+          © 2025 Karatrack Studio. All rights reserved.
         </div>
       </div>
     </div>
@@ -565,13 +565,13 @@ export default function HomePage() {
       // IMPORTANT: Don't redirect if this is a password recovery flow
       // Password reset links have type=recovery
       if (type === 'recovery') {
-        console.log('🔑 Password recovery detected, not redirecting');
+        console.log('Password recovery detected, not redirecting');
         return;
       }
       
       // If we have an access token and it's a signup confirmation, redirect to dashboard
       if (accessToken && type === 'signup') {
-        console.log('📧 Email confirmed, redirecting to dashboard...');
+        console.log('Email confirmed, redirecting to dashboard...');
         router.replace('/dashboard');
         return;
       }
@@ -584,7 +584,7 @@ export default function HomePage() {
           // Check if they have a pending plan that needs checkout
           const pendingPlan = localStorage.getItem('karatrack_pending_plan');
           if (pendingPlan && pendingPlan !== 'free') {
-            console.log('📋 Logged in user with pending plan, redirecting to dashboard...');
+            console.log('Logged in user with pending plan, redirecting to dashboard...');
             router.replace('/dashboard');
             return;
           }
@@ -598,7 +598,7 @@ export default function HomePage() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       // Don't redirect on PASSWORD_RECOVERY event
       if (event === 'PASSWORD_RECOVERY') {
-        console.log('🔑 Password recovery auth event, not redirecting');
+        console.log('Password recovery auth event, not redirecting');
         return;
       }
       
@@ -612,7 +612,7 @@ export default function HomePage() {
       }
       
       if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at && type === 'signup') {
-        console.log('🔐 Auth state: SIGNED_IN (signup), redirecting to dashboard...');
+        console.log('Auth state: SIGNED_IN (signup), redirecting to dashboard...');
         router.replace('/dashboard');
       }
     });

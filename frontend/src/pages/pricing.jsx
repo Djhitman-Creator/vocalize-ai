@@ -722,7 +722,7 @@ export default function PricingPage() {
                     <th className="text-center py-4 px-4 text-white font-semibold">Starter</th>
                     <th className="text-center py-4 px-4 text-white font-semibold relative">
                       Pro
-                      <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-xs text-cyan-400">Ã¢Ëœâ€¦</span>
+                      <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-xs text-cyan-400">ÃƒÂ¢Ã‹Å“Ã¢â‚¬Â¦</span>
                     </th>
                     <th className="text-center py-4 px-4 text-white font-semibold">Studio</th>
                   </tr>
@@ -778,7 +778,7 @@ export default function PricingPage() {
               Purchase additional credits anytime
             </p>
             <p className="text-sm text-gray-500 text-center mb-10">
-              Credits cost: 480p = 3 credits • 720p = 5 credits • 1080p = 7 credits • 4K = 9 credits
+              Credits cost: 480p = 3 credits â€¢ 720p = 5 credits â€¢ 1080p = 7 credits â€¢ 4K = 9 credits
             </p>
 
             <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
@@ -890,7 +890,7 @@ export default function PricingPage() {
                     {isUpgrade ? 'Confirm Upgrade' : 'Confirm Downgrade'}
                   </h3>
                   <p className="text-gray-400">
-                    {profile?.subscription_tier} → {pendingPlan.name}
+                    {profile?.subscription_tier} to {pendingPlan.name}
                   </p>
                 </div>
               </div>

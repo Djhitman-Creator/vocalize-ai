@@ -393,7 +393,7 @@ export default function SettingsPage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     className={`w-full border rounded-xl py-3 pl-12 pr-4 placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                    placeholder="••••••••"
+                    placeholder="********"
                   />
                 </div>
               </div>
@@ -407,7 +407,7 @@ export default function SettingsPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className={`w-full border rounded-xl py-3 pl-12 pr-4 placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors ${isDark ? 'bg-white/5 border-white/10 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                    placeholder="••••••••"
+                    placeholder="********"
                   />
                 </div>
               </div>
