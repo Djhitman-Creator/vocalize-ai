@@ -62,9 +62,9 @@ const brevoEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // Log Brevo configuration
 if (process.env.BREVO_API_KEY) {
-  console.log(`Ã°Å¸â€œÂ§ Email notifications: enabled (API key: ${process.env.BREVO_API_KEY.substring(0, 10)}...)`);
+  console.log(`📧 Email notifications: enabled (API key: ${process.env.BREVO_API_KEY.substring(0, 10)}...)`);
 } else {
-  console.log('Ã¢Å¡Â Ã¯Â¸Â Email notifications: DISABLED (no BREVO_API_KEY set)');
+  console.log('⚠️ Email notifications: DISABLED (no BREVO_API_KEY set)');
 }
 
 const upload = multer({
@@ -203,34 +203,34 @@ function extractR2Key(url) {
 async function getSignedDownloadUrl(url, filename = null) {
   const key = extractR2Key(url);
   if (!key) return null;
-
+  
   const commandOptions = {
     Bucket: process.env.CLOUDFLARE_R2_BUCKET,
     Key: key,
   };
-
+  
   // Add Content-Disposition to force download with custom filename
   if (filename) {
     commandOptions.ResponseContentDisposition = `attachment; filename="${filename}"`;
   }
-
+  
   const command = new GetObjectCommand(commandOptions);
   return getSignedUrl(r2Client, command, { expiresIn: 3600 });
 }
 
 function calculateCreditsNeeded(options) {
   let credits = 0;
-
+  
   // Base processing cost
   if (options.processing_type === 'both') {
     credits += 2;  // Both vocal versions
   } else {
     credits += 1;  // Single version
   }
-
+  
   // Lyrics always included now
   credits += 1;
-
+  
   // Quality-based pricing (480p=3, 720p=5, 1080p=7 total for basic track)
   if (options.video_quality === '480p') {
     credits += 1;   // Total: 1+1+1 = 3 credits
@@ -243,7 +243,7 @@ function calculateCreditsNeeded(options) {
   } else {
     credits += 1;   // Default to 480p pricing
   }
-
+  
   return credits;
 }
 
@@ -263,12 +263,12 @@ async function sendToRunPod(projectId, audioUrl, options) {
         song_title: options.song_title,
         track_number: options.track_number,
         callback_url: `${process.env.API_URL}/api/webhooks/runpod`,
-
+        
         // Lyrics and display options
         lyrics_text: options.lyrics_text || null,
         display_mode: options.display_mode || 'auto',
         clean_version: options.clean_version || false,
-
+        
         // Style customization options
         bg_color_1: options.bg_color_1 || '#1a1a2e',
         bg_color_2: options.bg_color_2 || '#16213e',
@@ -278,18 +278,16 @@ async function sendToRunPod(projectId, audioUrl, options) {
         outline_color: options.outline_color || '#000000',
         sung_color: options.sung_color || '#00d4ff',
         font: options.font || 'arial',
-
+        
         // Processing mode for two-stage flow
         processing_mode: options.processing_mode || 'full',
-
+        
         // NEW: Subscription tier for watermark logic
         subscription_tier: options.subscription_tier || 'free',
-
+        
         // Custom watermark URL for Studio users
         custom_watermark_url: options.custom_watermark_url || null,
-        // Outro text for Studio users
-        outro_text: options.outro_text || null,
-
+        
         // For render_only mode
         processed_audio_url: options.processed_audio_url || null,
         vocals_audio_url: options.vocals_audio_url || null,
@@ -309,36 +307,36 @@ async function sendToRunPod(projectId, audioUrl, options) {
 // NEW: Send completion email via Brevo
 async function sendCompletionEmail(project, downloadUrl) {
   try {
-    console.log(`Ã°Å¸â€œÂ§ Attempting to send completion email for project ${project.id}`);
-
+    console.log(`📧 Attempting to send completion email for project ${project.id}`);
+    
     // Method 1: Try to get email from profiles table
     let userEmail = null;
     let userName = null;
-
+    
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('email, full_name')
       .eq('id', project.user_id)
       .single();
-
+    
     if (profile?.email) {
       userEmail = profile.email;
       userName = profile.full_name || userEmail.split('@')[0];
       console.log(`   Found email in profiles: ${userEmail}`);
     }
-
+    
     // Method 2: If not in profiles, try auth.users via SQL
     if (!userEmail) {
       const { data: authData, error: authError } = await supabase
         .rpc('get_user_email', { user_id: project.user_id });
-
+      
       if (authData) {
         userEmail = authData;
         userName = userEmail.split('@')[0];
         console.log(`   Found email via RPC: ${userEmail}`);
       }
     }
-
+    
     // Method 3: Try the admin API
     if (!userEmail) {
       try {
@@ -352,26 +350,26 @@ async function sendCompletionEmail(project, downloadUrl) {
         console.log(`   Admin API failed: ${adminErr.message}`);
       }
     }
-
+    
     if (!userEmail) {
-      console.error('Ã¢ÂÅ’ Could not get user email for notification - no email found');
+      console.error('❌ Could not get user email for notification - no email found');
       return;
     }
 
     console.log(`   Sending email to: ${userEmail}`);
 
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
-    sendSmtpEmail.subject = `Ã°Å¸Å½Âµ Your karaoke track "${project.title}" is ready!`;
-    sendSmtpEmail.sender = {
-      name: 'Karatrack Studio',
-      email: 'notifications@karatrack.com'
+    
+    sendSmtpEmail.subject = `🎵 Your karaoke track "${project.title}" is ready!`;
+    sendSmtpEmail.sender = { 
+      name: 'Karatrack Studio', 
+      email: 'notifications@karatrack.com' 
     };
-    sendSmtpEmail.to = [{
-      email: userEmail,
-      name: userName
+    sendSmtpEmail.to = [{ 
+      email: userEmail, 
+      name: userName 
     }];
-
+    
     sendSmtpEmail.htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -383,13 +381,13 @@ async function sendCompletionEmail(project, downloadUrl) {
         <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
           <!-- Header -->
           <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Ã°Å¸Å½Âµ Karatrack Studio</h1>
+            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">🎵 Karatrack Studio</h1>
           </div>
           
           <!-- Main Content -->
           <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(0, 212, 255, 0.2);">
             <h2 style="color: #ffffff; font-size: 24px; margin: 0 0 20px 0;">
-              Hey ${userName}! Ã°Å¸â€˜â€¹
+              Hey ${userName}! 👋
             </h2>
             
             <p style="color: #a0a0a0; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
@@ -430,14 +428,14 @@ async function sendCompletionEmail(project, downloadUrl) {
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              © ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
       </body>
       </html>
     `;
-
+    
     sendSmtpEmail.textContent = `
 Hey ${userName}!
 
@@ -451,10 +449,10 @@ This link expires in 1 hour. You can always download again from your dashboard a
     `;
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`Ã¢Å“â€¦ Completion email sent to ${userEmail} for project ${project.id}`);
-
+    console.log(`✅ Completion email sent to ${userEmail} for project ${project.id}`);
+    
   } catch (error) {
-    console.error('Ã¢ÂÅ’ Error sending completion email:');
+    console.error('❌ Error sending completion email:');
     console.error('   Message:', error.message);
     console.error('   Status:', error.status);
     console.error('   Response:', JSON.stringify(error.response?.body || error.response?.text || 'No response body'));
@@ -465,23 +463,23 @@ This link expires in 1 hour. You can always download again from your dashboard a
 // NEW: Send failure notification email
 async function sendFailureEmail(project, errorMessage) {
   try {
-    console.log(`Ã°Å¸â€œÂ§ Attempting to send failure email for project ${project.id}`);
-
+    console.log(`📧 Attempting to send failure email for project ${project.id}`);
+    
     // Get user email (same method as sendCompletionEmail)
     let userEmail = null;
     let userName = null;
-
+    
     const { data: profile } = await supabase
       .from('profiles')
       .select('email, full_name')
       .eq('id', project.user_id)
       .single();
-
+    
     if (profile?.email) {
       userEmail = profile.email;
       userName = profile.full_name || userEmail.split('@')[0];
     }
-
+    
     if (!userEmail) {
       try {
         const { data: authUser } = await supabase.auth.admin.getUserById(project.user_id);
@@ -493,24 +491,24 @@ async function sendFailureEmail(project, errorMessage) {
         console.log(`   Admin API failed: ${adminErr.message}`);
       }
     }
-
+    
     if (!userEmail) {
-      console.error('Ã¢ÂÅ’ Could not get user email for failure notification');
+      console.error('❌ Could not get user email for failure notification');
       return;
     }
 
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
-    sendSmtpEmail.subject = `Ã¢Å¡Â Ã¯Â¸Â Issue processing "${project.title}"`;
-    sendSmtpEmail.sender = {
-      name: 'Karatrack Studio',
-      email: 'notifications@karatrack.com'
+    
+    sendSmtpEmail.subject = `⚠️ Issue processing "${project.title}"`;
+    sendSmtpEmail.sender = { 
+      name: 'Karatrack Studio', 
+      email: 'notifications@karatrack.com' 
     };
-    sendSmtpEmail.to = [{
-      email: userEmail,
-      name: userName
+    sendSmtpEmail.to = [{ 
+      email: userEmail, 
+      name: userName 
     }];
-
+    
     sendSmtpEmail.htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -522,7 +520,7 @@ async function sendFailureEmail(project, errorMessage) {
         <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
           <!-- Header -->
           <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Ã°Å¸Å½Âµ Karatrack Studio</h1>
+            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">🎵 Karatrack Studio</h1>
           </div>
           
           <!-- Main Content -->
@@ -558,118 +556,6 @@ async function sendFailureEmail(project, errorMessage) {
               Need help? <a href="mailto:support@karatrack.com" style="color: #00d4ff; text-decoration: none;">Contact Support</a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`Ã¢Å“â€¦ Failure email sent to ${userEmail} for project ${project.id}`);
-
-  } catch (error) {
-    console.error('Error sending failure email:', error);
-  }
-}
-
-// NEW: Send downgrade scheduled confirmation email
-async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, newTier, effectiveDate) {
-  if (!process.env.BREVO_API_KEY) {
-    console.log('⚠️ Brevo not configured, skipping downgrade email');
-    return;
-  }
-
-  try {
-    const formattedDate = new Date(effectiveDate).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
-    sendSmtpEmail.subject = `📅 Your plan change is scheduled`;
-    sendSmtpEmail.sender = {
-      name: 'Karatrack Studio',
-      email: 'notifications@karatrack.com'
-    };
-    sendSmtpEmail.to = [{
-      email: userEmail,
-      name: userName
-    }];
-
-    sendSmtpEmail.htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      </head>
-      <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f0f1a;">
-        <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-          <!-- Header -->
-          <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">🎤 Karatrack Studio</h1>
-          </div>
-          
-          <!-- Main Content -->
-          <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(0, 212, 255, 0.2);">
-            <h2 style="color: #ffffff; font-size: 24px; margin: 0 0 20px 0;">
-              Plan Change Confirmed 📅
-            </h2>
-            
-            <p style="color: #a0a0a0; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
-              Hey ${userName}, your subscription change has been scheduled.
-            </p>
-            
-            <!-- Plan Change Info -->
-            <div style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 10px 0;">
-                    <p style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 4px 0;">Current Plan</p>
-                    <p style="color: #00d4ff; font-size: 18px; font-weight: bold; margin: 0; text-transform: capitalize;">${currentTier}</p>
-                  </td>
-                  <td style="text-align: center; color: #666; font-size: 24px;">→</td>
-                  <td style="text-align: right; padding: 10px 0;">
-                    <p style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 4px 0;">New Plan</p>
-                    <p style="color: #a855f7; font-size: 18px; font-weight: bold; margin: 0; text-transform: capitalize;">${newTier}</p>
-                  </td>
-                </tr>
-              </table>
-              <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; margin-top: 15px;">
-                <p style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 4px 0;">Effective Date</p>
-                <p style="color: #ffffff; font-size: 16px; margin: 0;">${formattedDate}</p>
-              </div>
-            </div>
-            
-            <div style="background: rgba(0, 212, 255, 0.1); border-left: 4px solid #00d4ff; padding: 15px; border-radius: 0 8px 8px 0; margin-bottom: 30px;">
-              <p style="color: #ffffff; font-size: 14px; margin: 0;">
-                <strong>What this means:</strong><br><br>
-                • You'll keep all ${currentTier} benefits until ${formattedDate}<br>
-                • Your existing credits remain valid until they expire<br>
-                • No action needed - the change happens automatically
-              </p>
-            </div>
-            
-            <p style="color: #666; font-size: 14px; margin: 0;">
-              Changed your mind? You can cancel this scheduled change from your 
-              <a href="${process.env.FRONTEND_URL}/settings" style="color: #00d4ff; text-decoration: none;">account settings</a>
-              before the effective date.
-            </p>
-          </div>
-          
-          <!-- Footer -->
-          <div style="text-align: center; margin-top: 40px;">
-            <p style="color: #666; font-size: 14px; margin: 0 0 10px 0;">
-              <a href="${process.env.FRONTEND_URL}/dashboard" style="color: #00d4ff; text-decoration: none;">
-                Go to Dashboard
-              </a>
-            </p>
-            <p style="color: #444; font-size: 12px; margin: 0;">
               © ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
@@ -678,33 +564,11 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
       </html>
     `;
 
-    sendSmtpEmail.textContent = `
-Hey ${userName},
-
-Your subscription change has been scheduled.
-
-Current Plan: ${currentTier}
-New Plan: ${newTier}
-Effective Date: ${formattedDate}
-
-What this means:
-- You'll keep all ${currentTier} benefits until ${formattedDate}
-- Your existing credits remain valid until they expire
-- No action needed - the change happens automatically
-
-Changed your mind? You can cancel this scheduled change from your account settings before the effective date.
-
-Visit your dashboard: ${process.env.FRONTEND_URL}/dashboard
-
-- Karatrack Studio
-    `;
-
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`📧 Downgrade scheduled email sent to ${userEmail}`);
-
+    console.log(`✅ Failure email sent to ${userEmail} for project ${project.id}`);
+    
   } catch (error) {
-    console.error('Error sending downgrade email:', error);
-    // Don't throw - email failure shouldn't break the flow
+    console.error('Error sending failure email:', error);
   }
 }
 
@@ -723,66 +587,6 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
     res.json(profile);
   } catch (error) {
     console.error('Profile fetch error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ============================================
-// DEFAULT WATERMARK MANAGEMENT (Studio tier only)
-// ============================================
-
-// Upload/save default watermark
-app.post('/api/profile/watermark', authMiddleware, upload.single('watermark'), async (req, res) => {
-  try {
-    // Check if user is Studio tier
-    const profile = await getUserProfile(req.user.id);
-    if (profile.subscription_tier !== 'studio') {
-      return res.status(403).json({ error: 'Custom watermarks are only available for Studio tier subscribers' });
-    }
-
-    if (!req.file) {
-      return res.status(400).json({ error: 'No watermark file provided' });
-    }
-
-    // Upload watermark to R2
-    const watermarkKey = `watermarks/${req.user.id}/default-watermark${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
-    const watermarkUrl = await uploadToR2(req.file.buffer, watermarkKey, req.file.mimetype);
-    console.log(`ðŸ“¸ Default watermark uploaded for user ${req.user.id}: ${watermarkUrl}`);
-
-    // Save URL to user's profile
-    const { error } = await supabase
-      .from('profiles')
-      .update({ default_watermark_url: watermarkUrl })
-      .eq('id', req.user.id);
-
-    if (error) throw error;
-
-    res.json({ 
-      success: true, 
-      watermark_url: watermarkUrl,
-      message: 'Default watermark saved successfully' 
-    });
-  } catch (error) {
-    console.error('Watermark upload error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Delete default watermark
-app.delete('/api/profile/watermark', authMiddleware, async (req, res) => {
-  try {
-    // Clear watermark URL from profile
-    const { error } = await supabase
-      .from('profiles')
-      .update({ default_watermark_url: null })
-      .eq('id', req.user.id);
-
-    if (error) throw error;
-
-    console.log(`ðŸ—‘ï¸ Default watermark cleared for user ${req.user.id}`);
-    res.json({ success: true, message: 'Default watermark removed' });
-  } catch (error) {
-    console.error('Watermark delete error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -839,13 +643,13 @@ app.get('/api/projects/:id', authMiddleware, async (req, res) => {
 // UPDATED: Project creation with subscription_tier for watermark logic
 app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
   try {
-    const {
-      title,
-      processing_type,
-      include_lyrics,
-      video_quality,
-      artist_name,
-      song_title,
+    const { 
+      title, 
+      processing_type, 
+      include_lyrics, 
+      video_quality, 
+      artist_name, 
+      song_title, 
       track_number,
       // Lyrics and display options
       lyrics_text,
@@ -865,7 +669,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       // Processing mode for lyrics review
       processing_mode
     } = req.body;
-
+    
     const file = req.files?.audio?.[0];
     const thumbnailFile = req.files?.thumbnail?.[0];
     const customWatermarkFile = req.files?.custom_watermark?.[0];
@@ -876,8 +680,8 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
 
     // Validate lyrics are provided (required for accurate sync)
     if (!lyrics_text || lyrics_text.trim().length < 50) {
-      return res.status(400).json({
-        error: 'Lyrics are required for accurate sync. Please paste the complete song lyrics (minimum 50 characters).'
+      return res.status(400).json({ 
+        error: 'Lyrics are required for accurate sync. Please paste the complete song lyrics (minimum 50 characters).' 
       });
     }
 
@@ -916,9 +720,9 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       if (userProfileForWatermark.subscription_tier === 'studio') {
         const watermarkKey = `watermarks/${req.user.id}/${projectId}-watermark${customWatermarkFile.originalname.substring(customWatermarkFile.originalname.lastIndexOf('.'))}`;
         customWatermarkUrl = await uploadToR2(customWatermarkFile.buffer, watermarkKey, customWatermarkFile.mimetype);
-        console.log(`Ã°Å¸â€œÂ¸ Custom watermark uploaded: ${customWatermarkUrl}`);
+        console.log(`📸 Custom watermark uploaded: ${customWatermarkUrl}`);
       } else {
-        console.log('Ã¢Å¡Â Ã¯Â¸Â Custom watermark ignored - user is not Studio tier');
+        console.log('⚠️ Custom watermark ignored - user is not Studio tier');
       }
     }
 
@@ -964,8 +768,6 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         notify_on_complete: notify_on_complete !== 'false' && notify_on_complete !== false,
         // Custom watermark for Studio users
         custom_watermark_url: customWatermarkUrl,
-        // Outro text for Studio users
-        outro_text: req.body.outro_text || null,
       })
       .select()
       .single();
@@ -1004,8 +806,6 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       subscription_tier: userProfile.subscription_tier || 'free',
       // Custom watermark URL for Studio users
       custom_watermark_url: customWatermarkUrl,
-      // Outro text for Studio users
-        outro_text: req.body.outro_text || null,
     });
 
     // Set appropriate status based on processing mode
@@ -1060,80 +860,6 @@ app.post('/api/projects/:id/thumbnail', authMiddleware, upload.single('thumbnail
     res.json(updated);
   } catch (error) {
     console.error('Thumbnail upload error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Retry a failed project
-app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
-  try {
-    const { data: project, error } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('id', req.params.id)
-      .eq('user_id', req.user.id)
-      .single();
-
-    if (error || !project) {
-      return res.status(404).json({ error: 'Project not found' });
-    }
-
-    if (project.status !== 'failed') {
-      return res.status(400).json({ error: 'Only failed projects can be retried' });
-    }
-
-    // Update status to processing
-    await supabase
-      .from('projects')
-      .update({
-        status: 'processing',
-        error_message: null,
-        processing_started_at: new Date().toISOString()
-      })
-      .eq('id', project.id);
-
-    // Get user's subscription tier
-    const userProfile = await getUserProfile(req.user.id);
-
-    // Resubmit to RunPod
-    const runpodJobId = await sendToRunPod(project.id, project.original_file_url, {
-      processing_type: project.processing_type,
-      include_lyrics: project.include_lyrics,
-      video_quality: project.video_quality,
-      thumbnail_url: project.thumbnail_url,
-      artist_name: project.artist_name,
-      song_title: project.song_title,
-      track_number: project.track_number,
-      lyrics_text: project.lyrics_text,
-      display_mode: project.display_mode || 'auto',
-      clean_version: project.clean_version || false,
-      bg_color_1: project.bg_color_1,
-      bg_color_2: project.bg_color_2,
-      use_gradient: project.use_gradient,
-      gradient_direction: project.gradient_direction,
-      text_color: project.text_color,
-      outline_color: project.outline_color,
-      sung_color: project.sung_color,
-      font: project.font,
-      processing_mode: 'full',
-      subscription_tier: userProfile.subscription_tier || 'free',
-      custom_watermark_url: project.custom_watermark_url,
-      outro_text: project.outro_text || null,
-    });
-
-    await supabase
-      .from('projects')
-      .update({ runpod_job_id: runpodJobId })
-      .eq('id', project.id);
-
-    res.json({
-      success: true,
-      message: 'Project resubmitted',
-      runpod_job_id: runpodJobId
-    });
-
-  } catch (error) {
-    console.error('Retry error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1217,7 +943,7 @@ app.get('/api/projects/:id/lyrics', authMiddleware, async (req, res) => {
 app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
   try {
     const { edited_lyrics } = req.body;
-
+    
     if (!edited_lyrics || !Array.isArray(edited_lyrics)) {
       return res.status(400).json({ error: 'edited_lyrics array is required' });
     }
@@ -1235,8 +961,8 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
 
     // Check if project is in a state where we can render
     if (!['awaiting_review', 'transcribed'].includes(project.status)) {
-      return res.status(400).json({
-        error: `Cannot render project with status: ${project.status}. Project must be awaiting review.`
+      return res.status(400).json({ 
+        error: `Cannot render project with status: ${project.status}. Project must be awaiting review.` 
       });
     }
 
@@ -1287,7 +1013,6 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       subscription_tier: userProfile.subscription_tier || 'free',
       // FIX: Include custom watermark URL from PROJECT (not profile) for Studio tier re-renders
       custom_watermark_url: project.custom_watermark_url || null,
-      outro_text: project.outro_text || null,
     });
 
     await supabase
@@ -1325,8 +1050,8 @@ app.post('/api/projects/:id/transcribe', authMiddleware, async (req, res) => {
 
     // Check if project is in a state where we can start transcription
     if (project.status !== 'queued') {
-      return res.status(400).json({
-        error: `Cannot transcribe project with status: ${project.status}`
+      return res.status(400).json({ 
+        error: `Cannot transcribe project with status: ${project.status}` 
       });
     }
 
@@ -1387,46 +1112,11 @@ app.get('/api/plans', async (req, res) => {
   }
 });
 
-// Check if user has upgrade discount available
-app.get('/api/stripe/upgrade-discount', authMiddleware, async (req, res) => {
-  try {
-    const profile = await getUserProfile(req.user.id);
-
-    // User gets ONE 20% discount on their first upgrade
-    const hasDiscount = !profile.upgrade_discount_used &&
-      profile.subscription_tier &&
-      profile.subscription_tier !== 'free' &&
-      profile.subscription_tier !== 'studio'; // Can't upgrade from Studio
-
-    res.json({
-      has_discount: hasDiscount,
-      discount_percent: hasDiscount ? 20 : 0,
-      current_tier: profile.subscription_tier || 'free',
-      message: hasDiscount
-        ? 'You have a one-time 20% discount available on your next upgrade!'
-        : null
-    });
-  } catch (error) {
-    console.error('Upgrade discount check error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Helper: Get tier level for comparison (higher number = higher tier)
-function getTierLevel(tier) {
-  const levels = {
-    'free': 0,
-    'starter': 1,
-    'pro': 2,
-    'studio': 3
-  };
-  return levels[tier?.toLowerCase()] ?? 0;
-}
-
 app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
   try {
     const { price_id } = req.body;
     const profile = await getUserProfile(req.user.id);
+    let isUpgrade = false;
 
     let customerId = profile.stripe_customer_id;
     if (!customerId) {
@@ -1442,224 +1132,27 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
         .eq('id', req.user.id);
     }
 
-    // Get the new plan details
-    const { data: newPlan } = await supabase
-      .from('subscription_plans')
-      .select('tier, credits_per_month')
-      .eq('stripe_price_id', price_id)
-      .single();
-
-    if (!newPlan) {
-      return res.status(400).json({ error: 'Invalid plan selected' });
-    }
-
-    const currentTierLevel = getTierLevel(profile.subscription_tier);
-    const newTierLevel = getTierLevel(newPlan.tier);
-
-    console.log(`Ã°Å¸â€œÂ¦ Plan change: ${profile.subscription_tier} (${currentTierLevel}) -> ${newPlan.tier} (${newTierLevel})`);
-
-    // If user has existing subscription, handle upgrade vs downgrade differently
+    // If user has existing subscription, cancel it first (no proration - they keep credits)
     if (profile.stripe_subscription_id) {
+      console.log(`📦 User has existing subscription: ${profile.stripe_subscription_id}`);
+      
       try {
-        const existingSubscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
-
-        if (existingSubscription.status === 'active' || existingSubscription.status === 'trialing') {
-          const subscriptionItemId = existingSubscription.items.data[0].id;
-
-          if (newTierLevel > currentTierLevel) {
-            // UPGRADE: Update immediately, NO proration (user pays full price)
-            // User keeps their existing credits + gets new tier's credits
-            console.log(`   Ã¢Â¬â€ Ã¯Â¸Â Upgrading immediately (no proration - full price)`);
-
-            // Check if user has upgrade discount available
-            const hasDiscount = !profile.upgrade_discount_used;
-            let couponId = null;
-
-            if (hasDiscount && process.env.STRIPE_UPGRADE_COUPON_ID) {
-              couponId = process.env.STRIPE_UPGRADE_COUPON_ID;
-              console.log(`   Ã°Å¸Å½Â« Applying 20% upgrade discount coupon`);
-            }
-
-            const updateParams = {
-              items: [{
-                id: subscriptionItemId,
-                price: price_id,
-              }],
-              proration_behavior: 'none',  // No proration - user pays full price for new tier
-              billing_cycle_anchor: 'now', // Reset billing cycle to now
-              metadata: {
-                previous_tier: profile.subscription_tier,
-                new_tier: newPlan.tier,
-                change_type: 'upgrade',
-                discount_applied: hasDiscount ? 'true' : 'false'
-              }
-            };
-
-            // Apply coupon if available (one-time 20% discount)
-            if (couponId) {
-              updateParams.coupon = couponId;
-            }
-
-            const updatedSubscription = await stripe.subscriptions.update(
-              profile.stripe_subscription_id,
-              updateParams
-            );
-
-            // Update profile immediately (and mark discount as used if applied)
-            const profileUpdate = { subscription_tier: newPlan.tier };
-            if (hasDiscount) {
-              profileUpdate.upgrade_discount_used = true;
-            }
-
-            await supabase
-              .from('profiles')
-              .update(profileUpdate)
-              .eq('id', req.user.id);
-
-            // Update subscriptions table
-            await supabase
-              .from('subscriptions')
-              .upsert({
-                user_id: req.user.id,
-                stripe_subscription_id: profile.stripe_subscription_id,
-                stripe_price_id: price_id,
-                tier: newPlan.tier,
-                status: updatedSubscription.status
-              }, { onConflict: 'user_id' });
-
-            // Add upgrade credits (user keeps existing + gets new tier's credits)
-            console.log(`   Adding ${newPlan.credits_per_month} upgrade credits`);
-            await addCreditsWithExpiration(
-              req.user.id,
-              newPlan.credits_per_month,
-              'upgrade',
-              `Upgraded to ${newPlan.tier} - ${newPlan.credits_per_month} credits`
-            );
-
-            const discountMessage = hasDiscount && couponId
-              ? ' Your 20% upgrade discount has been applied!'
-              : '';
-
-            return res.json({
-              success: true,
-              message: `Upgraded to ${newPlan.tier}! Your new plan is active immediately and you've received ${newPlan.credits_per_month} credits.${discountMessage}`,
-              redirect: `${process.env.FRONTEND_URL}/dashboard?upgraded=true`,
-              discount_applied: hasDiscount && couponId
-            });
-
-
-          } else if (newTierLevel < currentTierLevel) {
-            // DOWNGRADE: Schedule for end of billing period using subscription schedule
-            console.log(`   ⬇️ Scheduling downgrade for period end`);
-
-            try {
-              // Check if there's already a schedule attached
-              let schedule;
-              if (existingSubscription.schedule) {
-                // Retrieve existing schedule to get its current phase
-                const existingSchedule = await stripe.subscriptionSchedules.retrieve(existingSubscription.schedule);
-                
-                // Update existing schedule - keep current phase, add new phase for downgrade
-                schedule = await stripe.subscriptionSchedules.update(existingSubscription.schedule, {
-                  end_behavior: 'release',
-                  phases: [
-                    {
-                      items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
-                      start_date: existingSchedule.phases[0].start_date,
-                      end_date: existingSubscription.current_period_end,
-                    },
-                    {
-                      items: [{ price: price_id, quantity: 1 }],
-                      start_date: existingSubscription.current_period_end,
-                    }
-                  ],
-                  metadata: {
-                    previous_tier: profile.subscription_tier,
-                    new_tier: newPlan.tier,
-                    change_type: 'downgrade'
-                  }
-                });
-              } else {
-                // Create new schedule from the subscription
-                // When using from_subscription, Stripe auto-creates first phase
-                // We just need to add the second phase via update after creation
-                schedule = await stripe.subscriptionSchedules.create({
-                  from_subscription: profile.stripe_subscription_id,
-                });
-
-                // Now update the schedule to add the downgrade phase
-                schedule = await stripe.subscriptionSchedules.update(schedule.id, {
-                  end_behavior: 'release',
-                  phases: [
-                    {
-                      items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
-                      start_date: schedule.phases[0].start_date,
-                      end_date: existingSubscription.current_period_end,
-                    },
-                    {
-                      items: [{ price: price_id, quantity: 1 }],
-                      start_date: existingSubscription.current_period_end,
-                    }
-                  ],
-                  metadata: {
-                    previous_tier: profile.subscription_tier,
-                    new_tier: newPlan.tier,
-                    change_type: 'downgrade'
-                  }
-                });
-              }
-
-              // Store the scheduled downgrade in our database
-              await supabase
-                .from('profiles')
-                .update({
-                  scheduled_tier: newPlan.tier,
-                  scheduled_tier_date: new Date(existingSubscription.current_period_end * 1000).toISOString()
-                })
-                .eq('id', req.user.id);
-
-              const periodEnd = new Date(existingSubscription.current_period_end * 1000);
-              const formattedDate = periodEnd.toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-              });
-
-              console.log(`   ✅ Downgrade scheduled for ${formattedDate}`);
-
-              // Send confirmation email
-              const userEmail = req.user.email;
-              const userName = profile.full_name || userEmail.split('@')[0];
-              sendDowngradeScheduledEmail(
-                userEmail,
-                userName,
-                profile.subscription_tier,
-                newPlan.tier,
-                periodEnd.toISOString()
-              ).catch(err => console.error('Downgrade email error:', err));
-
-              return res.json({
-                success: true,
-                message: `Your plan will change to ${newPlan.tier} on ${formattedDate}. You'll keep your ${profile.subscription_tier} benefits until then.`,
-                redirect: `${process.env.FRONTEND_URL}/dashboard?downgrade_scheduled=true`,
-                effective_date: periodEnd.toISOString()
-              });
-            } catch (scheduleError) {
-              console.error(`   ❌ Downgrade schedule failed:`, scheduleError.message);
-              // Return error instead of falling through to checkout
-              return res.status(500).json({ 
-                error: `Failed to schedule downgrade: ${scheduleError.message}. Please try again or contact support.` 
-              });
-            }
-          }
-        }
-      } catch (subError) {
-        console.log(`   ⚠️ Could not process subscription change: ${subError.message}`);
-        // Fall through to create new checkout session only for NEW subscriptions
+        // Cancel the old subscription immediately
+        await stripe.subscriptions.cancel(profile.stripe_subscription_id);
+        console.log(`   ✅ Old subscription canceled`);
+        isUpgrade = true;
+        
+        // Clear the subscription ID in database
+        await supabase
+          .from('profiles')
+          .update({ stripe_subscription_id: null })
+          .eq('id', req.user.id);
+      } catch (cancelError) {
+        console.log(`   ⚠️ Could not cancel subscription: ${cancelError.message}`);
       }
     }
 
-    // No existing subscription or subscription update failed - create new checkout session
+    // Create new checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
@@ -1667,9 +1160,9 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
       line_items: [{ price: price_id, quantity: 1 }],
       success_url: `${process.env.FRONTEND_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/pricing`,
-      metadata: {
+      metadata: { 
         user_id: req.user.id,
-        is_upgrade: 'false'
+        is_upgrade: isUpgrade ? 'true' : 'false'  // Track if this is an upgrade
       },
     });
 
@@ -1737,105 +1230,17 @@ app.post('/api/stripe/portal', authMiddleware, async (req, res) => {
   }
 });
 
-// Get subscription status including scheduled changes
-app.get('/api/stripe/subscription-status', authMiddleware, async (req, res) => {
-  try {
-    const profile = await getUserProfile(req.user.id);
-
-    if (!profile.stripe_subscription_id) {
-      return res.json({
-        has_subscription: false,
-        tier: profile.subscription_tier || 'free'
-      });
-    }
-
-    const subscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
-
-    let scheduledChange = null;
-    if (subscription.schedule) {
-      const schedule = await stripe.subscriptionSchedules.retrieve(subscription.schedule);
-      if (schedule.phases && schedule.phases.length > 1) {
-        const nextPhase = schedule.phases[1];
-        const nextPriceId = nextPhase.items[0].price;
-
-        const { data: nextPlan } = await supabase
-          .from('subscription_plans')
-          .select('tier')
-          .eq('stripe_price_id', nextPriceId)
-          .single();
-
-        if (nextPlan) {
-          scheduledChange = {
-            new_tier: nextPlan.tier,
-            effective_date: new Date(nextPhase.start_date * 1000).toISOString()
-          };
-        }
-      }
-    }
-
-    res.json({
-      has_subscription: true,
-      tier: profile.subscription_tier,
-      status: subscription.status,
-      current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-      scheduled_change: scheduledChange
-    });
-  } catch (error) {
-    console.error('Subscription status error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Cancel a scheduled downgrade
-app.post('/api/stripe/cancel-scheduled-change', authMiddleware, async (req, res) => {
-  try {
-    const profile = await getUserProfile(req.user.id);
-
-    if (!profile.stripe_subscription_id) {
-      return res.status(400).json({ error: 'No active subscription' });
-    }
-
-    const subscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
-
-    if (!subscription.schedule) {
-      return res.status(400).json({ error: 'No scheduled change to cancel' });
-    }
-
-    // Release the schedule, keeping the current subscription as-is
-    await stripe.subscriptionSchedules.release(subscription.schedule);
-
-    // Clear the scheduled tier from our database
-    await supabase
-      .from('profiles')
-      .update({
-        scheduled_tier: null,
-        scheduled_tier_date: null
-      })
-      .eq('id', req.user.id);
-
-    console.log(`Ã¢Å“â€¦ Scheduled change cancelled for user ${req.user.id}`);
-
-    res.json({
-      success: true,
-      message: 'Scheduled plan change has been cancelled. You will stay on your current plan.'
-    });
-  } catch (error) {
-    console.error('Cancel scheduled change error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // WEBHOOKS
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
-  console.log('Ã°Å¸â€â€ Stripe webhook received');
+  console.log('🔔 Stripe webhook received');
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    console.log(`Ã¢Å“â€¦ Webhook verified: ${event.type}`);
+    console.log(`✅ Webhook verified: ${event.type}`);
   } catch (err) {
-    console.error('Ã¢ÂÅ’ Webhook signature verification failed:', err.message);
+    console.error('❌ Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -1843,7 +1248,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
-
+        
         // Handle credit purchases
         if (session.metadata.type === 'credit_purchase') {
           await addCreditsWithExpiration(
@@ -1853,27 +1258,27 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             `Purchased ${session.metadata.credits} credits`
           );
         }
-
+        
         // Handle subscription credits (both new signups AND upgrades get credits)
         if (session.mode === 'subscription') {
           const isUpgrade = session.metadata.is_upgrade === 'true';
-          console.log(`Ã°Å¸â€ â€¢ Subscription checkout completed for user: ${session.metadata.user_id} (upgrade: ${isUpgrade})`);
-
+          console.log(`🆕 Subscription checkout completed for user: ${session.metadata.user_id} (upgrade: ${isUpgrade})`);
+          
           // Get the subscription to find the price/plan
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
           const priceId = subscription.items.data[0].price.id;
-
+          
           const { data: plan } = await supabase
             .from('subscription_plans')
             .select('tier, credits_per_month')
             .eq('stripe_price_id', priceId)
             .single();
-
+          
           if (plan) {
-            const description = isUpgrade
+            const description = isUpgrade 
               ? `Upgraded to ${plan.tier} - ${plan.credits_per_month} credits`
               : `${plan.tier} subscription - ${plan.credits_per_month} monthly credits`;
-
+            
             console.log(`   Adding ${plan.credits_per_month} credits for ${plan.tier} subscription (expires in 90 days)`);
             await addCreditsWithExpiration(
               session.metadata.user_id,
@@ -1890,7 +1295,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         const customerId = subscription.customer;
-        console.log(`Ã°Å¸â€œÂ¦ Subscription ${event.type} for customer: ${customerId}`);
+        console.log(`📦 Subscription ${event.type} for customer: ${customerId}`);
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -1899,15 +1304,15 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           .single();
 
         if (profileError) {
-          console.error('Ã¢ÂÅ’ Error finding profile by stripe_customer_id:', profileError);
+          console.error('❌ Error finding profile by stripe_customer_id:', profileError);
           console.log('   Looking for customer ID:', customerId);
         }
 
         if (profile) {
-          console.log(`Ã¢Å“â€¦ Found profile: ${profile.id}`);
+          console.log(`✅ Found profile: ${profile.id}`);
           const priceId = subscription.items.data[0].price.id;
           console.log(`   Price ID from subscription: ${priceId}`);
-
+          
           const { data: plan, error: planError } = await supabase
             .from('subscription_plans')
             .select('tier, credits_per_month')
@@ -1915,13 +1320,13 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             .single();
 
           if (planError) {
-            console.error('Ã¢ÂÅ’ Error finding plan by stripe_price_id:', planError);
+            console.error('❌ Error finding plan by stripe_price_id:', planError);
             console.log('   Looking for price ID:', priceId);
           }
 
           if (plan) {
-            console.log(`Ã¢Å“â€¦ Found plan: ${plan.tier} (${plan.credits_per_month} credits)`);
-
+            console.log(`✅ Found plan: ${plan.tier} (${plan.credits_per_month} credits)`);
+            
             const { error: updateError } = await supabase
               .from('profiles')
               .update({
@@ -1931,9 +1336,9 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               .eq('id', profile.id);
 
             if (updateError) {
-              console.error('Ã¢ÂÅ’ Error updating profile:', updateError);
+              console.error('❌ Error updating profile:', updateError);
             } else {
-              console.log(`Ã¢Å“â€¦ Profile updated to tier: ${plan.tier}`);
+              console.log(`✅ Profile updated to tier: ${plan.tier}`);
             }
 
             // ALSO upsert into subscriptions table (THIS WAS MISSING - caused "Failed to Fetch" errors)
@@ -1948,109 +1353,48 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               }, { onConflict: 'user_id' });
 
             if (subError) {
-              console.error('Ã¢ÂÅ’ Error upserting subscription record:', subError);
+              console.error('❌ Error upserting subscription record:', subError);
             } else {
-              console.log(`Ã¢Å“â€¦ Subscription record created/updated in subscriptions table`);
+              console.log(`✅ Subscription record created/updated in subscriptions table`);
             }
 
             // Note: Credits are now added in checkout.session.completed handler
             // This allows us to check metadata and skip credits for upgrades
           } else {
-            console.log('Ã¢ÂÅ’ No plan found for price ID:', priceId);
+            console.log('❌ No plan found for price ID:', priceId);
           }
         } else {
-          console.log('Ã¢ÂÅ’ No profile found for customer ID:', customerId);
+          console.log('❌ No profile found for customer ID:', customerId);
         }
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        console.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â Subscription deleted for customer: ${subscription.customer}`);
-
+        console.log(`🗑️ Subscription deleted for customer: ${subscription.customer}`);
+        
         // Update profile
         await supabase
           .from('profiles')
           .update({
             subscription_tier: 'free',
             stripe_subscription_id: null,
-            scheduled_tier: null,
-            scheduled_tier_date: null,
           })
           .eq('stripe_customer_id', subscription.customer);
-
+        
         // Also delete from subscriptions table
         const { data: profile } = await supabase
           .from('profiles')
           .select('id')
           .eq('stripe_customer_id', subscription.customer)
           .single();
-
+        
         if (profile) {
           await supabase
             .from('subscriptions')
             .delete()
             .eq('user_id', profile.id);
-          console.log(`Ã¢Å“â€¦ Subscription record deleted from subscriptions table`);
-        }
-        break;
-      }
-
-      // Handle subscription schedule updates (for scheduled downgrades)
-      case 'subscription_schedule.updated':
-      case 'subscription_schedule.completed': {
-        const schedule = event.data.object;
-        console.log(`Ã°Å¸â€œâ€¦ Subscription schedule ${event.type}: ${schedule.id}`);
-
-        // When a schedule completes, the subscription has moved to the next phase
-        // Update the user's tier to match the new plan
-        if (event.type === 'subscription_schedule.completed' && schedule.subscription) {
-          try {
-            const subscription = await stripe.subscriptions.retrieve(schedule.subscription);
-            const customerId = subscription.customer;
-            const priceId = subscription.items.data[0].price.id;
-
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('stripe_customer_id', customerId)
-              .single();
-
-            if (profile) {
-              const { data: plan } = await supabase
-                .from('subscription_plans')
-                .select('tier, credits_per_month')
-                .eq('stripe_price_id', priceId)
-                .single();
-
-              if (plan) {
-                console.log(`   Ã°Å¸â€œÂ¦ Schedule completed - updating tier to ${plan.tier}`);
-
-                await supabase
-                  .from('profiles')
-                  .update({
-                    subscription_tier: plan.tier,
-                    scheduled_tier: null,
-                    scheduled_tier_date: null,
-                  })
-                  .eq('id', profile.id);
-
-                await supabase
-                  .from('subscriptions')
-                  .upsert({
-                    user_id: profile.id,
-                    stripe_subscription_id: subscription.id,
-                    stripe_price_id: priceId,
-                    tier: plan.tier,
-                    status: subscription.status
-                  }, { onConflict: 'user_id' });
-
-                console.log(`   Ã¢Å“â€¦ User ${profile.id} downgraded to ${plan.tier}`);
-              }
-            }
-          } catch (scheduleError) {
-            console.error('   Ã¢ÂÅ’ Error processing schedule completion:', scheduleError);
-          }
+          console.log(`✅ Subscription record deleted from subscriptions table`);
         }
         break;
       }
@@ -2072,7 +1416,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               .single();
 
             if (plan) {
-              console.log(`Ã°Å¸â€œâ€¦ Monthly renewal for ${profile.subscription_tier}: adding ${plan.credits_per_month} credits`);
+              console.log(`📅 Monthly renewal for ${profile.subscription_tier}: adding ${plan.credits_per_month} credits`);
               await addCreditsWithExpiration(
                 profile.id,
                 plan.credits_per_month,
@@ -2112,8 +1456,8 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
 
     // Handle transcription completed (two-stage processing)
     if (status === 'transcribed' && results) {
-      console.log(`Ã°Å¸â€œâ€¹ Project ${project_id} transcription complete - awaiting review`);
-
+      console.log(`📋 Project ${project_id} transcription complete - awaiting review`);
+      
       const { data: updateData, error: updateError } = await supabase
         .from('projects')
         .update({
@@ -2127,13 +1471,13 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         .select();
 
       if (updateError) {
-        console.error('Ã¢ÂÅ’ Failed to update project status:', updateError);
+        console.error('❌ Failed to update project status:', updateError);
       } else {
-        console.log('Ã¢Å“â€¦ Project status updated to awaiting_review:', updateData);
+        console.log('✅ Project status updated to awaiting_review:', updateData);
       }
 
       // Don't send email - user needs to review lyrics first
-
+      
     } else if (status === 'completed' && results) {
       const { data: updateData, error: updateError } = await supabase
         .from('projects')
@@ -2149,9 +1493,9 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         .select();
 
       if (updateError) {
-        console.error('Ã¢ÂÅ’ Failed to update project status:', updateError);
+        console.error('❌ Failed to update project status:', updateError);
       } else {
-        console.log('Ã¢Å“â€¦ Project status updated to completed:', updateData);
+        console.log('✅ Project status updated to completed:', updateData);
       }
 
       // Send completion email if enabled
@@ -2159,15 +1503,15 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         // Generate download URL for email
         const baseFilename = `${project.track_number || 'KT-01'} - ${project.artist_name || 'Unknown Artist'} - ${project.song_title || 'Untitled'}`;
         const sanitizedFilename = baseFilename.replace(/[<>:"/\\|?*]/g, '');
-
+        
         let downloadUrl = `${process.env.FRONTEND_URL}/dashboard`;
         if (results.video_url) {
           downloadUrl = await getSignedDownloadUrl(results.video_url, `${sanitizedFilename}.mp4`);
         }
-
+        
         await sendCompletionEmail(project, downloadUrl);
       }
-
+      
     } else if (status === 'failed') {
       const { error: updateError } = await supabase
         .from('projects')
@@ -2179,7 +1523,7 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         .eq('id', project_id);
 
       if (updateError) {
-        console.error('Ã¢ÂÅ’ Failed to update project status:', updateError);
+        console.error('❌ Failed to update project status:', updateError);
       }
 
       // Send failure email if enabled
@@ -2196,175 +1540,6 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
 });
 
 // ============================================
-// SUPPORT CONTACT FORM ENDPOINT
-// ============================================
-
-// Support contact form - sends email to admin
-// Only available for paid subscribers (starter, pro, studio)
-// Studio users get "Priority Support", Starter/Pro get "Standard Support"
-app.post('/api/support/contact', authMiddleware, async (req, res) => {
-  try {
-    // Get user profile to check subscription tier
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', req.user.id)
-      .single();
-
-    if (profileError || !profile) {
-      return res.status(404).json({ error: 'Profile not found' });
-    }
-
-    // Check if user has a paid subscription
-    const tier = profile.subscription_tier?.toLowerCase();
-    const paidTiers = ['starter', 'pro', 'studio'];
-    
-    if (!paidTiers.includes(tier)) {
-      return res.status(403).json({ 
-        error: 'Support is only available for paid subscribers. Please upgrade your plan.' 
-      });
-    }
-
-    // Get form data
-    const { subject, message } = req.body;
-
-    if (!subject || !message) {
-      return res.status(400).json({ error: 'Subject and message are required' });
-    }
-
-    if (subject.length > 100) {
-      return res.status(400).json({ error: 'Subject must be 100 characters or less' });
-    }
-
-    if (message.length > 2000) {
-      return res.status(400).json({ error: 'Message must be 2000 characters or less' });
-    }
-
-    // Determine support level based on tier
-    const isStudio = tier === 'studio';
-    const supportLevel = isStudio ? 'Priority Support' : 'Standard Support';
-    const emailSubject = isStudio 
-      ? `[Priority Support] Karatrack Studio: ${subject}`
-      : `[Standard Support] Karatrack Studio: ${subject}`;
-
-    // Get user email
-    const userEmail = profile.email || req.user.email;
-    const userName = profile.full_name || userEmail.split('@')[0];
-
-    // Send email to admin via Brevo
-    if (!process.env.BREVO_API_KEY) {
-      console.error('Brevo not configured');
-      return res.status(500).json({ error: 'Email service not configured' });
-    }
-
-    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
-    sendSmtpEmail.to = [{
-      email: process.env.ADMIN_EMAIL || 'jboyte72@gmail.com',
-      name: 'Karatrack Support'
-    }];
-
-    sendSmtpEmail.replyTo = {
-      email: userEmail,
-      name: userName
-    };
-
-    sendSmtpEmail.sender = {
-      name: 'Karatrack Studio Support',
-      email: 'support@karatrack.com'
-    };
-
-    sendSmtpEmail.subject = emailSubject;
-
-    sendSmtpEmail.htmlContent = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-      </head>
-      <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f0f1a;">
-        <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
-          <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Karatrack Support Request</h1>
-            <p style="color: ${isStudio ? '#a855f7' : '#00d4ff'}; font-size: 14px; margin: 10px 0 0 0;">
-              ${supportLevel}
-            </p>
-          </div>
-          
-          <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(0, 212, 255, 0.2);">
-            <div style="margin-bottom: 30px;">
-              <h3 style="color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">From</h3>
-              <p style="color: #ffffff; font-size: 16px; margin: 0;">${userName}</p>
-              <p style="color: #a0a0a0; font-size: 14px; margin: 4px 0 0 0;">${userEmail}</p>
-            </div>
-            
-            <div style="margin-bottom: 30px;">
-              <h3 style="color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Account Details</h3>
-              <p style="color: #a0a0a0; font-size: 14px; margin: 0;">
-                Tier: <span style="color: #ffffff; text-transform: capitalize;">${tier}</span><br>
-                Credits: <span style="color: #ffffff;">${profile.credits_remaining || 0}</span><br>
-                User ID: <span style="color: #666; font-size: 12px;">${req.user.id}</span>
-              </p>
-            </div>
-            
-            <div style="margin-bottom: 30px;">
-              <h3 style="color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Subject</h3>
-              <p style="color: #ffffff; font-size: 18px; margin: 0;">${subject}</p>
-            </div>
-            
-            <div>
-              <h3 style="color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Message</h3>
-              <div style="background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 20px;">
-                <p style="color: #ffffff; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">${message}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div style="text-align: center; margin-top: 40px;">
-            <p style="color: #444; font-size: 12px; margin: 0;">
-              Reply directly to this email to respond to the user.
-            </p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    sendSmtpEmail.textContent = `
-KARATRACK SUPPORT REQUEST
-${supportLevel}
-========================
-
-From: ${userName} (${userEmail})
-Tier: ${tier}
-Credits: ${profile.credits_remaining || 0}
-User ID: ${req.user.id}
-
-Subject: ${subject}
-
-Message:
-${message}
-
----
-Reply directly to this email to respond to the user.
-    `;
-
-    await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    
-    console.log(`📧 Support request sent from ${userEmail} (${tier}) - ${supportLevel}`);
-
-    res.json({ 
-      success: true, 
-      message: 'Your message has been sent. We will respond as soon as possible.' 
-    });
-
-  } catch (error) {
-    console.error('Support contact error:', error);
-    res.status(500).json({ error: 'Failed to send message. Please try again.' });
-  }
-});
-
-// ============================================
 // CREDIT EXPIRATION SYSTEM
 // ============================================
 
@@ -2377,46 +1552,46 @@ async function addCreditsWithExpiration(userId, amount, source, description, day
     p_description: description,
     p_days_until_expiry: daysUntilExpiry
   });
-
+  
   if (error) {
     console.error('Error adding credits with expiration:', error);
     throw error;
   }
-
+  
   return data;
 }
 
 // Helper: Send expiration warning email
 async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expirationDate) {
   if (!process.env.BREVO_API_KEY) {
-    console.log('Ã¢Å¡Â Ã¯Â¸Â Brevo not configured, skipping expiration email');
+    console.log('⚠️ Brevo not configured, skipping expiration email');
     return;
   }
 
   try {
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
+    
     sendSmtpEmail.to = [{ email }];
-    sendSmtpEmail.sender = {
-      name: 'Karatrack Studio',
-      email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com'
+    sendSmtpEmail.sender = { 
+      name: 'Karatrack Studio', 
+      email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com' 
     };
-
+    
     if (daysLeft <= 1) {
-      sendSmtpEmail.subject = 'Ã¢Å¡Â Ã¯Â¸Â Your Karatrack credits expire TOMORROW!';
+      sendSmtpEmail.subject = '⚠️ Your Karatrack credits expire TOMORROW!';
     } else if (daysLeft <= 7) {
-      sendSmtpEmail.subject = `Ã¢Å¡Â Ã¯Â¸Â ${creditsExpiring} credits expiring in ${daysLeft} days`;
+      sendSmtpEmail.subject = `⚠️ ${creditsExpiring} credits expiring in ${daysLeft} days`;
     } else {
-      sendSmtpEmail.subject = `Ã°Å¸â€œÂ¢ ${creditsExpiring} credits expiring in ${daysLeft} days`;
+      sendSmtpEmail.subject = `📢 ${creditsExpiring} credits expiring in ${daysLeft} days`;
     }
-
+    
     const formattedDate = new Date(expirationDate).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
-
+    
     sendSmtpEmail.htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -2434,14 +1609,14 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
       <body>
         <div class="container">
           <div class="header">
-            <h1>Ã°Å¸Å½Â¤ Karatrack Studio</h1>
+            <h1>🎤 Karatrack Studio</h1>
           </div>
           <div class="content">
             <h2>Your credits are expiring soon!</h2>
             
             <div class="warning-box">
               <strong>${creditsExpiring} credits</strong> will expire on <strong>${formattedDate}</strong>
-              ${daysLeft <= 1 ? '<br><br>Ã¢Å¡Â Ã¯Â¸Â This is your final reminder!' : ''}
+              ${daysLeft <= 1 ? '<br><br>⚠️ This is your final reminder!' : ''}
             </div>
             
             <p>Don't let your credits go to waste! Use them to create amazing karaoke tracks before they expire.</p>
@@ -2455,7 +1630,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             
             <center>
               <a href="${process.env.FRONTEND_URL}/upload" class="cta-button">
-                Ã°Å¸Å½Â¬ Create a Karaoke Track Now
+                🎬 Create a Karaoke Track Now
               </a>
             </center>
             
@@ -2464,16 +1639,16 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             </p>
           </div>
           <div class="footer">
-            <p>Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
             <p>Questions? Reply to this email or visit our support page.</p>
           </div>
         </div>
       </body>
       </html>
     `;
-
+    
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`Ã°Å¸â€œÂ§ Expiration warning sent to ${email} (${daysLeft} days left)`);
+    console.log(`📧 Expiration warning sent to ${email} (${daysLeft} days left)`);
   } catch (error) {
     console.error('Failed to send expiration email:', error);
   }
@@ -2485,14 +1660,14 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
 
   try {
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
+    
     sendSmtpEmail.to = [{ email }];
-    sendSmtpEmail.sender = {
-      name: 'Karatrack Studio',
-      email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com'
+    sendSmtpEmail.sender = { 
+      name: 'Karatrack Studio', 
+      email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com' 
     };
-    sendSmtpEmail.subject = `Ã°Å¸ËœÂ¢ ${expiredAmount} credits have expired`;
-
+    sendSmtpEmail.subject = `😢 ${expiredAmount} credits have expired`;
+    
     sendSmtpEmail.htmlContent = `
       <!DOCTYPE html>
       <html>
@@ -2508,7 +1683,7 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Ã°Å¸Å½Â¤ Karatrack Studio</h1>
+            <h1>🎤 Karatrack Studio</h1>
           </div>
           <div class="content">
             <h2>Your credits have expired</h2>
@@ -2519,7 +1694,7 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
             
             <center>
               <a href="${process.env.FRONTEND_URL}/pricing" class="cta-button">
-                Ã°Å¸Å½Â¯ Get More Credits
+                🎯 Get More Credits
               </a>
             </center>
           </div>
@@ -2527,9 +1702,9 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
       </body>
       </html>
     `;
-
+    
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`Ã°Å¸â€œÂ§ Credits expired notification sent to ${email}`);
+    console.log(`📧 Credits expired notification sent to ${email}`);
   } catch (error) {
     console.error('Failed to send expired email:', error);
   }
@@ -2546,8 +1721,8 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  console.log('Ã°Å¸â€¢Â Running credit expiration check...');
-
+  console.log('🕐 Running credit expiration check...');
+  
   try {
     const results = {
       expired: 0,
@@ -2558,25 +1733,25 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
 
     // 1. Expire old credits
     const { data: expiredUsers, error: expireError } = await supabase.rpc('expire_old_credits');
-
+    
     if (expireError) {
       console.error('Error expiring credits:', expireError);
     } else if (expiredUsers && expiredUsers.length > 0) {
       for (const user of expiredUsers) {
         results.expired += user.expired_amount;
-
+        
         // Get user email and send notification
         const { data: profile } = await supabase
           .from('profiles')
           .select('email')
           .eq('id', user.user_id)
           .single();
-
+        
         if (profile?.email) {
           await sendCreditsExpiredEmail(profile.email, user.expired_amount);
         }
       }
-      console.log(`Ã°Å¸â€™â‚¬ Expired ${results.expired} credits for ${expiredUsers.length} users`);
+      console.log(`💀 Expired ${results.expired} credits for ${expiredUsers.length} users`);
     }
 
     // 2. Send 14-day warnings
@@ -2598,12 +1773,12 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
           daysLeft,
           batch.expires_at
         );
-
+        
         await supabase
           .from('credit_batches')
           .update({ expired_notified_14d: true })
           .eq('id', batch.id);
-
+        
         results.warnings_14d++;
       }
     }
@@ -2627,12 +1802,12 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
           daysLeft,
           batch.expires_at
         );
-
+        
         await supabase
           .from('credit_batches')
           .update({ expired_notified_7d: true })
           .eq('id', batch.id);
-
+        
         results.warnings_7d++;
       }
     }
@@ -2654,19 +1829,19 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
           1,
           batch.expires_at
         );
-
+        
         await supabase
           .from('credit_batches')
           .update({ expired_notified_1d: true })
           .eq('id', batch.id);
-
+        
         results.warnings_1d++;
       }
     }
 
-    console.log('Ã¢Å“â€¦ Credit expiration check complete:', results);
+    console.log('✅ Credit expiration check complete:', results);
     res.json({ success: true, results });
-
+    
   } catch (error) {
     console.error('Credit expiration check failed:', error);
     res.status(500).json({ error: error.message });
@@ -2688,9 +1863,9 @@ app.use((req, res) => {
 
 // START SERVER
 app.listen(PORT, () => {
-  console.log(`Ã°Å¸Å¡â‚¬ Karatrack Studio API running on port ${PORT}`);
-  console.log(`Ã°Å¸â€œÅ  Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Ã°Å¸â€œÂ§ Email notifications: ${process.env.BREVO_API_KEY ? 'enabled' : 'disabled'}`);
+  console.log(`🚀 Karatrack Studio API running on port ${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`📧 Email notifications: ${process.env.BREVO_API_KEY ? 'enabled' : 'disabled'}`);
 });
 
 module.exports = app;
