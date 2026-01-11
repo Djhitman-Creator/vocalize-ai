@@ -2260,8 +2260,8 @@ app.post('/api/support/contact', authMiddleware, async (req, res) => {
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
     sendSmtpEmail.to = [{
-      email: process.env.ADMIN_EMAIL || 'jboyte72@gmail.com',
-      name: 'Karatrack Support'
+      email: process.env.ADMIN_EMAIL || 'kssupport@karatrack.com',
+      name: 'Karatrack Studio Support'
     }];
 
     sendSmtpEmail.replyTo = {
