@@ -20,12 +20,14 @@ import {
   Loader2,
   Bell,
   X,
-  Edit3
+  Edit3,
+  HelpCircle
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import AppNavigation from '../components/AppNavigation';
 import { createClient } from '@supabase/supabase-js';
 import SEO from '../components/SEO';
+import HelpModal from '../components/HelpModal';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -58,6 +60,9 @@ export default function DashboardPage() {
 
   // Pending subscription checkout state
   const [checkingPendingPlan, setCheckingPendingPlan] = useState(false);
+
+  // Help modal state
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // Add notification
   const addNotification = useCallback((message, type = 'success') => {
@@ -465,6 +470,9 @@ export default function DashboardPage() {
     ['processing', 'transcribing', 'rendering'].includes(p.status)
   ).length;
 
+  // Check if user has paid subscription (for showing help button)
+  const isPaidUser = profile?.subscription_tier && profile.subscription_tier !== 'free';
+
   return (
     <>
       <SEO
@@ -521,8 +529,8 @@ export default function DashboardPage() {
             <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Ready to transform some music?</p>
           </motion.div>
 
-          {/* Stats Cards */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          {/* Stats Cards - Changes to 4 columns when paid user, 3 columns for free */}
+          <div className={`grid ${isPaidUser ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-6 mb-8`}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -573,6 +581,29 @@ export default function DashboardPage() {
                 </div>
               </div>
             </motion.div>
+
+            {/* Help/Support Card - Only show for paid users */}
+            {isPaidUser && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="glass-panel p-6 cursor-pointer hover:border-purple-500/50 transition-colors"
+                onClick={() => setShowHelpModal(true)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                    <HelpCircle className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Need Help?</p>
+                    <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {profile?.subscription_tier === 'studio' ? 'Priority' : 'Standard'} Support
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
 
           {/* Upload Section */}
@@ -782,6 +813,13 @@ export default function DashboardPage() {
           </motion.div>
         </main>
       </div>
+
+      {/* Help Modal */}
+      <HelpModal 
+        isOpen={showHelpModal} 
+        onClose={() => setShowHelpModal(false)} 
+        profile={profile}
+      />
     </>
   );
 }

@@ -1,0 +1,111 @@
+{
+  "title": "Create Karaoke Track",
+  "backToDashboard": "Back to Dashboard",
+  "sections": {
+    "audioInfo": "Audio & Track Info",
+    "livePreview": "Live Preview",
+    "lyrics": "Lyrics",
+    "styleCustomization": "Style Customization",
+    "customWatermark": "Custom Watermark"
+  },
+  "dropzone": {
+    "title": "Drop audio file or click to browse",
+    "formats": "MP3, WAV, FLAC (max 500MB)"
+  },
+  "fields": {
+    "discId": "Disc ID",
+    "artist": "Artist",
+    "songTitle": "Song Title",
+    "outputQuality": "Output Quality",
+    "lyricDisplay": "Lyric Display",
+    "cleanLyrics": "Clean Lyrics",
+    "processing": "Processing"
+  },
+  "quality": {
+    "480p": "480p",
+    "720p": "720p",
+    "1080p": "1080p (HD)",
+    "4k": "4K"
+  },
+  "displayModes": {
+    "auto": "Auto",
+    "scroll": "Scroll",
+    "page": "Page by Page",
+    "overwrite": "Overwrite"
+  },
+  "processingTypes": {
+    "removeVocals": "Remove All Vocals",
+    "keepBacking": "Keep Backing Vocals",
+    "both": "Both Versions"
+  },
+  "cleanLyricsOptions": {
+    "on": "ON",
+    "off": "OFF"
+  },
+  "lyrics": {
+    "title": "Lyrics",
+    "required": "Required",
+    "placeholder": "Paste lyrics here...",
+    "aiDisclaimer": "Lyrics are synced using AI for precise timing. Some words may vary slightly.",
+    "upgradeForEdit": "Upgrade to Pro or Studio to review and edit lyrics before rendering.",
+    "editOption": "Use the \"Review & edit lyrics\" option below to fine-tune timing before rendering.",
+    "minChars": "min 50",
+    "chars": "chars",
+    "words": "words"
+  },
+  "style": {
+    "font": "Font",
+    "backgroundStart": "Background (Start)",
+    "backgroundEnd": "Background (End)",
+    "gradient": "Gradient",
+    "direction": "Direction",
+    "textColor": "Text Color",
+    "textOutline": "Text Outline",
+    "sungColor": "Sung Color (After Read)",
+    "sungColorHint": "First line shows this color"
+  },
+  "gradientDirections": {
+    "toBottom": "Top → Bottom",
+    "toTop": "Bottom → Top",
+    "toRight": "Left → Right",
+    "toLeft": "Right → Left",
+    "toBottomRight": "Diagonal ↘",
+    "toBottomLeft": "Diagonal ↙"
+  },
+  "watermark": {
+    "title": "Custom Watermark",
+    "description": "Add your logo to the bottom-right corner of your videos (PNG recommended, max 2MB)",
+    "upload": "Click to upload your logo",
+    "sizeError": "Watermark image must be under 2MB"
+  },
+  "notifications": {
+    "emailNotify": "Notify me when processing is complete",
+    "emailNotifyDesc": "We'll email you a download link when your karaoke track is ready"
+  },
+  "reviewLyrics": {
+    "title": "Review & edit lyrics before rendering",
+    "description": "Preview AI-generated lyrics and fix any mistakes before your video is created",
+    "badge": "PRO"
+  },
+  "rights": {
+    "confirm": "I confirm I have the legal right to use this audio",
+    "description": "I own, have licensed, or created this content.",
+    "termsLink": "Terms of Service"
+  },
+  "submit": {
+    "confirmRights": "Confirm Rights Above",
+    "creating": "Creating...",
+    "createTrack": "Create Karaoke Track",
+    "creditsNeeded": "credits"
+  },
+  "upgrade": {
+    "forHD": "Upgrade for HD quality",
+    "toUnlock": "Upgrade to Unlock",
+    "customizeDesc": "Customize your karaoke video with custom colors, fonts, and gradients."
+  },
+  "errors": {
+    "noFile": "Please select an audio file",
+    "noLyrics": "Lyrics are required for accurate sync. Please paste the complete song lyrics (minimum 50 characters).",
+    "processingFailed": "Processing failed. Please try again."
+  }
+}

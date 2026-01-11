@@ -1,0 +1,70 @@
+{
+  "title": "Precios Simples y Transparentes",
+  "subtitle": "Elige el plan adecuado para ti",
+  "monthly": "Mensual",
+  "perMonth": "/mes",
+  "currentPlan": "Plan Actual",
+  "choosePlan": "Elegir Plan",
+  "getStarted": "Comenzar",
+  "upgrade": "Mejorar",
+  "popular": "POPULAR",
+  "features": {
+    "creditsPerMonth": "créditos/mes",
+    "quality480p": "Calidad 480p",
+    "quality720p": "Calidad 720p",
+    "quality1080p": "Calidad 1080p HD",
+    "quality4k": "Calidad 4K Ultra HD",
+    "watermark": "Marca de agua Karatrack",
+    "noWatermark": "Sin marca de agua",
+    "customWatermark": "Marca de agua/logo personalizado",
+    "basicSupport": "Soporte por chat",
+    "emailSupport": "Soporte por email",
+    "prioritySupport": "Soporte prioritario",
+    "styleCustomization": "Personalización de estilo",
+    "editLyrics": "Editar letra antes de renderizar",
+    "customBackground": "Fondo de video personalizado"
+  },
+  "tiers": {
+    "free": {
+      "name": "Gratis",
+      "price": "0",
+      "description": "Pruébalo"
+    },
+    "starter": {
+      "name": "Inicial",
+      "price": "9.99",
+      "description": "Para usuarios casuales"
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "24.99",
+      "description": "Para creadores regulares"
+    },
+    "studio": {
+      "name": "Studio",
+      "price": "49.99",
+      "description": "Para profesionales"
+    }
+  },
+  "faq": {
+    "title": "Preguntas Frecuentes",
+    "questions": {
+      "credits": {
+        "q": "¿Qué son los créditos?",
+        "a": "Los créditos se usan para procesar pistas de karaoke. La cantidad de créditos necesarios depende de la calidad de video que elijas."
+      },
+      "rollover": {
+        "q": "¿Los créditos no usados se acumulan?",
+        "a": "Los créditos expiran 90 días después de ser añadidos a tu cuenta. Te enviaremos recordatorios antes de que expiren."
+      },
+      "cancel": {
+        "q": "¿Puedo cancelar en cualquier momento?",
+        "a": "¡Sí! Puedes cancelar tu suscripción en cualquier momento. Mantendrás tus créditos restantes hasta que expiren."
+      },
+      "upgrade": {
+        "q": "¿Puedo mejorar mi plan?",
+        "a": "¡Sí! Cuando mejores, recibirás los créditos completos de tu nuevo plan inmediatamente."
+      }
+    }
+  }
+}

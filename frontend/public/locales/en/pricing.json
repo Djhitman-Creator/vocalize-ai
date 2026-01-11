@@ -1,0 +1,70 @@
+{
+  "title": "Simple, Transparent Pricing",
+  "subtitle": "Choose the plan that's right for you",
+  "monthly": "Monthly",
+  "perMonth": "/month",
+  "currentPlan": "Current Plan",
+  "choosePlan": "Choose Plan",
+  "getStarted": "Get Started",
+  "upgrade": "Upgrade",
+  "popular": "POPULAR",
+  "features": {
+    "creditsPerMonth": "credits/month",
+    "quality480p": "480p quality",
+    "quality720p": "720p quality", 
+    "quality1080p": "1080p HD quality",
+    "quality4k": "4K Ultra HD quality",
+    "watermark": "Karatrack watermark",
+    "noWatermark": "No watermark",
+    "customWatermark": "Custom watermark/logo",
+    "basicSupport": "Chat support",
+    "emailSupport": "Email support",
+    "prioritySupport": "Priority support",
+    "styleCustomization": "Style customization",
+    "editLyrics": "Edit lyrics before rendering",
+    "customBackground": "Custom video background"
+  },
+  "tiers": {
+    "free": {
+      "name": "Free",
+      "price": "0",
+      "description": "Try it out"
+    },
+    "starter": {
+      "name": "Starter",
+      "price": "9.99",
+      "description": "For casual users"
+    },
+    "pro": {
+      "name": "Pro",
+      "price": "24.99",
+      "description": "For regular creators"
+    },
+    "studio": {
+      "name": "Studio",
+      "price": "49.99",
+      "description": "For professionals"
+    }
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "questions": {
+      "credits": {
+        "q": "What are credits?",
+        "a": "Credits are used to process karaoke tracks. The number of credits needed depends on the video quality you choose."
+      },
+      "rollover": {
+        "q": "Do unused credits roll over?",
+        "a": "Credits expire 90 days after being added to your account. We'll send you reminders before they expire."
+      },
+      "cancel": {
+        "q": "Can I cancel anytime?",
+        "a": "Yes! You can cancel your subscription at any time. You'll keep your remaining credits until they expire."
+      },
+      "upgrade": {
+        "q": "Can I upgrade my plan?",
+        "a": "Yes! When you upgrade, you'll receive the full credits for your new plan immediately."
+      }
+    }
+  }
+}
