@@ -279,7 +279,7 @@ const HeroSection = ({ isDark, onWatchDemo }) => (
         transition={{ delay: 0.4 }}
         className={`text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-12 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
       >
-        Remove vocals, add guide vocals for practice, add scrolling lyrics, and export stunning music videos Ã¢â‚¬â€ all powered by cutting-edge AI.
+        Remove vocals, add guide vocals for practice, add scrolling lyrics, and export stunning music videos - all powered by cutting-edge AI.
       </motion.p>
       <motion.div
         initial={{ y: 30, opacity: 0 }}
@@ -318,7 +318,7 @@ const HeroSection = ({ isDark, onWatchDemo }) => (
           <div className="text-left">
             <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               <strong>For personal use only.</strong> By using Karatrack Studio, you confirm you have
-              the rights to any music you upload Ã¢â‚¬â€ either through ownership, license, or original creation.
+              the rights to any music you upload - either through ownership, license, or original creation.
             </p>
             <Link
               href="/terms"
@@ -363,7 +363,7 @@ const HeroSection = ({ isDark, onWatchDemo }) => (
 const FeaturesSection = ({ isDark }) => {
   const features = [
     { icon: <Mic2 className="w-8 h-8" />, title: 'Vocal Removal', description: 'Remove all vocals from any track with studio-quality precision using advanced AI separation.' },
-    { icon: <Music className="w-8 h-8" />, title: 'Guide Vocals', description: 'Reduce the lead vocal by 70% Ã¢â‚¬â€ great for practice and learning new songs.' },
+    { icon: <Music className="w-8 h-8" />, title: 'Guide Vocals', description: 'Reduce the lead vocal by 70% - great for practice and learning new songs.' },
     { icon: <FileVideo className="w-8 h-8" />, title: 'Scrolling Lyrics', description: 'AI automatically transcribes and syncs lyrics with smooth, karaoke-style animations.' },
     { icon: <Sparkles className="w-8 h-8" />, title: 'Video Export', description: 'Export your processed track as a beautiful MP4 video with custom thumbnails.*' },
   ];
