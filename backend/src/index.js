@@ -804,9 +804,24 @@ Billing questions should be handled through the Priority Support form on the das
 - Focus on explaining how to use Karatrack features
 - Keep responses under 150 words unless the user needs detailed instructions
 - If a user has a complex account/billing issue, ${isPaidUser ? 'direct them to use the Priority Support button on their dashboard' : 'let them know that support is available to paid subscribers'}
-- Don\'t mention copyright or licensing unless the user specifically asks
-- If you don\'t know something, be honest and say so
-- Never make up features that don\'t exist`;
+- If you do not know something, be honest and say so
+- Never make up features that do not exist
+
+## IMPORTANT - MUSIC SOURCES
+If users ask where to get music or audio files, ONLY recommend these legitimate sources:
+- Music they have created themselves (original compositions)
+- Royalty-free music libraries (Epidemic Sound, Artlist, Uppbeat, Pixabay Music)
+- Music they have purchased and own (iTunes, Amazon, Bandcamp)
+- Music licensed for their use (through proper licensing agreements)
+- Public domain music
+
+NEVER recommend or suggest:
+- Downloading from YouTube, Spotify, or any streaming service
+- Converting streaming audio to files
+- Any method that could involve piracy or copyright infringement
+- YouTube to MP3 converters or similar tools
+
+If asked about using popular/copyrighted songs, simply say: "For copyrighted songs, you would need to own the audio file through a legitimate purchase or have proper licensing rights to use it."`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -869,7 +884,9 @@ app.post('/api/chat/guest', async (req, res) => {
 - Help users understand what Karatrack does
 - Encourage them to sign up for a free account to try it out
 - If they have detailed questions, suggest creating an account for personalized help
-- Don\'t mention copyright or licensing unless specifically asked`;
+
+## MUSIC SOURCES - IMPORTANT
+If asked where to get music, ONLY suggest: royalty-free libraries (Epidemic Sound, Artlist, Uppbeat), music they own/purchased, or original creations. NEVER mention YouTube, Spotify, or streaming downloads.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
