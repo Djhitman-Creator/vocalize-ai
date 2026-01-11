@@ -1,8 +1,14 @@
-import { ThemeProvider, useTheme } from '../context/ThemeContext';
-import ChatBot from '../components/ChatBot';
 import '../styles/globals.css';
+import { ThemeProvider, useTheme } from '../context/ThemeContext';
+import dynamic from 'next/dynamic';
 
-// Wrapper component to access theme
+// Dynamically import ChatBot with no SSR to prevent hydration issues
+const ChatBot = dynamic(() => import('../components/ChatBot'), {
+  ssr: false,
+  loading: () => null
+});
+
+// Wrapper component to safely access theme context
 function ChatBotWrapper() {
   const { isDark } = useTheme();
   return <ChatBot isDark={isDark} />;
