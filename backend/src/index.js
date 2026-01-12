@@ -1142,16 +1142,21 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
 
     // Upload custom watermark if provided (Studio tier only)
     let customWatermarkUrl = null;
-    if (customWatermarkFile) {
-      // Verify user is Studio tier
-      const userProfileForWatermark = await getUserProfile(req.user.id);
-      if (userProfileForWatermark.subscription_tier === 'studio') {
+    const userProfileForWatermark = await getUserProfile(req.user.id);
+    
+    if (userProfileForWatermark.subscription_tier === 'studio') {
+      if (customWatermarkFile) {
+        // New watermark file uploaded this session
         const watermarkKey = `watermarks/${req.user.id}/${projectId}-watermark${customWatermarkFile.originalname.substring(customWatermarkFile.originalname.lastIndexOf('.'))}`;
         customWatermarkUrl = await uploadToR2(customWatermarkFile.buffer, watermarkKey, customWatermarkFile.mimetype);
         console.log(`Custom watermark uploaded: ${customWatermarkUrl}`);
-      } else {
-        console.log('Custom watermark ignored - user is not Studio tier');
+      } else if (req.body.custom_watermark_url) {
+        // Use saved default watermark URL from profile
+        customWatermarkUrl = req.body.custom_watermark_url;
+        console.log(`Using saved default watermark: ${customWatermarkUrl}`);
       }
+    } else if (customWatermarkFile) {
+      console.log('Custom watermark ignored - user is not Studio tier');
     }
 
     // Update user's track count
