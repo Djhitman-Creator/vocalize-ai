@@ -743,11 +743,42 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
         
         print("📝 Mapping user lyrics to AssemblyAI timestamps...")
         lyrics = align_user_lyrics_to_timestamps(user_lyrics_text, lyrics)
+
+        # Debug: Show first 10 aligned words with gap analysis
+        print("   📊 First 10 aligned words timing:")
+        for i, w in enumerate(lyrics[:10]):
+            gap_info = ""
+            if i > 0:
+                gap = w['start'] - lyrics[i-1]['end']
+                if gap > 0.5:
+                    gap_info = f" ⚠️ GAP: {gap:.2f}s"
+            duration = w['end'] - w['start']
+            print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s (duration: {duration:.2f}s){gap_info}")
         
-        # Debug: Show first 5 aligned words
-        print("   📊 First 5 aligned words timing:")
-        for i, w in enumerate(lyrics[:5]):
-            print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s")
+        # Check for problematic timing patterns
+        print("   🔍 Checking for timing issues...")
+        issues_found = 0
+        for i, w in enumerate(lyrics):
+            duration = w['end'] - w['start']
+            # Flag words with unusually long durations (> 3 seconds)
+            if duration > 3.0:
+                print(f"      ⚠️ Long word duration: '{w['word']}' lasts {duration:.2f}s (index {i})")
+                issues_found += 1
+            # Flag large gaps between words (> 5 seconds)
+            if i > 0:
+                gap = w['start'] - lyrics[i-1]['end']
+                if gap > 5.0:
+                    print(f"      ⚠️ Large gap before '{w['word']}': {gap:.2f}s gap (index {i})")
+                    issues_found += 1
+            # Flag if end time is before start time (shouldn't happen)
+            if w['end'] < w['start']:
+                print(f"      ❌ Invalid timing: '{w['word']}' ends before it starts! (index {i})")
+                issues_found += 1
+        
+        if issues_found == 0:
+            print("      ✅ No timing issues detected")
+        else:
+            print(f"      ⚠️ Found {issues_found} potential timing issues")
     
     return lyrics
 
