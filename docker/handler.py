@@ -848,10 +848,23 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
     # This handles cases where API split/merged a few words differently
     if diff_percentage < 15:
         if len(user_words) <= len(api_lyrics):
-            # User has fewer/equal words - straightforward mapping
+            # First, check how many words actually match
+            matches = 0
+            for i in range(len(user_words)):
+                if words_match_normalized(user_words[i], api_lyrics[i]['word']):
+                    matches += 1
+            
+            match_percentage = (matches / len(user_words)) * 100
+            
+            # If less than 50% match, the lyrics are too different - use API transcription
+            if match_percentage < 50:
+                print(f"   ⚠️ Word similarity too low ({match_percentage:.1f}%) - using API transcription for accurate timing")
+                print(f"✅ Using {len(api_lyrics)} AssemblyAI words with original timestamps")
+                return api_lyrics
+            
+            # Good match - use user words with API timestamps
             print(f"   🔄 Small difference - using user words with API timestamps (1:1 mapping)")
             aligned = []
-            matches = 0
             
             for i in range(len(user_words)):
                 aligned.append({
@@ -861,12 +874,7 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
                     'confidence': api_lyrics[i].get('confidence', 1.0),
                     'lineBreak': i in line_break_indices
                 })
-                
-                # Count matches for logging
-                if words_match_normalized(user_words[i], api_lyrics[i]['word']):
-                    matches += 1
             
-            match_percentage = (matches / len(user_words)) * 100
             print(f"   📊 Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
             print(f"   📝 Applied {len(line_break_indices)} line breaks from user lyrics")
             print(f"✅ Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
