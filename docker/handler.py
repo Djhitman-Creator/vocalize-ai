@@ -1,11 +1,12 @@
 """
 Karatrack Studio RunPod Handler
-Version 4.1 - AssemblyAI with Normalized Lyrics Comparison
+Version 5.0 - Video Background Support
 
 Uses AssemblyAI API for word-level timestamps (~50ms accuracy)
 No more dependency hell - simple REST API call
 
 NEW in 4.1: Normalized lyrics comparison ignores punctuation & capitalization
+NEW in 5.0: Video background support (presets and custom uploads)
 
 Processes audio files: vocal removal, lyrics transcription, video generation
 Uploads results to Cloudflare R2
@@ -30,6 +31,7 @@ import math
 import boto3
 from botocore.config import Config
 import gc
+import cv2  # For video background processing
 
 # ============================================
 # CONFIGURATION
@@ -83,6 +85,228 @@ WATERMARK_TEXT = "Karatrack.com"
 WATERMARK_OPACITY = 0.7  # 70% opacity
 WATERMARK_LOGO_SIZE = 80  # Width in pixels (height scales proportionally)
 WATERMARK_PADDING = 20  # Padding from edges
+
+# Video background settings (NEW in 5.0)
+PRESET_VIDEOS_BASE_URL = os.environ.get('PRESET_VIDEOS_BASE_URL', 'https://pub-71dae0f9e45e4d8e8d1eedd472780341.r2.dev/presets')
+
+# ============================================
+# VIDEO BACKGROUND FUNCTIONS (NEW in 5.0)
+# ============================================
+
+class VideoBackgroundReader:
+    """
+    Manages reading frames from a video background file.
+    Handles looping for videos shorter than audio duration.
+    """
+    
+    def __init__(self, video_path, target_width, target_height, target_fps=30):
+        """
+        Initialize video reader.
+        
+        Args:
+            video_path: Path to video file
+            target_width: Desired output width
+            target_height: Desired output height
+            target_fps: Target FPS (default 30)
+        """
+        self.video_path = video_path
+        self.target_width = target_width
+        self.target_height = target_height
+        self.target_fps = target_fps
+        
+        # Open the video
+        self.cap = cv2.VideoCapture(video_path)
+        if not self.cap.isOpened():
+            raise ValueError(f"Could not open video: {video_path}")
+        
+        # Get video properties
+        self.source_fps = self.cap.get(cv2.CAP_PROP_FPS)
+        self.source_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.source_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self.total_frames = int(self.cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        self.duration = self.total_frames / self.source_fps if self.source_fps > 0 else 0
+        
+        # Cache for frames (optional, for small videos)
+        self.frame_cache = {}
+        self.cache_enabled = self.total_frames < 300  # Cache videos under 10 sec at 30fps
+        
+        print(f"   📹 Video background loaded: {self.source_width}x{self.source_height} @ {self.source_fps:.1f}fps, {self.duration:.1f}s")
+    
+    def get_frame_at_time(self, time_seconds):
+        """
+        Get a frame at a specific time, handling looping.
+        
+        Args:
+            time_seconds: Time position in seconds
+            
+        Returns:
+            PIL Image of the frame, resized to target dimensions
+        """
+        # Loop the video if time exceeds duration
+        if self.duration > 0:
+            time_seconds = time_seconds % self.duration
+        
+        # Convert time to source frame number
+        source_frame_num = int(time_seconds * self.source_fps)
+        source_frame_num = max(0, min(source_frame_num, self.total_frames - 1))
+        
+        # Check cache first
+        if self.cache_enabled and source_frame_num in self.frame_cache:
+            return self.frame_cache[source_frame_num].copy()
+        
+        # Seek to frame
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, source_frame_num)
+        ret, frame = self.cap.read()
+        
+        if not ret:
+            # Try to loop back to beginning
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            ret, frame = self.cap.read()
+            if not ret:
+                # Return black frame as fallback
+                return Image.new('RGB', (self.target_width, self.target_height), (0, 0, 0))
+        
+        # Convert BGR to RGB
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        # Convert to PIL Image
+        pil_frame = Image.fromarray(frame_rgb)
+        
+        # Resize to target dimensions (cover mode - crop to fit)
+        pil_frame = self._resize_cover(pil_frame)
+        
+        # Cache if enabled
+        if self.cache_enabled:
+            self.frame_cache[source_frame_num] = pil_frame.copy()
+        
+        return pil_frame
+    
+    def _resize_cover(self, img):
+        """
+        Resize image to cover target dimensions (may crop).
+        Similar to CSS background-size: cover
+        """
+        img_ratio = img.width / img.height
+        target_ratio = self.target_width / self.target_height
+        
+        if img_ratio > target_ratio:
+            # Image is wider - fit height, crop width
+            new_height = self.target_height
+            new_width = int(new_height * img_ratio)
+        else:
+            # Image is taller - fit width, crop height
+            new_width = self.target_width
+            new_height = int(new_width / img_ratio)
+        
+        # Resize
+        img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # Center crop
+        left = (new_width - self.target_width) // 2
+        top = (new_height - self.target_height) // 2
+        right = left + self.target_width
+        bottom = top + self.target_height
+        
+        return img_resized.crop((left, top, right, bottom))
+    
+    def close(self):
+        """Release video resources."""
+        if self.cap:
+            self.cap.release()
+        self.frame_cache.clear()
+    
+    def __del__(self):
+        self.close()
+
+
+def download_video_background(bg_type, bg_video_preset, bg_video_url, work_dir):
+    """
+    Download video background from preset or custom URL.
+    
+    Args:
+        bg_type: 'video', 'image', 'color', or 'gradient'
+        bg_video_preset: Preset video filename (e.g., 'bg-abstract-smokecurling.mp4')
+        bg_video_url: Custom video URL (for user uploads)
+        work_dir: Working directory for downloads
+        
+    Returns:
+        Path to downloaded video file, or None if not a video background
+    """
+    if bg_type != 'video':
+        return None
+    
+    video_path = os.path.join(work_dir, 'background_video.mp4')
+    
+    if bg_video_preset:
+        # Download preset video
+        preset_url = f"{PRESET_VIDEOS_BASE_URL}/{bg_video_preset}"
+        print(f"   📥 Downloading preset video background: {bg_video_preset}")
+        download_file(preset_url, video_path)
+        print(f"   ✅ Preset video downloaded")
+        return video_path
+    
+    elif bg_video_url:
+        # Download custom video
+        print(f"   📥 Downloading custom video background...")
+        download_file(bg_video_url, video_path)
+        print(f"   ✅ Custom video downloaded")
+        return video_path
+    
+    return None
+
+
+def download_image_background(bg_type, bg_image_url, work_dir, target_width, target_height):
+    """
+    Download and prepare image background.
+    
+    Args:
+        bg_type: Background type
+        bg_image_url: URL to background image
+        work_dir: Working directory
+        target_width: Video width
+        target_height: Video height
+        
+    Returns:
+        PIL Image resized to target dimensions, or None
+    """
+    if bg_type != 'image' or not bg_image_url:
+        return None
+    
+    try:
+        print(f"   📥 Downloading image background...")
+        image_path = os.path.join(work_dir, 'background_image.jpg')
+        download_file(bg_image_url, image_path)
+        
+        # Load and resize
+        img = Image.open(image_path).convert('RGB')
+        
+        # Cover resize (same as video)
+        img_ratio = img.width / img.height
+        target_ratio = target_width / target_height
+        
+        if img_ratio > target_ratio:
+            new_height = target_height
+            new_width = int(new_height * img_ratio)
+        else:
+            new_width = target_width
+            new_height = int(new_width / img_ratio)
+        
+        img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # Center crop
+        left = (new_width - target_width) // 2
+        top = (new_height - target_height) // 2
+        right = left + target_width
+        bottom = top + target_height
+        
+        final_img = img_resized.crop((left, top, right, bottom))
+        print(f"   ✅ Image background prepared: {target_width}x{target_height}")
+        return final_img
+        
+    except Exception as e:
+        print(f"   ⚠️ Failed to load image background: {e}")
+        return None
+
 
 # ============================================
 # LYRICS NORMALIZATION FUNCTIONS (NEW in 4.1)
@@ -743,11 +967,42 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
         
         print("ðŸ“ Mapping user lyrics to AssemblyAI timestamps...")
         lyrics = align_user_lyrics_to_timestamps(user_lyrics_text, lyrics)
+
+        # Debug: Show first 10 aligned words with gap analysis
+        print("   ðŸ“Š First 10 aligned words timing:")
+        for i, w in enumerate(lyrics[:10]):
+            gap_info = ""
+            if i > 0:
+                gap = w['start'] - lyrics[i-1]['end']
+                if gap > 0.5:
+                    gap_info = f" âš ï¸ GAP: {gap:.2f}s"
+            duration = w['end'] - w['start']
+            print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s (duration: {duration:.2f}s){gap_info}")
         
-        # Debug: Show first 5 aligned words
-        print("   ðŸ“Š First 5 aligned words timing:")
-        for i, w in enumerate(lyrics[:5]):
-            print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s")
+        # Check for problematic timing patterns
+        print("   ðŸ” Checking for timing issues...")
+        issues_found = 0
+        for i, w in enumerate(lyrics):
+            duration = w['end'] - w['start']
+            # Flag words with unusually long durations (> 3 seconds)
+            if duration > 3.0:
+                print(f"      âš ï¸ Long word duration: '{w['word']}' lasts {duration:.2f}s (index {i})")
+                issues_found += 1
+            # Flag large gaps between words (> 5 seconds)
+            if i > 0:
+                gap = w['start'] - lyrics[i-1]['end']
+                if gap > 5.0:
+                    print(f"      âš ï¸ Large gap before '{w['word']}': {gap:.2f}s gap (index {i})")
+                    issues_found += 1
+            # Flag if end time is before start time (shouldn't happen)
+            if w['end'] < w['start']:
+                print(f"      âŒ Invalid timing: '{w['word']}' ends before it starts! (index {i})")
+                issues_found += 1
+        
+        if issues_found == 0:
+            print("      âœ… No timing issues detected")
+        else:
+            print(f"      âš ï¸ Found {issues_found} potential timing issues")
     
     return lyrics
 
@@ -817,10 +1072,23 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
     # This handles cases where API split/merged a few words differently
     if diff_percentage < 15:
         if len(user_words) <= len(api_lyrics):
-            # User has fewer/equal words - straightforward mapping
+            # First, check how many words actually match
+            matches = 0
+            for i in range(len(user_words)):
+                if words_match_normalized(user_words[i], api_lyrics[i]['word']):
+                    matches += 1
+            
+            match_percentage = (matches / len(user_words)) * 100
+            
+            # If less than 50% match, the lyrics are too different - use API transcription
+            if match_percentage < 50:
+                print(f"   âš ï¸ Word similarity too low ({match_percentage:.1f}%) - using API transcription for accurate timing")
+                print(f"âœ… Using {len(api_lyrics)} AssemblyAI words with original timestamps")
+                return api_lyrics
+            
+            # Good match - use user words with API timestamps
             print(f"   ðŸ”„ Small difference - using user words with API timestamps (1:1 mapping)")
             aligned = []
-            matches = 0
             
             for i in range(len(user_words)):
                 aligned.append({
@@ -830,12 +1098,7 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
                     'confidence': api_lyrics[i].get('confidence', 1.0),
                     'lineBreak': i in line_break_indices
                 })
-                
-                # Count matches for logging
-                if words_match_normalized(user_words[i], api_lyrics[i]['word']):
-                    matches += 1
             
-            match_percentage = (matches / len(user_words)) * 100
             print(f"   ðŸ“Š Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
             print(f"   ðŸ“ Applied {len(line_break_indices)} line breaks from user lyrics")
             print(f"âœ… Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
@@ -1097,12 +1360,6 @@ def calculate_lyrics_stats(lyrics, audio_duration):
 
 def select_display_mode(lyrics, audio_duration, requested_mode='auto'):
     """Select the best display mode based on song characteristics."""
-    # NEVER use 'page' mode - it gives singers no preparation time!
-    # If someone somehow requests it, give them overwrite instead
-    if requested_mode == 'page':
-        print("   ⚠️ Page mode requested but disabled - using overwrite instead")
-        return 'overwrite'
-    
     if requested_mode != 'auto':
         return requested_mode
     
@@ -1112,11 +1369,12 @@ def select_display_mode(lyrics, audio_duration, requested_mode='auto'):
           f"avg line: {stats['avg_line_length']:.1f} words, "
           f"clear sections: {stats['has_clear_sections']}")
     
-    # Auto selection: only scroll or overwrite (NEVER page)
     if stats['words_per_minute'] > 150:
         return 'scroll'
     elif stats['avg_line_length'] > 10:
         return 'scroll'
+    elif stats['has_clear_sections'] and stats['words_per_minute'] < 100:
+        return 'page'
     else:
         return 'overwrite'
 
@@ -1125,8 +1383,35 @@ def select_display_mode(lyrics, audio_duration, requested_mode='auto'):
 # VIDEO GENERATION
 # ============================================
 
-def create_frame(width, height, colors=None):
-    """Create a blank frame with optional gradient background"""
+def create_frame(width, height, colors=None, bg_image=None, video_reader=None, current_time=0):
+    """
+    Create a frame with background.
+    
+    Supports multiple background types:
+    1. Video background (if video_reader provided) - extracts frame at current_time
+    2. Image background (if bg_image provided) - uses static image
+    3. Gradient/color background (default) - creates gradient or solid color
+    
+    Args:
+        width: Frame width in pixels
+        height: Frame height in pixels
+        colors: Dict with bg_1, bg_2, use_gradient, gradient_direction
+        bg_image: PIL Image for static background (optional)
+        video_reader: VideoBackgroundReader instance (optional)
+        current_time: Current time in seconds for video backgrounds
+    
+    Returns:
+        PIL Image of the frame
+    """
+    # Option 1: Video background
+    if video_reader is not None:
+        return video_reader.get_frame_at_time(current_time)
+    
+    # Option 2: Static image background
+    if bg_image is not None:
+        return bg_image.copy()
+    
+    # Option 3: Color/gradient background (original behavior)
     if colors is None:
         colors = {'bg_1': COLOR_BG, 'bg_2': COLOR_BG, 'use_gradient': False}
     
@@ -1164,9 +1449,9 @@ def draw_centered_text(draw, text, y, font, color, width, padding=PADDING_LEFT_R
     draw.text((x, y), text, font=font, fill=color)
 
 
-def create_intro_frame(artist, title, frame_num, total_frames, width, height, colors=None):
+def create_intro_frame(artist, title, frame_num, total_frames, width, height, colors=None, bg_image=None, video_reader=None, current_time=0):
     """Create intro screen frame with fade in/out."""
-    img = create_frame(width, height, colors)
+    img = create_frame(width, height, colors, bg_image, video_reader, current_time)
     draw = ImageDraw.Draw(img)
     
     # Get colors or use defaults
@@ -1198,7 +1483,7 @@ def create_intro_frame(artist, title, frame_num, total_frames, width, height, co
     return img
 
 
-def create_countdown_frame_with_preview(countdown_time, width, height, lyrics, gap_end_time, display_mode, colors=None, total_dots=COUNTDOWN_DOTS):
+def create_countdown_frame_with_preview(countdown_time, width, height, lyrics, gap_end_time, display_mode, colors=None, total_dots=COUNTDOWN_DOTS, bg_image=None, video_reader=None, current_time=0):
     """
     Create countdown frame with 6 dots ABOVE upcoming lyrics.
     
@@ -1212,11 +1497,11 @@ def create_countdown_frame_with_preview(countdown_time, width, height, lyrics, g
     # (the first word highlights when current_time >= word start time)
     preview_time = gap_end_time - 0.1
     if display_mode == 'scroll':
-        img = create_scroll_frame(preview_time, lyrics, width, height, colors)
+        img = create_scroll_frame(preview_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
     elif display_mode == 'page':
-        img = create_page_frame(preview_time, lyrics, width, height, colors)
+        img = create_page_frame(preview_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
     else:
-        img = create_overwrite_frame(preview_time, lyrics, width, height, colors)
+        img = create_overwrite_frame(preview_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
     
     draw = ImageDraw.Draw(img)
     
@@ -1247,7 +1532,7 @@ def create_countdown_frame_with_preview(countdown_time, width, height, lyrics, g
     bar_height = dot_radius * 2 + bar_padding * 2
     bar_y = dots_y - bar_padding
     
-    # Draw background bar (simple rectangle)
+    # Draw background bar (simple rectangle) - semi-transparent for video backgrounds
     draw.rectangle(
         [(dots_start_x - bar_padding, bar_y), 
          (dots_start_x + total_dots_width + bar_padding, bar_y + bar_height)],
@@ -1342,9 +1627,11 @@ def group_lyrics_into_lines(lyrics, words_per_line=WORDS_PER_LINE):
     return lines
 
 
-def create_scroll_frame(current_time, lyrics, width, height, colors=None):
+def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_image=None, video_reader=None, frame_time=None):
     """Create TELEPROMPTER-STYLE scrolling lyrics frame."""
-    img = create_frame(width, height, colors)
+    # Use frame_time for video background if provided, otherwise use current_time
+    bg_time = frame_time if frame_time is not None else current_time
+    img = create_frame(width, height, colors, bg_image, video_reader, bg_time)
     draw = ImageDraw.Draw(img)
     
     # Get colors or use defaults
@@ -1429,9 +1716,11 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None):
     return img
 
 
-def create_page_frame(current_time, lyrics, width, height, colors=None):
+def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image=None, video_reader=None, frame_time=None):
     """Create frame with page-by-page lyrics display."""
-    img = create_frame(width, height, colors)
+    # Use frame_time for video background if provided, otherwise use current_time
+    bg_time = frame_time if frame_time is not None else current_time
+    img = create_frame(width, height, colors, bg_image, video_reader, bg_time)
     draw = ImageDraw.Draw(img)
     
     # Get colors or use defaults
@@ -1497,7 +1786,7 @@ def create_page_frame(current_time, lyrics, width, height, colors=None):
     return img
 
 
-def create_overwrite_frame(current_time, lyrics, width, height, colors=None):
+def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_image=None, video_reader=None, frame_time=None):
     """
     Create frame with TRUE overwrite-style lyrics display.
     
@@ -1509,7 +1798,9 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None):
     When a line is done being sung, the NEXT line for that position
     appears instantly. Lines don't move - content is replaced in place.
     """
-    img = create_frame(width, height, colors)
+    # Use frame_time for video background if provided, otherwise use current_time
+    bg_time = frame_time if frame_time is not None else current_time
+    img = create_frame(width, height, colors, bg_image, video_reader, bg_time)
     draw = ImageDraw.Draw(img)
     
     # Get colors or use defaults
@@ -1593,35 +1884,35 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None):
     return img
 
 
-def create_lyrics_frame(current_time, lyrics, display_mode, width, height, colors=None):
+def create_lyrics_frame(current_time, lyrics, display_mode, width, height, colors=None, bg_image=None, video_reader=None):
     """Create frame with lyrics based on selected display mode."""
     if display_mode == 'scroll':
-        return create_scroll_frame(current_time, lyrics, width, height, colors)
+        return create_scroll_frame(current_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
     elif display_mode == 'page':
-        return create_page_frame(current_time, lyrics, width, height, colors)
+        return create_page_frame(current_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
     else:
-        return create_overwrite_frame(current_time, lyrics, width, height, colors)
+        return create_overwrite_frame(current_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
 
 
-def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, height, colors=None, fade_opacity=1.0):
+def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, height, colors=None, fade_opacity=1.0, bg_image=None, video_reader=None):
     """
     Create frame with lyrics that fades out.
     
     fade_opacity: 1.0 = fully visible, 0.0 = fully faded
     """
     # Create the base frame with background
-    img = create_frame(width, height, colors)
+    img = create_frame(width, height, colors, bg_image, video_reader, current_time)
     
     if fade_opacity <= 0:
         return img  # Fully faded, just return background
     
     # Create the lyrics frame
     if display_mode == 'scroll':
-        lyrics_frame = create_scroll_frame(current_time, lyrics, width, height, colors)
+        lyrics_frame = create_scroll_frame(current_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
     elif display_mode == 'page':
-        lyrics_frame = create_page_frame(current_time, lyrics, width, height, colors)
+        lyrics_frame = create_page_frame(current_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
     else:
-        lyrics_frame = create_overwrite_frame(current_time, lyrics, width, height, colors)
+        lyrics_frame = create_overwrite_frame(current_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
     
     # Blend the lyrics frame with the background based on opacity
     if fade_opacity < 1.0:
@@ -1639,9 +1930,9 @@ def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, hei
     return lyrics_frame
 
 
-def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None):
-    """Generate video with lyrics and countdown"""
-    print(f"ðŸŽ¬ Generating video (mode: {display_mode})...")
+def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None):
+    """Generate video with lyrics and countdown. Supports video/image backgrounds."""
+    print(f"🎬 Generating video (mode: {display_mode}, background: {bg_type})...")
     print(f"   ðŸ‘¤ Subscription tier: {subscription_tier}")
     
     # Determine watermark behavior based on tier
@@ -1707,6 +1998,17 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         width, height = 854, 480
     else:
         width, height = 1280, 720  # Default to 720p
+    
+    # Initialize video background reader if applicable
+    video_reader = None
+    if bg_type == 'video' and bg_video_path:
+        try:
+            video_reader = VideoBackgroundReader(bg_video_path, width, height, FPS)
+            print(f"   📹 Video background loaded: {video_reader.duration:.1f}s duration, will loop as needed")
+        except Exception as e:
+            print(f"   ⚠️ Failed to load video background: {e}")
+            print(f"   ⚠️ Falling back to gradient background")
+            bg_type = 'gradient'
     
     # Add silence to beginning of audio for intro screen
     work_dir = os.path.dirname(audio_path)
@@ -1802,7 +2104,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         
         if frame_num < intro_frames:
             # Show intro screen during the silence period
-            frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height, colors)
+            frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height, colors, bg_image, video_reader, current_time)
         else:
             # Check if we're in a countdown period
             in_countdown = False
@@ -1850,11 +2152,13 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
                         width, 
                         height, 
                         colors,
-                        fade_opacity
+                        fade_opacity,
+                        bg_image,
+                        video_reader
                     )
                 else:
                     # Normal lyrics display
-                    frame = create_lyrics_frame(current_time, offset_lyrics, display_mode, width, height, colors)
+                    frame = create_lyrics_frame(current_time, offset_lyrics, display_mode, width, height, colors, bg_image, video_reader)
         
         # Render outro text after lyrics have faded out
             if has_outro_text and current_time >= outro_start:
@@ -1895,6 +2199,11 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         if frame_num % 100 == 0:
             print(f"  Frame {frame_num}/{total_frames}")
     
+    # Close video reader to free resources
+    if video_reader:
+        video_reader.close()
+        print("   📹 Video background reader closed")
+
     print("Ã°Å¸â€Â§ Encoding video with FFmpeg...")
     
     # Use audio_with_intro which has silence at the beginning
@@ -1976,6 +2285,12 @@ def handler(event):
             'font_size': input_data.get('font_size', 'normal'),  # 'normal', 'large', 'xlarge'
         }
         
+        # NEW in 5.0: Background type options
+        bg_type = input_data.get('bg_type', 'gradient')  # 'color', 'gradient', 'image', 'video'
+        bg_video_preset = input_data.get('bg_video_preset')  # Preset filename e.g. 'abstract-smoke.mp4'
+        bg_video_url = input_data.get('bg_video_url')  # Custom video URL (user uploads)
+        bg_image_url = input_data.get('bg_image_url')  # Custom image URL
+        
         print(f"Ã°Å¸Å½Â¤ Processing project: {project_id}")
         print(f"   Type: {processing_type}")
         print(f"   Lyrics provided: {'Yes' if user_lyrics_text else 'No (auto-transcribe)'}")
@@ -1993,6 +2308,32 @@ def handler(event):
         
         work_dir = tempfile.mkdtemp()
         results = {}
+        
+        # Download video/image background if needed (NEW in 5.0)
+        bg_video_path = None
+        bg_image = None
+        
+        if bg_type == 'video':
+            bg_video_path = download_video_background(bg_type, bg_video_preset, bg_video_url, work_dir)
+            if not bg_video_path:
+                print("   ⚠️ Video background not available, falling back to gradient")
+                bg_type = 'gradient'
+        
+        if bg_type == 'image' and bg_image_url:
+            # Determine video dimensions for image sizing
+            if video_quality == '4k':
+                img_width, img_height = 3840, 2160
+            elif video_quality == '1080p':
+                img_width, img_height = 1920, 1080
+            elif video_quality == '480p':
+                img_width, img_height = 854, 480
+            else:
+                img_width, img_height = 1280, 720
+            
+            bg_image = download_image_background(bg_type, bg_image_url, work_dir, img_width, img_height)
+            if not bg_image:
+                print("   ⚠️ Image background not available, falling back to gradient")
+                bg_type = 'gradient'
         
         # RENDER_ONLY MODE: Skip vocal separation, use existing processed audio
         if processing_mode == 'render_only':
@@ -2147,7 +2488,10 @@ def handler(event):
               style_options,
               subscription_tier,  # Pass subscription tier for watermark logic
               custom_watermark_url,  # Pass custom watermark URL for Studio users
-              input_data.get('outro_text')  # Pass outro text for Studio users
+              input_data.get('outro_text'),  # Pass outro text for Studio users
+              bg_type,  # NEW: Background type
+              bg_video_path,  # NEW: Video background path
+              bg_image  # NEW: Image background
           )
         
         video_key = f"processed/{project_id}/video.mp4"
