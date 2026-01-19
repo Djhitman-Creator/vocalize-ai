@@ -1,0 +1,53 @@
+{
+  "site": {
+    "name": "Karatrack Studio",
+    "tagline": "Transforma cualquier canción en karaoke"
+  },
+  "nav": {
+    "upload": "Subir",
+    "pricing": "Precios",
+    "settings": "Configuración",
+    "dashboard": "Panel",
+    "login": "Iniciar Sesión",
+    "signup": "Registrarse",
+    "logout": "Cerrar Sesión"
+  },
+  "credits": {
+    "remaining": "Créditos",
+    "buy": "Comprar Créditos"
+  },
+  "buttons": {
+    "submit": "Enviar",
+    "cancel": "Cancelar",
+    "download": "Descargar",
+    "upgrade": "Mejorar Plan",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "confirm": "Confirmar",
+    "close": "Cerrar",
+    "retry": "Reintentar"
+  },
+  "status": {
+    "loading": "Cargando...",
+    "processing": "Procesando...",
+    "completed": "Completado",
+    "failed": "Fallido",
+    "queued": "En Cola",
+    "ready": "Listo"
+  },
+  "errors": {
+    "generic": "Algo salió mal. Por favor, inténtalo de nuevo.",
+    "network": "Error de red. Por favor, verifica tu conexión.",
+    "unauthorized": "Por favor, inicia sesión para continuar.",
+    "insufficientCredits": "Créditos insuficientes"
+  },
+  "subscription": {
+    "free": "Gratis",
+    "starter": "Inicial",
+    "pro": "Pro",
+    "studio": "Studio"
+  }
+}

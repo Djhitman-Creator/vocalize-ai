@@ -1,0 +1,111 @@
+{
+  "title": "Crear Pista de Karaoke",
+  "backToDashboard": "Volver al Panel",
+  "sections": {
+    "audioInfo": "Audio e Información de Pista",
+    "livePreview": "Vista Previa en Vivo",
+    "lyrics": "Letra",
+    "styleCustomization": "Personalización de Estilo",
+    "customWatermark": "Marca de Agua Personalizada"
+  },
+  "dropzone": {
+    "title": "Arrastra el archivo de audio o haz clic para buscar",
+    "formats": "MP3, WAV, FLAC (máx 500MB)"
+  },
+  "fields": {
+    "discId": "ID de Disco",
+    "artist": "Artista",
+    "songTitle": "Título de la Canción",
+    "outputQuality": "Calidad de Salida",
+    "lyricDisplay": "Visualización de Letra",
+    "cleanLyrics": "Letra Limpia",
+    "processing": "Procesamiento"
+  },
+  "quality": {
+    "480p": "480p",
+    "720p": "720p",
+    "1080p": "1080p (HD)",
+    "4k": "4K"
+  },
+  "displayModes": {
+    "auto": "Automático",
+    "scroll": "Desplazamiento",
+    "page": "Página por Página",
+    "overwrite": "Sobrescribir"
+  },
+  "processingTypes": {
+    "removeVocals": "Eliminar Todas las Voces",
+    "keepBacking": "Mantener Voces de Fondo",
+    "both": "Ambas Versiones"
+  },
+  "cleanLyricsOptions": {
+    "on": "SÍ",
+    "off": "NO"
+  },
+  "lyrics": {
+    "title": "Letra",
+    "required": "Requerido",
+    "placeholder": "Pega la letra aquí...",
+    "aiDisclaimer": "La letra se sincroniza usando IA para una sincronización precisa. Algunas palabras pueden variar ligeramente.",
+    "upgradeForEdit": "Mejora a Pro o Studio para revisar y editar la letra antes de renderizar.",
+    "editOption": "Usa la opción \"Revisar y editar letra\" a continuación para ajustar la sincronización antes de renderizar.",
+    "minChars": "mín 50",
+    "chars": "caracteres",
+    "words": "palabras"
+  },
+  "style": {
+    "font": "Fuente",
+    "backgroundStart": "Fondo (Inicio)",
+    "backgroundEnd": "Fondo (Fin)",
+    "gradient": "Degradado",
+    "direction": "Dirección",
+    "textColor": "Color de Texto",
+    "textOutline": "Contorno de Texto",
+    "sungColor": "Color Cantado (Después de Leer)",
+    "sungColorHint": "La primera línea muestra este color"
+  },
+  "gradientDirections": {
+    "toBottom": "Arriba → Abajo",
+    "toTop": "Abajo → Arriba",
+    "toRight": "Izquierda → Derecha",
+    "toLeft": "Derecha → Izquierda",
+    "toBottomRight": "Diagonal ↘",
+    "toBottomLeft": "Diagonal ↙"
+  },
+  "watermark": {
+    "title": "Marca de Agua Personalizada",
+    "description": "Añade tu logo en la esquina inferior derecha de tus videos (PNG recomendado, máx 2MB)",
+    "upload": "Haz clic para subir tu logo",
+    "sizeError": "La imagen de marca de agua debe ser menor de 2MB"
+  },
+  "notifications": {
+    "emailNotify": "Notificarme cuando el procesamiento esté completo",
+    "emailNotifyDesc": "Te enviaremos un enlace de descarga cuando tu pista de karaoke esté lista"
+  },
+  "reviewLyrics": {
+    "title": "Revisar y editar letra antes de renderizar",
+    "description": "Previsualiza la letra generada por IA y corrige cualquier error antes de crear tu video",
+    "badge": "PRO"
+  },
+  "rights": {
+    "confirm": "Confirmo que tengo el derecho legal de usar este audio",
+    "description": "Soy dueño, tengo licencia o he creado este contenido.",
+    "termsLink": "Términos de Servicio"
+  },
+  "submit": {
+    "confirmRights": "Confirmar Derechos Arriba",
+    "creating": "Creando...",
+    "createTrack": "Crear Pista de Karaoke",
+    "creditsNeeded": "créditos"
+  },
+  "upgrade": {
+    "forHD": "Mejora para calidad HD",
+    "toUnlock": "Mejorar para Desbloquear",
+    "customizeDesc": "Personaliza tu video de karaoke con colores, fuentes y degradados personalizados."
+  },
+  "errors": {
+    "noFile": "Por favor, selecciona un archivo de audio",
+    "noLyrics": "La letra es requerida para una sincronización precisa. Por favor, pega la letra completa de la canción (mínimo 50 caracteres).",
+    "processingFailed": "El procesamiento falló. Por favor, inténtalo de nuevo."
+  }
+}

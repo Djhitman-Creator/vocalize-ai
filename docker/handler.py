@@ -969,29 +969,46 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
         lyrics = align_user_lyrics_to_timestamps(user_lyrics_text, lyrics)
 
         # Debug: Show first 10 aligned words with gap analysis
+<<<<<<< HEAD
         print("   ðŸ“Š First 10 aligned words timing:")
+=======
+        print("   📊 First 10 aligned words timing:")
+>>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
         for i, w in enumerate(lyrics[:10]):
             gap_info = ""
             if i > 0:
                 gap = w['start'] - lyrics[i-1]['end']
                 if gap > 0.5:
+<<<<<<< HEAD
                     gap_info = f" âš ï¸ GAP: {gap:.2f}s"
+=======
+                    gap_info = f" ⚠️ GAP: {gap:.2f}s"
+>>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
             duration = w['end'] - w['start']
             print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s (duration: {duration:.2f}s){gap_info}")
         
         # Check for problematic timing patterns
+<<<<<<< HEAD
         print("   ðŸ” Checking for timing issues...")
+=======
+        print("   🔍 Checking for timing issues...")
+>>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
         issues_found = 0
         for i, w in enumerate(lyrics):
             duration = w['end'] - w['start']
             # Flag words with unusually long durations (> 3 seconds)
             if duration > 3.0:
+<<<<<<< HEAD
                 print(f"      âš ï¸ Long word duration: '{w['word']}' lasts {duration:.2f}s (index {i})")
+=======
+                print(f"      ⚠️ Long word duration: '{w['word']}' lasts {duration:.2f}s (index {i})")
+>>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
                 issues_found += 1
             # Flag large gaps between words (> 5 seconds)
             if i > 0:
                 gap = w['start'] - lyrics[i-1]['end']
                 if gap > 5.0:
+<<<<<<< HEAD
                     print(f"      âš ï¸ Large gap before '{w['word']}': {gap:.2f}s gap (index {i})")
                     issues_found += 1
             # Flag if end time is before start time (shouldn't happen)
@@ -1003,6 +1020,19 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
             print("      âœ… No timing issues detected")
         else:
             print(f"      âš ï¸ Found {issues_found} potential timing issues")
+=======
+                    print(f"      ⚠️ Large gap before '{w['word']}': {gap:.2f}s gap (index {i})")
+                    issues_found += 1
+            # Flag if end time is before start time (shouldn't happen)
+            if w['end'] < w['start']:
+                print(f"      ❌ Invalid timing: '{w['word']}' ends before it starts! (index {i})")
+                issues_found += 1
+        
+        if issues_found == 0:
+            print("      ✅ No timing issues detected")
+        else:
+            print(f"      ⚠️ Found {issues_found} potential timing issues")
+>>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
     
     return lyrics
 
@@ -1082,12 +1112,21 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
             
             # If less than 50% match, the lyrics are too different - use API transcription
             if match_percentage < 50:
+<<<<<<< HEAD
                 print(f"   âš ï¸ Word similarity too low ({match_percentage:.1f}%) - using API transcription for accurate timing")
                 print(f"âœ… Using {len(api_lyrics)} AssemblyAI words with original timestamps")
                 return api_lyrics
             
             # Good match - use user words with API timestamps
             print(f"   ðŸ”„ Small difference - using user words with API timestamps (1:1 mapping)")
+=======
+                print(f"   ⚠️ Word similarity too low ({match_percentage:.1f}%) - using API transcription for accurate timing")
+                print(f"✅ Using {len(api_lyrics)} AssemblyAI words with original timestamps")
+                return api_lyrics
+            
+            # Good match - use user words with API timestamps
+            print(f"   🔄 Small difference - using user words with API timestamps (1:1 mapping)")
+>>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
             aligned = []
             
             for i in range(len(user_words)):
@@ -1099,9 +1138,15 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
                     'lineBreak': i in line_break_indices
                 })
             
+<<<<<<< HEAD
             print(f"   ðŸ“Š Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
             print(f"   ðŸ“ Applied {len(line_break_indices)} line breaks from user lyrics")
             print(f"âœ… Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
+=======
+            print(f"   📊 Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
+            print(f"   📝 Applied {len(line_break_indices)} line breaks from user lyrics")
+            print(f"✅ Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
+>>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
             return aligned
         else:
             # User has MORE words than API - fit user words to available timestamps

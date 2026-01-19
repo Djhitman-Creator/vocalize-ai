@@ -20,12 +20,14 @@ import {
   Loader2,
   Bell,
   X,
-  Edit3
+  Edit3,
+  HelpCircle
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import AppNavigation from '../components/AppNavigation';
 import { createClient } from '@supabase/supabase-js';
 import SEO from '../components/SEO';
+import HelpModal from '../components/HelpModal';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -58,6 +60,9 @@ export default function DashboardPage() {
 
   // Pending subscription checkout state
   const [checkingPendingPlan, setCheckingPendingPlan] = useState(false);
+
+  // Help modal state
+  const [showHelpModal, setShowHelpModal] = useState(false);
 
   // Add notification
   const addNotification = useCallback((message, type = 'success') => {
@@ -94,7 +99,7 @@ export default function DashboardPage() {
               // Check if this was previously processing or rendering
               const oldProject = projects.find(p => p.id === project.id);
               if (oldProject && ['processing', 'rendering'].includes(oldProject.status)) {
-                addNotification(`🎉 "${project.title}" is ready for download!`, 'success');
+                addNotification(`"${project.title}" is ready for download!`, 'success');
 
                 // Play notification sound (optional)
                 try {
@@ -110,7 +115,7 @@ export default function DashboardPage() {
             if (project.status === 'awaiting_review' && !completedIds.has(project.id)) {
               const oldProject = projects.find(p => p.id === project.id);
               if (oldProject && oldProject.status === 'transcribing') {
-                addNotification(`✏️ "${project.title}" is ready for lyrics review!`, 'success');
+                addNotification(`"${project.title}" is ready for lyrics review!`, 'success');
               }
               setCompletedIds(prev => new Set([...prev, project.id]));
             }
@@ -119,7 +124,7 @@ export default function DashboardPage() {
             if (project.status === 'failed' && !completedIds.has(project.id)) {
               const oldProject = projects.find(p => p.id === project.id);
               if (oldProject && ['processing', 'transcribing', 'rendering'].includes(oldProject.status)) {
-                addNotification(`❌ "${project.title}" failed to process`, 'error');
+                addNotification(`"${project.title}" failed to process`, 'error');
               }
               setCompletedIds(prev => new Set([...prev, project.id]));
             }
@@ -206,7 +211,7 @@ export default function DashboardPage() {
         return;
       }
       
-      console.log('📋 Pending plan detected:', planToActivate);
+      console.log('ðŸ“‹ Pending plan detected:', planToActivate);
       setCheckingPendingPlan(true);
       
       // Small delay to ensure auth session is fully established after email confirmation
@@ -222,7 +227,7 @@ export default function DashboardPage() {
           return;
         }
         
-        console.log('📋 Session found, fetching plan data for:', planToActivate);
+        console.log('ðŸ“‹ Session found, fetching plan data for:', planToActivate);
         
         // Get the Stripe price ID for this plan
         const { data: planData, error: planError } = await supabase
@@ -246,7 +251,7 @@ export default function DashboardPage() {
           return;
         }
         
-        console.log('📋 Creating checkout session with price:', planData.stripe_price_id);
+        console.log('ðŸ“‹ Creating checkout session with price:', planData.stripe_price_id);
         
         // Clear the pending plan from localStorage BEFORE redirect
         // This prevents redirect loops if user cancels checkout
@@ -272,7 +277,7 @@ export default function DashboardPage() {
         }
         
         // Redirect to Stripe checkout
-        console.log('🚀 Redirecting to Stripe checkout for', planToActivate);
+        console.log('ðŸš€ Redirecting to Stripe checkout for', planToActivate);
         window.location.href = data.url;
         
       } catch (err) {
@@ -289,7 +294,7 @@ export default function DashboardPage() {
   // Show notification if redirected from upload with review mode
   useEffect(() => {
     if (router.query.awaiting_review === 'true') {
-      addNotification('✏️ Your track is being transcribed. Click "Review Lyrics" when it\'s ready!', 'info');
+      addNotification('Your track is being transcribed. Click "Review Lyrics" when it\'s ready!', 'info');
       // Remove the query param from URL without refresh
       router.replace('/dashboard', undefined, { shallow: true });
     }
@@ -298,7 +303,7 @@ export default function DashboardPage() {
   // Show notification for successful upgrade
   useEffect(() => {
     if (router.query.upgraded === 'true') {
-      addNotification('🎉 Upgrade successful! Your new plan is now active.', 'success');
+      addNotification('Upgrade successful! Your new plan is now active.', 'success');
       router.replace('/dashboard', undefined, { shallow: true });
     }
   }, [router.query.upgraded, addNotification, router]);
@@ -312,12 +317,12 @@ export default function DashboardPage() {
         year: 'numeric'
       });
       addNotification(
-        `📅 Downgrade scheduled! You'll switch to ${profile.scheduled_tier} on ${effectiveDate}. You keep all current benefits until then.`,
+        `ðŸ“… Downgrade scheduled! You'll switch to ${profile.scheduled_tier} on ${effectiveDate}. You keep all current benefits until then.`,
         'info'
       );
       router.replace('/dashboard', undefined, { shallow: true });
     } else if (router.query.downgrade_scheduled === 'true') {
-      addNotification('📅 Downgrade scheduled! You\'ll keep your current plan until the end of your billing period.', 'info');
+      addNotification('Downgrade scheduled! You\'ll keep your current plan until the end of your billing period.', 'info');
       router.replace('/dashboard', undefined, { shallow: true });
     }
   }, [router.query.downgrade_scheduled, profile?.scheduled_tier, profile?.scheduled_tier_date, addNotification, router]);
@@ -325,7 +330,7 @@ export default function DashboardPage() {
   // Show notification for credit purchase
   useEffect(() => {
     if (router.query.credits_purchased === 'true') {
-      addNotification('💳 Credits purchased successfully! They\'ve been added to your account.', 'success');
+      addNotification('Credits purchased successfully! They\'ve been added to your account.', 'success');
       router.replace('/dashboard', undefined, { shallow: true });
     }
   }, [router.query.credits_purchased, addNotification, router]);
@@ -340,14 +345,14 @@ export default function DashboardPage() {
 
     if (!hasActiveProjects) return;
 
-    console.log('🔄 Starting polling - active projects detected');
+    console.log('ðŸ”„ Starting polling - active projects detected');
 
     const pollInterval = setInterval(() => {
       fetchProjects(user.id, true);
     }, POLL_INTERVAL);
 
     return () => {
-      console.log('⏹️ Stopping polling');
+      console.log('â¹ï¸ Stopping polling');
       clearInterval(pollInterval);
     };
   }, [user, projects, fetchProjects]);
@@ -465,6 +470,9 @@ export default function DashboardPage() {
     ['processing', 'transcribing', 'rendering'].includes(p.status)
   ).length;
 
+  // Check if user has paid subscription (for showing help button)
+  const isPaidUser = profile?.subscription_tier && profile.subscription_tier !== 'free';
+
   return (
     <>
       <SEO
@@ -521,8 +529,8 @@ export default function DashboardPage() {
             <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Ready to transform some music?</p>
           </motion.div>
 
-          {/* Stats Cards */}
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
+          {/* Stats Cards - Changes to 4 columns when paid user, 3 columns for free */}
+          <div className={`grid ${isPaidUser ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-6 mb-8`}>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -573,6 +581,29 @@ export default function DashboardPage() {
                 </div>
               </div>
             </motion.div>
+
+            {/* Help/Support Card - Only show for paid users */}
+            {isPaidUser && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="glass-panel p-6 cursor-pointer hover:border-purple-500/50 transition-colors"
+                onClick={() => setShowHelpModal(true)}
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                    <HelpCircle className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Need Help?</p>
+                    <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {profile?.subscription_tier === 'studio' ? 'Priority' : 'Standard'} Support
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
 
           {/* Upload Section */}
@@ -759,14 +790,14 @@ export default function DashboardPage() {
                               );
 
                               if (response.ok) {
-                                addNotification('🔄 Retrying your track...', 'info');
+                                addNotification('Retrying your track...', 'info');
                                 fetchProjects(user.id, false);
                               } else {
                                 const error = await response.json();
-                                addNotification(`❌ ${error.error || 'Retry failed'}`, 'error');
+                                addNotification(`${error.error || 'Retry failed'}`, 'error');
                               }
                             } catch (err) {
-                              addNotification('❌ Failed to retry', 'error');
+                              addNotification('Failed to retry', 'error');
                             }
                           }}
                           className="ml-2 px-4 py-2 bg-red-500/20 border border-red-500/50 rounded-lg text-red-400 font-medium hover:bg-red-500/30 transition-colors"
@@ -782,6 +813,13 @@ export default function DashboardPage() {
           </motion.div>
         </main>
       </div>
+
+      {/* Help Modal */}
+      <HelpModal 
+        isOpen={showHelpModal} 
+        onClose={() => setShowHelpModal(false)} 
+        profile={profile}
+      />
     </>
   );
 }
