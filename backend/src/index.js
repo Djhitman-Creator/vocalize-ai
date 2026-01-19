@@ -26,6 +26,12 @@ const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/clien
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const Stripe = require('stripe');
 const axios = require('axios');
+// OpenAI for chatbot
+const OpenAI = require('openai');
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
 
 // NEW: Import Brevo SDK
 const SibApiV3Sdk = require('sib-api-v3-sdk');
@@ -62,9 +68,9 @@ const brevoEmailApi = new SibApiV3Sdk.TransactionalEmailsApi();
 
 // Log Brevo configuration
 if (process.env.BREVO_API_KEY) {
-  console.log(`Ã°Å¸â€œÂ§ Email notifications: enabled (API key: ${process.env.BREVO_API_KEY.substring(0, 10)}...)`);
+  console.log(`Email notifications: enabled (API key: ${process.env.BREVO_API_KEY.substring(0, 10)}...)`);
 } else {
-  console.log('Ã¢Å¡Â Ã¯Â¸Â Email notifications: DISABLED (no BREVO_API_KEY set)');
+  console.log('Email notifications: DISABLED (no BREVO_API_KEY set)');
 }
 
 const upload = multer({
@@ -84,7 +90,9 @@ const upload = multer({
 const projectUpload = upload.fields([
   { name: 'audio', maxCount: 1 },
   { name: 'thumbnail', maxCount: 1 },
-  { name: 'custom_watermark', maxCount: 1 }
+  { name: 'custom_watermark', maxCount: 1 },
+  { name: 'bg_image', maxCount: 1 },
+  { name: 'bg_video', maxCount: 1 }
 ]);
 
 // ============================================
@@ -278,6 +286,13 @@ async function sendToRunPod(projectId, audioUrl, options) {
         outline_color: options.outline_color || '#000000',
         sung_color: options.sung_color || '#00d4ff',
         font: options.font || 'arial',
+        font_size: options.font_size || 'normal',
+
+        // Video background options (NEW)
+        bg_type: options.bg_type || 'gradient',
+        bg_video_preset: options.bg_video_preset || null,
+        bg_video_url: options.bg_video_url || null,
+        bg_image_url: options.bg_image_url || null,
 
         // Processing mode for two-stage flow
         processing_mode: options.processing_mode || 'full',
@@ -309,7 +324,7 @@ async function sendToRunPod(projectId, audioUrl, options) {
 // NEW: Send completion email via Brevo
 async function sendCompletionEmail(project, downloadUrl) {
   try {
-    console.log(`Ã°Å¸â€œÂ§ Attempting to send completion email for project ${project.id}`);
+    console.log(`Attempting to send completion email for project ${project.id}`);
 
     // Method 1: Try to get email from profiles table
     let userEmail = null;
@@ -354,7 +369,7 @@ async function sendCompletionEmail(project, downloadUrl) {
     }
 
     if (!userEmail) {
-      console.error('Ã¢ÂÅ’ Could not get user email for notification - no email found');
+      console.error('Could not get user email for notification - no email found');
       return;
     }
 
@@ -362,7 +377,7 @@ async function sendCompletionEmail(project, downloadUrl) {
 
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
-    sendSmtpEmail.subject = `Ã°Å¸Å½Âµ Your karaoke track "${project.title}" is ready!`;
+    sendSmtpEmail.subject = `Your karaoke track "${project.title}" is ready!`;
     sendSmtpEmail.sender = {
       name: 'Karatrack Studio',
       email: 'notifications@karatrack.com'
@@ -383,13 +398,13 @@ async function sendCompletionEmail(project, downloadUrl) {
         <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
           <!-- Header -->
           <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Ã°Å¸Å½Âµ Karatrack Studio</h1>
+            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Karatrack Studio</h1>
           </div>
           
           <!-- Main Content -->
           <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(0, 212, 255, 0.2);">
             <h2 style="color: #ffffff; font-size: 24px; margin: 0 0 20px 0;">
-              Hey ${userName}! Ã°Å¸â€˜â€¹
+              Hey ${userName}!
             </h2>
             
             <p style="color: #a0a0a0; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
@@ -430,7 +445,7 @@ async function sendCompletionEmail(project, downloadUrl) {
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              © ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -451,10 +466,10 @@ This link expires in 1 hour. You can always download again from your dashboard a
     `;
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`Ã¢Å“â€¦ Completion email sent to ${userEmail} for project ${project.id}`);
+    console.log(`Completion email sent to ${userEmail} for project ${project.id}`);
 
   } catch (error) {
-    console.error('Ã¢ÂÅ’ Error sending completion email:');
+    console.error('Error sending completion email:');
     console.error('   Message:', error.message);
     console.error('   Status:', error.status);
     console.error('   Response:', JSON.stringify(error.response?.body || error.response?.text || 'No response body'));
@@ -465,7 +480,7 @@ This link expires in 1 hour. You can always download again from your dashboard a
 // NEW: Send failure notification email
 async function sendFailureEmail(project, errorMessage) {
   try {
-    console.log(`Ã°Å¸â€œÂ§ Attempting to send failure email for project ${project.id}`);
+    console.log(`Attempting to send failure email for project ${project.id}`);
 
     // Get user email (same method as sendCompletionEmail)
     let userEmail = null;
@@ -495,13 +510,13 @@ async function sendFailureEmail(project, errorMessage) {
     }
 
     if (!userEmail) {
-      console.error('Ã¢ÂÅ’ Could not get user email for failure notification');
+      console.error('Could not get user email for failure notification');
       return;
     }
 
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
-    sendSmtpEmail.subject = `Ã¢Å¡Â Ã¯Â¸Â Issue processing "${project.title}"`;
+    sendSmtpEmail.subject = `Issue processing "${project.title}"`;
     sendSmtpEmail.sender = {
       name: 'Karatrack Studio',
       email: 'notifications@karatrack.com'
@@ -522,7 +537,7 @@ async function sendFailureEmail(project, errorMessage) {
         <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
           <!-- Header -->
           <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Ã°Å¸Å½Âµ Karatrack Studio</h1>
+            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Karatrack Studio</h1>
           </div>
           
           <!-- Main Content -->
@@ -558,7 +573,7 @@ async function sendFailureEmail(project, errorMessage) {
               Need help? <a href="mailto:support@karatrack.com" style="color: #00d4ff; text-decoration: none;">Contact Support</a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              © ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -567,7 +582,7 @@ async function sendFailureEmail(project, errorMessage) {
     `;
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`Ã¢Å“â€¦ Failure email sent to ${userEmail} for project ${project.id}`);
+    console.log(`Failure email sent to ${userEmail} for project ${project.id}`);
 
   } catch (error) {
     console.error('Error sending failure email:', error);
@@ -577,7 +592,7 @@ async function sendFailureEmail(project, errorMessage) {
 // NEW: Send downgrade scheduled confirmation email
 async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, newTier, effectiveDate) {
   if (!process.env.BREVO_API_KEY) {
-    console.log('⚠️ Brevo not configured, skipping downgrade email');
+    console.log('Brevo not configured, skipping downgrade email');
     return;
   }
 
@@ -591,7 +606,7 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
 
     const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
-    sendSmtpEmail.subject = `📅 Your plan change is scheduled`;
+    sendSmtpEmail.subject = `Your plan change is scheduled`;
     sendSmtpEmail.sender = {
       name: 'Karatrack Studio',
       email: 'notifications@karatrack.com'
@@ -612,13 +627,13 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
         <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
           <!-- Header -->
           <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">🎤 Karatrack Studio</h1>
+            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Karatrack Studio</h1>
           </div>
           
           <!-- Main Content -->
           <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(0, 212, 255, 0.2);">
             <h2 style="color: #ffffff; font-size: 24px; margin: 0 0 20px 0;">
-              Plan Change Confirmed 📅
+              Plan Change Confirmed
             </h2>
             
             <p style="color: #a0a0a0; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
@@ -633,7 +648,7 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
                     <p style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 4px 0;">Current Plan</p>
                     <p style="color: #00d4ff; font-size: 18px; font-weight: bold; margin: 0; text-transform: capitalize;">${currentTier}</p>
                   </td>
-                  <td style="text-align: center; color: #666; font-size: 24px;">→</td>
+                  <td style="text-align: center; color: #666; font-size: 24px;">to</td>
                   <td style="text-align: right; padding: 10px 0;">
                     <p style="color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 4px 0;">New Plan</p>
                     <p style="color: #a855f7; font-size: 18px; font-weight: bold; margin: 0; text-transform: capitalize;">${newTier}</p>
@@ -649,9 +664,9 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
             <div style="background: rgba(0, 212, 255, 0.1); border-left: 4px solid #00d4ff; padding: 15px; border-radius: 0 8px 8px 0; margin-bottom: 30px;">
               <p style="color: #ffffff; font-size: 14px; margin: 0;">
                 <strong>What this means:</strong><br><br>
-                • You'll keep all ${currentTier} benefits until ${formattedDate}<br>
-                • Your existing credits remain valid until they expire<br>
-                • No action needed - the change happens automatically
+                - You'll keep all ${currentTier} benefits until ${formattedDate}<br>
+                - Your existing credits remain valid until they expire<br>
+                - No action needed - the change happens automatically
               </p>
             </div>
             
@@ -700,13 +715,239 @@ Visit your dashboard: ${process.env.FRONTEND_URL}/dashboard
     `;
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`📧 Downgrade scheduled email sent to ${userEmail}`);
+    console.log(`Downgrade scheduled email sent to ${userEmail}`);
 
   } catch (error) {
     console.error('Error sending downgrade email:', error);
     // Don't throw - email failure shouldn't break the flow
   }
 }
+
+// ============================================
+// AI CHATBOT ENDPOINT
+// ============================================
+
+app.post('/api/chat', authMiddleware, async (req, res) => {
+  try {
+    const { message, conversationHistory = [] } = req.body;
+
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    if (message.length > 1000) {
+      return res.status(400).json({ error: 'Message too long. Please keep it under 1000 characters.' });
+    }
+
+    const profile = await getUserProfile(req.user.id);
+    
+    const { data: recentProjects } = await supabase
+      .from('projects')
+      .select('id, title, status, created_at, video_quality')
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const projectContext = recentProjects && recentProjects.length > 0
+      ? recentProjects.map(p => `- "${p.title}" (${p.status})`).join('\n')
+      : 'No projects yet';
+
+    const isPaidUser = ['starter', 'pro', 'studio'].includes(profile.subscription_tier?.toLowerCase());
+
+    const systemPrompt = `You are a friendly, helpful assistant for Karatrack Studio - an AI-powered karaoke video creation platform. Your job is to help users understand how to use the software and solve any confusion they have.
+
+## HOW KARATRACK WORKS
+1. User uploads an audio file (MP3, WAV, or FLAC)
+2. User pastes the song lyrics into the lyrics box
+3. User selects video quality and style options (colors, fonts, background)
+4. AI removes vocals from the audio using Demucs technology
+5. AI syncs the lyrics to the music using AssemblyAI word-level timing
+6. A karaoke video is generated with scrolling lyrics
+7. User downloads the finished MP4 video
+
+## SUBSCRIPTION TIERS & CREDITS
+- Free: 3 credits/month, 480p video, Karatrack watermark on videos
+- Starter ($9.99/mo): 25 credits/month, up to 1080p, no watermark, customize colors
+- Pro ($24.99/mo): 75 credits/month, up to 1080p, can edit lyrics timing before rendering
+- Studio ($49.99/mo): 200 credits/month, up to 4K, add your own logo, custom outro, full style control
+
+## CREDIT COSTS
+- 480p video: 3 credits
+- 720p video: 5 credits
+- 1080p video: 7 credits
+- 4K video: 9 credits
+- Credits expire 90 days after being added
+- Extra credit packs can be purchased anytime
+
+## CURRENT USER INFO
+- Tier: ${profile.subscription_tier || 'free'}
+- Credits: ${profile.credits_remaining || 0}
+- Recent projects:
+${projectContext}
+
+## COMMON QUESTIONS
+
+**"How long does processing take?"**
+Usually 5-15 minutes depending on song length and server load. You'll get an email when it's done (if notifications are enabled).
+
+**"Why are my lyrics not syncing correctly?"**
+Make sure you paste the complete, accurate lyrics when uploading. The AI matches what you provide to the audio. Pro/Studio users can edit timing before the final render.
+
+**"How do I remove the watermark?"**
+Upgrade to Starter ($9.99/mo) or higher to remove the Karatrack watermark from your videos.
+
+**"Can I edit the lyrics after uploading?"**
+Pro and Studio subscribers can review and edit lyrics timing before the final video is rendered.
+
+**"What audio formats are supported?"**
+MP3, WAV, and FLAC files up to 500MB.
+
+**"Why did my project fail?"**
+This can happen with very low quality audio or unusual formats. Try a different audio file. Failed projects don't use credits.
+
+**"How do I get a refund?"**
+Billing questions should be handled through the Priority Support form on the dashboard (paid users only).
+
+## YOUR GUIDELINES
+- Be friendly, concise, and helpful
+- Focus on explaining how to use Karatrack features
+- Keep responses under 150 words unless the user needs detailed instructions
+- If a user has a complex account/billing issue, ${isPaidUser ? 'direct them to use the Priority Support button on their dashboard' : 'let them know that support is available to paid subscribers'}
+- If you do not know something, be honest and say so
+- Never make up features that do not exist
+- Do not provide legal advice - if users need legal guidance, suggest they consult a legal professional
+
+## LEGAL GUIDANCE FOR KARAOKE CREATION
+When users ask about legality of converting music to karaoke, explain:
+
+**What is generally legal (private/personal use):**
+- You legally purchased the track (CD, MP3, iTunes, Amazon, etc.)
+- You remove vocals or edit it yourself
+- You use it ONLY in your home for personal practice
+- You do NOT share, upload, sell, or perform it publicly
+This falls under personal use and is typically protected.
+
+**What is NOT legal:**
+- Uploading to YouTube, Facebook, TikTok, SoundCloud, etc.
+- Sharing the file with others
+- Selling or giving it away
+- Using it at karaoke shows, bars, livestreams, or public venues
+- Monetizing it in any way
+- Distributing karaoke tracks made from commercial songs
+
+**Key points:**
+- Streaming services (Spotify, Apple Music) do NOT equal ownership - you cannot use streamed music
+- Only use music you actually OWN (purchased MP3s, CDs, WAVs)
+- Once it leaves private home use, copyright law applies fully
+- Commercial karaoke companies pay for proper licenses - that is why they can sell their tracks
+
+**Bottom line:** Karatrack is designed for personal, private use with music you own. Users are responsible for ensuring they have the rights to any music they upload.
+
+## MUSIC SOURCES - IMPORTANT
+If asked where to get music, ONLY suggest these legitimate sources:
+- Music you have purchased and own (iTunes, Amazon, Bandcamp, CD rips)
+- Royalty-free music libraries (Epidemic Sound, Artlist, Uppbeat, Pixabay Music)
+- Music you created yourself (original compositions)
+- Public domain music
+- Music you have proper licensing agreements for
+
+NEVER recommend or suggest:
+- Downloading from YouTube, Spotify, or any streaming service
+- Converting streaming audio to files
+- YouTube to MP3 converters or similar tools
+- Any method that could involve piracy`;
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory.slice(-10),
+      { role: 'user', content: message }
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: messages,
+      max_tokens: 400,
+      temperature: 0.7
+    });
+
+    res.json({ 
+      response: completion.choices[0].message.content
+    });
+
+  } catch (error) {
+    console.error('Chat error:', error);
+    
+    if (error.code === 'insufficient_quota') {
+      return res.status(503).json({ error: 'Chat service temporarily unavailable. Please try again later.' });
+    }
+    
+    res.status(500).json({ error: 'Failed to get response. Please try again.' });
+  }
+});
+
+// Guest chat endpoint (not logged in)
+app.post('/api/chat/guest', async (req, res) => {
+  try {
+    const { message, conversationHistory = [] } = req.body;
+
+    if (!message || message.trim().length === 0) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    if (message.length > 500) {
+      return res.status(400).json({ error: 'Message too long. Please keep it under 500 characters.' });
+    }
+
+    const systemPrompt = `You are a friendly, helpful assistant for Karatrack Studio - an AI-powered karaoke video creation platform.
+
+## HOW KARATRACK WORKS
+1. Upload an audio file (MP3, WAV, or FLAC)
+2. Paste the song lyrics
+3. Choose video quality and style options
+4. AI removes vocals and syncs lyrics automatically
+5. Download your finished karaoke video (MP4)
+
+## SUBSCRIPTION TIERS
+- Free: 3 credits/month, 480p video quality
+- Starter ($9.99/mo): 25 credits/month, 1080p, no watermark
+- Pro ($24.99/mo): 75 credits/month, edit lyrics before rendering
+- Studio ($49.99/mo): 200 credits/month, 4K quality, custom branding
+
+## YOUR GUIDELINES
+- Be friendly and concise (under 100 words)
+- Help users understand what Karatrack does
+- Encourage them to sign up for a free account to try it out
+- If they have detailed questions, suggest creating an account for personalized help
+
+## LEGAL & MUSIC SOURCES
+- Karatrack is for personal, private use with music you OWN (purchased MP3s, CDs)
+- Legal for: home practice with music you bought
+- NOT legal: uploading, sharing, public performance, or using streamed music
+- For music sources, only suggest: purchased music, royalty-free libraries (Uppbeat, Artlist), or original creations
+- NEVER mention YouTube, Spotify, or streaming downloads`;
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      ...conversationHistory.slice(-6),
+      { role: 'user', content: message }
+    ];
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: messages,
+      max_tokens: 250,
+      temperature: 0.7
+    });
+
+    res.json({ 
+      response: completion.choices[0].message.content
+    });
+
+  } catch (error) {
+    console.error('Guest chat error:', error);
+    res.status(500).json({ error: 'Failed to get response. Please try again.' });
+  }
+});
 
 // ============================================
 // API ROUTES
@@ -747,7 +988,7 @@ app.post('/api/profile/watermark', authMiddleware, upload.single('watermark'), a
     // Upload watermark to R2
     const watermarkKey = `watermarks/${req.user.id}/default-watermark${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
     const watermarkUrl = await uploadToR2(req.file.buffer, watermarkKey, req.file.mimetype);
-    console.log(`ðŸ“¸ Default watermark uploaded for user ${req.user.id}: ${watermarkUrl}`);
+    console.log(`Default watermark uploaded for user ${req.user.id}: ${watermarkUrl}`);
 
     // Save URL to user's profile
     const { error } = await supabase
@@ -779,7 +1020,7 @@ app.delete('/api/profile/watermark', authMiddleware, async (req, res) => {
 
     if (error) throw error;
 
-    console.log(`ðŸ—‘ï¸ Default watermark cleared for user ${req.user.id}`);
+    console.log(`Default watermark cleared for user ${req.user.id}`);
     res.json({ success: true, message: 'Default watermark removed' });
   } catch (error) {
     console.error('Watermark delete error:', error);
@@ -860,6 +1101,11 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       outline_color,
       sung_color,
       font,
+      font_size,
+      // Video background options (NEW)
+      bg_type,
+      bg_video_preset,
+      bg_video_preset_filename,
       // Email notification preference
       notify_on_complete,
       // Processing mode for lyrics review
@@ -869,6 +1115,8 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
     const file = req.files?.audio?.[0];
     const thumbnailFile = req.files?.thumbnail?.[0];
     const customWatermarkFile = req.files?.custom_watermark?.[0];
+    const bgImageFile = req.files?.bg_image?.[0];
+    const bgVideoFile = req.files?.bg_video?.[0];
 
     if (!file) {
       return res.status(400).json({ error: 'No audio file provided' });
@@ -910,16 +1158,37 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
 
     // Upload custom watermark if provided (Studio tier only)
     let customWatermarkUrl = null;
-    if (customWatermarkFile) {
-      // Verify user is Studio tier
-      const userProfileForWatermark = await getUserProfile(req.user.id);
-      if (userProfileForWatermark.subscription_tier === 'studio') {
+    const userProfileForWatermark = await getUserProfile(req.user.id);
+    
+    if (userProfileForWatermark.subscription_tier === 'studio') {
+      if (customWatermarkFile) {
+        // New watermark file uploaded this session
         const watermarkKey = `watermarks/${req.user.id}/${projectId}-watermark${customWatermarkFile.originalname.substring(customWatermarkFile.originalname.lastIndexOf('.'))}`;
         customWatermarkUrl = await uploadToR2(customWatermarkFile.buffer, watermarkKey, customWatermarkFile.mimetype);
-        console.log(`Ã°Å¸â€œÂ¸ Custom watermark uploaded: ${customWatermarkUrl}`);
-      } else {
-        console.log('Ã¢Å¡Â Ã¯Â¸Â Custom watermark ignored - user is not Studio tier');
+        console.log(`Custom watermark uploaded: ${customWatermarkUrl}`);
+      } else if (req.body.custom_watermark_url) {
+        // Use saved default watermark URL from profile
+        customWatermarkUrl = req.body.custom_watermark_url;
+        console.log(`Using saved default watermark: ${customWatermarkUrl}`);
       }
+    } else if (customWatermarkFile) {
+      console.log('Custom watermark ignored - user is not Studio tier');
+    }
+
+    // Upload background image if provided (Studio tier only)
+    let bgImageUrl = null;
+    if (userProfileForWatermark.subscription_tier === 'studio' && bgImageFile && bg_type === 'image') {
+      const bgImageKey = `backgrounds/${req.user.id}/${projectId}-bg-image${bgImageFile.originalname.substring(bgImageFile.originalname.lastIndexOf('.'))}`;
+      bgImageUrl = await uploadToR2(bgImageFile.buffer, bgImageKey, bgImageFile.mimetype);
+      console.log(`Background image uploaded: ${bgImageUrl}`);
+    }
+
+    // Upload custom background video if provided (Studio tier only)
+    let bgVideoUrl = null;
+    if (userProfileForWatermark.subscription_tier === 'studio' && bgVideoFile && bg_type === 'video') {
+      const bgVideoKey = `backgrounds/${req.user.id}/${projectId}-bg-video${bgVideoFile.originalname.substring(bgVideoFile.originalname.lastIndexOf('.'))}`;
+      bgVideoUrl = await uploadToR2(bgVideoFile.buffer, bgVideoKey, bgVideoFile.mimetype);
+      console.log(`Custom background video uploaded: ${bgVideoUrl}`);
     }
 
     // Update user's track count
@@ -960,6 +1229,13 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         outline_color: outline_color || '#000000',
         sung_color: sung_color || '#00d4ff',
         font: font || 'arial',
+        font_size: font_size || 'normal',
+        // Video background options (NEW)
+        bg_type: bg_type || 'gradient',
+        bg_video_preset: bg_video_preset || null,
+        bg_video_preset_filename: bg_video_preset_filename || null,
+        bg_video_url: bgVideoUrl || null,
+        bg_image_url: bgImageUrl || null,
         // Email notification preference
         notify_on_complete: notify_on_complete !== 'false' && notify_on_complete !== false,
         // Custom watermark for Studio users
@@ -998,6 +1274,12 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       outline_color: outline_color || '#000000',
       sung_color: sung_color || '#00d4ff',
       font: font || 'arial',
+      font_size: font_size || 'normal',
+      // Video background options (NEW)
+      bg_type: bg_type || 'gradient',
+      bg_video_preset: bg_video_preset_filename || null,
+      bg_video_url: bgVideoUrl || null,
+      bg_image_url: bgImageUrl || null,
       // Processing mode
       processing_mode: processing_mode || 'full',
       // NEW: Subscription tier for watermark logic
@@ -1456,7 +1738,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
     const currentTierLevel = getTierLevel(profile.subscription_tier);
     const newTierLevel = getTierLevel(newPlan.tier);
 
-    console.log(`Ã°Å¸â€œÂ¦ Plan change: ${profile.subscription_tier} (${currentTierLevel}) -> ${newPlan.tier} (${newTierLevel})`);
+    console.log(`Plan change: ${profile.subscription_tier} (${currentTierLevel}) -> ${newPlan.tier} (${newTierLevel})`);
 
     // If user has existing subscription, handle upgrade vs downgrade differently
     if (profile.stripe_subscription_id) {
@@ -1469,7 +1751,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
           if (newTierLevel > currentTierLevel) {
             // UPGRADE: Update immediately, NO proration (user pays full price)
             // User keeps their existing credits + gets new tier's credits
-            console.log(`   Ã¢Â¬â€ Ã¯Â¸Â Upgrading immediately (no proration - full price)`);
+            console.log(`   Upgrading immediately (no proration - full price)`);
 
             // Check if user has upgrade discount available
             const hasDiscount = !profile.upgrade_discount_used;
@@ -1477,7 +1759,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
 
             if (hasDiscount && process.env.STRIPE_UPGRADE_COUPON_ID) {
               couponId = process.env.STRIPE_UPGRADE_COUPON_ID;
-              console.log(`   Ã°Å¸Å½Â« Applying 20% upgrade discount coupon`);
+              console.log(`   Applying 20% upgrade discount coupon`);
             }
 
             const updateParams = {
@@ -1550,7 +1832,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
 
           } else if (newTierLevel < currentTierLevel) {
             // DOWNGRADE: Schedule for end of billing period using subscription schedule
-            console.log(`   ⬇️ Scheduling downgrade for period end`);
+            console.log(`   Scheduling downgrade for period end`);
 
             try {
               // Check if there's already a schedule attached
@@ -1625,7 +1907,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
                 year: 'numeric'
               });
 
-              console.log(`   ✅ Downgrade scheduled for ${formattedDate}`);
+              console.log(`   Downgrade scheduled for ${formattedDate}`);
 
               // Send confirmation email
               const userEmail = req.user.email;
@@ -1645,7 +1927,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
                 effective_date: periodEnd.toISOString()
               });
             } catch (scheduleError) {
-              console.error(`   ❌ Downgrade schedule failed:`, scheduleError.message);
+              console.error(`   Downgrade schedule failed:`, scheduleError.message);
               // Return error instead of falling through to checkout
               return res.status(500).json({ 
                 error: `Failed to schedule downgrade: ${scheduleError.message}. Please try again or contact support.` 
@@ -1654,7 +1936,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
           }
         }
       } catch (subError) {
-        console.log(`   ⚠️ Could not process subscription change: ${subError.message}`);
+        console.log(`   Could not process subscription change: ${subError.message}`);
         // Fall through to create new checkout session only for NEW subscriptions
       }
     }
@@ -1813,7 +2095,7 @@ app.post('/api/stripe/cancel-scheduled-change', authMiddleware, async (req, res)
       })
       .eq('id', req.user.id);
 
-    console.log(`Ã¢Å“â€¦ Scheduled change cancelled for user ${req.user.id}`);
+    console.log(`Scheduled change cancelled for user ${req.user.id}`);
 
     res.json({
       success: true,
@@ -1827,15 +2109,15 @@ app.post('/api/stripe/cancel-scheduled-change', authMiddleware, async (req, res)
 
 // WEBHOOKS
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
-  console.log('Ã°Å¸â€â€ Stripe webhook received');
+  console.log('Stripe webhook received');
   const sig = req.headers['stripe-signature'];
   let event;
 
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    console.log(`Ã¢Å“â€¦ Webhook verified: ${event.type}`);
+    console.log(`Webhook verified: ${event.type}`);
   } catch (err) {
-    console.error('Ã¢ÂÅ’ Webhook signature verification failed:', err.message);
+    console.error('Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -1857,7 +2139,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         // Handle subscription credits (both new signups AND upgrades get credits)
         if (session.mode === 'subscription') {
           const isUpgrade = session.metadata.is_upgrade === 'true';
-          console.log(`Ã°Å¸â€ â€¢ Subscription checkout completed for user: ${session.metadata.user_id} (upgrade: ${isUpgrade})`);
+          console.log(`Subscription checkout completed for user: ${session.metadata.user_id} (upgrade: ${isUpgrade})`);
 
           // Get the subscription to find the price/plan
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
@@ -1890,7 +2172,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
         const customerId = subscription.customer;
-        console.log(`Ã°Å¸â€œÂ¦ Subscription ${event.type} for customer: ${customerId}`);
+        console.log(`Subscription ${event.type} for customer: ${customerId}`);
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
@@ -1899,12 +2181,12 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           .single();
 
         if (profileError) {
-          console.error('Ã¢ÂÅ’ Error finding profile by stripe_customer_id:', profileError);
+          console.error('Error finding profile by stripe_customer_id:', profileError);
           console.log('   Looking for customer ID:', customerId);
         }
 
         if (profile) {
-          console.log(`Ã¢Å“â€¦ Found profile: ${profile.id}`);
+          console.log(`Found profile: ${profile.id}`);
           const priceId = subscription.items.data[0].price.id;
           console.log(`   Price ID from subscription: ${priceId}`);
 
@@ -1915,12 +2197,12 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             .single();
 
           if (planError) {
-            console.error('Ã¢ÂÅ’ Error finding plan by stripe_price_id:', planError);
+            console.error('Error finding plan by stripe_price_id:', planError);
             console.log('   Looking for price ID:', priceId);
           }
 
           if (plan) {
-            console.log(`Ã¢Å“â€¦ Found plan: ${plan.tier} (${plan.credits_per_month} credits)`);
+            console.log(`Found plan: ${plan.tier} (${plan.credits_per_month} credits)`);
 
             const { error: updateError } = await supabase
               .from('profiles')
@@ -1931,9 +2213,9 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               .eq('id', profile.id);
 
             if (updateError) {
-              console.error('Ã¢ÂÅ’ Error updating profile:', updateError);
+              console.error('Error updating profile:', updateError);
             } else {
-              console.log(`Ã¢Å“â€¦ Profile updated to tier: ${plan.tier}`);
+              console.log(`Profile updated to tier: ${plan.tier}`);
             }
 
             // ALSO upsert into subscriptions table (THIS WAS MISSING - caused "Failed to Fetch" errors)
@@ -1948,25 +2230,25 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               }, { onConflict: 'user_id' });
 
             if (subError) {
-              console.error('Ã¢ÂÅ’ Error upserting subscription record:', subError);
+              console.error('Error upserting subscription record:', subError);
             } else {
-              console.log(`Ã¢Å“â€¦ Subscription record created/updated in subscriptions table`);
+              console.log(`Subscription record created/updated in subscriptions table`);
             }
 
             // Note: Credits are now added in checkout.session.completed handler
             // This allows us to check metadata and skip credits for upgrades
           } else {
-            console.log('Ã¢ÂÅ’ No plan found for price ID:', priceId);
+            console.log('No plan found for price ID:', priceId);
           }
         } else {
-          console.log('Ã¢ÂÅ’ No profile found for customer ID:', customerId);
+          console.log('No profile found for customer ID:', customerId);
         }
         break;
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
-        console.log(`Ã°Å¸â€”â€˜Ã¯Â¸Â Subscription deleted for customer: ${subscription.customer}`);
+        console.log(`Subscription deleted for customer: ${subscription.customer}`);
 
         // Update profile
         await supabase
@@ -1991,7 +2273,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             .from('subscriptions')
             .delete()
             .eq('user_id', profile.id);
-          console.log(`Ã¢Å“â€¦ Subscription record deleted from subscriptions table`);
+          console.log(`Subscription record deleted from subscriptions table`);
         }
         break;
       }
@@ -2000,7 +2282,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       case 'subscription_schedule.updated':
       case 'subscription_schedule.completed': {
         const schedule = event.data.object;
-        console.log(`Ã°Å¸â€œâ€¦ Subscription schedule ${event.type}: ${schedule.id}`);
+        console.log(`Subscription schedule ${event.type}: ${schedule.id}`);
 
         // When a schedule completes, the subscription has moved to the next phase
         // Update the user's tier to match the new plan
@@ -2024,7 +2306,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
                 .single();
 
               if (plan) {
-                console.log(`   Ã°Å¸â€œÂ¦ Schedule completed - updating tier to ${plan.tier}`);
+                console.log(`   Schedule completed - updating tier to ${plan.tier}`);
 
                 await supabase
                   .from('profiles')
@@ -2045,11 +2327,11 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
                     status: subscription.status
                   }, { onConflict: 'user_id' });
 
-                console.log(`   Ã¢Å“â€¦ User ${profile.id} downgraded to ${plan.tier}`);
+                console.log(`   User ${profile.id} downgraded to ${plan.tier}`);
               }
             }
           } catch (scheduleError) {
-            console.error('   Ã¢ÂÅ’ Error processing schedule completion:', scheduleError);
+            console.error('   Error processing schedule completion:', scheduleError);
           }
         }
         break;
@@ -2072,7 +2354,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               .single();
 
             if (plan) {
-              console.log(`Ã°Å¸â€œâ€¦ Monthly renewal for ${profile.subscription_tier}: adding ${plan.credits_per_month} credits`);
+              console.log(`Monthly renewal for ${profile.subscription_tier}: adding ${plan.credits_per_month} credits`);
               await addCreditsWithExpiration(
                 profile.id,
                 plan.credits_per_month,
@@ -2112,7 +2394,7 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
 
     // Handle transcription completed (two-stage processing)
     if (status === 'transcribed' && results) {
-      console.log(`Ã°Å¸â€œâ€¹ Project ${project_id} transcription complete - awaiting review`);
+      console.log(`Project ${project_id} transcription complete - awaiting review`);
 
       const { data: updateData, error: updateError } = await supabase
         .from('projects')
@@ -2127,9 +2409,9 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         .select();
 
       if (updateError) {
-        console.error('Ã¢ÂÅ’ Failed to update project status:', updateError);
+        console.error('Failed to update project status:', updateError);
       } else {
-        console.log('Ã¢Å“â€¦ Project status updated to awaiting_review:', updateData);
+        console.log('Project status updated to awaiting_review:', updateData);
       }
 
       // Don't send email - user needs to review lyrics first
@@ -2149,9 +2431,9 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         .select();
 
       if (updateError) {
-        console.error('Ã¢ÂÅ’ Failed to update project status:', updateError);
+        console.error('Failed to update project status:', updateError);
       } else {
-        console.log('Ã¢Å“â€¦ Project status updated to completed:', updateData);
+        console.log('Project status updated to completed:', updateData);
       }
 
       // Send completion email if enabled
@@ -2179,7 +2461,7 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         .eq('id', project_id);
 
       if (updateError) {
-        console.error('Ã¢ÂÅ’ Failed to update project status:', updateError);
+        console.error('Failed to update project status:', updateError);
       }
 
       // Send failure email if enabled
@@ -2192,6 +2474,175 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
   } catch (error) {
     console.error('RunPod webhook error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// SUPPORT CONTACT FORM ENDPOINT
+// ============================================
+
+// Support contact form - sends email to admin
+// Only available for paid subscribers (starter, pro, studio)
+// Studio users get "Priority Support", Starter/Pro get "Standard Support"
+app.post('/api/support/contact', authMiddleware, async (req, res) => {
+  try {
+    // Get user profile to check subscription tier
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', req.user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+
+    // Check if user has a paid subscription
+    const tier = profile.subscription_tier?.toLowerCase();
+    const paidTiers = ['starter', 'pro', 'studio'];
+    
+    if (!paidTiers.includes(tier)) {
+      return res.status(403).json({ 
+        error: 'Support is only available for paid subscribers. Please upgrade your plan.' 
+      });
+    }
+
+    // Get form data
+    const { subject, message } = req.body;
+
+    if (!subject || !message) {
+      return res.status(400).json({ error: 'Subject and message are required' });
+    }
+
+    if (subject.length > 100) {
+      return res.status(400).json({ error: 'Subject must be 100 characters or less' });
+    }
+
+    if (message.length > 2000) {
+      return res.status(400).json({ error: 'Message must be 2000 characters or less' });
+    }
+
+    // Determine support level based on tier
+    const isStudio = tier === 'studio';
+    const supportLevel = isStudio ? 'Priority Support' : 'Standard Support';
+    const emailSubject = isStudio 
+      ? `[Priority Support] Karatrack Studio: ${subject}`
+      : `[Standard Support] Karatrack Studio: ${subject}`;
+
+    // Get user email
+    const userEmail = profile.email || req.user.email;
+    const userName = profile.full_name || userEmail.split('@')[0];
+
+    // Send email to admin via Brevo
+    if (!process.env.BREVO_API_KEY) {
+      console.error('Brevo not configured');
+      return res.status(500).json({ error: 'Email service not configured' });
+    }
+
+    const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+
+    sendSmtpEmail.to = [{
+      email: process.env.ADMIN_EMAIL || 'kssupport@karatrack.com',
+      name: 'Karatrack Studio Support'
+    }];
+
+    sendSmtpEmail.replyTo = {
+      email: userEmail,
+      name: userName
+    };
+
+    sendSmtpEmail.sender = {
+      name: 'Karatrack Studio Support',
+      email: 'support@karatrack.com'
+    };
+
+    sendSmtpEmail.subject = emailSubject;
+
+    sendSmtpEmail.htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+      </head>
+      <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f0f1a;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+          <div style="text-align: center; margin-bottom: 40px;">
+            <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Karatrack Support Request</h1>
+            <p style="color: ${isStudio ? '#a855f7' : '#00d4ff'}; font-size: 14px; margin: 10px 0 0 0;">
+              ${supportLevel}
+            </p>
+          </div>
+          
+          <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 16px; padding: 40px; border: 1px solid rgba(0, 212, 255, 0.2);">
+            <div style="margin-bottom: 30px;">
+              <h3 style="color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">From</h3>
+              <p style="color: #ffffff; font-size: 16px; margin: 0;">${userName}</p>
+              <p style="color: #a0a0a0; font-size: 14px; margin: 4px 0 0 0;">${userEmail}</p>
+            </div>
+            
+            <div style="margin-bottom: 30px;">
+              <h3 style="color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Account Details</h3>
+              <p style="color: #a0a0a0; font-size: 14px; margin: 0;">
+                Tier: <span style="color: #ffffff; text-transform: capitalize;">${tier}</span><br>
+                Credits: <span style="color: #ffffff;">${profile.credits_remaining || 0}</span><br>
+                User ID: <span style="color: #666; font-size: 12px;">${req.user.id}</span>
+              </p>
+            </div>
+            
+            <div style="margin-bottom: 30px;">
+              <h3 style="color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Subject</h3>
+              <p style="color: #ffffff; font-size: 18px; margin: 0;">${subject}</p>
+            </div>
+            
+            <div>
+              <h3 style="color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Message</h3>
+              <div style="background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 20px;">
+                <p style="color: #ffffff; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap;">${message}</p>
+              </div>
+            </div>
+          </div>
+          
+          <div style="text-align: center; margin-top: 40px;">
+            <p style="color: #444; font-size: 12px; margin: 0;">
+              Reply directly to this email to respond to the user.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    sendSmtpEmail.textContent = `
+KARATRACK SUPPORT REQUEST
+${supportLevel}
+========================
+
+From: ${userName} (${userEmail})
+Tier: ${tier}
+Credits: ${profile.credits_remaining || 0}
+User ID: ${req.user.id}
+
+Subject: ${subject}
+
+Message:
+${message}
+
+---
+Reply directly to this email to respond to the user.
+    `;
+
+    await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
+    
+    console.log(`Support request sent from ${userEmail} (${tier}) - ${supportLevel}`);
+
+    res.json({ 
+      success: true, 
+      message: 'Your message has been sent. We will respond as soon as possible.' 
+    });
+
+  } catch (error) {
+    console.error('Support contact error:', error);
+    res.status(500).json({ error: 'Failed to send message. Please try again.' });
   }
 });
 
@@ -2220,7 +2671,7 @@ async function addCreditsWithExpiration(userId, amount, source, description, day
 // Helper: Send expiration warning email
 async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expirationDate) {
   if (!process.env.BREVO_API_KEY) {
-    console.log('Ã¢Å¡Â Ã¯Â¸Â Brevo not configured, skipping expiration email');
+    console.log('Brevo not configured, skipping expiration email');
     return;
   }
 
@@ -2234,11 +2685,11 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
     };
 
     if (daysLeft <= 1) {
-      sendSmtpEmail.subject = 'Ã¢Å¡Â Ã¯Â¸Â Your Karatrack credits expire TOMORROW!';
+      sendSmtpEmail.subject = 'Your Karatrack credits expire TOMORROW!';
     } else if (daysLeft <= 7) {
-      sendSmtpEmail.subject = `Ã¢Å¡Â Ã¯Â¸Â ${creditsExpiring} credits expiring in ${daysLeft} days`;
+      sendSmtpEmail.subject = `${creditsExpiring} credits expiring in ${daysLeft} days`;
     } else {
-      sendSmtpEmail.subject = `Ã°Å¸â€œÂ¢ ${creditsExpiring} credits expiring in ${daysLeft} days`;
+      sendSmtpEmail.subject = `${creditsExpiring} credits expiring in ${daysLeft} days`;
     }
 
     const formattedDate = new Date(expirationDate).toLocaleDateString('en-US', {
@@ -2265,14 +2716,14 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
       <body>
         <div class="container">
           <div class="header">
-            <h1>Ã°Å¸Å½Â¤ Karatrack Studio</h1>
+            <h1>Karatrack Studio</h1>
           </div>
           <div class="content">
             <h2>Your credits are expiring soon!</h2>
             
             <div class="warning-box">
               <strong>${creditsExpiring} credits</strong> will expire on <strong>${formattedDate}</strong>
-              ${daysLeft <= 1 ? '<br><br>Ã¢Å¡Â Ã¯Â¸Â This is your final reminder!' : ''}
+              ${daysLeft <= 1 ? '<br><br>This is your final reminder!' : ''}
             </div>
             
             <p>Don't let your credits go to waste! Use them to create amazing karaoke tracks before they expire.</p>
@@ -2286,7 +2737,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             
             <center>
               <a href="${process.env.FRONTEND_URL}/upload" class="cta-button">
-                Ã°Å¸Å½Â¬ Create a Karaoke Track Now
+                Create a Karaoke Track Now
               </a>
             </center>
             
@@ -2295,7 +2746,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             </p>
           </div>
           <div class="footer">
-            <p>Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
             <p>Questions? Reply to this email or visit our support page.</p>
           </div>
         </div>
@@ -2304,7 +2755,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
     `;
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`Ã°Å¸â€œÂ§ Expiration warning sent to ${email} (${daysLeft} days left)`);
+    console.log(`Expiration warning sent to ${email} (${daysLeft} days left)`);
   } catch (error) {
     console.error('Failed to send expiration email:', error);
   }
@@ -2322,7 +2773,7 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
       name: 'Karatrack Studio',
       email: process.env.BREVO_SENDER_EMAIL || 'noreply@karatrack.com'
     };
-    sendSmtpEmail.subject = `Ã°Å¸ËœÂ¢ ${expiredAmount} credits have expired`;
+    sendSmtpEmail.subject = `${expiredAmount} credits have expired`;
 
     sendSmtpEmail.htmlContent = `
       <!DOCTYPE html>
@@ -2339,7 +2790,7 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Ã°Å¸Å½Â¤ Karatrack Studio</h1>
+            <h1>Karatrack Studio</h1>
           </div>
           <div class="content">
             <h2>Your credits have expired</h2>
@@ -2350,7 +2801,7 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
             
             <center>
               <a href="${process.env.FRONTEND_URL}/pricing" class="cta-button">
-                Ã°Å¸Å½Â¯ Get More Credits
+                Get More Credits
               </a>
             </center>
           </div>
@@ -2360,7 +2811,7 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
     `;
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
-    console.log(`Ã°Å¸â€œÂ§ Credits expired notification sent to ${email}`);
+    console.log(`Credits expired notification sent to ${email}`);
   } catch (error) {
     console.error('Failed to send expired email:', error);
   }
@@ -2377,7 +2828,7 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  console.log('Ã°Å¸â€¢Â Running credit expiration check...');
+  console.log('Running credit expiration check...');
 
   try {
     const results = {
@@ -2407,7 +2858,7 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
           await sendCreditsExpiredEmail(profile.email, user.expired_amount);
         }
       }
-      console.log(`Ã°Å¸â€™â‚¬ Expired ${results.expired} credits for ${expiredUsers.length} users`);
+      console.log(`Expired ${results.expired} credits for ${expiredUsers.length} users`);
     }
 
     // 2. Send 14-day warnings
@@ -2495,7 +2946,7 @@ app.post('/api/cron/check-credit-expiration', async (req, res) => {
       }
     }
 
-    console.log('Ã¢Å“â€¦ Credit expiration check complete:', results);
+    console.log('Credit expiration check complete:', results);
     res.json({ success: true, results });
 
   } catch (error) {
@@ -2519,9 +2970,9 @@ app.use((req, res) => {
 
 // START SERVER
 app.listen(PORT, () => {
-  console.log(`Ã°Å¸Å¡â‚¬ Karatrack Studio API running on port ${PORT}`);
-  console.log(`Ã°Å¸â€œÅ  Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`Ã°Å¸â€œÂ§ Email notifications: ${process.env.BREVO_API_KEY ? 'enabled' : 'disabled'}`);
+  console.log(`Karatrack Studio API running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Email notifications: ${process.env.BREVO_API_KEY ? 'enabled' : 'disabled'}`);
 });
 
 module.exports = app;
