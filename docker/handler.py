@@ -130,7 +130,7 @@ class VideoBackgroundReader:
         self.frame_cache = {}
         self.cache_enabled = self.total_frames < 300  # Cache videos under 10 sec at 30fps
         
-        print(f"   📹 Video background loaded: {self.source_width}x{self.source_height} @ {self.source_fps:.1f}fps, {self.duration:.1f}s")
+        print(f"   ðŸ“¹ Video background loaded: {self.source_width}x{self.source_height} @ {self.source_fps:.1f}fps, {self.duration:.1f}s")
     
     def get_frame_at_time(self, time_seconds):
         """
@@ -240,16 +240,16 @@ def download_video_background(bg_type, bg_video_preset, bg_video_url, work_dir):
     if bg_video_preset:
         # Download preset video
         preset_url = f"{PRESET_VIDEOS_BASE_URL}/{bg_video_preset}"
-        print(f"   📥 Downloading preset video background: {bg_video_preset}")
+        print(f"   ðŸ“¥ Downloading preset video background: {bg_video_preset}")
         download_file(preset_url, video_path)
-        print(f"   ✅ Preset video downloaded")
+        print(f"   âœ… Preset video downloaded")
         return video_path
     
     elif bg_video_url:
         # Download custom video
-        print(f"   📥 Downloading custom video background...")
+        print(f"   ðŸ“¥ Downloading custom video background...")
         download_file(bg_video_url, video_path)
-        print(f"   ✅ Custom video downloaded")
+        print(f"   âœ… Custom video downloaded")
         return video_path
     
     return None
@@ -273,7 +273,7 @@ def download_image_background(bg_type, bg_image_url, work_dir, target_width, tar
         return None
     
     try:
-        print(f"   📥 Downloading image background...")
+        print(f"   ðŸ“¥ Downloading image background...")
         image_path = os.path.join(work_dir, 'background_image.jpg')
         download_file(bg_image_url, image_path)
         
@@ -300,11 +300,11 @@ def download_image_background(bg_type, bg_image_url, work_dir, target_width, tar
         bottom = top + target_height
         
         final_img = img_resized.crop((left, top, right, bottom))
-        print(f"   ✅ Image background prepared: {target_width}x{target_height}")
+        print(f"   âœ… Image background prepared: {target_width}x{target_height}")
         return final_img
         
     except Exception as e:
-        print(f"   ⚠️ Failed to load image background: {e}")
+        print(f"   âš ï¸ Failed to load image background: {e}")
         return None
 
 
@@ -473,11 +473,11 @@ def upload_to_r2(file_path, key):
             )
         
         url = f"{public_url}/{key}"
-        print(f"Ã¢Å“â€¦ Uploaded to R2: {url}")
+        print(f"ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Uploaded to R2: {url}")
         return url
         
     except Exception as e:
-        print(f"Ã¢ÂÅ’ R2 upload error: {str(e)}")
+        print(f"ÃƒÂ¢Ã‚ÂÃ…â€™ R2 upload error: {str(e)}")
         raise e
 
 
@@ -546,17 +546,17 @@ def download_font(font_name):
         url = FONT_URLS[font_name]
         font_path = FONT_PATHS[font_name]
         
-        print(f"   Ã°Å¸â€œÂ¥ Downloading font: {font_name}...")
+        print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¥ Downloading font: {font_name}...")
         response = requests.get(url, timeout=30)
         response.raise_for_status()
         
         with open(font_path, 'wb') as f:
             f.write(response.content)
         
-        print(f"   Ã¢Å“â€¦ Font downloaded: {font_name}")
+        print(f"   ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Font downloaded: {font_name}")
         return font_path
     except Exception as e:
-        print(f"   Ã¢Å¡Â Ã¯Â¸Â Failed to download font {font_name}: {e}")
+        print(f"   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Failed to download font {font_name}: {e}")
         return None
 
 def initialize_fonts():
@@ -565,7 +565,7 @@ def initialize_fonts():
     if _fonts_initialized:
         return
     
-    print("Ã°Å¸â€Â¤ Initializing fonts...")
+    print("ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¤ Initializing fonts...")
     ensure_fonts_directory()
     
     for font_name in FONT_URLS.keys():
@@ -574,7 +574,7 @@ def initialize_fonts():
             download_font(font_name)
     
     _fonts_initialized = True
-    print("Ã¢Å“â€¦ Fonts initialized")
+    print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Fonts initialized")
 
 def get_font(size, font_name='arial'):
     """Get font by name with fallback to default"""
@@ -597,7 +597,7 @@ def get_font(size, font_name='arial'):
         _font_cache[cache_key] = font
         return font
     except Exception as e:
-        print(f"   Ã¢Å¡Â Ã¯Â¸Â Font '{font_name}' failed ({e}), using fallback...")
+        print(f"   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Font '{font_name}' failed ({e}), using fallback...")
     
     # Fallback to default
     try:
@@ -648,7 +648,7 @@ def add_silence_to_audio(audio_path, silence_duration, output_path):
     ]
     
     subprocess.run(cmd, check=True, capture_output=True)
-    print(f"   Ã¢Å“â€¦ Audio with silence created: {output_path}")
+    print(f"   ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Audio with silence created: {output_path}")
     return output_path
 
 
@@ -664,11 +664,11 @@ def get_watermark_logo():
         return _watermark_logo_cache
     
     if not WATERMARK_LOGO_URL:
-        print("   Ã¢Å¡Â Ã¯Â¸Â No watermark logo URL configured")
+        print("   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â No watermark logo URL configured")
         return None
     
     try:
-        print(f"   Ã°Å¸â€œÂ¥ Downloading watermark logo from {WATERMARK_LOGO_URL}")
+        print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¥ Downloading watermark logo from {WATERMARK_LOGO_URL}")
         response = requests.get(WATERMARK_LOGO_URL)
         response.raise_for_status()
         
@@ -682,11 +682,11 @@ def get_watermark_logo():
         logo = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
         
         _watermark_logo_cache = logo
-        print(f"   Ã¢Å“â€¦ Watermark logo loaded ({new_width}x{new_height})")
+        print(f"   ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Watermark logo loaded ({new_width}x{new_height})")
         return logo
         
     except Exception as e:
-        print(f"   Ã¢Å¡Â Ã¯Â¸Â Failed to load watermark logo: {e}")
+        print(f"   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Failed to load watermark logo: {e}")
         return None
 
 
@@ -701,7 +701,7 @@ def get_custom_watermark(url):
         return _custom_watermark_cache[url]
     
     try:
-        print(f"   Ã°Å¸â€œÂ¥ Downloading custom watermark from {url}")
+        print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¥ Downloading custom watermark from {url}")
         response = requests.get(url)
         response.raise_for_status()
         
@@ -723,11 +723,11 @@ def get_custom_watermark(url):
         logo = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
         
         _custom_watermark_cache[url] = logo
-        print(f"   Ã¢Å“â€¦ Custom watermark loaded ({new_width}x{new_height})")
+        print(f"   ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Custom watermark loaded ({new_width}x{new_height})")
         return logo
         
     except Exception as e:
-        print(f"   Ã¢Å¡Â Ã¯Â¸Â Failed to load custom watermark: {e}")
+        print(f"   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Failed to load custom watermark: {e}")
         return None
 
 
@@ -816,7 +816,7 @@ def apply_studio_watermark(frame, video_width, video_height, custom_watermark_ur
 
 def separate_vocals(audio_path, output_dir):
     """Use Demucs to separate vocals from instrumental"""
-    print("Ã°Å¸Å½Âµ Separating vocals with Demucs...")
+    print("ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Âµ Separating vocals with Demucs...")
     
     wav_input_path = os.path.join(output_dir, 'input_converted.wav')
     convert_to_wav(audio_path, wav_input_path)
@@ -861,7 +861,7 @@ def separate_vocals(audio_path, output_dir):
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     
-    print("Ã¢Å“â€¦ Vocal separation complete")
+    print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Vocal separation complete")
     return instrumental_path, vocals_path
 
 
@@ -878,7 +878,7 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
     - No dependency conflicts
     - Production-grade reliability
     """
-    print("Ã°Å¸â€œÂ Transcribing with AssemblyAI (precise alignment)...")
+    print("ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Transcribing with AssemblyAI (precise alignment)...")
     
     if not ASSEMBLYAI_API_KEY:
         raise ValueError("ASSEMBLYAI_API_KEY environment variable not set")
@@ -928,7 +928,7 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
         
         status = result['status']
         if status == 'completed':
-            print("   Ã¢Å“â€¦ Transcription complete!")
+            print("   ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Transcription complete!")
             break
         elif status == 'error':
             raise Exception(f"AssemblyAI transcription failed: {result.get('error', 'Unknown error')}")
@@ -953,26 +953,26 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
                 'confidence': word_info.get('confidence', 1.0)
             })
     
-    print(f"Ã¢Å“â€¦ AssemblyAI returned {len(lyrics)} words with precise timestamps")
+    print(f"ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ AssemblyAI returned {len(lyrics)} words with precise timestamps")
     
     # Debug: Show first 5 words and their timestamps
-    print("   Ã°Å¸â€œÅ  First 5 words timing:")
+    print("   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â  First 5 words timing:")
     for i, w in enumerate(lyrics[:5]):
         print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s")
     
     # If user provided lyrics, auto-correct low-confidence words first
     if user_lyrics_text and len(user_lyrics_text.strip()) > 50:
-        print("ðŸ” Checking for low-confidence words to auto-correct...")
+        print("Ã°Å¸â€Â Checking for low-confidence words to auto-correct...")
         lyrics, correction_count = auto_correct_low_confidence_words(lyrics, user_lyrics_text)
         
-        print("ðŸ“ Mapping user lyrics to AssemblyAI timestamps...")
+        print("Ã°Å¸â€œÂ Mapping user lyrics to AssemblyAI timestamps...")
         lyrics = align_user_lyrics_to_timestamps(user_lyrics_text, lyrics)
 
         # Debug: Show first 10 aligned words with gap analysis
 <<<<<<< HEAD
-        print("   ðŸ“Š First 10 aligned words timing:")
+        print("   Ã°Å¸â€œÅ  First 10 aligned words timing:")
 =======
-        print("   📊 First 10 aligned words timing:")
+        print("   ðŸ“Š First 10 aligned words timing:")
 >>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
         for i, w in enumerate(lyrics[:10]):
             gap_info = ""
@@ -980,18 +980,18 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
                 gap = w['start'] - lyrics[i-1]['end']
                 if gap > 0.5:
 <<<<<<< HEAD
-                    gap_info = f" âš ï¸ GAP: {gap:.2f}s"
+                    gap_info = f" Ã¢Å¡Â Ã¯Â¸Â GAP: {gap:.2f}s"
 =======
-                    gap_info = f" ⚠️ GAP: {gap:.2f}s"
+                    gap_info = f" âš ï¸ GAP: {gap:.2f}s"
 >>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
             duration = w['end'] - w['start']
             print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s (duration: {duration:.2f}s){gap_info}")
         
         # Check for problematic timing patterns
 <<<<<<< HEAD
-        print("   ðŸ” Checking for timing issues...")
+        print("   Ã°Å¸â€Â Checking for timing issues...")
 =======
-        print("   🔍 Checking for timing issues...")
+        print("   ðŸ” Checking for timing issues...")
 >>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
         issues_found = 0
         for i, w in enumerate(lyrics):
@@ -999,9 +999,9 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
             # Flag words with unusually long durations (> 3 seconds)
             if duration > 3.0:
 <<<<<<< HEAD
-                print(f"      âš ï¸ Long word duration: '{w['word']}' lasts {duration:.2f}s (index {i})")
+                print(f"      Ã¢Å¡Â Ã¯Â¸Â Long word duration: '{w['word']}' lasts {duration:.2f}s (index {i})")
 =======
-                print(f"      ⚠️ Long word duration: '{w['word']}' lasts {duration:.2f}s (index {i})")
+                print(f"      âš ï¸ Long word duration: '{w['word']}' lasts {duration:.2f}s (index {i})")
 >>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
                 issues_found += 1
             # Flag large gaps between words (> 5 seconds)
@@ -1009,6 +1009,18 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
                 gap = w['start'] - lyrics[i-1]['end']
                 if gap > 5.0:
 <<<<<<< HEAD
+                    print(f"      Ã¢Å¡Â Ã¯Â¸Â Large gap before '{w['word']}': {gap:.2f}s gap (index {i})")
+                    issues_found += 1
+            # Flag if end time is before start time (shouldn't happen)
+            if w['end'] < w['start']:
+                print(f"      Ã¢ÂÅ’ Invalid timing: '{w['word']}' ends before it starts! (index {i})")
+                issues_found += 1
+        
+        if issues_found == 0:
+            print("      Ã¢Å“â€¦ No timing issues detected")
+        else:
+            print(f"      Ã¢Å¡Â Ã¯Â¸Â Found {issues_found} potential timing issues")
+=======
                     print(f"      âš ï¸ Large gap before '{w['word']}': {gap:.2f}s gap (index {i})")
                     issues_found += 1
             # Flag if end time is before start time (shouldn't happen)
@@ -1020,18 +1032,6 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
             print("      âœ… No timing issues detected")
         else:
             print(f"      âš ï¸ Found {issues_found} potential timing issues")
-=======
-                    print(f"      ⚠️ Large gap before '{w['word']}': {gap:.2f}s gap (index {i})")
-                    issues_found += 1
-            # Flag if end time is before start time (shouldn't happen)
-            if w['end'] < w['start']:
-                print(f"      ❌ Invalid timing: '{w['word']}' ends before it starts! (index {i})")
-                issues_found += 1
-        
-        if issues_found == 0:
-            print("      ✅ No timing issues detected")
-        else:
-            print(f"      ⚠️ Found {issues_found} potential timing issues")
 >>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
     
     return lyrics
@@ -1059,16 +1059,16 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
     print(f"   User line breaks at indices: {sorted(line_break_indices)[:10]}{'...' if len(line_break_indices) > 10 else ''}")
     
     if len(api_lyrics) == 0:
-        print("   âš ï¸ No API words - returning empty")
+        print("   Ã¢Å¡Â Ã¯Â¸Â No API words - returning empty")
         return []
     
     if len(user_words) == 0:
-        print("   âš ï¸ No user words - using API transcription")
+        print("   Ã¢Å¡Â Ã¯Â¸Â No user words - using API transcription")
         return api_lyrics
     
     # Check if word counts match exactly
     if len(user_words) == len(api_lyrics):
-        print(f"   âœ… Word counts match exactly - using user words with API timestamps")
+        print(f"   Ã¢Å“â€¦ Word counts match exactly - using user words with API timestamps")
         aligned = []
         matches = 0
         
@@ -1087,16 +1087,16 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
                 matches += 1
         
         match_percentage = (matches / len(user_words)) * 100
-        print(f"   ðŸ“Š Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
-        print(f"   ðŸ“ Applied {len(line_break_indices)} line breaks from user lyrics")
-        print(f"âœ… Aligned {len(aligned)} user words with AssemblyAI timestamps")
+        print(f"   Ã°Å¸â€œÅ  Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
+        print(f"   Ã°Å¸â€œÂ Applied {len(line_break_indices)} line breaks from user lyrics")
+        print(f"Ã¢Å“â€¦ Aligned {len(aligned)} user words with AssemblyAI timestamps")
         return aligned
     
     # Word counts differ - check how different
     count_diff = abs(len(user_words) - len(api_lyrics))
     diff_percentage = (count_diff / max(len(user_words), len(api_lyrics))) * 100
     
-    print(f"   ðŸ“Š Word count difference: {count_diff} words ({diff_percentage:.1f}%)")
+    print(f"   Ã°Å¸â€œÅ  Word count difference: {count_diff} words ({diff_percentage:.1f}%)")
     
     # If difference is small (< 15%), try to align anyway using user words
     # This handles cases where API split/merged a few words differently
@@ -1113,19 +1113,19 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
             # If less than 50% match, the lyrics are too different - use API transcription
             if match_percentage < 50:
 <<<<<<< HEAD
+                print(f"   Ã¢Å¡Â Ã¯Â¸Â Word similarity too low ({match_percentage:.1f}%) - using API transcription for accurate timing")
+                print(f"Ã¢Å“â€¦ Using {len(api_lyrics)} AssemblyAI words with original timestamps")
+                return api_lyrics
+            
+            # Good match - use user words with API timestamps
+            print(f"   Ã°Å¸â€â€ž Small difference - using user words with API timestamps (1:1 mapping)")
+=======
                 print(f"   âš ï¸ Word similarity too low ({match_percentage:.1f}%) - using API transcription for accurate timing")
                 print(f"âœ… Using {len(api_lyrics)} AssemblyAI words with original timestamps")
                 return api_lyrics
             
             # Good match - use user words with API timestamps
             print(f"   ðŸ”„ Small difference - using user words with API timestamps (1:1 mapping)")
-=======
-                print(f"   ⚠️ Word similarity too low ({match_percentage:.1f}%) - using API transcription for accurate timing")
-                print(f"✅ Using {len(api_lyrics)} AssemblyAI words with original timestamps")
-                return api_lyrics
-            
-            # Good match - use user words with API timestamps
-            print(f"   🔄 Small difference - using user words with API timestamps (1:1 mapping)")
 >>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
             aligned = []
             
@@ -1139,18 +1139,18 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
                 })
             
 <<<<<<< HEAD
+            print(f"   Ã°Å¸â€œÅ  Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
+            print(f"   Ã°Å¸â€œÂ Applied {len(line_break_indices)} line breaks from user lyrics")
+            print(f"Ã¢Å“â€¦ Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
+=======
             print(f"   ðŸ“Š Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
             print(f"   ðŸ“ Applied {len(line_break_indices)} line breaks from user lyrics")
             print(f"âœ… Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
-=======
-            print(f"   📊 Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
-            print(f"   📝 Applied {len(line_break_indices)} line breaks from user lyrics")
-            print(f"✅ Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
 >>>>>>> f93c0b92a72b91727f216cde0fcd2869bfffbe10
             return aligned
         else:
             # User has MORE words than API - fit user words to available timestamps
-            print(f"   ðŸ”„ User has more words - fitting {len(user_words)} user words to {len(api_lyrics)} timestamps")
+            print(f"   Ã°Å¸â€â€ž User has more words - fitting {len(user_words)} user words to {len(api_lyrics)} timestamps")
             aligned = []
             
             # Calculate how to distribute extra words across timestamps
@@ -1180,14 +1180,14 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
             
             extra_words = len(user_words) - len(api_lyrics)
             applied_breaks = sum(1 for w in aligned if w.get('lineBreak', False))
-            print(f"   ðŸ“Š Combined {len(user_words)} user words into {len(aligned)} timed slots")
-            print(f"   ðŸ“ Applied {applied_breaks} line breaks from user lyrics")
-            print(f"âœ… Aligned user lyrics with {extra_words} extra words distributed across timestamps")
+            print(f"   Ã°Å¸â€œÅ  Combined {len(user_words)} user words into {len(aligned)} timed slots")
+            print(f"   Ã°Å¸â€œÂ Applied {applied_breaks} line breaks from user lyrics")
+            print(f"Ã¢Å“â€¦ Aligned user lyrics with {extra_words} extra words distributed across timestamps")
             return aligned
     
     # Word counts too different - use API transcription for perfect timing
-    print(f"   âš ï¸ Word counts too different - using API transcription for perfect timing")
-    print(f"âœ… Using {len(api_lyrics)} AssemblyAI words with original timestamps")
+    print(f"   Ã¢Å¡Â Ã¯Â¸Â Word counts too different - using API transcription for perfect timing")
+    print(f"Ã¢Å“â€¦ Using {len(api_lyrics)} AssemblyAI words with original timestamps")
     return api_lyrics
 
 def parse_lyrics_text(lyrics_text):
@@ -1315,7 +1315,7 @@ def auto_correct_low_confidence_words(api_lyrics, user_lyrics_text):
                 })
                 used_user_indices.add(best_idx)
                 corrections += 1
-                print(f"      ðŸ”§ Auto-corrected: '{api_word['word']}' â†’ '{user_word}' (confidence: {confidence:.0%})")
+                print(f"      Ã°Å¸â€Â§ Auto-corrected: '{api_word['word']}' Ã¢â€ â€™ '{user_word}' (confidence: {confidence:.0%})")
             else:
                 # No user word available, keep API word
                 corrected_lyrics.append({
@@ -1334,7 +1334,7 @@ def auto_correct_low_confidence_words(api_lyrics, user_lyrics_text):
             })
     
     if corrections > 0:
-        print(f"   âœ¨ Auto-corrected {corrections} low-confidence words using uploaded lyrics")
+        print(f"   Ã¢Å“Â¨ Auto-corrected {corrections} low-confidence words using uploaded lyrics")
     
     return corrected_lyrics, corrections
 
@@ -1977,8 +1977,8 @@ def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, hei
 
 def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None):
     """Generate video with lyrics and countdown. Supports video/image backgrounds."""
-    print(f"🎬 Generating video (mode: {display_mode}, background: {bg_type})...")
-    print(f"   ðŸ‘¤ Subscription tier: {subscription_tier}")
+    print(f"ðŸŽ¬ Generating video (mode: {display_mode}, background: {bg_type})...")
+    print(f"   Ã°Å¸â€˜Â¤ Subscription tier: {subscription_tier}")
     
     # Determine watermark behavior based on tier
     # Free: Karatrack watermark
@@ -1988,11 +1988,11 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     apply_custom_watermark = subscription_tier == 'studio' and custom_watermark_url
     
     if apply_watermark_to_video:
-        print("   Ã°Å¸ÂÂ·Ã¯Â¸Â Karatrack watermark will be applied (free tier)")
+        print("   ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â·ÃƒÂ¯Ã‚Â¸Ã‚Â Karatrack watermark will be applied (free tier)")
     elif apply_custom_watermark:
-        print(f"   Ã°Å¸ÂÂ·Ã¯Â¸Â Custom watermark will be applied (Studio tier)")
+        print(f"   ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â·ÃƒÂ¯Ã‚Â¸Ã‚Â Custom watermark will be applied (Studio tier)")
     else:
-        print("   Ã¢Å“Â¨ No watermark (paid tier)")
+        print("   ÃƒÂ¢Ã…â€œÃ‚Â¨ No watermark (paid tier)")
     
     # Default style options if not provided
     if style_options is None:
@@ -2033,7 +2033,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         'font': style_options.get('font', 'arial'),
     }
     
-    print(f"   Ã°Å¸Å½Â¨ Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}, font={colors['font']}, font_scale={font_size_scale}")
+    print(f"   ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¨ Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}, font={colors['font']}, font_scale={font_size_scale}")
     
     if video_quality == '4k':
         width, height = 3840, 2160
@@ -2049,10 +2049,10 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     if bg_type == 'video' and bg_video_path:
         try:
             video_reader = VideoBackgroundReader(bg_video_path, width, height, FPS)
-            print(f"   📹 Video background loaded: {video_reader.duration:.1f}s duration, will loop as needed")
+            print(f"   ðŸ“¹ Video background loaded: {video_reader.duration:.1f}s duration, will loop as needed")
         except Exception as e:
-            print(f"   ⚠️ Failed to load video background: {e}")
-            print(f"   ⚠️ Falling back to gradient background")
+            print(f"   âš ï¸ Failed to load video background: {e}")
+            print(f"   âš ï¸ Falling back to gradient background")
             bg_type = 'gradient'
     
     # Add silence to beginning of audio for intro screen
@@ -2069,7 +2069,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         offset_word['end'] = word['end'] + INTRO_DURATION
         offset_lyrics.append(offset_word)
     
-    print(f"   Ã¢ÂÂ±Ã¯Â¸Â Lyrics offset by {INTRO_DURATION}s for intro")
+    print(f"   ÃƒÂ¢Ã‚ÂÃ‚Â±ÃƒÂ¯Ã‚Â¸Ã‚Â Lyrics offset by {INTRO_DURATION}s for intro")
     
     # Get duration of audio WITH intro silence
     total_duration = get_audio_duration(audio_with_intro)
@@ -2111,7 +2111,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
                 'is_intro': True,
                 'countdown_start': countdown_start
             })
-            print(f"   Ã¢Å¾â€¢ Added intro countdown gap: {INTRO_DURATION}s to {first_lyric_time:.2f}s")
+            print(f"   ÃƒÂ¢Ã…Â¾Ã¢â‚¬Â¢ Added intro countdown gap: {INTRO_DURATION}s to {first_lyric_time:.2f}s")
     
     # Calculate countdown start times for each gap
     for gap in offset_gaps:
@@ -2127,10 +2127,10 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     outro_start = fadeout_end if offset_lyrics else INTRO_DURATION + 2
     has_outro_text = outro_text and subscription_tier == 'studio'
     if has_outro_text:
-        print(f"   ðŸ“ Outro text enabled: '{outro_text[:50]}...' (starts at {outro_start:.2f}s)")
+        print(f"   Ã°Å¸â€œÂ Outro text enabled: '{outro_text[:50]}...' (starts at {outro_start:.2f}s)")
     
     # Debug: Log timing info
-    print(f"   Ã°Å¸â€œÅ  Timing debug:")
+    print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â  Timing debug:")
     print(f"      Total duration (with intro): {total_duration:.2f}s")
     print(f"      Intro duration: {INTRO_DURATION}s ({intro_frames} frames)")
     print(f"      Total frames: {total_frames}")
@@ -2162,7 +2162,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
                     
                     # Debug: Log first time we enter this countdown gap
                     if gap_idx not in countdown_gaps_logged:
-                        print(f"   Ã°Å¸â€Âµ COUNTDOWN GAP {gap_idx+1}: frame {frame_num}, time={current_time:.2f}s, remaining={countdown_remaining:.2f}s, lyrics resume at {gap['end']:.2f}s")
+                        print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Âµ COUNTDOWN GAP {gap_idx+1}: frame {frame_num}, time={current_time:.2f}s, remaining={countdown_remaining:.2f}s, lyrics resume at {gap['end']:.2f}s")
                         countdown_gaps_logged.add(gap_idx)
                     
                     frame = create_countdown_frame_with_preview(
@@ -2179,7 +2179,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
             if not in_countdown:
                 # Debug: Log when first lyric should appear
                 if not first_lyric_logged and offset_lyrics and current_time >= offset_lyrics[0]['start']:
-                    print(f"   Ã°Å¸â€œÅ  First lyric should appear now: frame {frame_num}, current_time={current_time:.2f}s")
+                    print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â  First lyric should appear now: frame {frame_num}, current_time={current_time:.2f}s")
                     first_lyric_logged = True
                 
                 # Check if we're in fadeout period
@@ -2247,9 +2247,9 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     # Close video reader to free resources
     if video_reader:
         video_reader.close()
-        print("   📹 Video background reader closed")
+        print("   ðŸ“¹ Video background reader closed")
 
-    print("Ã°Å¸â€Â§ Encoding video with FFmpeg...")
+    print("ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â§ Encoding video with FFmpeg...")
     
     # Use audio_with_intro which has silence at the beginning
     ffmpeg_cmd = [
@@ -2272,7 +2272,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     import shutil
     shutil.rmtree(frames_dir)
     
-    print("Ã¢Å“â€¦ Video generation complete")
+    print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Video generation complete")
     return output_path
 
 
@@ -2336,20 +2336,20 @@ def handler(event):
         bg_video_url = input_data.get('bg_video_url')  # Custom video URL (user uploads)
         bg_image_url = input_data.get('bg_image_url')  # Custom image URL
         
-        print(f"Ã°Å¸Å½Â¤ Processing project: {project_id}")
+        print(f"ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¤ Processing project: {project_id}")
         print(f"   Type: {processing_type}")
         print(f"   Lyrics provided: {'Yes' if user_lyrics_text else 'No (auto-transcribe)'}")
         print(f"   Display mode: {display_mode}")
         print(f"   Clean version: {clean_version}")
         print(f"   Quality: {video_quality}")
-        print(f"   Ã°Å¸â€˜Â¤ Subscription tier: {subscription_tier}")
-        print(f"   Ã°Å¸Å½Â¨ Style: bg={style_options['bg_color_1']}, text={style_options['text_color']}, sung={style_options['sung_color']}")
-        print(f"   Ã°Å¸Å¡â‚¬ Using AssemblyAI for precise timing!")
+        print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬ËœÃ‚Â¤ Subscription tier: {subscription_tier}")
+        print(f"   ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¨ Style: bg={style_options['bg_color_1']}, text={style_options['text_color']}, sung={style_options['sung_color']}")
+        print(f"   ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬ Using AssemblyAI for precise timing!")
         print(f"   [4.1] Lyrics comparison uses NORMALIZED matching (ignores punctuation/case)")
         
         # Check processing mode early
         processing_mode = input_data.get('processing_mode', 'full')
-        print(f"   Ã°Å¸â€œâ€¹ Processing mode: {processing_mode}")
+        print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Processing mode: {processing_mode}")
         
         work_dir = tempfile.mkdtemp()
         results = {}
@@ -2361,7 +2361,7 @@ def handler(event):
         if bg_type == 'video':
             bg_video_path = download_video_background(bg_type, bg_video_preset, bg_video_url, work_dir)
             if not bg_video_path:
-                print("   ⚠️ Video background not available, falling back to gradient")
+                print("   âš ï¸ Video background not available, falling back to gradient")
                 bg_type = 'gradient'
         
         if bg_type == 'image' and bg_image_url:
@@ -2377,12 +2377,12 @@ def handler(event):
             
             bg_image = download_image_background(bg_type, bg_image_url, work_dir, img_width, img_height)
             if not bg_image:
-                print("   ⚠️ Image background not available, falling back to gradient")
+                print("   âš ï¸ Image background not available, falling back to gradient")
                 bg_type = 'gradient'
         
         # RENDER_ONLY MODE: Skip vocal separation, use existing processed audio
         if processing_mode == 'render_only':
-            print("Ã°Å¸Å½Â¬ Render-only mode - using existing processed audio")
+            print("ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¬ Render-only mode - using existing processed audio")
             
             # Get the already-processed audio URL
             processed_audio_url = input_data.get('processed_audio_url')
@@ -2391,7 +2391,7 @@ def handler(event):
             
             # Download the processed audio
             instrumental_path = os.path.join(work_dir, 'instrumental.wav')
-            print(f"Ã°Å¸â€œÂ¥ Downloading processed audio from {processed_audio_url}")
+            print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¥ Downloading processed audio from {processed_audio_url}")
             download_file(processed_audio_url, instrumental_path)
             
             # Get edited lyrics from input
@@ -2399,7 +2399,7 @@ def handler(event):
             if not lyrics:
                 raise ValueError("render_only mode requires edited_lyrics")
             
-            print(f"Ã°Å¸â€œÂ Using {len(lyrics)} edited lyrics from user")
+            print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Using {len(lyrics)} edited lyrics from user")
             
             # Keep existing URLs
             results['processed_audio_url'] = processed_audio_url
@@ -2419,10 +2419,10 @@ def handler(event):
         else:
             # FULL or TRANSCRIBE_ONLY MODE: Do vocal separation and transcription
             audio_path = os.path.join(work_dir, 'input_audio.mp3')
-            print(f"Ã°Å¸â€œÂ¥ Downloading audio from {audio_url}")
+            print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¥ Downloading audio from {audio_url}")
             download_file(audio_url, audio_path)
             
-            print("Ã°Å¸Å½Âµ Starting vocal separation...")
+            print("ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Âµ Starting vocal separation...")
             instrumental_path, vocals_path = separate_vocals(audio_path, work_dir)
             
             if processing_type in ['remove_vocals']:
@@ -2431,7 +2431,7 @@ def handler(event):
             
             elif processing_type == 'guide_vocals':
                 # Guide Vocals mode: Mix instrumental (100%) + vocals (30%) for singers who need guidance
-                print("Ã°Å¸Å½Â¤ Creating guide vocals track (instrumental + 30% vocals)...")
+                print("ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¤ Creating guide vocals track (instrumental + 30% vocals)...")
                 
                 # Load both tracks
                 instrumental_wav, sr = torchaudio.load(instrumental_path)
@@ -2469,7 +2469,7 @@ def handler(event):
                 # IMPORTANT: Use guide vocals mix for video generation
                 instrumental_path = guide_path
                 
-                print("Ã¢Å“â€¦ Guide vocals track created")
+                print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Guide vocals track created")
             
             # LYRICS PROCESSING - NOW USING ASSEMBLYAI
             lyrics = []
@@ -2480,7 +2480,7 @@ def handler(event):
                 lyrics = transcribe_with_assemblyai(vocals_path, user_lyrics_text)
                 
                 if clean_version and lyrics:
-                    print("Ã°Å¸â€ºÂ¡Ã¯Â¸Â Applying profanity filter...")
+                    print("ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â Applying profanity filter...")
                     print(f"   Processing {len(lyrics)} words...")
                     lyrics = apply_profanity_filter(lyrics)
                 
@@ -2493,10 +2493,10 @@ def handler(event):
             
             # Check if transcribe_only - stop here
             if processing_mode == 'transcribe_only':
-                print("Ã°Å¸â€œâ€¹ Transcribe-only mode - skipping video generation")
+                print("ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Transcribe-only mode - skipping video generation")
                 
                 if callback_url:
-                    print(f"Ã°Å¸â€œÂ¤ Sending callback to {callback_url}")
+                    print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¤ Sending callback to {callback_url}")
                     requests.post(callback_url, json={
                         'project_id': project_id,
                         'status': 'transcribed',
@@ -2506,7 +2506,7 @@ def handler(event):
                 import shutil
                 shutil.rmtree(work_dir)
                 
-                print("Ã¢Å“â€¦ Transcription complete!")
+                print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Transcription complete!")
                 return {
                     'status': 'transcribed',
                     'project_id': project_id,
@@ -2517,7 +2517,7 @@ def handler(event):
         audio_duration = get_audio_duration(instrumental_path if instrumental_path else audio_path)
         
         selected_display_mode = select_display_mode(lyrics, audio_duration, display_mode)
-        print(f"Ã°Å¸â€œÂº Selected display mode: {selected_display_mode}")
+        print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Âº Selected display mode: {selected_display_mode}")
         
         video_path = os.path.join(work_dir, f'{project_id}_output.mp4')
         audio_for_video = instrumental_path if instrumental_path else audio_path
@@ -2543,7 +2543,7 @@ def handler(event):
         results['video_url'] = upload_to_r2(video_path, video_key)
         
         if callback_url:
-            print(f"Ã°Å¸â€œÂ¤ Sending callback to {callback_url}")
+            print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¤ Sending callback to {callback_url}")
             requests.post(callback_url, json={
                 'project_id': project_id,
                 'status': 'completed',
@@ -2553,7 +2553,7 @@ def handler(event):
         import shutil
         shutil.rmtree(work_dir)
         
-        print("Ã¢Å“â€¦ Processing complete!")
+        print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Processing complete!")
         return {
             'status': 'completed',
             'project_id': project_id,
@@ -2561,7 +2561,7 @@ def handler(event):
         }
         
     except Exception as e:
-        print(f"Ã¢ÂÅ’ Error: {str(e)}")
+        print(f"ÃƒÂ¢Ã‚ÂÃ…â€™ Error: {str(e)}")
         import traceback
         traceback.print_exc()
         
