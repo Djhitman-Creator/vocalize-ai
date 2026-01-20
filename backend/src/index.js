@@ -1570,6 +1570,12 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       // FIX: Include custom watermark URL from PROJECT (not profile) for Studio tier re-renders
       custom_watermark_url: project.custom_watermark_url || null,
       outro_text: project.outro_text || null,
+      font_size: project.font_size || 'medium',
+      // Video background options
+      bg_type: project.bg_type || 'gradient',
+      bg_video_preset: project.bg_video_preset_filename || null,
+      bg_video_url: project.bg_video_url || null,
+      bg_image_url: project.bg_image_url || null,
     });
 
     await supabase
