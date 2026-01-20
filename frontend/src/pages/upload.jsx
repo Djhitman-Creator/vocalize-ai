@@ -46,7 +46,8 @@ import {
   Settings,
   Sparkles,
   Grid3X3,
-  Filter
+  Filter,
+  Users
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import AppNavigation from '../components/AppNavigation';
@@ -183,7 +184,11 @@ const DEFAULT_SETTINGS = {
   processingType: 'remove_vocals',
   cleanVersion: false,
   notifyOnComplete: true,
-  reviewLyrics: false
+  reviewLyrics: false,
+  isDuetMode: false,
+  duetSinger1Color: '#00FFFF',
+  duetSinger2Color: '#FF69B4',
+  duetBothColor: '#FFD700'
 };
 
 // Sample lyrics for preview
@@ -230,6 +235,12 @@ export default function UploadPage() {
   const [sungColor, setSungColor] = useState('#00d4ff');
   const [selectedFont, setSelectedFont] = useState('arial');
   const [fontSize, setFontSize] = useState('normal');
+
+  // Duet mode settings
+  const [isDuetMode, setIsDuetMode] = useState(false);
+  const [duetSinger1Color, setDuetSinger1Color] = useState('#00FFFF');
+  const [duetSinger2Color, setDuetSinger2Color] = useState('#FF69B4');
+  const [duetBothColor, setDuetBothColor] = useState('#FFD700');
 
   // Custom watermark (Studio only)
   const [customWatermark, setCustomWatermark] = useState(null);
@@ -348,6 +359,12 @@ export default function UploadPage() {
     if (prefs.cleanVersion !== undefined) setCleanVersion(prefs.cleanVersion);
     if (prefs.notifyOnComplete !== undefined) setNotifyOnComplete(prefs.notifyOnComplete);
     if (prefs.reviewLyrics !== undefined) setReviewLyrics(prefs.reviewLyrics);
+
+    // Duet mode settings
+    if (prefs.isDuetMode !== undefined) setIsDuetMode(prefs.isDuetMode);
+    if (prefs.duetSinger1Color) setDuetSinger1Color(prefs.duetSinger1Color);
+    if (prefs.duetSinger2Color) setDuetSinger2Color(prefs.duetSinger2Color);
+    if (prefs.duetBothColor) setDuetBothColor(prefs.duetBothColor);
 
     // Video quality
     if (prefs.videoQuality) {
@@ -537,7 +554,11 @@ export default function UploadPage() {
         processingType,
         cleanVersion,
         notifyOnComplete,
-        reviewLyrics
+        reviewLyrics,
+        isDuetMode,
+        duetSinger1Color,
+        duetSinger2Color,
+        duetBothColor
       };
 
       // Handle watermark upload for Studio users
@@ -614,6 +635,10 @@ export default function UploadPage() {
     setProcessingType(DEFAULT_SETTINGS.processingType);
     setCleanVersion(DEFAULT_SETTINGS.cleanVersion);
     setVideoQuality(isFreeUser() ? '480p' : '720p');
+    setIsDuetMode(false);
+    setDuetSinger1Color('#00FFFF');
+    setDuetSinger2Color('#FF69B4');
+    setDuetBothColor('#FFD700');
   };
 
   // Form submit handler
@@ -675,6 +700,14 @@ export default function UploadPage() {
       formData.append('sung_color', sungColor);
       formData.append('font', selectedFont);
       formData.append('font_size', fontSize);
+
+      // Duet mode settings
+      formData.append('is_duet_mode', isDuetMode.toString());
+      if (isDuetMode) {
+        formData.append('duet_singer1_color', duetSinger1Color);
+        formData.append('duet_singer2_color', duetSinger2Color);
+        formData.append('duet_both_color', duetBothColor);
+      }
 
       // Studio features
       if (isStudioUser()) {
@@ -991,6 +1024,107 @@ export default function UploadPage() {
   // Render text tab content
   const renderTextTab = () => (
     <div className="space-y-4">
+      {/* Duet Mode Toggle */}
+      <div className={`p-3 rounded-xl border ${isDuetMode 
+        ? 'bg-gradient-to-r from-cyan-500/10 to-pink-500/10 border-cyan-400/30' 
+        : isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Users className={`w-5 h-5 ${isDuetMode ? 'text-cyan-400' : 'text-gray-500'}`} />
+            <div>
+              <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                Duet Mode
+              </p>
+              <p className="text-xs text-gray-500">
+                Assign different colors to different singers
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsDuetMode(!isDuetMode)}
+            className={`relative w-12 h-6 rounded-full transition-colors ${
+              isDuetMode ? 'bg-gradient-to-r from-cyan-500 to-pink-500' : isDark ? 'bg-gray-600' : 'bg-gray-300'
+            }`}
+          >
+            <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform shadow ${
+              isDuetMode ? 'translate-x-6' : ''
+            }`} />
+          </button>
+        </div>
+        
+        {/* Duet Mode Color Pickers (only shown when enabled) */}
+        {isDuetMode && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-3 pt-3 border-t border-white/10"
+          >
+            <p className="text-xs text-gray-500 mb-3">
+              Configure singer colors here. Assign words to singers on the Edit Lyrics page.
+            </p>
+            <div className="grid grid-cols-3 gap-3">
+              {/* Singer 1 */}
+              <div>
+                <label className="block text-[10px] text-gray-500 mb-1">Singer 1</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="color"
+                    value={duetSinger1Color}
+                    onChange={(e) => setDuetSinger1Color(e.target.value)}
+                    className="w-8 h-8 rounded cursor-pointer border-0"
+                  />
+                  <input
+                    type="text"
+                    value={duetSinger1Color}
+                    onChange={(e) => setDuetSinger1Color(e.target.value)}
+                    className="glass-input flex-1 px-2 py-1 rounded text-[10px] uppercase"
+                  />
+                </div>
+              </div>
+              {/* Singer 2 */}
+              <div>
+                <label className="block text-[10px] text-gray-500 mb-1">Singer 2</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="color"
+                    value={duetSinger2Color}
+                    onChange={(e) => setDuetSinger2Color(e.target.value)}
+                    className="w-8 h-8 rounded cursor-pointer border-0"
+                  />
+                  <input
+                    type="text"
+                    value={duetSinger2Color}
+                    onChange={(e) => setDuetSinger2Color(e.target.value)}
+                    className="glass-input flex-1 px-2 py-1 rounded text-[10px] uppercase"
+                  />
+                </div>
+              </div>
+              {/* Both */}
+              <div>
+                <label className="block text-[10px] text-gray-500 mb-1">Both</label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="color"
+                    value={duetBothColor}
+                    onChange={(e) => setDuetBothColor(e.target.value)}
+                    className="w-8 h-8 rounded cursor-pointer border-0"
+                  />
+                  <input
+                    type="text"
+                    value={duetBothColor}
+                    onChange={(e) => setDuetBothColor(e.target.value)}
+                    className="glass-input flex-1 px-2 py-1 rounded text-[10px] uppercase"
+                  />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
         {/* Font Selection */}
         <div>
@@ -1024,69 +1158,83 @@ export default function UploadPage() {
           </select>
         </div>
 
-        {/* Text Color */}
-        <div>
-          <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Text Color
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={textColor}
-              onChange={(e) => setTextColor(e.target.value)}
-              className="w-10 h-10 rounded-lg cursor-pointer border-0"
-            />
-            <input
-              type="text"
-              value={textColor}
-              onChange={(e) => setTextColor(e.target.value)}
-              className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
-            />
+        {/* Text Color - Only show when NOT in duet mode */}
+        {!isDuetMode && (
+          <div>
+            <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Text Color
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={textColor}
+                onChange={(e) => setTextColor(e.target.value)}
+                className="w-10 h-10 rounded-lg cursor-pointer border-0"
+              />
+              <input
+                type="text"
+                value={textColor}
+                onChange={(e) => setTextColor(e.target.value)}
+                className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Text Outline */}
-        <div>
-          <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Text Outline
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={outlineColor}
-              onChange={(e) => setOutlineColor(e.target.value)}
-              className="w-10 h-10 rounded-lg cursor-pointer border-0"
-            />
-            <input
-              type="text"
-              value={outlineColor}
-              onChange={(e) => setOutlineColor(e.target.value)}
-              className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
-            />
+        {/* Text Outline - Only show when NOT in duet mode */}
+        {!isDuetMode && (
+          <div>
+            <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Text Outline
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={outlineColor}
+                onChange={(e) => setOutlineColor(e.target.value)}
+                className="w-10 h-10 rounded-lg cursor-pointer border-0"
+              />
+              <input
+                type="text"
+                value={outlineColor}
+                onChange={(e) => setOutlineColor(e.target.value)}
+                className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Sung Color */}
-        <div className="col-span-2">
-          <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Sung Color (Highlighted Text)
-          </label>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={sungColor}
-              onChange={(e) => setSungColor(e.target.value)}
-              className="w-10 h-10 rounded-lg cursor-pointer border-0"
-            />
-            <input
-              type="text"
-              value={sungColor}
-              onChange={(e) => setSungColor(e.target.value)}
-              className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
-            />
-            <span className="text-xs text-gray-500">First line shows this color</span>
+        {/* Sung Color - Only show when NOT in duet mode */}
+        {!isDuetMode && (
+          <div className="col-span-2">
+            <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Sung Color (Highlighted Text)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={sungColor}
+                onChange={(e) => setSungColor(e.target.value)}
+                className="w-10 h-10 rounded-lg cursor-pointer border-0"
+              />
+              <input
+                type="text"
+                value={sungColor}
+                onChange={(e) => setSungColor(e.target.value)}
+                className="glass-input flex-1 px-2 py-2 rounded-lg text-xs uppercase"
+              />
+              <span className="text-xs text-gray-500">First line shows this color</span>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Duet mode message about standard colors */}
+        {isDuetMode && (
+          <div className="col-span-2 text-xs text-gray-500 bg-white/5 p-2 rounded-lg">
+            💡 In Duet Mode, standard text/outline/sung colors are replaced by singer-specific colors.
+            Configure them above or fine-tune on the Edit Lyrics page after processing.
+          </div>
+        )}
       </div>
     </div>
   );
