@@ -648,6 +648,7 @@ export default function UploadPage() {
       formData.append('clean_version', cleanVersion.toString());
       formData.append('notify_on_complete', notifyOnComplete.toString());
       formData.append('processing_mode', reviewLyrics ? 'transcribe_only' : 'full');
+      formData.append('include_lyrics', 'true');
 
       // Background settings
       formData.append('bg_type', bgType);
