@@ -79,7 +79,8 @@ const upload = multer({
   fileFilter: (req, file, cb) => {
     const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp3', 'audio/x-wav'];
     const imageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
-    if (audioTypes.includes(file.mimetype) || imageTypes.includes(file.mimetype)) {
+    const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
+    if (audioTypes.includes(file.mimetype) || imageTypes.includes(file.mimetype) || videoTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Invalid file type.'));
