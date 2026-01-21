@@ -1,11 +1,12 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V3)
+ * Preview/Edit Page - Karatrack Studio (V4)
  * 
- * FIXES in V3:
- * - Fixed lyrics not advancing - now groups words by timing if no line property
- * - Stable preview display between words
+ * V4 UPDATES:
+ * - ADD WORD: Insert a new word before or after selected word
+ * - DELETE WORD: Remove selected word(s) completely
+ * - Fixed lyrics not advancing in preview
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -15,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Play, Pause, SkipBack, Mic, Music2, Save, RotateCcw,
   ZoomIn, ZoomOut, Users, Check, X, Edit3, Loader2, AlertCircle,
-  CheckCircle, Maximize2, Minimize2
+  CheckCircle, Maximize2, Minimize2, Plus, Trash2
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
@@ -51,6 +52,11 @@ export default function PreviewPage() {
   const [editingWordIndex, setEditingWordIndex] = useState(null);
   const [editingText, setEditingText] = useState('');
 
+  // Add word modal state
+  const [showAddWordModal, setShowAddWordModal] = useState(false);
+  const [addWordPosition, setAddWordPosition] = useState('after'); // 'before' or 'after'
+  const [newWordText, setNewWordText] = useState('');
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -79,11 +85,9 @@ export default function PreviewPage() {
   const groupedLines = useCallback(() => {
     if (!words.length) return [];
     
-    // Check if words have line property
     const hasLineProperty = words.some(w => w.line !== undefined);
     
     if (hasLineProperty) {
-      // Group by line property
       const lineMap = {};
       words.forEach((word, idx) => {
         const lineNum = word.line || 0;
@@ -92,7 +96,6 @@ export default function PreviewPage() {
       });
       return Object.keys(lineMap).sort((a, b) => a - b).map(k => lineMap[k]);
     } else {
-      // Group by timing gaps (>0.5s gap = new line) or every 8 words
       const lines = [];
       let currentLine = [];
       
@@ -102,7 +105,6 @@ export default function PreviewPage() {
         const nextWord = words[idx + 1];
         const gap = nextWord ? nextWord.start - word.end : 0;
         
-        // Start new line if: gap > 0.5s, or 8+ words, or it's a line break
         if (gap > 0.5 || currentLine.length >= 8 || word.lineBreak) {
           lines.push(currentLine);
           currentLine = [];
@@ -166,8 +168,14 @@ export default function PreviewPage() {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.code === 'Space' && editingWordIndex === null) { e.preventDefault(); togglePlayback(); }
       if (e.code === 'Escape') {
-        if (editingWordIndex !== null) { setEditingWordIndex(null); setEditingText(''); }
+        if (showAddWordModal) { setShowAddWordModal(false); setNewWordText(''); }
+        else if (editingWordIndex !== null) { setEditingWordIndex(null); setEditingText(''); }
         else setSelectedWordIndices([]);
+      }
+      // Delete key to remove selected words
+      if ((e.code === 'Delete' || e.code === 'Backspace') && selectedWordIndices.length > 0 && editingWordIndex === null) {
+        e.preventDefault();
+        deleteSelectedWords();
       }
       if (selectedWordIndices.length > 0 && editingWordIndex === null) {
         if (e.code === 'ArrowLeft') { e.preventDefault(); nudgeSelectedWords(e.shiftKey ? -0.1 : -0.05); }
@@ -176,7 +184,7 @@ export default function PreviewPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedWordIndices, editingWordIndex, isPlaying]);
+  }, [selectedWordIndices, editingWordIndex, isPlaying, showAddWordModal]);
 
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) setDuration(instrumentalRef.current.duration);
@@ -269,6 +277,78 @@ export default function PreviewPage() {
     });
     setHasChanges(true);
   }, [selectedWordIndices]);
+
+  // DELETE SELECTED WORDS
+  const deleteSelectedWords = useCallback(() => {
+    if (selectedWordIndices.length === 0) return;
+    
+    const confirmMsg = selectedWordIndices.length === 1 
+      ? `Delete "${words[selectedWordIndices[0]].word}"?`
+      : `Delete ${selectedWordIndices.length} words?`;
+    
+    if (window.confirm(confirmMsg)) {
+      setWords(prev => {
+        // Sort indices in descending order to delete from end first
+        const sortedIndices = [...selectedWordIndices].sort((a, b) => b - a);
+        const updated = [...prev];
+        sortedIndices.forEach(index => {
+          updated.splice(index, 1);
+        });
+        return updated;
+      });
+      setSelectedWordIndices([]);
+      setHasChanges(true);
+    }
+  }, [selectedWordIndices, words]);
+
+  // ADD NEW WORD
+  const addNewWord = useCallback(() => {
+    if (!newWordText.trim() || selectedWordIndices.length !== 1) return;
+    
+    const selectedIndex = selectedWordIndices[0];
+    const selectedWord = words[selectedIndex];
+    
+    // Calculate timing for new word
+    let newWord;
+    if (addWordPosition === 'before') {
+      // Split the first half of the selected word's time for the new word
+      const midPoint = selectedWord.start + (selectedWord.end - selectedWord.start) / 2;
+      newWord = {
+        word: newWordText.trim(),
+        start: selectedWord.start,
+        end: midPoint,
+        confidence: 1.0
+      };
+      // Adjust selected word to start at midpoint
+      setWords(prev => {
+        const updated = [...prev];
+        updated[selectedIndex] = { ...updated[selectedIndex], start: midPoint };
+        updated.splice(selectedIndex, 0, newWord);
+        return updated;
+      });
+    } else {
+      // Split the second half of the selected word's time for the new word
+      const midPoint = selectedWord.start + (selectedWord.end - selectedWord.start) / 2;
+      newWord = {
+        word: newWordText.trim(),
+        start: midPoint,
+        end: selectedWord.end,
+        confidence: 1.0
+      };
+      // Adjust selected word to end at midpoint
+      setWords(prev => {
+        const updated = [...prev];
+        updated[selectedIndex] = { ...updated[selectedIndex], end: midPoint };
+        updated.splice(selectedIndex + 1, 0, newWord);
+        return updated;
+      });
+    }
+    
+    setShowAddWordModal(false);
+    setNewWordText('');
+    setSelectedWordIndices([]);
+    setHasChanges(true);
+  }, [newWordText, selectedWordIndices, words, addWordPosition]);
 
   const handleWordDragStart = useCallback((index, e) => {
     e.stopPropagation();
@@ -373,14 +453,11 @@ export default function PreviewPage() {
 
   const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
 
-  // FIXED: Get current lyrics for preview - now uses groupedLines
   const getCurrentLyrics = useCallback(() => {
     const lines = groupedLines();
     if (!lines.length) return { currentLine: null, next: '' };
     
-    // Find which line contains the current time
     let currentLineIdx = -1;
-    let currentWordInLine = -1;
     
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -388,24 +465,19 @@ export default function PreviewPage() {
         const word = line[j];
         if (currentTime >= word.start && currentTime <= word.end) {
           currentLineIdx = i;
-          currentWordInLine = j;
           break;
         }
       }
       if (currentLineIdx !== -1) break;
     }
     
-    // If not currently on a word, find which line we should be showing
     if (currentLineIdx === -1) {
-      // Find the next upcoming word
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (line.length > 0 && line[0].start > currentTime) {
-          // We're before this line - show it as upcoming
           if (i === 0) {
             return { currentLine: null, next: line.map(w => w.word).join(' ') };
           }
-          // Show previous line as current (already sung)
           const prevLine = lines[i - 1];
           const currentLineText = prevLine.map(w => ({
             word: w.word,
@@ -414,14 +486,12 @@ export default function PreviewPage() {
           }));
           return { currentLine: currentLineText, next: line.map(w => w.word).join(' ') };
         }
-        // Check if we're within this line's time range
         if (line.length > 0 && line[line.length - 1].end >= currentTime) {
           currentLineIdx = i;
           break;
         }
       }
       
-      // If still not found, we're past all lyrics
       if (currentLineIdx === -1) {
         if (lines.length > 0) {
           const lastLine = lines[lines.length - 1];
@@ -436,7 +506,6 @@ export default function PreviewPage() {
       }
     }
     
-    // Build current line display
     const line = lines[currentLineIdx];
     const currentLineText = line.map(w => ({
       word: w.word,
@@ -444,7 +513,6 @@ export default function PreviewPage() {
       isPast: currentTime > w.end
     }));
     
-    // Get next line
     const nextLine = lines[currentLineIdx + 1];
     const nextText = nextLine ? nextLine.map(w => w.word).join(' ') : '';
     
@@ -484,6 +552,54 @@ export default function PreviewPage() {
 
       <audio ref={instrumentalRef} src={project.processed_audio_url} onLoadedMetadata={handleAudioLoaded} onEnded={() => setIsPlaying(false)} preload="auto" />
       {project.vocals_audio_url && <audio ref={vocalsRef} src={project.vocals_audio_url} preload="auto" muted={vocalsMuted} />}
+
+      {/* ADD WORD MODAL */}
+      <AnimatePresence>
+        {showAddWordModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className={`p-6 rounded-2xl max-w-md w-full mx-4 ${isDark ? 'bg-gray-900 border border-white/10' : 'bg-white border border-gray-200'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Add New Word</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm text-gray-500 mb-2">Position</label>
+                <div className="flex gap-2">
+                  <button onClick={() => setAddWordPosition('before')} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${addWordPosition === 'before' ? 'bg-cyan-500 text-white' : isDark ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
+                    Before "{words[selectedWordIndices[0]]?.word}"
+                  </button>
+                  <button onClick={() => setAddWordPosition('after')} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all ${addWordPosition === 'after' ? 'bg-cyan-500 text-white' : isDark ? 'bg-white/5 text-gray-400' : 'bg-gray-100 text-gray-600'}`}>
+                    After "{words[selectedWordIndices[0]]?.word}"
+                  </button>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm text-gray-500 mb-2">New Word</label>
+                <input
+                  type="text"
+                  value={newWordText}
+                  onChange={(e) => setNewWordText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') addNewWord(); if (e.key === 'Escape') { setShowAddWordModal(false); setNewWordText(''); } }}
+                  placeholder="Enter word..."
+                  autoFocus
+                  className={`w-full px-4 py-2 rounded-lg text-sm ${isDark ? 'bg-white/5 border border-white/10 text-white' : 'bg-gray-50 border border-gray-200 text-gray-900'} focus:outline-none focus:ring-2 focus:ring-cyan-500`}
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  The new word will share timing with the selected word. You can adjust timing after adding.
+                </p>
+              </div>
+              
+              <div className="flex gap-2">
+                <button onClick={() => { setShowAddWordModal(false); setNewWordText(''); }} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}>
+                  Cancel
+                </button>
+                <button onClick={addNewWord} disabled={!newWordText.trim()} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${newWordText.trim() ? 'bg-cyan-500 text-white hover:bg-cyan-600' : 'bg-gray-500 text-gray-300 cursor-not-allowed'}`}>
+                  Add Word
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className={`min-h-screen ${isDark ? 'bg-gray-950' : 'bg-gray-100'}`}>
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -693,7 +809,7 @@ export default function PreviewPage() {
             </div>
           </motion.div>
 
-          {/* Word Editor Panel */}
+          {/* Word Editor Panel - NOW WITH ADD/DELETE */}
           <AnimatePresence>
             {selectedWordIndices.length > 0 && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className={`mt-4 p-4 rounded-2xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
@@ -708,7 +824,19 @@ export default function PreviewPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">Nudge:</span>
+                    {/* ADD WORD - only when single word selected */}
+                    {selectedWordIndices.length === 1 && (
+                      <button onClick={() => setShowAddWordModal(true)} className="flex items-center gap-1 px-3 py-1 text-xs rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/50">
+                        <Plus className="w-3 h-3" />Add
+                      </button>
+                    )}
+                    
+                    {/* DELETE WORD */}
+                    <button onClick={deleteSelectedWords} className="flex items-center gap-1 px-3 py-1 text-xs rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/50">
+                      <Trash2 className="w-3 h-3" />Delete
+                    </button>
+                    
+                    <span className="text-xs text-gray-500 ml-2">Nudge:</span>
                     <button onClick={() => nudgeSelectedWords(-0.1)} className={`px-2 py-1 text-xs rounded-lg ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>-0.1s</button>
                     <button onClick={() => nudgeSelectedWords(-0.05)} className={`px-2 py-1 text-xs rounded-lg ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>-0.05s</button>
                     <button onClick={() => nudgeSelectedWords(0.05)} className={`px-2 py-1 text-xs rounded-lg ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>+0.05s</button>
@@ -730,7 +858,7 @@ export default function PreviewPage() {
           </motion.div>
 
           <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500"><span className="font-medium">Shortcuts:</span> Space = Play/Pause • ←/→ = Nudge • Shift+Click = Select range • Double-click = Edit • Esc = Deselect</p>
+            <p className="text-xs text-gray-500"><span className="font-medium">Shortcuts:</span> Space = Play/Pause • ←/→ = Nudge • Delete = Remove word • Shift+Click = Select range • Double-click = Edit • Esc = Deselect</p>
           </div>
         </main>
       </div>
