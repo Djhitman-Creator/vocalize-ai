@@ -538,6 +538,7 @@ export default function PreviewPage() {
           }
           const currentLineText = prevLine.map(w => ({
             word: w.word,
+            index: w.index,
             isActive: false,
             isPast: true
           }));
@@ -558,6 +559,7 @@ export default function PreviewPage() {
           }
           const currentLineText = lastLine.map(w => ({
             word: w.word,
+            index: w.index,
             isActive: false,
             isPast: true
           }));
@@ -566,14 +568,15 @@ export default function PreviewPage() {
         return { currentLine: null, next: '' };
       }
     }
-    
+
     const line = lines[currentLineIdx];
     const currentLineText = line.map(w => ({
       word: w.word,
+      index: w.index,
       isActive: currentTime >= w.start && currentTime <= w.end,
       isPast: currentTime > w.end
     }));
-    
+
     const nextLine = lines[currentLineIdx + 1];
     const nextText = nextLine ? nextLine.map(w => w.word).join(' ') : '';
     
@@ -800,12 +803,25 @@ export default function PreviewPage() {
                 <div className="text-center mb-4">
                   {currentLyrics.currentLine ? (
                     <p className="text-2xl md:text-3xl font-bold" style={{ fontFamily: project.font || 'Arial' }}>
-                      {currentLyrics.currentLine.map((word, i) => (
-                        <span key={i} className="mx-1 transition-colors duration-150" style={{
-                          color: word.isActive ? (project.sung_color || '#00d4ff') : word.isPast ? (project.sung_color || '#00d4ff') : (project.text_color || '#ffffff'),
-                          textShadow: `2px 2px 4px ${project.outline_color || '#000000'}`
-                        }}>{word.word}</span>
-                      ))}
+                      {currentLyrics.currentLine.map((wordData, i) => {
+                        let wordColor;
+                        if (isDuetMode && words[wordData.index]?.singer !== undefined) {
+                          const singer = words[wordData.index].singer;
+                          if (singer === SINGER.SINGER_1) wordColor = duetColors.singer1;
+                          else if (singer === SINGER.SINGER_2) wordColor = duetColors.singer2;
+                          else wordColor = duetColors.both;
+                        } else {
+                          wordColor = (wordData.isActive || wordData.isPast)
+                            ? (project.sung_color || '#00d4ff')
+                            : (project.text_color || '#ffffff');
+                        }
+                        return (
+                          <span key={i} className="mx-1 transition-colors duration-150" style={{
+                            color: wordColor,
+                            textShadow: `2px 2px 4px ${project.outline_color || '#000000'}`
+                          }}>{wordData.word}</span>
+                        );
+                      })}
                     </p>
                   ) : (
                     <p className="text-2xl md:text-3xl font-bold opacity-50" style={{ color: project.text_color || '#ffffff', textShadow: `2px 2px 4px ${project.outline_color || '#000000'}` }}>♪ ♪ ♪</p>
