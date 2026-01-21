@@ -80,7 +80,8 @@ const upload = multer({
     const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp3', 'audio/x-wav'];
     const imageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
     const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
-    if (audioTypes.includes(file.mimetype) || imageTypes.includes(file.mimetype) || videoTypes.includes(file.mimetype)) {
+    const fontTypes = ['font/ttf', 'font/otf', 'application/x-font-ttf', 'application/x-font-opentype', 'application/octet-stream'];
+    if (audioTypes.includes(file.mimetype) || imageTypes.includes(file.mimetype) || videoTypes.includes(file.mimetype) || fontTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
       cb(new Error('Invalid file type.'));
@@ -93,7 +94,8 @@ const projectUpload = upload.fields([
   { name: 'thumbnail', maxCount: 1 },
   { name: 'custom_watermark', maxCount: 1 },
   { name: 'bg_image', maxCount: 1 },
-  { name: 'bg_video', maxCount: 1 }
+  { name: 'bg_video', maxCount: 1 },
+  { name: 'custom_font', maxCount: 1 }
 ]);
 
 // ============================================
@@ -1110,7 +1112,9 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       // Email notification preference
       notify_on_complete,
       // Processing mode for lyrics review
-      processing_mode
+      processing_mode,
+      // Custom font name
+      custom_font_name
     } = req.body;
 
     const file = req.files?.audio?.[0];
@@ -1118,6 +1122,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
     const customWatermarkFile = req.files?.custom_watermark?.[0];
     const bgImageFile = req.files?.bg_image?.[0];
     const bgVideoFile = req.files?.bg_video?.[0];
+    const customFontFile = req.files?.custom_font?.[0];
 
     if (!file) {
       return res.status(400).json({ error: 'No audio file provided' });
@@ -1192,6 +1197,15 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       console.log(`Custom background video uploaded: ${bgVideoUrl}`);
     }
 
+    // Upload custom font if provided
+    let customFontUrl = null;
+    if (customFontFile) {
+      const fontExtension = customFontFile.originalname.substring(customFontFile.originalname.lastIndexOf('.'));
+      const fontKey = `fonts/${req.user.id}/${projectId}-font${fontExtension}`;
+      customFontUrl = await uploadToR2(customFontFile.buffer, fontKey, customFontFile.mimetype);
+      console.log(`Custom font uploaded: ${customFontUrl}`);
+    }
+
     // Update user's track count
     await supabase
       .from('profiles')
@@ -1231,6 +1245,9 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         sung_color: sung_color || '#00d4ff',
         font: font || 'arial',
         font_size: font_size || 'normal',
+        // Custom font
+        custom_font_url: customFontUrl || null,
+        custom_font_name: custom_font_name || null,
         // Video background options (NEW)
         bg_type: bg_type || 'gradient',
         bg_video_preset: bg_video_preset || null,
@@ -1276,6 +1293,9 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       sung_color: sung_color || '#00d4ff',
       font: font || 'arial',
       font_size: font_size || 'normal',
+      // Custom font
+      custom_font_url: customFontUrl || null,
+      custom_font_name: custom_font_name || null,
       // Video background options (NEW)
       bg_type: bg_type || 'gradient',
       bg_video_preset: bg_video_preset_filename || null,
