@@ -1,16 +1,11 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V2)
+ * Preview/Edit Page - Karatrack Studio (V3)
  * 
- * Place this at: frontend/src/pages/preview/[id].jsx
- * 
- * UPDATES in V2:
- * - CENTERED PLAYHEAD with words scrolling right-to-left
- * - VIDEO PREVIEW panel (top) showing simulated karaoke output
- * - TIMELINE EDITOR (bottom) with words scrolling past fixed playhead
- * - Dual audio tracks with STACKED volume controls
- * - Zoom controls more prominent
+ * FIXES in V3:
+ * - Fixed lyrics not advancing - now groups words by timing if no line property
+ * - Stable preview display between words
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -43,7 +38,6 @@ export default function PreviewPage() {
   const { id } = router.query;
   const { isDark } = useTheme();
 
-  // Project & Lyrics
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -53,12 +47,10 @@ export default function PreviewPage() {
   const [originalWords, setOriginalWords] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Selection
   const [selectedWordIndices, setSelectedWordIndices] = useState([]);
   const [editingWordIndex, setEditingWordIndex] = useState(null);
   const [editingText, setEditingText] = useState('');
 
-  // Audio
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -67,27 +59,61 @@ export default function PreviewPage() {
   const [instrumentalMuted, setInstrumentalMuted] = useState(false);
   const [vocalsMuted, setVocalsMuted] = useState(true);
 
-  // Timeline
   const [zoom, setZoom] = useState(PIXELS_PER_SECOND_DEFAULT);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartTimes, setDragStartTimes] = useState({});
 
-  // Duet
   const [isDuetMode, setIsDuetMode] = useState(false);
   const [duetColors, setDuetColors] = useState(DEFAULT_DUET_COLORS);
   const [showDuetPanel, setShowDuetPanel] = useState(false);
 
-  // Preview
   const [previewExpanded, setPreviewExpanded] = useState(false);
 
-  // Refs
   const instrumentalRef = useRef(null);
   const vocalsRef = useRef(null);
   const animationFrameRef = useRef(null);
   const timelineContainerRef = useRef(null);
 
-  // Load project
+  // Group words into lines (by line property or by timing gaps)
+  const groupedLines = useCallback(() => {
+    if (!words.length) return [];
+    
+    // Check if words have line property
+    const hasLineProperty = words.some(w => w.line !== undefined);
+    
+    if (hasLineProperty) {
+      // Group by line property
+      const lineMap = {};
+      words.forEach((word, idx) => {
+        const lineNum = word.line || 0;
+        if (!lineMap[lineNum]) lineMap[lineNum] = [];
+        lineMap[lineNum].push({ ...word, index: idx });
+      });
+      return Object.keys(lineMap).sort((a, b) => a - b).map(k => lineMap[k]);
+    } else {
+      // Group by timing gaps (>0.5s gap = new line) or every 8 words
+      const lines = [];
+      let currentLine = [];
+      
+      words.forEach((word, idx) => {
+        currentLine.push({ ...word, index: idx });
+        
+        const nextWord = words[idx + 1];
+        const gap = nextWord ? nextWord.start - word.end : 0;
+        
+        // Start new line if: gap > 0.5s, or 8+ words, or it's a line break
+        if (gap > 0.5 || currentLine.length >= 8 || word.lineBreak) {
+          lines.push(currentLine);
+          currentLine = [];
+        }
+      });
+      
+      if (currentLine.length > 0) lines.push(currentLine);
+      return lines;
+    }
+  }, [words]);
+
   useEffect(() => {
     if (!id) return;
     const loadProject = async () => {
@@ -119,7 +145,6 @@ export default function PreviewPage() {
     loadProject();
   }, [id, router]);
 
-  // Animation loop
   useEffect(() => {
     const updateTime = () => {
       if (instrumentalRef.current) setCurrentTime(instrumentalRef.current.currentTime);
@@ -129,7 +154,6 @@ export default function PreviewPage() {
     return () => { if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current); };
   }, [isPlaying]);
 
-  // Sync vocals
   useEffect(() => {
     if (vocalsRef.current && instrumentalRef.current) {
       const diff = Math.abs(vocalsRef.current.currentTime - instrumentalRef.current.currentTime);
@@ -137,7 +161,6 @@ export default function PreviewPage() {
     }
   }, [currentTime]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -350,52 +373,83 @@ export default function PreviewPage() {
 
   const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
 
+  // FIXED: Get current lyrics for preview - now uses groupedLines
   const getCurrentLyrics = useCallback(() => {
-  if (!words.length) return { currentLine: null, next: '' };
-  
-  // Find the current or most recent word (handles gaps between words)
-  let currentWordIndex = words.findIndex(w => currentTime >= w.start && currentTime <= w.end);
-  
-  // If not currently on a word, find which line we should be showing
-  if (currentWordIndex === -1) {
-    // Find the next upcoming word
-    const nextWordIndex = words.findIndex(w => w.start > currentTime);
+    const lines = groupedLines();
+    if (!lines.length) return { currentLine: null, next: '' };
     
-    if (nextWordIndex === -1) {
-      // Past all words - show nothing
-      return { currentLine: null, next: '' };
+    // Find which line contains the current time
+    let currentLineIdx = -1;
+    let currentWordInLine = -1;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      for (let j = 0; j < line.length; j++) {
+        const word = line[j];
+        if (currentTime >= word.start && currentTime <= word.end) {
+          currentLineIdx = i;
+          currentWordInLine = j;
+          break;
+        }
+      }
+      if (currentLineIdx !== -1) break;
     }
     
-    if (nextWordIndex === 0) {
-      // Before first word - show first line as upcoming
-      const firstLine = words.filter(w => w.line === words[0].line).map(w => w.word).join(' ');
-      return { currentLine: null, next: firstLine };
+    // If not currently on a word, find which line we should be showing
+    if (currentLineIdx === -1) {
+      // Find the next upcoming word
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.length > 0 && line[0].start > currentTime) {
+          // We're before this line - show it as upcoming
+          if (i === 0) {
+            return { currentLine: null, next: line.map(w => w.word).join(' ') };
+          }
+          // Show previous line as current (already sung)
+          const prevLine = lines[i - 1];
+          const currentLineText = prevLine.map(w => ({
+            word: w.word,
+            isActive: false,
+            isPast: true
+          }));
+          return { currentLine: currentLineText, next: line.map(w => w.word).join(' ') };
+        }
+        // Check if we're within this line's time range
+        if (line.length > 0 && line[line.length - 1].end >= currentTime) {
+          currentLineIdx = i;
+          break;
+        }
+      }
+      
+      // If still not found, we're past all lyrics
+      if (currentLineIdx === -1) {
+        if (lines.length > 0) {
+          const lastLine = lines[lines.length - 1];
+          const currentLineText = lastLine.map(w => ({
+            word: w.word,
+            isActive: false,
+            isPast: true
+          }));
+          return { currentLine: currentLineText, next: '' };
+        }
+        return { currentLine: null, next: '' };
+      }
     }
     
-    // Between words - show the line of the previous word (keeps display stable)
-    const prevWord = words[nextWordIndex - 1];
-    const lineWords = words.filter(w => w.line === prevWord.line);
-    const currentLineText = lineWords.map(w => ({
+    // Build current line display
+    const line = lines[currentLineIdx];
+    const currentLineText = line.map(w => ({
       word: w.word,
-      isActive: false,
+      isActive: currentTime >= w.start && currentTime <= w.end,
       isPast: currentTime > w.end
     }));
-    const nextLineNum = prevWord.line + 1;
-    const nextLineWords = words.filter(w => w.line === nextLineNum);
-    return { currentLine: currentLineText, next: nextLineWords.map(w => w.word).join(' ') };
-  }
-  
-  // Currently on a word - show its line
-  const currentWord = words[currentWordIndex];
-  const lineWords = words.filter(w => w.line === currentWord.line);
-  const currentLineText = lineWords.map(w => ({
-    word: w.word,
-    isActive: currentTime >= w.start && currentTime <= w.end,
-    isPast: currentTime > w.end
-  }));
-  const nextLineWords = words.filter(w => w.line === currentWord.line + 1);
-  return { currentLine: currentLineText, next: nextLineWords.map(w => w.word).join(' ') };
-}, [words, currentTime]);
+    
+    // Get next line
+    const nextLine = lines[currentLineIdx + 1];
+    const nextText = nextLine ? nextLine.map(w => w.word).join(' ') : '';
+    
+    return { currentLine: currentLineText, next: nextText };
+  }, [groupedLines, currentTime]);
 
   const zoomIn = () => setZoom(prev => Math.min(prev * 1.25, 300));
   const zoomOut = () => setZoom(prev => Math.max(prev / 1.25, 30));
