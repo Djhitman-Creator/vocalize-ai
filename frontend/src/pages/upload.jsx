@@ -47,7 +47,9 @@ import {
   Sparkles,
   Grid3X3,
   Filter,
-  Users
+  Users,
+  ExternalLink,
+  FileType
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import AppNavigation from '../components/AppNavigation';
@@ -61,6 +63,7 @@ const supabase = createClient(
 
 // Available fonts
 const FONT_OPTIONS = [
+  { value: 'custom', label: '✨ Custom Font', family: 'CustomFont, sans-serif', isCustom: true },
   { value: 'arial', label: 'Arial', family: 'Arial, sans-serif' },
   { value: 'roboto', label: 'Roboto', family: '"Roboto", sans-serif' },
   { value: 'poppins', label: 'Poppins', family: '"Poppins", sans-serif' },
@@ -118,13 +121,13 @@ const PRESET_VIDEO_BACKGROUNDS = [
   { id: 'abstract-neontriangletunnel', name: 'Neon Triangle Tunnel', filename: 'bg-abstract-neontriangletunnel.mp4', category: 'abstract' },
   { id: 'abstract-prismlight', name: 'Prism Light', filename: 'bg-abstract-prismlight.mp4', category: 'abstract' },
   { id: 'abstract-smoketwist', name: 'Smoke Twist', filename: 'bg-abstract-smoketwist.mp4', category: 'abstract' },
-  
+
   // Elegant (4 videos)
   { id: 'elegant-bokehlights', name: 'Bokeh Lights', filename: 'bg-elegant-bokehlights.mp4', category: 'elegant' },
   { id: 'elegant-goldendust', name: 'Golden Dust', filename: 'bg-elegant-goldendust.mp4', category: 'elegant' },
   { id: 'elegant-orbs', name: 'Floating Orbs', filename: 'bg-elegant-orbs.mp4', category: 'elegant' },
   { id: 'elegant-redsilkflowing', name: 'Red Silk Flowing', filename: 'bg-elegant-redsilkflowing.mp4', category: 'elegant' },
-  
+
   // Nature (10 videos)
   { id: 'nature-nightsnow', name: 'Night Snow', filename: 'bg-nature-nightsnow.mp4', category: 'nature' },
   { id: 'nature-watercolorclouds', name: 'Watercolor Clouds', filename: 'bg-nature-watercolorclouds.mp4', category: 'nature' },
@@ -136,7 +139,7 @@ const PRESET_VIDEO_BACKGROUNDS = [
   { id: 'nature-jellyfish', name: 'Jellyfish', filename: 'bg-nature-jellyfish.mp4', category: 'nature' },
   { id: 'nature-lightning', name: 'Lightning', filename: 'bg-nature-lightning.mp4', category: 'nature' },
   { id: 'nature-rainonwater', name: 'Rain on Water', filename: 'bg-nature-rainonwater.mp4', category: 'nature' },
-  
+
   // Space (8 videos)
   { id: 'space-milkyway', name: 'Milky Way', filename: 'bg-space-milkyway.mp4', category: 'space' },
   { id: 'space-nebula1', name: 'Nebula 1', filename: 'bg-space-nebula1.mp4', category: 'space' },
@@ -145,13 +148,13 @@ const PRESET_VIDEO_BACKGROUNDS = [
   { id: 'space-saturn', name: 'Saturn', filename: 'bg-space-saturn.mp4', category: 'space' },
   { id: 'space-asteroidfield', name: 'Asteroid Field', filename: 'bg-space-asteroidfield.mp4', category: 'space' },
   { id: 'space-blackhole', name: 'Black Hole', filename: 'bg-space-blackhole.mp4', category: 'space' },
-  
+
   // 80s/Retro (4 videos)
   { id: '80s-dancingkids', name: 'Dancing Kids', filename: 'bg-80s-dancingkids.mp4', category: '80s' },
   { id: '80s-neongrid', name: 'Neon Grid', filename: 'bg-80s-neongrid.mp4', category: '80s' },
   { id: '80s-neonpalms', name: 'Neon Palms', filename: 'bg-80s-nonpalms.mp4', category: '80s' },
   { id: '80s-watersunset', name: 'Water Sunset', filename: 'bg-80s-watersunset.mp4', category: '80s' },
-  
+
   // Western (2 videos)
   { id: 'western-horse', name: 'Horse', filename: 'bg-western-horse.mp4', category: 'western' },
   { id: 'western-stampede', name: 'Stampede', filename: 'bg-western-stampede.mp4', category: 'western' },
@@ -256,7 +259,13 @@ export default function UploadPage() {
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [preferencesMessage, setPreferencesMessage] = useState(null);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
-  
+
+  // Custom font upload
+  const [customFont, setCustomFont] = useState(null);
+  const [customFontName, setCustomFontName] = useState('');
+  const [customFontPreview, setCustomFontPreview] = useState(null);
+  const [fontUploading, setFontUploading] = useState(false);
+
   // Tab state
   const [activeStyleTab, setActiveStyleTab] = useState('background');
 
@@ -641,6 +650,67 @@ export default function UploadPage() {
     setDuetBothColor('#FFD700');
   };
 
+  // Custom font upload handler
+  const handleFontUpload = useCallback(async (file) => {
+    if (!file) return;
+
+    const extension = file.name.toLowerCase().slice(-4);
+    if (extension !== '.ttf' && extension !== '.otf') {
+      setError('Please upload a .ttf or .otf font file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Font file must be less than 5MB');
+      return;
+    }
+
+    setFontUploading(true);
+    setError(null);
+
+    try {
+      const fontUrl = URL.createObjectURL(file);
+      const fontFace = new FontFace('CustomFont', `url(${fontUrl})`);
+      await fontFace.load();
+      document.fonts.add(fontFace);
+
+      setCustomFont(file);
+      setCustomFontName(file.name.replace(/\.(ttf|otf)$/i, ''));
+      setCustomFontPreview(fontUrl);
+      setSelectedFont('custom');
+    } catch (err) {
+      console.error('Font load error:', err);
+      setError('Failed to load font. Please ensure it is a valid TTF or OTF file.');
+    } finally {
+      setFontUploading(false);
+    }
+  }, []);
+
+  const onFontDrop = useCallback((acceptedFiles) => {
+    if (acceptedFiles.length > 0) {
+      handleFontUpload(acceptedFiles[0]);
+    }
+  }, [handleFontUpload]);
+
+  const { getRootProps: getFontRootProps, getInputProps: getFontInputProps, isDragActive: isFontDragActive } = useDropzone({
+    onDrop: onFontDrop,
+    accept: {
+      'font/ttf': ['.ttf'],
+      'font/otf': ['.otf'],
+    },
+    maxFiles: 1,
+    maxSize: 5 * 1024 * 1024,
+  });
+
+  const clearCustomFont = () => {
+    if (customFontPreview) URL.revokeObjectURL(customFontPreview);
+    setCustomFont(null);
+    setCustomFontName('');
+    setCustomFontPreview(null);
+    setSelectedFont('arial');
+  };
+
+
   // Form submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -700,6 +770,12 @@ export default function UploadPage() {
       formData.append('sung_color', sungColor);
       formData.append('font', selectedFont);
       formData.append('font_size', fontSize);
+      
+      // Custom font
+      if (selectedFont === 'custom' && customFont) {
+        formData.append('custom_font', customFont);
+        formData.append('custom_font_name', customFontName);
+      }
 
       // Duet mode settings
       formData.append('is_duet_mode', isDuetMode.toString());
@@ -764,13 +840,12 @@ export default function UploadPage() {
                 type="button"
                 disabled={isLocked}
                 onClick={() => !isLocked && setBgType(type.value)}
-                className={`relative flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${
-                  isSelected
+                className={`relative flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${isSelected
                     ? 'border-cyan-400 bg-cyan-400/10'
                     : isLocked
-                    ? 'border-white/10 bg-white/5 opacity-50 cursor-not-allowed'
-                    : 'border-white/10 bg-white/5 hover:border-white/30'
-                }`}
+                      ? 'border-white/10 bg-white/5 opacity-50 cursor-not-allowed'
+                      : 'border-white/10 bg-white/5 hover:border-white/30'
+                  }`}
               >
                 {isLocked && (
                   <Lock className="absolute top-1 right-1 w-3 h-3 text-gray-500" />
@@ -879,11 +954,10 @@ export default function UploadPage() {
           ) : (
             <div
               {...getImageRootProps()}
-              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${
-                isImageDragActive
+              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${isImageDragActive
                   ? 'border-cyan-400 bg-cyan-400/10'
                   : 'border-white/20 hover:border-cyan-400/50'
-              }`}
+                }`}
             >
               <input {...getImageInputProps()} />
               <Image className="w-8 h-8 text-gray-400 mx-auto mb-2" />
@@ -911,11 +985,10 @@ export default function UploadPage() {
                   key={cat.id}
                   type="button"
                   onClick={() => setSelectedVideoCategory(cat.id)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
-                    selectedVideoCategory === cat.id
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${selectedVideoCategory === cat.id
                       ? 'bg-cyan-500 text-white'
                       : 'bg-white/10 text-gray-400 hover:bg-white/20'
-                  }`}
+                    }`}
                 >
                   {cat.label}
                   {cat.id !== 'all' && (
@@ -939,11 +1012,10 @@ export default function UploadPage() {
                   key={preset.id}
                   type="button"
                   onClick={() => handlePresetVideoSelect(preset)}
-                  className={`relative rounded-lg overflow-hidden aspect-video border-2 transition-all group ${
-                    bgVideoPreset?.id === preset.id
+                  className={`relative rounded-lg overflow-hidden aspect-video border-2 transition-all group ${bgVideoPreset?.id === preset.id
                       ? 'border-cyan-400 ring-2 ring-cyan-400/50'
                       : 'border-transparent hover:border-white/30'
-                  }`}
+                    }`}
                   title={preset.name}
                 >
                   {/* Thumbnail Image */}
@@ -997,11 +1069,10 @@ export default function UploadPage() {
             ) : (
               <div
                 {...getVideoRootProps()}
-                className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${
-                  isVideoDragActive
+                className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${isVideoDragActive
                     ? 'border-cyan-400 bg-cyan-400/10'
                     : 'border-white/20 hover:border-cyan-400/50'
-                }`}
+                  }`}
               >
                 <input {...getVideoInputProps()} />
                 <Video className="w-6 h-6 text-gray-400 mx-auto mb-1" />
@@ -1025,10 +1096,10 @@ export default function UploadPage() {
   const renderTextTab = () => (
     <div className="space-y-4">
       {/* Duet Mode Toggle */}
-      <div className={`p-3 rounded-xl border ${isDuetMode 
-        ? 'bg-gradient-to-r from-cyan-500/10 to-pink-500/10 border-cyan-400/30' 
+      <div className={`p-3 rounded-xl border ${isDuetMode
+        ? 'bg-gradient-to-r from-cyan-500/10 to-pink-500/10 border-cyan-400/30'
         : isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
-      }`}>
+        }`}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Users className={`w-5 h-5 ${isDuetMode ? 'text-cyan-400' : 'text-gray-500'}`} />
@@ -1044,16 +1115,14 @@ export default function UploadPage() {
           <button
             type="button"
             onClick={() => setIsDuetMode(!isDuetMode)}
-            className={`relative w-12 h-6 rounded-full transition-colors ${
-              isDuetMode ? 'bg-gradient-to-r from-cyan-500 to-pink-500' : isDark ? 'bg-gray-600' : 'bg-gray-300'
-            }`}
+            className={`relative w-12 h-6 rounded-full transition-colors ${isDuetMode ? 'bg-gradient-to-r from-cyan-500 to-pink-500' : isDark ? 'bg-gray-600' : 'bg-gray-300'
+              }`}
           >
-            <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform shadow ${
-              isDuetMode ? 'translate-x-6' : ''
-            }`} />
+            <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform shadow ${isDuetMode ? 'translate-x-6' : ''
+              }`} />
           </button>
         </div>
-        
+
         {/* Duet Mode Color Pickers (only shown when enabled) */}
         {isDuetMode && (
           <motion.div
@@ -1126,36 +1195,111 @@ export default function UploadPage() {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {/* Font Selection */}
-        <div>
-          <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Font
-          </label>
-          <select
-            value={selectedFont}
-            onChange={(e) => setSelectedFont(e.target.value)}
-            className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-          >
-            {FONT_OPTIONS.map(font => (
-              <option key={font.value} value={font.value}>{font.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Font Size */}
-        <div>
-          <label className={`block text-xs font-medium mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Font Size
-          </label>
-          <select
-            value={fontSize}
-            onChange={(e) => setFontSize(e.target.value)}
-            className="glass-input w-full px-3 py-2 rounded-lg text-sm"
-          >
-            {FONT_SIZE_OPTIONS.map(size => (
-              <option key={size.value} value={size.value}>{size.label}</option>
-            ))}
-          </select>
+        {/* Font Selection with Custom Upload */}
+        <div className="col-span-2">
+          <div className="flex items-center justify-between mb-1">
+            <label className={`block text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Font
+            </label>
+            <a
+              href="https://www.dafont.com/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              <ExternalLink className="w-3 h-3" />
+              Free Fonts
+            </a>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={selectedFont}
+              onChange={(e) => {
+                setSelectedFont(e.target.value);
+                if (e.target.value !== 'custom') clearCustomFont();
+              }}
+              className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+            >
+              {FONT_OPTIONS.map(font => (
+                <option key={font.value} value={font.value}>
+                  {font.isCustom && customFontName ? `✨ ${customFontName}` : font.label}
+                </option>
+              ))}
+            </select>
+            
+            <select
+              value={fontSize}
+              onChange={(e) => setFontSize(e.target.value)}
+              className="glass-input w-full px-3 py-2 rounded-lg text-sm"
+            >
+              {FONT_SIZE_OPTIONS.map(size => (
+                <option key={size.value} value={size.value}>{size.label}</option>
+              ))}
+            </select>
+          </div>
+          
+          {/* Custom Font Upload Area */}
+          <AnimatePresence>
+            {selectedFont === 'custom' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-2"
+              >
+                {customFont ? (
+                  <div className={`flex items-center justify-between p-3 rounded-lg ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
+                    <div className="flex items-center gap-2">
+                      <FileType className="w-4 h-4 text-green-400" />
+                      <span className="text-sm text-green-400 font-medium" style={{ fontFamily: 'CustomFont, sans-serif' }}>
+                        {customFontName}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        ({(customFont.size / 1024).toFixed(1)} KB)
+                      </span>
+                    </div>
+                    <button type="button" onClick={clearCustomFont} className="p-1 hover:bg-white/10 rounded">
+                      <X className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    {...getFontRootProps()}
+                    className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all ${
+                      isFontDragActive ? 'border-cyan-400 bg-cyan-400/10' : 'border-white/20 hover:border-cyan-400/50'
+                    }`}
+                  >
+                    <input {...getFontInputProps()} />
+                    {fontUploading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+                        <span className="text-sm text-gray-400">Loading font...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <FileType className="w-6 h-6 text-gray-400 mx-auto mb-1" />
+                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Drop font file or click to browse
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-1">.TTF or .OTF (max 5MB)</p>
+                      </>
+                    )}
+                  </div>
+                )}
+                
+                {/* Font Preview */}
+                {customFontPreview && (
+                  <div className={`mt-2 p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                    <p className="text-[10px] text-gray-500 mb-1">Preview:</p>
+                    <p className="text-lg" style={{ fontFamily: 'CustomFont, sans-serif', color: textColor || '#ffffff' }}>
+                      The quick brown fox jumps over the lazy dog
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Text Color - Only show when NOT in duet mode */}
@@ -1300,11 +1444,10 @@ export default function UploadPage() {
             </button>
           </div>
         ) : (
-          <label className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 border-dashed ${
-            isDark
+          <label className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 border-dashed ${isDark
               ? 'border-white/20 hover:border-cyan-400/50 hover:bg-white/5'
               : 'border-gray-300 hover:border-cyan-500 hover:bg-gray-50'
-          }`}>
+            }`}>
             <Upload className="w-5 h-5 text-cyan-400" />
             <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               Click to upload your logo
@@ -1373,9 +1516,8 @@ export default function UploadPage() {
                   {/* Audio Upload */}
                   <div
                     {...getAudioRootProps()}
-                    className={`dropzone cursor-pointer transition-all mb-4 p-4 ${
-                      isAudioDragActive ? 'border-cyan-400 bg-cyan-400/10' : ''
-                    } ${audioFile ? 'border-green-400 bg-green-400/5' : ''}`}
+                    className={`dropzone cursor-pointer transition-all mb-4 p-4 ${isAudioDragActive ? 'border-cyan-400 bg-cyan-400/10' : ''
+                      } ${audioFile ? 'border-green-400 bg-green-400/5' : ''}`}
                   >
                     <input {...getAudioInputProps()} />
                     {audioFile ? (
@@ -1637,13 +1779,12 @@ export default function UploadPage() {
 
                     {/* Preferences Message */}
                     {preferencesMessage && (
-                      <div className={`mb-4 p-2 rounded-lg text-xs flex items-center gap-2 ${
-                        preferencesMessage.type === 'success'
+                      <div className={`mb-4 p-2 rounded-lg text-xs flex items-center gap-2 ${preferencesMessage.type === 'success'
                           ? 'bg-green-500/10 border border-green-500/30 text-green-400'
                           : preferencesMessage.type === 'info'
-                          ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400'
-                          : 'bg-red-500/10 border border-red-500/30 text-red-400'
-                      }`}>
+                            ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-400'
+                            : 'bg-red-500/10 border border-red-500/30 text-red-400'
+                        }`}>
                         {preferencesMessage.type === 'success' ? (
                           <CheckCircle className="w-4 h-4" />
                         ) : preferencesMessage.type === 'info' ? (
@@ -1668,13 +1809,12 @@ export default function UploadPage() {
                             type="button"
                             disabled={isLocked}
                             onClick={() => !isLocked && setActiveStyleTab(tab.id)}
-                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                              isActive
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive
                                 ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
                                 : isLocked
-                                ? 'text-gray-600 cursor-not-allowed'
-                                : 'text-gray-400 hover:text-white hover:bg-white/5'
-                            }`}
+                                  ? 'text-gray-600 cursor-not-allowed'
+                                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                              }`}
                           >
                             <Icon className="w-4 h-4" />
                             <span className="hidden sm:inline">{tab.label}</span>
@@ -1732,14 +1872,12 @@ export default function UploadPage() {
                   className="glass-panel p-6"
                 >
                   {/* Email Notification Checkbox */}
-                  <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${
-                    notifyOnComplete
+                  <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${notifyOnComplete
                       ? 'bg-purple-500/20 border border-purple-400'
                       : 'bg-white/5 border border-transparent hover:bg-white/10'
-                  }`}>
-                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
-                      notifyOnComplete ? 'bg-purple-500 border-purple-500' : 'border-gray-500'
                     }`}>
+                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${notifyOnComplete ? 'bg-purple-500 border-purple-500' : 'border-gray-500'
+                      }`}>
                       {notifyOnComplete && <CheckCircle className="w-3 h-3 text-white" />}
                     </div>
                     <div className="flex-1">
@@ -1760,14 +1898,12 @@ export default function UploadPage() {
 
                   {/* Review Lyrics Checkbox */}
                   {isPremiumUser() ? (
-                    <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${
-                      reviewLyrics
+                    <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${reviewLyrics
                         ? 'bg-yellow-500/20 border border-yellow-400'
                         : 'bg-white/5 border border-transparent hover:bg-white/10'
-                    }`}>
-                      <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
-                        reviewLyrics ? 'bg-yellow-500 border-yellow-500' : 'border-gray-500'
                       }`}>
+                      <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${reviewLyrics ? 'bg-yellow-500 border-yellow-500' : 'border-gray-500'
+                        }`}>
                         {reviewLyrics && <CheckCircle className="w-3 h-3 text-white" />}
                       </div>
                       <div className="flex-1">
@@ -1808,14 +1944,12 @@ export default function UploadPage() {
                   )}
 
                   {/* Rights Checkbox */}
-                  <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-4 ${
-                    rightsConfirmed
+                  <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-4 ${rightsConfirmed
                       ? 'bg-cyan-500/20 border border-cyan-400'
                       : 'bg-white/5 border border-red-500/50 hover:bg-white/10'
-                  }`}>
-                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${
-                      rightsConfirmed ? 'bg-cyan-500 border-cyan-500' : 'border-gray-500'
                     }`}>
+                    <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${rightsConfirmed ? 'bg-cyan-500 border-cyan-500' : 'border-gray-500'
+                      }`}>
                       {rightsConfirmed && <CheckCircle className="w-3 h-3 text-white" />}
                     </div>
                     <div className="flex-1">
@@ -1839,11 +1973,10 @@ export default function UploadPage() {
                   <button
                     type="submit"
                     disabled={isUploading || !rightsConfirmed}
-                    className={`w-full py-4 px-6 rounded-xl text-white font-semibold text-lg transition-all flex items-center justify-center gap-3 ${
-                      rightsConfirmed
+                    className={`w-full py-4 px-6 rounded-xl text-white font-semibold text-lg transition-all flex items-center justify-center gap-3 ${rightsConfirmed
                         ? 'bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-90'
                         : 'bg-gray-600 cursor-not-allowed'
-                    } disabled:opacity-50`}
+                      } disabled:opacity-50`}
                   >
                     {isUploading ? (
                       <>
@@ -1857,8 +1990,8 @@ export default function UploadPage() {
                           {!rightsConfirmed
                             ? 'Confirm Rights to Continue'
                             : reviewLyrics
-                            ? 'Process & Review Lyrics'
-                            : 'Create Karaoke Track'}
+                              ? 'Process & Review Lyrics'
+                              : 'Create Karaoke Track'}
                         </span>
                       </>
                     )}
