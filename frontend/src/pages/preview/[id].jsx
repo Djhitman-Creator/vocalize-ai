@@ -745,13 +745,12 @@ export default function PreviewPage() {
                         <label className="block text-xs text-gray-500 mb-1">Singer 2</label>
                         <div className="flex items-center gap-2">
                           <input type="color" value={duetColors.singer2} onChange={(e) => { setDuetColors(prev => ({ ...prev, singer2: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer border-0" />
-                          <button 
-                            onClick={() => togglePaintMode(SINGER.SINGER_2)} 
-                            className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all flex items-center justify-center gap-1 ${
-                              paintMode === SINGER.SINGER_2 
-                                ? 'bg-pink-500 text-white ring-2 ring-pink-300' 
+                          <button
+                            onClick={() => togglePaintMode(SINGER.SINGER_2)}
+                            className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all flex items-center justify-center gap-1 ${paintMode === SINGER.SINGER_2
+                                ? 'bg-pink-500 text-white ring-2 ring-pink-300'
                                 : 'bg-pink-500/20 text-pink-400 hover:bg-pink-500/30 border border-pink-500/50'
-                            }`}
+                              }`}
                           >
                             <Paintbrush className="w-3 h-3" />
                             {paintMode === SINGER.SINGER_2 ? 'Painting...' : 'Paint'}
@@ -762,13 +761,12 @@ export default function PreviewPage() {
                         <label className="block text-xs text-gray-500 mb-1">Both</label>
                         <div className="flex items-center gap-2">
                           <input type="color" value={duetColors.both} onChange={(e) => { setDuetColors(prev => ({ ...prev, both: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer border-0" />
-                          <button 
-                            onClick={() => togglePaintMode(SINGER.BOTH)} 
-                            className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all flex items-center justify-center gap-1 ${
-                              paintMode === SINGER.BOTH 
-                                ? 'bg-yellow-500 text-white ring-2 ring-yellow-300' 
+                          <button
+                            onClick={() => togglePaintMode(SINGER.BOTH)}
+                            className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all flex items-center justify-center gap-1 ${paintMode === SINGER.BOTH
+                                ? 'bg-yellow-500 text-white ring-2 ring-yellow-300'
                                 : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/50'
-                            }`}
+                              }`}
                           >
                             <Paintbrush className="w-3 h-3" />
                             {paintMode === SINGER.BOTH ? 'Painting...' : 'Paint'}
@@ -806,6 +804,7 @@ export default function PreviewPage() {
                       {currentLyrics.currentLine.map((wordData, i) => {
                         let wordColor;
                         let textShadow = `2px 2px 4px ${project.outline_color || '#000000'}`;
+                        let opacity = 1;
 
                         if (isDuetMode && words[wordData.index]?.singer !== undefined) {
                           const singer = words[wordData.index].singer;
@@ -813,25 +812,31 @@ export default function PreviewPage() {
                           else if (singer === SINGER.SINGER_2) wordColor = duetColors.singer2;
                           else wordColor = duetColors.both;
 
-                          // Dim unsung words, brighten active/past words
                           if (!wordData.isActive && !wordData.isPast) {
-                            // Unsung - dim the color
-                            wordColor = wordColor + '80'; // Add 50% opacity
+                            // Unsung - use white/light gray, very readable
+                            wordColor = '#cccccc';
                           } else if (wordData.isActive) {
-                            // Currently singing - add glow effect
+                            // Currently singing - full color + glow effect
                             textShadow = `0 0 10px ${wordColor}, 0 0 20px ${wordColor}, 2px 2px 4px ${project.outline_color || '#000000'}`;
                           }
+                          // Past words stay full singer color (no glow)
                         } else {
-                          wordColor = (wordData.isActive || wordData.isPast)
-                            ? (project.sung_color || '#00d4ff')
-                            : (project.text_color || '#ffffff');
+                          // Non-duet mode
+                          if (wordData.isActive) {
+                            wordColor = project.sung_color || '#00d4ff';
+                            textShadow = `0 0 10px ${wordColor}, 0 0 20px ${wordColor}, 2px 2px 4px ${project.outline_color || '#000000'}`;
+                          } else if (wordData.isPast) {
+                            wordColor = project.sung_color || '#00d4ff';
+                          } else {
+                            wordColor = project.text_color || '#ffffff';
+                          }
                         }
 
                         return (
                           <span key={i} className="mx-1 transition-colors duration-150" style={{
                             color: wordColor,
                             textShadow: textShadow,
-                            opacity: (!wordData.isActive && !wordData.isPast) ? 0.5 : 1
+                            opacity: opacity
                           }}>{wordData.word}</span>
                         );
                       })}
