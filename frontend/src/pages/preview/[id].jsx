@@ -47,12 +47,13 @@ const INSTRUMENTAL_BREAK_THRESHOLD = 5.0; // seconds to trigger progress bar
 
 // ============================================================
 // SWEEP WORD COMPONENT - Renders a single word with sweep effect
+// Uses layered approach: shadow layer underneath, gradient text on top
 // ============================================================
 const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isActive, isPast, showGlow }) => {
   // sweepPercent: 0 = unsung, 0.5 = halfway, 1 = fully sung
   
-  const baseTextShadow = `2px 2px 4px ${outlineColor}`;
-  const glowTextShadow = `0 0 10px ${color}, 0 0 20px ${color}, 2px 2px 4px ${outlineColor}`;
+  const baseTextShadow = `2px 2px 4px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 1px 2px ${outlineColor}`;
+  const glowTextShadow = `0 0 10px ${color}, 0 0 20px ${color}, 2px 2px 4px ${outlineColor}, -1px -1px 2px ${outlineColor}`;
   
   // If fully past or no sweep needed, render simple span
   if (isPast || sweepPercent >= 1) {
@@ -84,33 +85,51 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
     );
   }
   
-  // Active word with sweep effect - use CSS gradient
-  // The gradient creates the sweep effect from left to right
+  // Active word with sweep effect
+  // Use layered approach: position relative container with two text layers
   const gradientPercent = Math.max(0, Math.min(100, sweepPercent * 100));
   
-  // Create soft edge (10% gradient blur)
-  const softEdgeStart = Math.max(0, gradientPercent - 5);
-  const softEdgeEnd = Math.min(100, gradientPercent + 5);
+  // Create soft edge (5% gradient blur for smoother transition)
+  const softEdgeStart = Math.max(0, gradientPercent - 3);
+  const softEdgeEnd = Math.min(100, gradientPercent + 3);
   
   return (
     <span 
-      className="mx-1 inline-block"
-      style={{
-        background: `linear-gradient(90deg, 
-          ${color} ${softEdgeStart}%, 
-          ${color} ${gradientPercent}%, 
-          ${unsungColor} ${softEdgeEnd}%, 
-          ${unsungColor} 100%)`,
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        backgroundClip: 'text',
-        textShadow: showGlow ? glowTextShadow : baseTextShadow,
-        // Note: textShadow with background-clip:text can be tricky
-        // We'll use a filter for the glow effect instead
-        filter: showGlow ? `drop-shadow(0 0 8px ${color})` : 'none',
-      }}
+      className="mx-1 inline-block relative"
+      style={{ position: 'relative' }}
     >
-      {word}
+      {/* Layer 1: Shadow/outline layer (bottom) - shows the unsung color with shadow */}
+      <span
+        style={{
+          color: unsungColor,
+          textShadow: baseTextShadow,
+        }}
+      >
+        {word}
+      </span>
+      
+      {/* Layer 2: Gradient sweep layer (top) - clips gradient to text only */}
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          background: `linear-gradient(90deg, 
+            ${color} ${softEdgeStart}%, 
+            ${color} ${gradientPercent}%, 
+            transparent ${softEdgeEnd}%, 
+            transparent 100%)`,
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          color: 'transparent',
+          // Add glow effect using filter (works with background-clip: text)
+          filter: showGlow ? `drop-shadow(0 0 8px ${color}) drop-shadow(0 0 16px ${color})` : 'none',
+        }}
+      >
+        {word}
+      </span>
     </span>
   );
 };
