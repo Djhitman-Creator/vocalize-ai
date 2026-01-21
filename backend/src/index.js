@@ -290,6 +290,8 @@ async function sendToRunPod(projectId, audioUrl, options) {
         sung_color: options.sung_color || '#00d4ff',
         font: options.font || 'arial',
         font_size: options.font_size || 'normal',
+        custom_font_url: options.custom_font_url || null,
+        custom_font_name: options.custom_font_name || null,
 
         // Video background options (NEW)
         bg_type: options.bg_type || 'gradient',
