@@ -1,12 +1,11 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V5)
+ * Preview/Edit Page - Karatrack Studio (V6)
  * 
- * V5 UPDATES:
- * - DUET PAINT MODE: Click a singer color, then click words to paint them
- * - Click color again or press Escape to exit paint mode
- * - Much faster workflow for assigning singer colors
+ * V6 UPDATES:
+ * - DRAG TO PAINT: Click and drag across multiple words to paint them all
+ * - CLICK ANYWHERE TO SEEK: Click anywhere in timeline area (above/below/between words) to seek
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -73,8 +72,10 @@ export default function PreviewPage() {
   const [duetColors, setDuetColors] = useState(DEFAULT_DUET_COLORS);
   const [showDuetPanel, setShowDuetPanel] = useState(false);
   
-  // PAINT MODE: null = off, SINGER.SINGER_1, SINGER.SINGER_2, or SINGER.BOTH
+  // PAINT MODE
   const [paintMode, setPaintMode] = useState(null);
+  const [isPainting, setIsPainting] = useState(false); // Track if mouse is down for drag-painting
+  const [paintedIndices, setPaintedIndices] = useState(new Set()); // Track already painted words in this drag
 
   const [previewExpanded, setPreviewExpanded] = useState(false);
 
@@ -187,6 +188,18 @@ export default function PreviewPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedWordIndices, editingWordIndex, isPlaying, showAddWordModal, paintMode]);
 
+  // Handle mouse up globally to end paint drag
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isPainting) {
+        setIsPainting(false);
+        setPaintedIndices(new Set());
+      }
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [isPainting]);
+
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) setDuration(instrumentalRef.current.duration);
   }, []);
@@ -212,17 +225,16 @@ export default function PreviewPage() {
 
   const restart = useCallback(() => seekTo(0), [seekTo]);
 
+  // TIMELINE CLICK - Always seeks, even in paint mode (when clicking empty space)
   const handleTimelineClick = useCallback((e) => {
     if (!timelineContainerRef.current || isDragging) return;
-    // Don't seek if in paint mode
-    if (paintMode !== null) return;
     const rect = timelineContainerRef.current.getBoundingClientRect();
     const centerX = rect.width / 2;
     const clickX = e.clientX - rect.left;
     const offsetFromCenter = clickX - centerX;
     const timeOffset = offsetFromCenter / zoom;
     seekTo(currentTime + timeOffset);
-  }, [zoom, currentTime, seekTo, isDragging, paintMode]);
+  }, [zoom, currentTime, seekTo, isDragging]);
 
   const handleProgressClick = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -230,19 +242,51 @@ export default function PreviewPage() {
     seekTo(percent * duration);
   }, [duration, seekTo]);
 
+  // Paint a single word
+  const paintWord = useCallback((index) => {
+    if (paintMode === null) return;
+    setWords(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], singer: paintMode };
+      return updated;
+    });
+    setHasChanges(true);
+  }, [paintMode]);
+
+  const handleWordMouseDown = useCallback((index, e) => {
+    e.stopPropagation();
+    
+    if (paintMode !== null) {
+      // Start paint drag
+      setIsPainting(true);
+      setPaintedIndices(new Set([index]));
+      paintWord(index);
+      return;
+    }
+    
+    // Normal drag behavior for moving words
+    if (!selectedWordIndices.includes(index)) setSelectedWordIndices([index]);
+    setIsDragging(true);
+    setDragStartX(e.clientX);
+    const startTimes = {};
+    const indicesToDrag = selectedWordIndices.includes(index) ? selectedWordIndices : [index];
+    indicesToDrag.forEach(i => { startTimes[i] = { start: words[i].start, end: words[i].end }; });
+    setDragStartTimes(startTimes);
+  }, [selectedWordIndices, words, paintMode, paintWord]);
+
+  const handleWordMouseEnter = useCallback((index) => {
+    // Paint on hover while dragging in paint mode
+    if (isPainting && paintMode !== null && !paintedIndices.has(index)) {
+      setPaintedIndices(prev => new Set([...prev, index]));
+      paintWord(index);
+    }
+  }, [isPainting, paintMode, paintedIndices, paintWord]);
+
   const handleWordClick = useCallback((index, e) => {
     e.stopPropagation();
     
-    // PAINT MODE: Just paint the word with the selected singer
-    if (paintMode !== null) {
-      setWords(prev => {
-        const updated = [...prev];
-        updated[index] = { ...updated[index], singer: paintMode };
-        return updated;
-      });
-      setHasChanges(true);
-      return;
-    }
+    // In paint mode, painting is handled by mousedown/mouseenter
+    if (paintMode !== null) return;
     
     // Normal selection mode
     if (e.shiftKey && selectedWordIndices.length > 0) {
@@ -262,7 +306,7 @@ export default function PreviewPage() {
 
   const handleWordDoubleClick = useCallback((index, e) => {
     e.stopPropagation();
-    if (paintMode !== null) return; // Don't edit in paint mode
+    if (paintMode !== null) return;
     setEditingWordIndex(index);
     setEditingText(words[index].word);
     setSelectedWordIndices([index]);
@@ -359,21 +403,10 @@ export default function PreviewPage() {
     setHasChanges(true);
   }, [newWordText, selectedWordIndices, words, addWordPosition]);
 
-  const handleWordDragStart = useCallback((index, e) => {
-    e.stopPropagation();
-    if (paintMode !== null) return; // Don't drag in paint mode
-    if (!selectedWordIndices.includes(index)) setSelectedWordIndices([index]);
-    setIsDragging(true);
-    setDragStartX(e.clientX);
-    const startTimes = {};
-    const indicesToDrag = selectedWordIndices.includes(index) ? selectedWordIndices : [index];
-    indicesToDrag.forEach(i => { startTimes[i] = { start: words[i].start, end: words[i].end }; });
-    setDragStartTimes(startTimes);
-  }, [selectedWordIndices, words, paintMode]);
-
+  // Word dragging (for timing adjustment, not painting)
   useEffect(() => {
     const handleMouseMove = (e) => {
-      if (!isDragging) return;
+      if (!isDragging || paintMode !== null) return;
       const deltaX = e.clientX - dragStartX;
       const deltaTime = deltaX / zoom;
       setWords(prev => {
@@ -399,15 +432,14 @@ export default function PreviewPage() {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, dragStartX, dragStartTimes, zoom]);
+  }, [isDragging, dragStartX, dragStartTimes, zoom, paintMode]);
 
-  // Toggle paint mode for a singer
   const togglePaintMode = useCallback((singer) => {
     if (paintMode === singer) {
-      setPaintMode(null); // Turn off
+      setPaintMode(null);
     } else {
-      setPaintMode(singer); // Turn on for this singer
-      setSelectedWordIndices([]); // Clear selection when entering paint mode
+      setPaintMode(singer);
+      setSelectedWordIndices([]);
     }
   }, [paintMode]);
 
@@ -551,14 +583,6 @@ export default function PreviewPage() {
   const zoomIn = () => setZoom(prev => Math.min(prev * 1.25, 300));
   const zoomOut = () => setZoom(prev => Math.max(prev / 1.25, 30));
 
-  // Get paint mode cursor style
-  const getPaintCursor = () => {
-    if (paintMode === SINGER.SINGER_1) return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='${encodeURIComponent(duetColors.singer1)}'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3C/svg%3E") 12 12, pointer`;
-    if (paintMode === SINGER.SINGER_2) return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='${encodeURIComponent(duetColors.singer2)}'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3C/svg%3E") 12 12, pointer`;
-    if (paintMode === SINGER.BOTH) return `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='${encodeURIComponent(duetColors.both)}'%3E%3Ccircle cx='12' cy='12' r='8'/%3E%3C/svg%3E") 12 12, pointer`;
-    return 'default';
-  };
-
   if (loading) return (
     <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-950' : 'bg-gray-100'}`}>
       <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
@@ -658,11 +682,10 @@ export default function PreviewPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {/* Paint mode indicator */}
               {paintMode !== null && (
                 <span className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/20 text-purple-400 text-xs rounded-lg animate-pulse">
                   <Paintbrush className="w-3 h-3" />
-                  Paint Mode - Click words to color
+                  Paint Mode - Click/drag words
                 </span>
               )}
               {hasChanges && <span className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-lg"><AlertCircle className="w-3 h-3" />Unsaved</span>}
@@ -679,7 +702,7 @@ export default function PreviewPage() {
             </div>
           </motion.div>
 
-          {/* Duet Panel - NOW WITH PAINT MODE */}
+          {/* Duet Panel */}
           <AnimatePresence>
             {showDuetPanel && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mb-4">
@@ -687,7 +710,7 @@ export default function PreviewPage() {
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Duet Mode Colors</h3>
-                      <span className="text-xs text-gray-500">(Click color to paint words)</span>
+                      <span className="text-xs text-gray-500">(Click & drag to paint words)</span>
                     </div>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <span className="text-xs text-gray-500">Enable</span>
@@ -754,7 +777,7 @@ export default function PreviewPage() {
                   {paintMode !== null && (
                     <div className="mt-3 pt-3 border-t border-white/10">
                       <p className="text-xs text-gray-400">
-                        Click on words in the timeline to paint them. Press <kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">Esc</kbd> or click the paint button again to exit.
+                        Click and drag across words to paint them. Press <kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">Esc</kbd> or click the paint button again to exit.
                       </p>
                     </div>
                   )}
@@ -807,8 +830,8 @@ export default function PreviewPage() {
 
             <div 
               ref={timelineContainerRef} 
-              className={`relative overflow-hidden ${isDark ? 'bg-gray-900/50' : 'bg-gray-50'}`} 
-              style={{ height: TIMELINE_HEIGHT, cursor: paintMode !== null ? getPaintCursor() : 'default' }} 
+              className={`relative overflow-hidden cursor-pointer ${isDark ? 'bg-gray-900/50' : 'bg-gray-50'}`} 
+              style={{ height: TIMELINE_HEIGHT }} 
               onClick={handleTimelineClick}
             >
               {/* CENTERED PLAYHEAD */}
@@ -842,9 +865,15 @@ export default function PreviewPage() {
                 if (wordLeft + wordWidth < -100 || wordLeft > containerWidth + 100) return null;
 
                 return (
-                  <motion.div key={index} className={`absolute select-none ${paintMode !== null ? 'cursor-pointer' : isDragging && isSelected ? 'cursor-grabbing' : 'cursor-grab'}`}
+                  <motion.div 
+                    key={index} 
+                    className={`absolute select-none ${paintMode !== null ? 'cursor-crosshair' : isDragging && isSelected ? 'cursor-grabbing' : 'cursor-grab'}`}
                     style={{ left: wordLeft, top: '50%', transform: 'translateY(-50%)', width: wordWidth, height: WORD_HEIGHT, zIndex: isSelected ? 15 : isCurrent ? 10 : 5 }}
-                    onClick={(e) => handleWordClick(index, e)} onDoubleClick={(e) => handleWordDoubleClick(index, e)} onMouseDown={(e) => paintMode === null && handleWordDragStart(index, e)}>
+                    onClick={(e) => handleWordClick(index, e)} 
+                    onDoubleClick={(e) => handleWordDoubleClick(index, e)} 
+                    onMouseDown={(e) => handleWordMouseDown(index, e)}
+                    onMouseEnter={() => handleWordMouseEnter(index)}
+                  >
                     <div className={`h-full rounded-lg border-2 flex items-center justify-center px-2 overflow-hidden transition-all ${isSelected ? 'border-cyan-400 shadow-lg shadow-cyan-500/30 bg-cyan-500/20' : isCurrent ? 'border-white/40 bg-white/15' : 'border-white/10 bg-white/5 hover:bg-white/10'}`} style={{ backdropFilter: 'blur(4px)' }}>
                       {isEditing ? (
                         <input type="text" value={editingText} onChange={(e) => setEditingText(e.target.value)}
@@ -944,7 +973,7 @@ export default function PreviewPage() {
           </motion.div>
 
           <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500"><span className="font-medium">Shortcuts:</span> Space = Play/Pause • ←/→ = Nudge • Delete = Remove word • Shift+Click = Select range • Double-click = Edit • Esc = Deselect/Exit paint</p>
+            <p className="text-xs text-gray-500"><span className="font-medium">Shortcuts:</span> Space = Play/Pause • ←/→ = Nudge • Delete = Remove • Shift+Click = Range • Double-click = Edit • Esc = Exit • Click timeline = Seek</p>
           </div>
         </main>
       </div>
