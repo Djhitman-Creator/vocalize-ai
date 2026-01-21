@@ -805,20 +805,33 @@ export default function PreviewPage() {
                     <p className="text-2xl md:text-3xl font-bold" style={{ fontFamily: project.font || 'Arial' }}>
                       {currentLyrics.currentLine.map((wordData, i) => {
                         let wordColor;
+                        let textShadow = `2px 2px 4px ${project.outline_color || '#000000'}`;
+
                         if (isDuetMode && words[wordData.index]?.singer !== undefined) {
                           const singer = words[wordData.index].singer;
                           if (singer === SINGER.SINGER_1) wordColor = duetColors.singer1;
                           else if (singer === SINGER.SINGER_2) wordColor = duetColors.singer2;
                           else wordColor = duetColors.both;
+
+                          // Dim unsung words, brighten active/past words
+                          if (!wordData.isActive && !wordData.isPast) {
+                            // Unsung - dim the color
+                            wordColor = wordColor + '80'; // Add 50% opacity
+                          } else if (wordData.isActive) {
+                            // Currently singing - add glow effect
+                            textShadow = `0 0 10px ${wordColor}, 0 0 20px ${wordColor}, 2px 2px 4px ${project.outline_color || '#000000'}`;
+                          }
                         } else {
                           wordColor = (wordData.isActive || wordData.isPast)
                             ? (project.sung_color || '#00d4ff')
                             : (project.text_color || '#ffffff');
                         }
+
                         return (
                           <span key={i} className="mx-1 transition-colors duration-150" style={{
                             color: wordColor,
-                            textShadow: `2px 2px 4px ${project.outline_color || '#000000'}`
+                            textShadow: textShadow,
+                            opacity: (!wordData.isActive && !wordData.isPast) ? 0.5 : 1
                           }}>{wordData.word}</span>
                         );
                       })}
