@@ -454,70 +454,81 @@ export default function PreviewPage() {
   const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
 
   const getCurrentLyrics = useCallback(() => {
-    const lines = groupedLines();
-    if (!lines.length) return { currentLine: null, next: '' };
-    
-    let currentLineIdx = -1;
-    
+  const lines = groupedLines();
+  if (!lines.length) return { currentLine: null, next: '' };
+  
+  let currentLineIdx = -1;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    for (let j = 0; j < line.length; j++) {
+      const word = line[j];
+      if (currentTime >= word.start && currentTime <= word.end) {
+        currentLineIdx = i;
+        break;
+      }
+    }
+    if (currentLineIdx !== -1) break;
+  }
+  
+  if (currentLineIdx === -1) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      for (let j = 0; j < line.length; j++) {
-        const word = line[j];
-        if (currentTime >= word.start && currentTime <= word.end) {
-          currentLineIdx = i;
-          break;
+      if (line.length > 0 && line[0].start > currentTime) {
+        if (i === 0) {
+          return { currentLine: null, next: line.map(w => w.word).join(' ') };
         }
+        // Check if previous line ended more than 2 seconds ago
+        const prevLine = lines[i - 1];
+        const lastWordEnd = prevLine[prevLine.length - 1].end;
+        if (currentTime - lastWordEnd > 2) {
+          // More than 2 seconds since last word - hide current line, show next as upcoming
+          return { currentLine: null, next: line.map(w => w.word).join(' ') };
+        }
+        const currentLineText = prevLine.map(w => ({
+          word: w.word,
+          isActive: false,
+          isPast: true
+        }));
+        return { currentLine: currentLineText, next: line.map(w => w.word).join(' ') };
       }
-      if (currentLineIdx !== -1) break;
+      if (line.length > 0 && line[line.length - 1].end >= currentTime) {
+        currentLineIdx = i;
+        break;
+      }
     }
     
     if (currentLineIdx === -1) {
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.length > 0 && line[0].start > currentTime) {
-          if (i === 0) {
-            return { currentLine: null, next: line.map(w => w.word).join(' ') };
-          }
-          const prevLine = lines[i - 1];
-          const currentLineText = prevLine.map(w => ({
-            word: w.word,
-            isActive: false,
-            isPast: true
-          }));
-          return { currentLine: currentLineText, next: line.map(w => w.word).join(' ') };
+      if (lines.length > 0) {
+        const lastLine = lines[lines.length - 1];
+        const lastWordEnd = lastLine[lastLine.length - 1].end;
+        // Hide if more than 2 seconds after last word
+        if (currentTime - lastWordEnd > 2) {
+          return { currentLine: null, next: '' };
         }
-        if (line.length > 0 && line[line.length - 1].end >= currentTime) {
-          currentLineIdx = i;
-          break;
-        }
+        const currentLineText = lastLine.map(w => ({
+          word: w.word,
+          isActive: false,
+          isPast: true
+        }));
+        return { currentLine: currentLineText, next: '' };
       }
-      
-      if (currentLineIdx === -1) {
-        if (lines.length > 0) {
-          const lastLine = lines[lines.length - 1];
-          const currentLineText = lastLine.map(w => ({
-            word: w.word,
-            isActive: false,
-            isPast: true
-          }));
-          return { currentLine: currentLineText, next: '' };
-        }
-        return { currentLine: null, next: '' };
-      }
+      return { currentLine: null, next: '' };
     }
-    
-    const line = lines[currentLineIdx];
-    const currentLineText = line.map(w => ({
-      word: w.word,
-      isActive: currentTime >= w.start && currentTime <= w.end,
-      isPast: currentTime > w.end
-    }));
-    
-    const nextLine = lines[currentLineIdx + 1];
-    const nextText = nextLine ? nextLine.map(w => w.word).join(' ') : '';
-    
-    return { currentLine: currentLineText, next: nextText };
-  }, [groupedLines, currentTime]);
+  }
+  
+  const line = lines[currentLineIdx];
+  const currentLineText = line.map(w => ({
+    word: w.word,
+    isActive: currentTime >= w.start && currentTime <= w.end,
+    isPast: currentTime > w.end
+  }));
+  
+  const nextLine = lines[currentLineIdx + 1];
+  const nextText = nextLine ? nextLine.map(w => w.word).join(' ') : '';
+  
+  return { currentLine: currentLineText, next: nextText };
+}, [groupedLines, currentTime]);
 
   const zoomIn = () => setZoom(prev => Math.min(prev * 1.25, 300));
   const zoomOut = () => setZoom(prev => Math.max(prev / 1.25, 30));
