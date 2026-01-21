@@ -365,7 +365,7 @@ export default function PreviewPage() {
     const handleMouseMove = (e) => {
       if (!isDragging) return;
       const deltaX = e.clientX - dragStartX;
-      const deltaTime = -deltaX / zoom;
+      const deltaTime = deltaX / zoom;
       setWords(prev => {
         const updated = [...prev];
         Object.keys(dragStartTimes).forEach(indexStr => {
