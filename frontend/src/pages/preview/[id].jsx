@@ -351,26 +351,51 @@ export default function PreviewPage() {
   const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
 
   const getCurrentLyrics = useCallback(() => {
-    if (!words.length) return { currentLine: null, next: '' };
-    const currentWordIndex = words.findIndex(w => currentTime >= w.start && currentTime <= w.end);
-    if (currentWordIndex === -1) {
-      const nextWord = words.find(w => w.start > currentTime);
-      if (nextWord) {
-        const nextLine = words.filter(w => w.line === nextWord.line).map(w => w.word).join(' ');
-        return { currentLine: null, next: nextLine };
-      }
+  if (!words.length) return { currentLine: null, next: '' };
+  
+  // Find the current or most recent word (handles gaps between words)
+  let currentWordIndex = words.findIndex(w => currentTime >= w.start && currentTime <= w.end);
+  
+  // If not currently on a word, find which line we should be showing
+  if (currentWordIndex === -1) {
+    // Find the next upcoming word
+    const nextWordIndex = words.findIndex(w => w.start > currentTime);
+    
+    if (nextWordIndex === -1) {
+      // Past all words - show nothing
       return { currentLine: null, next: '' };
     }
-    const currentWord = words[currentWordIndex];
-    const lineWords = words.filter(w => w.line === currentWord.line);
+    
+    if (nextWordIndex === 0) {
+      // Before first word - show first line as upcoming
+      const firstLine = words.filter(w => w.line === words[0].line).map(w => w.word).join(' ');
+      return { currentLine: null, next: firstLine };
+    }
+    
+    // Between words - show the line of the previous word (keeps display stable)
+    const prevWord = words[nextWordIndex - 1];
+    const lineWords = words.filter(w => w.line === prevWord.line);
     const currentLineText = lineWords.map(w => ({
       word: w.word,
-      isActive: currentTime >= w.start && currentTime <= w.end,
+      isActive: false,
       isPast: currentTime > w.end
     }));
-    const nextLineWords = words.filter(w => w.line === currentWord.line + 1);
+    const nextLineNum = prevWord.line + 1;
+    const nextLineWords = words.filter(w => w.line === nextLineNum);
     return { currentLine: currentLineText, next: nextLineWords.map(w => w.word).join(' ') };
-  }, [words, currentTime]);
+  }
+  
+  // Currently on a word - show its line
+  const currentWord = words[currentWordIndex];
+  const lineWords = words.filter(w => w.line === currentWord.line);
+  const currentLineText = lineWords.map(w => ({
+    word: w.word,
+    isActive: currentTime >= w.start && currentTime <= w.end,
+    isPast: currentTime > w.end
+  }));
+  const nextLineWords = words.filter(w => w.line === currentWord.line + 1);
+  return { currentLine: currentLineText, next: nextLineWords.map(w => w.word).join(' ') };
+}, [words, currentTime]);
 
   const zoomIn = () => setZoom(prev => Math.min(prev * 1.25, 300));
   const zoomOut = () => setZoom(prev => Math.max(prev / 1.25, 30));
