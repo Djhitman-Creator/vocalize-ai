@@ -576,8 +576,22 @@ def initialize_fonts():
     _fonts_initialized = True
     print("Ã¢Å“â€¦ Fonts initialized")
 
-def get_font(size, font_name='arial'):
-    """Get font by name with fallback to default"""
+def get_font(size, font_name='arial', custom_font_path=None):
+    """Get font by name with fallback to default. Supports custom font path."""
+    
+    # If custom font path provided, use it directly
+    if custom_font_path and os.path.exists(custom_font_path):
+        cache_key = f"custom_{custom_font_path}_{size}"
+        if cache_key in _font_cache:
+            return _font_cache[cache_key]
+        try:
+            font = ImageFont.truetype(custom_font_path, size)
+            _font_cache[cache_key] = font
+            print(f"   Using custom font: {custom_font_path}")
+            return font
+        except Exception as e:
+            print(f"   Custom font failed ({e}), falling back to default...")
+    
     cache_key = f"{font_name}_{size}"
     
     if cache_key in _font_cache:
@@ -597,7 +611,7 @@ def get_font(size, font_name='arial'):
         _font_cache[cache_key] = font
         return font
     except Exception as e:
-        print(f"   Ã¢Å¡Â Ã¯Â¸Â Font '{font_name}' failed ({e}), using fallback...")
+        print(f"   Font '{font_name}' failed ({e}), using fallback...")
     
     # Fallback to default
     try:
@@ -606,6 +620,35 @@ def get_font(size, font_name='arial'):
         return font
     except:
         return ImageFont.load_default()
+
+
+def download_custom_font(custom_font_url, work_dir):
+    """Download a custom font from URL to work directory."""
+    if not custom_font_url:
+        return None
+    
+    try:
+        print(f"   Downloading custom font from {custom_font_url}")
+        
+        # Determine extension from URL
+        if '.otf' in custom_font_url.lower():
+            ext = '.otf'
+        else:
+            ext = '.ttf'
+        
+        font_path = os.path.join(work_dir, f'custom_font{ext}')
+        
+        response = requests.get(custom_font_url, timeout=30)
+        response.raise_for_status()
+        
+        with open(font_path, 'wb') as f:
+            f.write(response.content)
+        
+        print(f"   Custom font downloaded: {font_path}")
+        return font_path
+    except Exception as e:
+        print(f"   Failed to download custom font: {e}")
+        return None
 
 
 def convert_to_wav(input_path, output_path, sample_rate=SAMPLE_RATE):
@@ -742,7 +785,7 @@ def apply_watermark(frame, video_width, video_height):
     
     # Prepare to draw text
     draw = ImageDraw.Draw(watermarked)
-    font = get_font(20)  # Smaller font for watermark text
+    font = get_font(20, 'arial', None)  # Smaller font for watermark text
     
     # Calculate text size
     text_bbox = draw.textbbox((0, 0), WATERMARK_TEXT, font=font)
@@ -1460,8 +1503,8 @@ def create_intro_frame(artist, title, frame_num, total_frames, width, height, co
     font_name = colors.get('font', 'arial') if colors else 'arial'
     
     scale = width / 1920
-    font_artist = get_font(int(FONT_SIZE_ARTIST * scale), font_name)
-    font_title = get_font(int(FONT_SIZE_TITLE * scale), font_name)
+    font_artist = get_font(int(FONT_SIZE_ARTIST * scale), font_name, colors.get('custom_font_path') if colors else None)
+    font_title = get_font(int(FONT_SIZE_TITLE * scale), font_name, colors.get('custom_font_path') if colors else None)
     
     progress = frame_num / total_frames
     if progress < 0.2:
@@ -1648,7 +1691,7 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
     font_name = colors.get('font', 'arial') if colors else 'arial'
     
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name)
+    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name, colors.get('custom_font_path') if colors else None)
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
@@ -1733,7 +1776,7 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
     font_name = colors.get('font', 'arial') if colors else 'arial'
     
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name)
+    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name, colors.get('custom_font_path') if colors else None)
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
@@ -1817,7 +1860,7 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
     font_name = colors.get('font', 'arial') if colors else 'arial'
     
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name)
+    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name, colors.get('custom_font_path') if colors else None)
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
@@ -1986,6 +2029,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         'gradient_direction': style_options.get('gradient_direction', 'to bottom'),
         'font_size_scale': font_size_scale,
         'font': style_options.get('font', 'arial'),
+        'custom_font_path': style_options.get('custom_font_path'),
     }
     
     print(f"   Ã°Å¸Å½Â¨ Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}, font={colors['font']}, font_scale={font_size_scale}")
@@ -2169,7 +2213,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
                 draw = ImageDraw.Draw(frame)
                 scale = width / 1920
                 outro_font_size = int(48 * scale)
-                outro_font = get_font(outro_font_size, colors.get('font', 'arial') if colors else 'arial')
+                outro_font = get_font(outro_font_size, colors.get('font', 'arial') if colors else 'arial', colors.get('custom_font_path') if colors else None)
                 
                 # Split outro text into lines
                 outro_lines = outro_text.strip().split('\n')
@@ -2282,7 +2326,9 @@ def handler(event):
             'outline_color': input_data.get('outline_color', '#000000'),
             'sung_color': input_data.get('sung_color', '#00d4ff'),
             'font': input_data.get('font', 'arial'),
-            'font_size': input_data.get('font_size', 'normal'),  # 'normal', 'large', 'xlarge'
+            'font_size': input_data.get('font_size', 'normal'),
+            'custom_font_url': input_data.get('custom_font_url'),
+            'custom_font_name': input_data.get('custom_font_name'),
         }
         
         # NEW in 5.0: Background type options
@@ -2308,6 +2354,22 @@ def handler(event):
         
         work_dir = tempfile.mkdtemp()
         results = {}
+        
+        # Download custom font if provided
+        custom_font_path = None
+        if style_options.get('custom_font_url'):
+            custom_font_path = download_custom_font(style_options['custom_font_url'], work_dir)
+            if custom_font_path:
+                style_options['custom_font_path'] = custom_font_path
+                print(f"   🔤 Custom font: {style_options.get('custom_font_name', 'Custom')}")
+        
+        # Download custom font if provided
+        custom_font_path = None
+        if style_options.get('custom_font_url'):
+            custom_font_path = download_custom_font(style_options['custom_font_url'], work_dir)
+            if custom_font_path:
+                style_options['custom_font_path'] = custom_font_path
+                print(f"   Custom font: {style_options.get('custom_font_name', 'Custom')}")
         
         # Download video/image background if needed (NEW in 5.0)
         bg_video_path = None
