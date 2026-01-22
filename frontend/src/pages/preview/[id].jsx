@@ -173,7 +173,6 @@ const SweepInBar = ({ progress, color }) => {
     />
   );
 };
-};
 
 // ============================================================
 // PROGRESS BAR COMPONENT - Shows during instrumental breaks
