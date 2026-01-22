@@ -47,22 +47,22 @@ const INSTRUMENTAL_BREAK_THRESHOLD = 5.0; // seconds to trigger progress bar
 
 // ============================================================
 // SWEEP WORD COMPONENT - Renders a single word with sweep effect
-// Uses layered approach: shadow layer underneath, gradient text on top
+// Uses percentage-based clip-path to reveal highlighted text
 // ============================================================
 const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isActive, isPast, showGlow }) => {
   // sweepPercent: 0 = unsung, 0.5 = halfway, 1 = fully sung
   
-  const baseTextShadow = `2px 2px 4px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 1px 2px ${outlineColor}`;
-  const glowTextShadow = `0 0 10px ${color}, 0 0 20px ${color}, 2px 2px 4px ${outlineColor}, -1px -1px 2px ${outlineColor}`;
+  const baseTextShadow = `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 1px 2px ${outlineColor}`;
+  const glowTextShadow = `0 0 10px ${color}, 0 0 20px ${color}, 1px 1px 2px ${outlineColor}`;
   
-  // If fully past or no sweep needed, render simple span
+  // If fully past, render in highlight color
   if (isPast || sweepPercent >= 1) {
     return (
       <span 
-        className="mx-1 inline-block"
+        className="mx-1"
         style={{
           color: color,
-          textShadow: showGlow ? glowTextShadow : baseTextShadow,
+          textShadow: baseTextShadow,
         }}
       >
         {word}
@@ -74,7 +74,7 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
   if (sweepPercent <= 0 && !isActive) {
     return (
       <span 
-        className="mx-1 inline-block"
+        className="mx-1"
         style={{
           color: unsungColor,
           textShadow: baseTextShadow,
@@ -85,20 +85,22 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
     );
   }
   
-  // Active word with sweep effect
-  // Use layered approach: position relative container with two text layers
-  const gradientPercent = Math.max(0, Math.min(100, sweepPercent * 100));
+  // Active word with sweep effect using clip-path
+  // This clips the highlighted layer to reveal only the "sung" portion
+  const clipPercent = Math.max(0, Math.min(100, sweepPercent * 100));
   
-  // Create soft edge (5% gradient blur for smoother transition)
-  const softEdgeStart = Math.max(0, gradientPercent - 3);
-  const softEdgeEnd = Math.min(100, gradientPercent + 3);
+  // Add soft edge by using a slightly larger clip (creates visual blend)
+  const softClipPercent = Math.min(100, clipPercent + 2);
   
   return (
     <span 
-      className="mx-1 inline-block relative"
-      style={{ position: 'relative' }}
+      className="mx-1"
+      style={{ 
+        position: 'relative',
+        display: 'inline-block',
+      }}
     >
-      {/* Layer 1: Shadow/outline layer (bottom) - shows the unsung color with shadow */}
+      {/* Base layer: Unsung text (gray) - always visible */}
       <span
         style={{
           color: unsungColor,
@@ -108,24 +110,17 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
         {word}
       </span>
       
-      {/* Layer 2: Gradient sweep layer (top) - clips gradient to text only */}
+      {/* Overlay layer: Highlighted text - clipped to show only sung portion */}
       <span
         aria-hidden="true"
         style={{
           position: 'absolute',
           left: 0,
           top: 0,
-          background: `linear-gradient(90deg, 
-            ${color} ${softEdgeStart}%, 
-            ${color} ${gradientPercent}%, 
-            transparent ${softEdgeEnd}%, 
-            transparent 100%)`,
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          backgroundClip: 'text',
-          color: 'transparent',
-          // Add glow effect using filter (works with background-clip: text)
-          filter: showGlow ? `drop-shadow(0 0 8px ${color}) drop-shadow(0 0 16px ${color})` : 'none',
+          color: color,
+          textShadow: showGlow ? glowTextShadow : baseTextShadow,
+          clipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
+          WebkitClipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
         }}
       >
         {word}
