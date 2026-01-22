@@ -1923,9 +1923,15 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
     """
     Draw the sweep-in bar that appears before lyrics start.
     
+    The bar should:
+    - Have NO outline/box
+    - Fade from transparent (left) to solid color (right)
+    - Have a soft glow effect
+    - Overlap slightly INTO the first letter (drawn behind text)
+    
     Args:
         draw: PIL ImageDraw object
-        x: X position (right edge, where it meets the first letter)
+        x: X position (where it meets the first letter - bar extends LEFT from here)
         y: Y position (vertical center of the bar)
         progress: 0-1, where 0 = full bar, 1 = bar disappeared
         color: RGB tuple for the bar color
@@ -1939,36 +1945,44 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
     if current_width < 2:
         return
     
-    bar_height = int(height * 0.85)  # Match capital letter height
-    bar_left = x - current_width
+    bar_height = int(height * 0.7)  # Slightly shorter than text
+    bar_right = x + int(8 * scale)  # Overlap INTO the first letter by 8px
+    bar_left = bar_right - current_width
     bar_top = y - bar_height // 2
     
-    # Draw feathered glow effect behind the bar (multiple layers, fading outward)
-    # More layers + larger area = smoother, softer glow with invisible edges
-    glow_layers = 8
-    max_glow_padding = int(18 * scale)
+    # Draw soft glow ONLY (no box outline) - multiple layers for feathered effect
+    # The glow creates the visual without hard edges
+    glow_layers = 5
+    max_glow_padding = int(10 * scale)
+    
     for layer in range(glow_layers, 0, -1):
-        # Outer layers are larger but more transparent
         layer_padding = int(max_glow_padding * layer / glow_layers)
-        # Exponential falloff for smoother fade (outer layers much dimmer)
-        layer_alpha = 0.12 * ((glow_layers - layer + 1) / glow_layers) ** 2
+        # Exponential falloff - outer layers much dimmer
+        layer_alpha = 0.15 * ((glow_layers - layer + 1) / glow_layers) ** 1.5
         glow_color = tuple(int(c * layer_alpha) for c in color)
         
+        # Draw glow layer (no hard rectangle, just soft color)
+        glow_left = bar_left - layer_padding
+        glow_top = bar_top - layer_padding
+        glow_bottom = bar_top + bar_height + layer_padding
+        glow_right = bar_right + layer_padding
+        
         draw.rectangle(
-            [(bar_left - layer_padding, bar_top - layer_padding), 
-             (x + layer_padding, bar_top + bar_height + layer_padding)],
+            [(glow_left, glow_top), (glow_right, glow_bottom)],
             fill=glow_color
         )
     
-    # Draw gradient bar (fades from transparent to solid on the right)
-    # PIL doesn't support gradients directly, so we draw multiple rectangles
-    num_segments = min(20, current_width)
+    # Draw the main gradient bar (fades from transparent on left to solid on right)
+    num_segments = min(25, current_width)
+    if num_segments < 1:
+        return
     segment_width = current_width / num_segments
     
     for i in range(num_segments):
         seg_x = bar_left + (i * segment_width)
-        # Gradient: more transparent on left, solid on right
-        blend_factor = i / num_segments
+        # Gradient: very transparent on left, solid on right
+        # Use exponential curve for smoother fade
+        blend_factor = (i / num_segments) ** 0.7  # Slightly faster fade-in
         blended_color = tuple(int(c * blend_factor) for c in color)
         
         draw.rectangle(
