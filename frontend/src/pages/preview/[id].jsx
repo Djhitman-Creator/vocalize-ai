@@ -1143,10 +1143,9 @@ export default function PreviewPage() {
                         const showGlow = wordData.isActive;
                         
                         // For the FIRST word when sweep-in is showing:
-                        // Render with a mask technique to blend the bar into the letter
+                        // Just render in unsung color - the bar goes behind it
+                        // NO early highlighting - let the word timing take over naturally
                         if (currentLyrics.showSweepIn && i === 0) {
-                          const sweepInProgress = currentLyrics.sweepInProgress;
-                          
                           return (
                             <span 
                               key={i}
@@ -1156,7 +1155,7 @@ export default function PreviewPage() {
                                 display: 'inline-block',
                               }}
                             >
-                              {/* Layer 1: The actual first letter in unsung color (acts as mask) */}
+                              {/* First letter in unsung color - acts as mask for the sweep-in bar */}
                               <span
                                 style={{
                                   color: unsungColor,
@@ -1167,28 +1166,6 @@ export default function PreviewPage() {
                               >
                                 {wordData.word}
                               </span>
-                              
-                              {/* Layer 2: Highlight color that will be revealed by clip-path */}
-                              {/* This layer starts revealing as sweep-in approaches completion */}
-                              {sweepInProgress > 0.5 && (
-                                <span
-                                  aria-hidden="true"
-                                  style={{
-                                    position: 'absolute',
-                                    left: 0,
-                                    top: 0,
-                                    color: highlightColor,
-                                    textShadow: `0 0 10px ${highlightColor}, 0 0 20px ${highlightColor}, 1px 1px 2px ${outlineColor}`,
-                                    zIndex: 3,
-                                    // Clip reveals from left as sweep-in completes
-                                    // Maps sweep-in 0.5-1.0 to clip 0-30%
-                                    clipPath: `inset(0 ${100 - ((sweepInProgress - 0.5) / 0.5 * 30)}% 0 0)`,
-                                    WebkitClipPath: `inset(0 ${100 - ((sweepInProgress - 0.5) / 0.5 * 30)}% 0 0)`,
-                                  }}
-                                >
-                                  {wordData.word}
-                                </span>
-                              )}
                             </span>
                           );
                         }
