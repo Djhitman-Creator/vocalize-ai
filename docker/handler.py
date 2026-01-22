@@ -1,12 +1,13 @@
 """
 Karatrack Studio RunPod Handler
-Version 6.0 - Sweep Highlighting
+Version 6.1 - Optimized Sweep Highlighting
 
 Uses AssemblyAI API for word-level timestamps (~50ms accuracy)
 
 NEW in 4.1: Normalized lyrics comparison ignores punctuation & capitalization
 NEW in 5.0: Video background support (presets and custom uploads)
 NEW in 6.0: Character-by-character sweep highlighting with sweep-in bars
+NEW in 6.1: Optimized sweep rendering (2-pass instead of per-character)
 
 Processes audio files: vocal removal, lyrics transcription, video generation
 Uploads results to Cloudflare R2
@@ -1802,13 +1803,15 @@ def calculate_sweep_in_duration(gap_duration):
     return 0  # No sweep
 
 
-def draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color):
+def draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color, img=None):
     """
-    Draw a word with character-by-character sweep highlighting.
+    Draw a word with smooth left-to-right sweep highlighting.
     
-    Uses PIL to draw the word in two passes:
-    1. Draw entire word in unsung color
-    2. Draw highlighted portion using character-level clipping
+    OPTIMIZED VERSION (v6.1): Uses only 2 draw passes instead of per-character.
+    
+    Method:
+    1. Draw entire word in unsung color (base layer)
+    2. Draw entire word in highlight color, then mask to sweep position
     
     Args:
         draw: PIL ImageDraw object
@@ -1820,6 +1823,7 @@ def draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color,
         highlight_color: RGB tuple for highlighted text
         unsung_color: RGB tuple for unhighlighted text
         outline_color: RGB tuple for text outline
+        img: PIL Image (needed for masking - optional, falls back to simple method)
     """
     if sweep_percent <= 0:
         # Not started - draw entirely in unsung color with outline
@@ -1831,32 +1835,47 @@ def draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color,
         draw_text_with_outline(draw, word, x, y, font, highlight_color, outline_color, glow=True)
         return
     
-    # Partial sweep - need to draw character by character
+    # Partial sweep - use optimized two-pass method
     word_bbox = draw.textbbox((0, 0), word, font=font)
     total_width = word_bbox[2] - word_bbox[0]
+    word_height = word_bbox[3] - word_bbox[1]
     
     # Calculate where the sweep boundary is
-    sweep_x = x + (total_width * sweep_percent / 100)
+    sweep_width = int(total_width * sweep_percent / 100)
     
-    # Draw unhighlighted portion (entire word first as base)
-    draw_text_with_outline(draw, word, x, y, font, unsung_color, outline_color)
-    
-    # Now draw highlighted portion by measuring character positions
-    current_x = x
-    for i, char in enumerate(word):
-        char_bbox = draw.textbbox((0, 0), char, font=font)
-        char_width = char_bbox[2] - char_bbox[0]
-        char_center = current_x + char_width / 2
+    if img is not None:
+        # OPTIMIZED: Use image compositing with masking
+        from PIL import Image, ImageDraw as ID
         
-        if char_center <= sweep_x:
-            # This character should be fully highlighted
-            draw_text_with_outline(draw, char, current_x, y, font, highlight_color, outline_color, glow=True)
-        elif current_x < sweep_x:
-            # This character is partially swept - show as highlighted
-            # (We can't easily do partial character fill in PIL, so we use a threshold)
-            draw_text_with_outline(draw, char, current_x, y, font, highlight_color, outline_color, glow=True)
+        # Create temporary image for highlighted text
+        temp_width = total_width + 20  # Extra padding for outline/glow
+        temp_height = word_height + 20
         
-        current_x += char_width
+        # Draw unsung version (full word)
+        draw_text_with_outline(draw, word, x, y, font, unsung_color, outline_color)
+        
+        # Create highlight overlay (only the swept portion)
+        highlight_img = Image.new('RGBA', (temp_width, temp_height), (0, 0, 0, 0))
+        highlight_draw = ID.Draw(highlight_img)
+        
+        # Draw highlighted text on temp image
+        draw_text_with_outline(highlight_draw, word, 10, 10, font, highlight_color, outline_color, glow=True)
+        
+        # Crop to only the swept portion
+        if sweep_width > 0:
+            cropped = highlight_img.crop((0, 0, sweep_width + 10, temp_height))
+            # Paste onto main image
+            img.paste(cropped, (x - 10, y - 10), cropped)
+    else:
+        # FALLBACK: Simple two-pass without masking (still faster than per-char)
+        # Draw unsung base
+        draw_text_with_outline(draw, word, x, y, font, unsung_color, outline_color)
+        
+        # Approximate sweep by drawing highlighted portion
+        # This is less precise but much faster than per-character
+        if sweep_percent > 50:
+            # More than half swept - show as highlighted
+            draw_text_with_outline(draw, word, x, y, font, highlight_color, outline_color, glow=True)
 
 
 def draw_text_with_outline(draw, text, x, y, font, color, outline_color, glow=False):
@@ -2078,7 +2097,7 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
                     sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
                     
                     if x + word_width <= width - padding:
-                        draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color)
+                        draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color, img)
                 else:
                     # Upcoming line
                     draw_text_with_outline(draw, word, x, y, font, upcoming_color, outline_color)
@@ -2177,7 +2196,7 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
                 elif line_idx_global == current_line_idx:
                     # Current line - use sweep highlighting
                     sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
-                    draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color)
+                    draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color, img)
                 else:
                     # Upcoming line
                     draw_text_with_outline(draw, word, x, y, font, text_color, outline_color)
@@ -2296,7 +2315,7 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
             elif line_idx == current_line_idx:
                 # Current line - use sweep highlighting
                 sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
-                draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color)
+                draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color, img)
             else:
                 # Upcoming lines
                 draw_text_with_outline(draw, word, x, y, font, upcoming_color, outline_color)
