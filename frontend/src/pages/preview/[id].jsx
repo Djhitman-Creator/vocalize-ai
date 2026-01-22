@@ -1133,13 +1133,10 @@ export default function PreviewPage() {
                       {currentLyrics.showSweepIn && (
                         <>
                           <SweepInBar 
+                            key={`sweep-${currentTime.toFixed(2)}`}
                             progress={currentLyrics.sweepInProgress}
                             color={getHighlightColor(currentLyrics.currentLine[0]?.index)}
                           />
-                          {/* Debug: show progress value - REMOVE AFTER TESTING */}
-                          <span style={{ position: 'absolute', top: '5px', left: '10px', fontSize: '12px', color: '#fff', background: 'rgba(0,0,0,0.7)', padding: '2px 6px', borderRadius: '4px' }}>
-                            Progress: {(currentLyrics.sweepInProgress * 100).toFixed(1)}%
-                          </span>
                         </>
                       )}
                       
