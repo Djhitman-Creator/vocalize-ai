@@ -178,33 +178,57 @@ const SweepInBar = ({ progress, color }) => {
 
 // ============================================================
 // PROGRESS BAR COMPONENT - Shows during instrumental breaks
+// Styled to match sweep-in bar - gradient fade, tapered ends
 // ============================================================
 const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outlineColor }) => {
-  const fillWidth = Math.max(0, Math.min(100, progress * 100));
-  const remainingSeconds = Math.ceil((1 - progress) * INSTRUMENTAL_BREAK_THRESHOLD);
+  // progress: 0 = break just started, 1 = about to end
+  // Bar fills from left to right as progress increases
+  
+  const maxWidth = 200; // Full width of the bar container
+  const fillWidth = maxWidth * progress; // How much is filled
   
   return (
-    <div className="flex flex-col items-center gap-3">
-      {/* Progress bar */}
-      <div className="w-64 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
-        <div 
-          className="h-full rounded-full transition-all duration-100"
-          style={{ 
-            width: `${fillWidth}%`,
-            background: `linear-gradient(90deg, ${color} 0%, ${color} 95%, rgba(255,255,255,0.3) 100%)`,
-            boxShadow: `0 0 10px ${color}`,
+    <div className="flex flex-col items-center gap-4">
+      {/* Progress bar container */}
+      <div 
+        style={{
+          width: `${maxWidth}px`,
+          height: '0.6em',
+          position: 'relative',
+          background: 'rgba(255,255,255,0.15)',
+          borderRadius: '50% / 50%', // Tapered ends on both sides
+          overflow: 'hidden',
+        }}
+      >
+        {/* Fill bar - sweeps from left to right */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            height: '100%',
+            width: fillWidth,
+            background: `linear-gradient(90deg, 
+              ${color} 0%, 
+              ${color} 70%,
+              ${color}cc 85%,
+              ${color}80 95%,
+              transparent 100%)`,
+            borderRadius: '50% 0 0 50% / 50% 0 0 50%',
+            filter: `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 10px ${color}60)`,
           }}
         />
       </div>
       
-      {/* Countdown */}
-      <p className="text-sm opacity-70" style={{ color: textColor, textShadow: `1px 1px 2px ${outlineColor}` }}>
-        {remainingSeconds > 0 ? `${remainingSeconds}s` : 'Get ready...'}
-      </p>
-      
       {/* Next lyrics preview */}
       {nextLyrics && (
-        <p className="text-lg opacity-50 mt-2" style={{ color: textColor, textShadow: `1px 1px 2px ${outlineColor}` }}>
+        <p 
+          className="text-lg opacity-60" 
+          style={{ 
+            color: textColor, 
+            textShadow: `1px 1px 2px ${outlineColor}` 
+          }}
+        >
           {nextLyrics}
         </p>
       )}
@@ -1119,18 +1143,46 @@ export default function PreviewPage() {
           {/* ============================================================ */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-black/40 border border-white/10' : 'bg-white border border-gray-200'}`}>
             <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
-              <span className="text-xs font-medium text-gray-400">Video Preview (Sweep Highlighting V7)</span>
+              <span className="text-xs font-medium text-gray-400">Video Preview</span>
               <button onClick={() => setPreviewExpanded(!previewExpanded)} className="p-1 rounded hover:bg-white/10">
                 {previewExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
               </button>
             </div>
             <div className={`relative transition-all duration-300 ${previewExpanded ? 'h-80' : 'h-48'}`} style={getPreviewBackground()}>
-              {project.bg_video_url && <video className="absolute inset-0 w-full h-full object-cover opacity-50" src={project.bg_video_url} autoPlay loop muted playsInline />}
+              {/* Background Image */}
+              {project.bg_image_url && !project.bg_video_url && (
+                <img 
+                  className="absolute inset-0 w-full h-full object-cover opacity-70" 
+                  src={project.bg_image_url} 
+                  alt="Background"
+                />
+              )}
+              {/* Background Video */}
+              {project.bg_video_url && (
+                <video 
+                  className="absolute inset-0 w-full h-full object-cover opacity-60" 
+                  src={project.bg_video_url} 
+                  autoPlay 
+                  loop 
+                  muted 
+                  playsInline 
+                />
+              )}
+              {/* Custom Font Style - loads the custom font if uploaded */}
+              {project.custom_font_url && (
+                <style>{`
+                  @font-face {
+                    font-family: 'CustomKaraokeFont';
+                    src: url('${project.custom_font_url}');
+                  }
+                `}</style>
+              )}
               <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
                 
                 {/* PROGRESS BAR FOR INSTRUMENTAL BREAKS > 5 SECONDS */}
                 {currentLyrics.showProgressBar ? (
                   <InstrumentalProgressBar 
+                    key={`progress-${currentTime.toFixed(2)}`}
                     progress={currentLyrics.progressBarPercent}
                     nextLyrics={currentLyrics.nextLyricsForProgressBar}
                     color={project?.sung_color || '#00d4ff'}
@@ -1140,7 +1192,7 @@ export default function PreviewPage() {
                 ) : currentLyrics.currentLine ? (
                   /* CURRENT LINE WITH SWEEP EFFECT */
                   <div className="text-center mb-4">
-                    <p className="text-2xl md:text-3xl font-bold" style={{ fontFamily: project.font || 'Arial' }}>
+                    <p className="text-2xl md:text-3xl font-bold" style={{ fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial') }}>
                       {/* SWEEP-IN BAR (shows 2 seconds before first word) */}
                       {currentLyrics.showSweepIn && (
                         <>
@@ -1213,7 +1265,7 @@ export default function PreviewPage() {
                 {currentLyrics.next && !currentLyrics.showProgressBar && (
                   <p className="text-lg md:text-xl opacity-50" style={{ 
                     color: textColor, 
-                    fontFamily: project.font || 'Arial', 
+                    fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'), 
                     textShadow: `1px 1px 2px ${outlineColor}` 
                   }}>
                     {currentLyrics.next}
