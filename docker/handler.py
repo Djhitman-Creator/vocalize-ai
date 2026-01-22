@@ -1,13 +1,13 @@
 """
 Karatrack Studio RunPod Handler
-Version 6.1 - Optimized Sweep Highlighting
+Version 6.2 - Fast Sweep Highlighting
 
 Uses AssemblyAI API for word-level timestamps (~50ms accuracy)
 
 NEW in 4.1: Normalized lyrics comparison ignores punctuation & capitalization
 NEW in 5.0: Video background support (presets and custom uploads)
 NEW in 6.0: Character-by-character sweep highlighting with sweep-in bars
-NEW in 6.1: Optimized sweep rendering (2-pass instead of per-character)
+NEW in 6.2: Optimized sweep - splits word at sweep point (2 draws vs N chars)
 
 Processes audio files: vocal removal, lyrics transcription, video generation
 Uploads results to Cloudflare R2
@@ -1805,13 +1805,15 @@ def calculate_sweep_in_duration(gap_duration):
 
 def draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color, img=None):
     """
-    Draw a word with smooth left-to-right sweep highlighting.
+    Draw a word with left-to-right sweep highlighting.
     
-    OPTIMIZED VERSION (v6.1): Uses only 2 draw passes instead of per-character.
+    OPTIMIZED VERSION (v6.2): Splits word at sweep point, draws only 2 text calls.
     
     Method:
-    1. Draw entire word in unsung color (base layer)
-    2. Draw entire word in highlight color, then mask to sweep position
+    - Find which character the sweep is at
+    - Draw highlighted portion (left side) as one string
+    - Draw unsung portion (right side) as one string
+    - Only 2 draw_text calls instead of N characters
     
     Args:
         draw: PIL ImageDraw object
@@ -1823,79 +1825,59 @@ def draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color,
         highlight_color: RGB tuple for highlighted text
         unsung_color: RGB tuple for unhighlighted text
         outline_color: RGB tuple for text outline
-        img: PIL Image (needed for masking - optional, falls back to simple method)
+        img: PIL Image (unused, kept for compatibility)
     """
     if sweep_percent <= 0:
-        # Not started - draw entirely in unsung color with outline
+        # Not started - draw entire word in unsung color
         draw_text_with_outline(draw, word, x, y, font, unsung_color, outline_color)
         return
     
     if sweep_percent >= 100:
-        # Fully sung - draw entirely in highlight color with glow
+        # Fully sung - draw entire word in highlight color
         draw_text_with_outline(draw, word, x, y, font, highlight_color, outline_color, glow=True)
         return
     
-    # Partial sweep - use optimized two-pass method
-    word_bbox = draw.textbbox((0, 0), word, font=font)
-    total_width = word_bbox[2] - word_bbox[0]
-    word_height = word_bbox[3] - word_bbox[1]
+    # Find the split point based on sweep_percent
+    # We split at character boundaries for clean rendering
+    total_chars = len(word)
+    split_index = int(total_chars * sweep_percent / 100)
+    split_index = max(0, min(total_chars, split_index))
     
-    # Calculate where the sweep boundary is
-    sweep_width = int(total_width * sweep_percent / 100)
+    if split_index == 0:
+        # No characters highlighted yet
+        draw_text_with_outline(draw, word, x, y, font, unsung_color, outline_color)
+        return
     
-    if img is not None:
-        # OPTIMIZED: Use image compositing with masking
-        from PIL import Image, ImageDraw as ID
-        
-        # Create temporary image for highlighted text
-        temp_width = total_width + 20  # Extra padding for outline/glow
-        temp_height = word_height + 20
-        
-        # Draw unsung version (full word)
-        draw_text_with_outline(draw, word, x, y, font, unsung_color, outline_color)
-        
-        # Create highlight overlay (only the swept portion)
-        highlight_img = Image.new('RGBA', (temp_width, temp_height), (0, 0, 0, 0))
-        highlight_draw = ID.Draw(highlight_img)
-        
-        # Draw highlighted text on temp image
-        draw_text_with_outline(highlight_draw, word, 10, 10, font, highlight_color, outline_color, glow=True)
-        
-        # Crop to only the swept portion
-        if sweep_width > 0:
-            cropped = highlight_img.crop((0, 0, sweep_width + 10, temp_height))
-            # Paste onto main image
-            img.paste(cropped, (x - 10, y - 10), cropped)
-    else:
-        # FALLBACK: Simple two-pass without masking (still faster than per-char)
-        # Draw unsung base
-        draw_text_with_outline(draw, word, x, y, font, unsung_color, outline_color)
-        
-        # Approximate sweep by drawing highlighted portion
-        # This is less precise but much faster than per-character
-        if sweep_percent > 50:
-            # More than half swept - show as highlighted
-            draw_text_with_outline(draw, word, x, y, font, highlight_color, outline_color, glow=True)
+    if split_index >= total_chars:
+        # All characters highlighted
+        draw_text_with_outline(draw, word, x, y, font, highlight_color, outline_color, glow=True)
+        return
+    
+    # Split the word
+    highlighted_part = word[:split_index]
+    unsung_part = word[split_index:]
+    
+    # Get width of highlighted part to position unsung part
+    highlighted_bbox = draw.textbbox((0, 0), highlighted_part, font=font)
+    highlighted_width = highlighted_bbox[2] - highlighted_bbox[0]
+    
+    # Draw highlighted part (left)
+    draw_text_with_outline(draw, highlighted_part, x, y, font, highlight_color, outline_color, glow=True)
+    
+    # Draw unsung part (right)
+    draw_text_with_outline(draw, unsung_part, x + highlighted_width, y, font, unsung_color, outline_color)
 
 
 def draw_text_with_outline(draw, text, x, y, font, color, outline_color, glow=False):
     """
     Draw text with an outline for better visibility.
-    Optionally adds glow effect for highlighted text.
+    OPTIMIZED: Reduced outline passes from 8 to 4.
     """
-    # Draw outline (offset in all directions)
-    outline_offsets = [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]
-    for ox, oy in outline_offsets:
+    # Draw outline (4 diagonal offsets only - faster than 8)
+    for ox, oy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
         draw.text((x + ox, y + oy), text, font=font, fill=outline_color)
     
-    # Draw glow if requested (additional soft outline in highlight color)
-    if glow:
-        glow_color = tuple(min(255, int(c * 0.5)) for c in color)  # Dimmer version of highlight
-        glow_offsets = [(-2, 0), (2, 0), (0, -2), (0, 2)]
-        for ox, oy in glow_offsets:
-            draw.text((x + ox, y + oy), text, font=font, fill=glow_color)
-    
-    # Draw main text
+    # Draw main text (skip glow for performance - outline provides enough pop)
     draw.text((x, y), text, font=font, fill=color)
 
 
