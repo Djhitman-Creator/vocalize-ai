@@ -131,48 +131,48 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
 
 // ============================================================
 // SWEEP-IN BAR COMPONENT - Shows before first word of line
-// Extends behind first letter (which acts as a mask) for seamless blend
+// Bar appears full, then decays from LEFT toward the first letter
 // ============================================================
 const SweepInBar = ({ progress, color }) => {
-  // progress: 0 = just started, 1 = completed (word about to start)
-  // Bar shrinks from left as progress increases, eventually disappearing into the first letter
+  // progress: 0 = just appeared (2 sec before word), 1 = word about to start
+  // Bar DECAYS from left to right - left edge moves toward the letter
   
-  // Bar width shrinks as we approach the word (starts wide, ends at 0)
-  const barWidth = Math.max(0, (1 - progress) * 100); // 100px max width, shrinks to 0
+  // At progress 0: full bar visible (120px wide)
+  // At progress 1: bar has shrunk to nothing (merged into letter)
   
-  if (barWidth <= 2) return null; // Don't show when nearly complete
+  const maxWidth = 120; // Full width when it first appears
+  // Ensure we get smooth values - don't use transition, just direct width
+  const currentWidth = maxWidth * (1 - progress);
+  
+  // Don't render if too small
+  if (currentWidth < 2) return null;
   
   return (
     <span 
       style={{
         display: 'inline-block',
-        width: `${barWidth}px`,
-        height: '0.85em', // Match capital letter height
-        marginRight: '-0.25em', // Small overlap behind letter
+        width: currentWidth, // Direct pixel value, no transition
+        height: '0.85em',
+        marginRight: '-0.25em', // Overlaps into first letter
         verticalAlign: 'baseline',
-        // Use radial gradient to create soft edges on ALL sides
-        background: `
-          radial-gradient(ellipse 100% 100% at 100% 50%, ${color} 0%, ${color}dd 40%, ${color}99 60%, ${color}44 80%, transparent 100%),
-          linear-gradient(90deg, 
-            transparent 0%, 
-            ${color}10 5%,
-            ${color}30 15%, 
-            ${color}60 40%, 
-            ${color}90 70%,
-            ${color} 90%,
-            ${color} 100%)
-        `,
-        // Soft rounded edges on all sides
-        borderRadius: '50% 0 0 50% / 50% 0 0 50%',
-        // Blur the entire element slightly for softer edges
-        filter: `blur(1px) drop-shadow(0 0 6px ${color}) drop-shadow(0 0 12px ${color}50)`,
-        transition: 'width 0.05s linear',
         position: 'relative',
         top: '0.15em',
         zIndex: 1,
+        // Gradient fades from transparent on left to solid color on right (toward letter)
+        background: `linear-gradient(90deg, 
+          transparent 0%, 
+          ${color}20 15%, 
+          ${color}50 35%, 
+          ${color}80 60%,
+          ${color}cc 80%,
+          ${color} 95%,
+          ${color} 100%)`,
+        borderRadius: '50% 0 0 50% / 50% 0 0 50%',
+        filter: `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 10px ${color}60)`,
       }}
     />
   );
+};
 };
 
 // ============================================================
@@ -1129,12 +1129,18 @@ export default function PreviewPage() {
                   /* CURRENT LINE WITH SWEEP EFFECT */
                   <div className="text-center mb-4">
                     <p className="text-2xl md:text-3xl font-bold" style={{ fontFamily: project.font || 'Arial' }}>
-                      {/* SWEEP-IN BAR (shows 1 second before first word) */}
+                      {/* SWEEP-IN BAR (shows 2 seconds before first word) */}
                       {currentLyrics.showSweepIn && (
-                        <SweepInBar 
-                          progress={currentLyrics.sweepInProgress}
-                          color={getHighlightColor(currentLyrics.currentLine[0]?.index)}
-                        />
+                        <>
+                          <SweepInBar 
+                            progress={currentLyrics.sweepInProgress}
+                            color={getHighlightColor(currentLyrics.currentLine[0]?.index)}
+                          />
+                          {/* Debug: show progress value - REMOVE AFTER TESTING */}
+                          <span style={{ position: 'absolute', top: '5px', left: '10px', fontSize: '12px', color: '#fff', background: 'rgba(0,0,0,0.7)', padding: '2px 6px', borderRadius: '4px' }}>
+                            Progress: {(currentLyrics.sweepInProgress * 100).toFixed(1)}%
+                          </span>
+                        </>
                       )}
                       
                       {/* WORDS WITH SWEEP EFFECT */}
