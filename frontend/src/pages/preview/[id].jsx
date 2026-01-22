@@ -41,8 +41,8 @@ const TIMELINE_HEIGHT = 140;
 const WORD_HEIGHT = 44;
 
 // Sweep highlighting constants
-const SWEEP_IN_DURATION = 1.0; // seconds before first word to show sweep-in bar
-const MIN_GAP_FOR_SWEEP_IN = 1.0; // minimum gap required to show sweep-in
+const SWEEP_IN_DURATION = 2.0; // seconds before first word to show sweep-in bar
+const MIN_GAP_FOR_SWEEP_IN = 2.0; // minimum gap required to show sweep-in (must be >= SWEEP_IN_DURATION)
 const INSTRUMENTAL_BREAK_THRESHOLD = 5.0; // seconds to trigger progress bar
 
 // ============================================================
