@@ -782,9 +782,17 @@ export default function PreviewPage() {
           }
           
           // Check for instrumental break progress bar (> 5 seconds gap, NOT for intro)
-          // Only show progress bar for breaks BETWEEN lines (i > 0), not for the song intro
-          if (i > 0 && gapDuration > INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine <= INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine > SWEEP_IN_LONG_DURATION) {
-            const progressPercent = 1 - (timeUntilLine / INSTRUMENTAL_BREAK_THRESHOLD);
+          // Progress bar shows during the break and COMPLETES exactly when sweep-in starts
+          // So progress runs from start of gap until sweep-in begins
+          const progressBarEndTime = sweepDuration > 0 ? sweepDuration : 0;
+          if (i > 0 && gapDuration > INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine > progressBarEndTime) {
+            // Duration of progress bar = total gap minus the sweep-in time at the end
+            const progressBarDuration = gapDuration - progressBarEndTime;
+            // How far into the progress bar are we?
+            const timeIntoProgressBar = gapDuration - timeUntilLine;
+            // Progress: 0% at start of gap, 100% when sweep-in is about to start
+            const progressPercent = Math.min(1, Math.max(0, timeIntoProgressBar / progressBarDuration));
+            
             return {
               currentLine: null,
               next: '',
