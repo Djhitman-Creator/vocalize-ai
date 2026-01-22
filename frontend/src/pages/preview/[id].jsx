@@ -147,8 +147,8 @@ const SweepInBar = ({ progress, color }) => {
       style={{
         display: 'inline-block',
         width: `${barWidth}px`,
-        height: '1.1em', // Slightly taller to cover full letter height
-        marginRight: '-0.5em', // Extends well behind the first letter (the letter masks this)
+        height: '0.85em', // Match capital letter height (not full line height)
+        marginRight: '-0.25em', // Small overlap behind letter - just enough to blend
         verticalAlign: 'baseline',
         background: `linear-gradient(90deg, 
           transparent 0%, 
@@ -161,7 +161,7 @@ const SweepInBar = ({ progress, color }) => {
         filter: `drop-shadow(0 0 8px ${color})`,
         transition: 'width 0.05s linear',
         position: 'relative',
-        top: '0.05em',
+        top: '0.15em', // Adjust vertical position to align with capital letters
         zIndex: 1, // Behind the text mask (zIndex: 2)
       }}
     />
