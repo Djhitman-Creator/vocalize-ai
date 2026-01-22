@@ -1854,8 +1854,8 @@ def draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color,
         return
     
     if sweep_percent >= 100:
-        # Fully sung - draw entire word in highlight color
-        draw_text_with_outline(draw, word, x, y, font, highlight_color, outline_color, glow=True)
+        # Fully sung - draw in highlight color, NO glow (glow only while actively singing)
+        draw_text_with_outline(draw, word, x, y, font, highlight_color, outline_color)
         return
     
     # Find the split point based on sweep_percent
@@ -1870,8 +1870,8 @@ def draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color,
         return
     
     if split_index >= total_chars:
-        # All characters highlighted
-        draw_text_with_outline(draw, word, x, y, font, highlight_color, outline_color, glow=True)
+        # All characters highlighted (still actively singing this word)
+        draw_text_with_outline(draw, word, x, y, font, highlight_color, outline_color, glow=True, glow_color=highlight_color)
         return
     
     # Split the word
@@ -1881,27 +1881,39 @@ def draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color,
     # Get width of highlighted part to position unsung part (cached)
     highlighted_width = get_text_width(draw, highlighted_part, font)
     
-    # Draw highlighted part (left)
-    draw_text_with_outline(draw, highlighted_part, x, y, font, highlight_color, outline_color, glow=True)
+    # Draw highlighted part (left) - WITH glow since actively singing
+    draw_text_with_outline(draw, highlighted_part, x, y, font, highlight_color, outline_color, glow=True, glow_color=highlight_color)
     
-    # Draw unsung part (right)
+    # Draw unsung part (right) - no glow
     draw_text_with_outline(draw, unsung_part, x + highlighted_width, y, font, unsung_color, outline_color)
 
 
-def draw_text_with_outline(draw, text, x, y, font, color, outline_color, glow=False):
+def draw_text_with_outline(draw, text, x, y, font, color, outline_color, glow=False, glow_color=None):
     """
     Draw text with an outline for better visibility.
-    OPTIMIZED: Reduced outline passes from 8 to 4.
+    
+    Glow creates a soft feathered halo BEHIND the text.
     """
-    # Draw outline (4 diagonal offsets only - faster than 8)
+    # Draw feathered glow first (behind everything) if requested
+    if glow and glow_color:
+        # Layer 3 (outermost) - very faint, largest offset
+        faint_glow = tuple(int(c * 0.15) for c in glow_color)
+        for ox, oy in [(-4, 0), (4, 0), (0, -4), (0, 4), (-3, -3), (-3, 3), (3, -3), (3, 3)]:
+            draw.text((x + ox, y + oy), text, font=font, fill=faint_glow)
+        
+        # Layer 2 (middle) - medium intensity
+        medium_glow = tuple(int(c * 0.25) for c in glow_color)
+        for ox, oy in [(-3, 0), (3, 0), (0, -3), (0, 3), (-2, -2), (-2, 2), (2, -2), (2, 2)]:
+            draw.text((x + ox, y + oy), text, font=font, fill=medium_glow)
+        
+        # Layer 1 (innermost) - brightest glow
+        bright_glow = tuple(int(c * 0.4) for c in glow_color)
+        for ox, oy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
+            draw.text((x + ox, y + oy), text, font=font, fill=bright_glow)
+    
+    # Draw outline (4 diagonal offsets)
     for ox, oy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
         draw.text((x + ox, y + oy), text, font=font, fill=outline_color)
-    
-    # Draw glow if requested (for highlighted text)
-    if glow:
-        glow_color = tuple(min(255, int(c * 0.5)) for c in color)
-        for ox, oy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
-            draw.text((x + ox, y + oy), text, font=font, fill=glow_color)
     
     # Draw main text
     draw.text((x, y), text, font=font, fill=color)
@@ -1931,6 +1943,23 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
     bar_left = x - current_width
     bar_top = y - bar_height // 2
     
+    # Draw feathered glow effect behind the bar (multiple layers, fading outward)
+    # More layers + larger area = smoother, softer glow with invisible edges
+    glow_layers = 8
+    max_glow_padding = int(18 * scale)
+    for layer in range(glow_layers, 0, -1):
+        # Outer layers are larger but more transparent
+        layer_padding = int(max_glow_padding * layer / glow_layers)
+        # Exponential falloff for smoother fade (outer layers much dimmer)
+        layer_alpha = 0.12 * ((glow_layers - layer + 1) / glow_layers) ** 2
+        glow_color = tuple(int(c * layer_alpha) for c in color)
+        
+        draw.rectangle(
+            [(bar_left - layer_padding, bar_top - layer_padding), 
+             (x + layer_padding, bar_top + bar_height + layer_padding)],
+            fill=glow_color
+        )
+    
     # Draw gradient bar (fades from transparent to solid on the right)
     # PIL doesn't support gradients directly, so we draw multiple rectangles
     num_segments = min(20, current_width)
@@ -1939,10 +1968,6 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
     for i in range(num_segments):
         seg_x = bar_left + (i * segment_width)
         # Gradient: more transparent on left, solid on right
-        alpha = int(255 * (i / num_segments) * 0.8)  # Max 80% opacity
-        seg_color = (*color, alpha)
-        
-        # Since PIL's rectangle doesn't support alpha easily, we approximate with color blending
         blend_factor = i / num_segments
         blended_color = tuple(int(c * blend_factor) for c in color)
         
