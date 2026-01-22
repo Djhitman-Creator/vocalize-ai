@@ -710,21 +710,8 @@ export default function PreviewPage() {
           const prevLineEnd = i === 0 ? 0 : lines[i - 1][lines[i - 1].length - 1].end;
           const gapDuration = firstWordStart - prevLineEnd;
           
-          // Check for instrumental break (> 5 seconds)
-          if (gapDuration > INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine <= INSTRUMENTAL_BREAK_THRESHOLD) {
-            const progressPercent = 1 - (timeUntilLine / INSTRUMENTAL_BREAK_THRESHOLD);
-            return {
-              currentLine: null,
-              next: '',
-              showSweepIn: false,
-              sweepInProgress: 0,
-              showProgressBar: true,
-              progressBarPercent: progressPercent,
-              nextLyricsForProgressBar: line.map(w => w.word).join(' ')
-            };
-          }
-          
-          // Check for sweep-in bar
+          // FIRST: Check for sweep-in bar (takes priority for intro and short gaps)
+          // Show sweep-in when we're within 1 second of the line starting AND gap is at least 1 second
           if (gapDuration >= MIN_GAP_FOR_SWEEP_IN && timeUntilLine <= SWEEP_IN_DURATION) {
             const sweepProgress = 1 - (timeUntilLine / SWEEP_IN_DURATION);
             
@@ -747,6 +734,21 @@ export default function PreviewPage() {
               showProgressBar: false,
               progressBarPercent: 0,
               nextLyricsForProgressBar: ''
+            };
+          }
+          
+          // SECOND: Check for instrumental break progress bar (> 5 seconds gap, NOT for intro)
+          // Only show progress bar for breaks BETWEEN lines (i > 0), not for the song intro
+          if (i > 0 && gapDuration > INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine <= INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine > SWEEP_IN_DURATION) {
+            const progressPercent = 1 - (timeUntilLine / INSTRUMENTAL_BREAK_THRESHOLD);
+            return {
+              currentLine: null,
+              next: '',
+              showSweepIn: false,
+              sweepInProgress: 0,
+              showProgressBar: true,
+              progressBarPercent: progressPercent,
+              nextLyricsForProgressBar: line.map(w => w.word).join(' ')
             };
           }
           
