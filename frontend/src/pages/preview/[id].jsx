@@ -143,7 +143,6 @@ const SweepInBar = ({ progress, color }) => {
   // At progress 1: bar has shrunk to nothing (merged into letter)
   
   const maxWidth = 120; // Full width when it first appears
-  // Ensure we get smooth values - don't use transition, just direct width
   const currentWidth = maxWidth * (1 - progress);
   
   // Don't render if too small
@@ -152,14 +151,10 @@ const SweepInBar = ({ progress, color }) => {
   return (
     <span 
       style={{
-        display: 'inline-block',
-        width: currentWidth, // Direct pixel value, no transition
+        display: 'block',
+        width: currentWidth,
         height: '0.85em',
-        marginRight: '-0.25em', // Overlaps into first letter
-        verticalAlign: 'baseline',
-        position: 'relative',
-        top: '0.15em',
-        zIndex: 1,
+        marginLeft: 'auto', // Push to the right so it shrinks from the left
         // Gradient fades from transparent on left to solid color on right (toward letter)
         background: `linear-gradient(90deg, 
           transparent 0%, 
@@ -1200,16 +1195,27 @@ export default function PreviewPage() {
                 ) : currentLyrics.currentLine ? (
                   /* CURRENT LINE WITH SWEEP EFFECT */
                   <div className="text-center mb-4">
-                    <p className="text-2xl md:text-3xl font-bold" style={{ fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial') }}>
-                      {/* SWEEP-IN BAR (shows 2 seconds before first word) */}
+                    <p 
+                      className="text-2xl md:text-3xl font-bold relative inline-block" 
+                      style={{ fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial') }}
+                    >
+                      {/* SWEEP-IN BAR - absolutely positioned to the left of the first word */}
                       {currentLyrics.showSweepIn && (
-                        <>
+                        <span
+                          key={`sweep-${currentTime.toFixed(2)}`}
+                          style={{
+                            position: 'absolute',
+                            right: '100%', // Position to the left of the text
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            marginRight: '-0.25em', // Small overlap into first letter
+                          }}
+                        >
                           <SweepInBar 
-                            key={`sweep-${currentTime.toFixed(2)}`}
                             progress={currentLyrics.sweepInProgress}
                             color={getHighlightColor(currentLyrics.currentLine[0]?.index)}
                           />
-                        </>
+                        </span>
                       )}
                       
                       {/* WORDS WITH SWEEP EFFECT */}
