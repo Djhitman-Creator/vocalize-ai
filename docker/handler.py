@@ -1897,7 +1897,13 @@ def draw_text_with_outline(draw, text, x, y, font, color, outline_color, glow=Fa
     for ox, oy in [(-1, -1), (-1, 1), (1, -1), (1, 1)]:
         draw.text((x + ox, y + oy), text, font=font, fill=outline_color)
     
-    # Draw main text (skip glow for performance - outline provides enough pop)
+    # Draw glow if requested (for highlighted text)
+    if glow:
+        glow_color = tuple(min(255, int(c * 0.5)) for c in color)
+        for ox, oy in [(-2, 0), (2, 0), (0, -2), (0, 2)]:
+            draw.text((x + ox, y + oy), text, font=font, fill=glow_color)
+    
+    # Draw main text
     draw.text((x, y), text, font=font, fill=color)
 
 
