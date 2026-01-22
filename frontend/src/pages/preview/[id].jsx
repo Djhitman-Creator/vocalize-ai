@@ -40,9 +40,11 @@ const PIXELS_PER_SECOND_DEFAULT = 100;
 const TIMELINE_HEIGHT = 140;
 const WORD_HEIGHT = 44;
 
-// Sweep highlighting constants
-const SWEEP_IN_DURATION = 2.0; // seconds before first word to show sweep-in bar
-const MIN_GAP_FOR_SWEEP_IN = 2.0; // minimum gap required to show sweep-in (must be >= SWEEP_IN_DURATION)
+// Sweep highlighting constants - TIERED SYSTEM
+const SWEEP_IN_LONG_DURATION = 2.0; // Long sweep-in (2 seconds)
+const SWEEP_IN_LONG_MIN_GAP = 2.0; // Minimum gap required for long sweep
+const SWEEP_IN_SHORT_DURATION = 1.0; // Short sweep-in (1 second)
+const SWEEP_IN_SHORT_MIN_GAP = 1.25; // Minimum gap required for short sweep
 const INSTRUMENTAL_BREAK_THRESHOLD = 5.0; // seconds to trigger progress bar
 
 // ============================================================
@@ -713,14 +715,25 @@ export default function PreviewPage() {
           const firstWordStart = line[0].start;
           const timeUntilLine = firstWordStart - currentTime;
           
-          // Check for sweep-in (1 second before, if gap >= 1 second)
+          // Calculate gap from previous line
           const prevLineEnd = i === 0 ? 0 : lines[i - 1][lines[i - 1].length - 1].end;
           const gapDuration = firstWordStart - prevLineEnd;
           
-          // FIRST: Check for sweep-in bar (takes priority for intro and short gaps)
-          // Show sweep-in when we're within 1 second of the line starting AND gap is at least 1 second
-          if (gapDuration >= MIN_GAP_FOR_SWEEP_IN && timeUntilLine <= SWEEP_IN_DURATION) {
-            const sweepProgress = 1 - (timeUntilLine / SWEEP_IN_DURATION);
+          // TIERED SWEEP-IN SYSTEM:
+          // 1. Long sweep (2 sec) if gap >= 2 seconds
+          // 2. Short sweep (1 sec) if gap >= 1.25 seconds but < 2 seconds
+          // 3. No sweep if gap < 1.25 seconds
+          
+          let sweepDuration = 0;
+          if (gapDuration >= SWEEP_IN_LONG_MIN_GAP) {
+            sweepDuration = SWEEP_IN_LONG_DURATION; // 2 second sweep
+          } else if (gapDuration >= SWEEP_IN_SHORT_MIN_GAP) {
+            sweepDuration = SWEEP_IN_SHORT_DURATION; // 1 second sweep
+          }
+          
+          // Show sweep-in if we have a sweep duration and we're within that time window
+          if (sweepDuration > 0 && timeUntilLine <= sweepDuration) {
+            const sweepProgress = 1 - (timeUntilLine / sweepDuration);
             
             // Show the upcoming line with sweep-in bar
             const currentLineText = line.map(w => ({
@@ -744,9 +757,9 @@ export default function PreviewPage() {
             };
           }
           
-          // SECOND: Check for instrumental break progress bar (> 5 seconds gap, NOT for intro)
+          // Check for instrumental break progress bar (> 5 seconds gap, NOT for intro)
           // Only show progress bar for breaks BETWEEN lines (i > 0), not for the song intro
-          if (i > 0 && gapDuration > INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine <= INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine > SWEEP_IN_DURATION) {
+          if (i > 0 && gapDuration > INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine <= INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine > SWEEP_IN_LONG_DURATION) {
             const progressPercent = 1 - (timeUntilLine / INSTRUMENTAL_BREAK_THRESHOLD);
             return {
               currentLine: null,
