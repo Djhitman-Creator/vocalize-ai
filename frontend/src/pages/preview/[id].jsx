@@ -131,17 +131,14 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
 
 // ============================================================
 // SWEEP-IN BAR COMPONENT - Shows before first word of line
-// Thick bar that fades left-to-right and blends into the first letter
+// Matches text height exactly and connects directly to first letter
 // ============================================================
 const SweepInBar = ({ progress, color }) => {
   // progress: 0 = just started, 1 = completed (word about to start)
   // Bar shrinks from left as progress increases, eventually disappearing into the first letter
   
   // Bar width shrinks as we approach the word (starts wide, ends at 0)
-  const barWidth = Math.max(0, (1 - progress) * 80); // 80px max width, shrinks to 0
-  
-  // Opacity increases as we get closer to the word
-  const opacity = 0.7 + (progress * 0.3); // 0.7 to 1.0
+  const barWidth = Math.max(0, (1 - progress) * 100); // 100px max width, shrinks to 0
   
   if (barWidth <= 2) return null; // Don't show when nearly complete
   
@@ -150,18 +147,22 @@ const SweepInBar = ({ progress, color }) => {
       style={{
         display: 'inline-block',
         width: `${barWidth}px`,
-        height: '0.8em', // Match text height roughly
-        marginRight: '2px', // Small gap to first letter
-        verticalAlign: 'middle',
+        height: '1em', // Matches the font height exactly
+        marginRight: '0px', // No gap - connects directly to first letter
+        verticalAlign: 'baseline',
         background: `linear-gradient(90deg, 
           transparent 0%, 
-          ${color}40 20%, 
-          ${color}90 60%, 
+          ${color}30 15%, 
+          ${color}70 50%, 
+          ${color} 85%,
           ${color} 100%)`,
-        borderRadius: '4px 0 0 4px', // Rounded on left, flat on right to blend
-        opacity: opacity,
-        filter: `drop-shadow(0 0 6px ${color})`,
+        // No border radius on right side - flat edge to connect to letter
+        borderRadius: '4px 0 0 4px',
+        filter: `drop-shadow(0 0 8px ${color})`,
         transition: 'width 0.05s linear',
+        // Align with text baseline
+        position: 'relative',
+        top: '0.1em',
       }}
     />
   );
