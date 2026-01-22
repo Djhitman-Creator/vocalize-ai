@@ -1,12 +1,12 @@
 """
 Karatrack Studio RunPod Handler
-Version 5.0 - Video Background Support
+Version 6.0 - Sweep Highlighting
 
 Uses AssemblyAI API for word-level timestamps (~50ms accuracy)
-No more dependency hell - simple REST API call
 
 NEW in 4.1: Normalized lyrics comparison ignores punctuation & capitalization
 NEW in 5.0: Video background support (presets and custom uploads)
+NEW in 6.0: Character-by-character sweep highlighting with sweep-in bars
 
 Processes audio files: vocal removal, lyrics transcription, video generation
 Uploads results to Cloudflare R2
@@ -68,12 +68,22 @@ COLOR_COUNTDOWN = (255, 200, 0)  # Gold for countdown dots
 
 # Timing
 INTRO_DURATION = 4  # Reduced from 5 to 4 seconds
-COUNTDOWN_THRESHOLD = 3  # Show countdown for gaps >= 3 seconds
-INTRO_COUNTDOWN_THRESHOLD = 3  # Show countdown for intros >= 3 seconds
-COUNTDOWN_DOTS = 6  # 6 dots, one lights up every 0.5 seconds = 3 second countdown
-COUNTDOWN_DOT_INTERVAL = 0.5  # Seconds between each dot lighting up
 FADEOUT_DURATION = 3  # Seconds to fade out lyrics at end
 OUTRO_TEXT_FADE_IN = 1.0  # Seconds to fade in outro text
+
+# Sweep highlighting constants (NEW in 6.0)
+SWEEP_IN_LONG_DURATION = 2.0  # Long sweep-in (2 seconds) for gaps >= 2s
+SWEEP_IN_LONG_MIN_GAP = 2.0   # Minimum gap required for long sweep
+SWEEP_IN_SHORT_DURATION = 1.0 # Short sweep-in (1 second) for gaps >= 1.25s
+SWEEP_IN_SHORT_MIN_GAP = 1.25 # Minimum gap required for short sweep
+INSTRUMENTAL_BREAK_THRESHOLD = 5.0  # Seconds to trigger progress bar
+SWEEP_IN_BAR_WIDTH = 120      # Max width of sweep-in bar in pixels (at 1920 width)
+
+# Legacy constants (kept for backward compatibility)
+COUNTDOWN_THRESHOLD = 3  # Used by detect_silence_gaps
+INTRO_COUNTDOWN_THRESHOLD = 3  
+COUNTDOWN_DOTS = 6
+COUNTDOWN_DOT_INTERVAL = 0.5
 
 # Display mode settings
 WORDS_PER_LINE = 7
@@ -130,7 +140,7 @@ class VideoBackgroundReader:
         self.frame_cache = {}
         self.cache_enabled = self.total_frames < 300  # Cache videos under 10 sec at 30fps
         
-        print(f"   📹 Video background loaded: {self.source_width}x{self.source_height} @ {self.source_fps:.1f}fps, {self.duration:.1f}s")
+        print(f"   ðŸ“¹ Video background loaded: {self.source_width}x{self.source_height} @ {self.source_fps:.1f}fps, {self.duration:.1f}s")
     
     def get_frame_at_time(self, time_seconds):
         """
@@ -240,16 +250,16 @@ def download_video_background(bg_type, bg_video_preset, bg_video_url, work_dir):
     if bg_video_preset:
         # Download preset video
         preset_url = f"{PRESET_VIDEOS_BASE_URL}/{bg_video_preset}"
-        print(f"   📥 Downloading preset video background: {bg_video_preset}")
+        print(f"   ðŸ“¥ Downloading preset video background: {bg_video_preset}")
         download_file(preset_url, video_path)
-        print(f"   ✅ Preset video downloaded")
+        print(f"   âœ… Preset video downloaded")
         return video_path
     
     elif bg_video_url:
         # Download custom video
-        print(f"   📥 Downloading custom video background...")
+        print(f"   ðŸ“¥ Downloading custom video background...")
         download_file(bg_video_url, video_path)
-        print(f"   ✅ Custom video downloaded")
+        print(f"   âœ… Custom video downloaded")
         return video_path
     
     return None
@@ -273,7 +283,7 @@ def download_image_background(bg_type, bg_image_url, work_dir, target_width, tar
         return None
     
     try:
-        print(f"   📥 Downloading image background...")
+        print(f"   ðŸ“¥ Downloading image background...")
         image_path = os.path.join(work_dir, 'background_image.jpg')
         download_file(bg_image_url, image_path)
         
@@ -300,11 +310,11 @@ def download_image_background(bg_type, bg_image_url, work_dir, target_width, tar
         bottom = top + target_height
         
         final_img = img_resized.crop((left, top, right, bottom))
-        print(f"   ✅ Image background prepared: {target_width}x{target_height}")
+        print(f"   âœ… Image background prepared: {target_width}x{target_height}")
         return final_img
         
     except Exception as e:
-        print(f"   ⚠️ Failed to load image background: {e}")
+        print(f"   âš ï¸ Failed to load image background: {e}")
         return None
 
 
@@ -473,11 +483,11 @@ def upload_to_r2(file_path, key):
             )
         
         url = f"{public_url}/{key}"
-        print(f"Ã¢Å“â€¦ Uploaded to R2: {url}")
+        print(f"ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Uploaded to R2: {url}")
         return url
         
     except Exception as e:
-        print(f"Ã¢ÂÅ’ R2 upload error: {str(e)}")
+        print(f"ÃƒÂ¢Ã‚ÂÃ…â€™ R2 upload error: {str(e)}")
         raise e
 
 
@@ -546,17 +556,17 @@ def download_font(font_name):
         url = FONT_URLS[font_name]
         font_path = FONT_PATHS[font_name]
         
-        print(f"   Ã°Å¸â€œÂ¥ Downloading font: {font_name}...")
+        print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¥ Downloading font: {font_name}...")
         response = requests.get(url, timeout=30)
         response.raise_for_status()
         
         with open(font_path, 'wb') as f:
             f.write(response.content)
         
-        print(f"   Ã¢Å“â€¦ Font downloaded: {font_name}")
+        print(f"   ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Font downloaded: {font_name}")
         return font_path
     except Exception as e:
-        print(f"   Ã¢Å¡Â Ã¯Â¸Â Failed to download font {font_name}: {e}")
+        print(f"   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Failed to download font {font_name}: {e}")
         return None
 
 def initialize_fonts():
@@ -565,7 +575,7 @@ def initialize_fonts():
     if _fonts_initialized:
         return
     
-    print("Ã°Å¸â€Â¤ Initializing fonts...")
+    print("ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â¤ Initializing fonts...")
     ensure_fonts_directory()
     
     for font_name in FONT_URLS.keys():
@@ -574,7 +584,7 @@ def initialize_fonts():
             download_font(font_name)
     
     _fonts_initialized = True
-    print("Ã¢Å“â€¦ Fonts initialized")
+    print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Fonts initialized")
 
 def get_font(size, font_name='arial', custom_font_path=None):
     """Get font by name with fallback to default. Supports custom font path."""
@@ -691,7 +701,7 @@ def add_silence_to_audio(audio_path, silence_duration, output_path):
     ]
     
     subprocess.run(cmd, check=True, capture_output=True)
-    print(f"   Ã¢Å“â€¦ Audio with silence created: {output_path}")
+    print(f"   ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Audio with silence created: {output_path}")
     return output_path
 
 
@@ -707,11 +717,11 @@ def get_watermark_logo():
         return _watermark_logo_cache
     
     if not WATERMARK_LOGO_URL:
-        print("   Ã¢Å¡Â Ã¯Â¸Â No watermark logo URL configured")
+        print("   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â No watermark logo URL configured")
         return None
     
     try:
-        print(f"   Ã°Å¸â€œÂ¥ Downloading watermark logo from {WATERMARK_LOGO_URL}")
+        print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¥ Downloading watermark logo from {WATERMARK_LOGO_URL}")
         response = requests.get(WATERMARK_LOGO_URL)
         response.raise_for_status()
         
@@ -725,11 +735,11 @@ def get_watermark_logo():
         logo = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
         
         _watermark_logo_cache = logo
-        print(f"   Ã¢Å“â€¦ Watermark logo loaded ({new_width}x{new_height})")
+        print(f"   ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Watermark logo loaded ({new_width}x{new_height})")
         return logo
         
     except Exception as e:
-        print(f"   Ã¢Å¡Â Ã¯Â¸Â Failed to load watermark logo: {e}")
+        print(f"   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Failed to load watermark logo: {e}")
         return None
 
 
@@ -744,7 +754,7 @@ def get_custom_watermark(url):
         return _custom_watermark_cache[url]
     
     try:
-        print(f"   Ã°Å¸â€œÂ¥ Downloading custom watermark from {url}")
+        print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¥ Downloading custom watermark from {url}")
         response = requests.get(url)
         response.raise_for_status()
         
@@ -766,11 +776,11 @@ def get_custom_watermark(url):
         logo = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
         
         _custom_watermark_cache[url] = logo
-        print(f"   Ã¢Å“â€¦ Custom watermark loaded ({new_width}x{new_height})")
+        print(f"   ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Custom watermark loaded ({new_width}x{new_height})")
         return logo
         
     except Exception as e:
-        print(f"   Ã¢Å¡Â Ã¯Â¸Â Failed to load custom watermark: {e}")
+        print(f"   ÃƒÂ¢Ã…Â¡Ã‚Â ÃƒÂ¯Ã‚Â¸Ã‚Â Failed to load custom watermark: {e}")
         return None
 
 
@@ -859,7 +869,7 @@ def apply_studio_watermark(frame, video_width, video_height, custom_watermark_ur
 
 def separate_vocals(audio_path, output_dir):
     """Use Demucs to separate vocals from instrumental"""
-    print("Ã°Å¸Å½Âµ Separating vocals with Demucs...")
+    print("ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Âµ Separating vocals with Demucs...")
     
     wav_input_path = os.path.join(output_dir, 'input_converted.wav')
     convert_to_wav(audio_path, wav_input_path)
@@ -904,7 +914,7 @@ def separate_vocals(audio_path, output_dir):
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     
-    print("Ã¢Å“â€¦ Vocal separation complete")
+    print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Vocal separation complete")
     return instrumental_path, vocals_path
 
 
@@ -921,7 +931,7 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
     - No dependency conflicts
     - Production-grade reliability
     """
-    print("Ã°Å¸â€œÂ Transcribing with AssemblyAI (precise alignment)...")
+    print("ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Transcribing with AssemblyAI (precise alignment)...")
     
     if not ASSEMBLYAI_API_KEY:
         raise ValueError("ASSEMBLYAI_API_KEY environment variable not set")
@@ -971,7 +981,7 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
         
         status = result['status']
         if status == 'completed':
-            print("   Ã¢Å“â€¦ Transcription complete!")
+            print("   ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Transcription complete!")
             break
         elif status == 'error':
             raise Exception(f"AssemblyAI transcription failed: {result.get('error', 'Unknown error')}")
@@ -996,56 +1006,56 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
                 'confidence': word_info.get('confidence', 1.0)
             })
     
-    print(f"Ã¢Å“â€¦ AssemblyAI returned {len(lyrics)} words with precise timestamps")
+    print(f"ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ AssemblyAI returned {len(lyrics)} words with precise timestamps")
     
     # Debug: Show first 5 words and their timestamps
-    print("   Ã°Å¸â€œÅ  First 5 words timing:")
+    print("   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â  First 5 words timing:")
     for i, w in enumerate(lyrics[:5]):
         print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s")
     
     # If user provided lyrics, auto-correct low-confidence words first
     if user_lyrics_text and len(user_lyrics_text.strip()) > 50:
-        print("ðŸ” Checking for low-confidence words to auto-correct...")
+        print("Ã°Å¸â€Â Checking for low-confidence words to auto-correct...")
         lyrics, correction_count = auto_correct_low_confidence_words(lyrics, user_lyrics_text)
         
-        print("ðŸ“ Mapping user lyrics to AssemblyAI timestamps...")
+        print("Ã°Å¸â€œÂ Mapping user lyrics to AssemblyAI timestamps...")
         lyrics = align_user_lyrics_to_timestamps(user_lyrics_text, lyrics)
 
         # Debug: Show first 10 aligned words with gap analysis
-        print("   ðŸ“Š First 10 aligned words timing:")
+        print("   Ã°Å¸â€œÅ  First 10 aligned words timing:")
         for i, w in enumerate(lyrics[:10]):
             gap_info = ""
             if i > 0:
                 gap = w['start'] - lyrics[i-1]['end']
                 if gap > 0.5:
-                    gap_info = f" âš ï¸ GAP: {gap:.2f}s"
+                    gap_info = f" Ã¢Å¡Â Ã¯Â¸Â GAP: {gap:.2f}s"
             duration = w['end'] - w['start']
             print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s (duration: {duration:.2f}s){gap_info}")
         
         # Check for problematic timing patterns
-        print("   ðŸ” Checking for timing issues...")
+        print("   Ã°Å¸â€Â Checking for timing issues...")
         issues_found = 0
         for i, w in enumerate(lyrics):
             duration = w['end'] - w['start']
             # Flag words with unusually long durations (> 3 seconds)
             if duration > 3.0:
-                print(f"      âš ï¸ Long word duration: '{w['word']}' lasts {duration:.2f}s (index {i})")
+                print(f"      Ã¢Å¡Â Ã¯Â¸Â Long word duration: '{w['word']}' lasts {duration:.2f}s (index {i})")
                 issues_found += 1
             # Flag large gaps between words (> 5 seconds)
             if i > 0:
                 gap = w['start'] - lyrics[i-1]['end']
                 if gap > 5.0:
-                    print(f"      âš ï¸ Large gap before '{w['word']}': {gap:.2f}s gap (index {i})")
+                    print(f"      Ã¢Å¡Â Ã¯Â¸Â Large gap before '{w['word']}': {gap:.2f}s gap (index {i})")
                     issues_found += 1
             # Flag if end time is before start time (shouldn't happen)
             if w['end'] < w['start']:
-                print(f"      âŒ Invalid timing: '{w['word']}' ends before it starts! (index {i})")
+                print(f"      Ã¢ÂÅ’ Invalid timing: '{w['word']}' ends before it starts! (index {i})")
                 issues_found += 1
         
         if issues_found == 0:
-            print("      âœ… No timing issues detected")
+            print("      Ã¢Å“â€¦ No timing issues detected")
         else:
-            print(f"      âš ï¸ Found {issues_found} potential timing issues")
+            print(f"      Ã¢Å¡Â Ã¯Â¸Â Found {issues_found} potential timing issues")
     
     return lyrics
 
@@ -1072,16 +1082,16 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
     print(f"   User line breaks at indices: {sorted(line_break_indices)[:10]}{'...' if len(line_break_indices) > 10 else ''}")
     
     if len(api_lyrics) == 0:
-        print("   âš ï¸ No API words - returning empty")
+        print("   Ã¢Å¡Â Ã¯Â¸Â No API words - returning empty")
         return []
     
     if len(user_words) == 0:
-        print("   âš ï¸ No user words - using API transcription")
+        print("   Ã¢Å¡Â Ã¯Â¸Â No user words - using API transcription")
         return api_lyrics
     
     # Check if word counts match exactly
     if len(user_words) == len(api_lyrics):
-        print(f"   âœ… Word counts match exactly - using user words with API timestamps")
+        print(f"   Ã¢Å“â€¦ Word counts match exactly - using user words with API timestamps")
         aligned = []
         matches = 0
         
@@ -1100,16 +1110,16 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
                 matches += 1
         
         match_percentage = (matches / len(user_words)) * 100
-        print(f"   ðŸ“Š Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
-        print(f"   ðŸ“ Applied {len(line_break_indices)} line breaks from user lyrics")
-        print(f"âœ… Aligned {len(aligned)} user words with AssemblyAI timestamps")
+        print(f"   Ã°Å¸â€œÅ  Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
+        print(f"   Ã°Å¸â€œÂ Applied {len(line_break_indices)} line breaks from user lyrics")
+        print(f"Ã¢Å“â€¦ Aligned {len(aligned)} user words with AssemblyAI timestamps")
         return aligned
     
     # Word counts differ - check how different
     count_diff = abs(len(user_words) - len(api_lyrics))
     diff_percentage = (count_diff / max(len(user_words), len(api_lyrics))) * 100
     
-    print(f"   ðŸ“Š Word count difference: {count_diff} words ({diff_percentage:.1f}%)")
+    print(f"   Ã°Å¸â€œÅ  Word count difference: {count_diff} words ({diff_percentage:.1f}%)")
     
     # If difference is small (< 15%), try to align anyway using user words
     # This handles cases where API split/merged a few words differently
@@ -1125,12 +1135,12 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
             
             # If less than 50% match, the lyrics are too different - use API transcription
             if match_percentage < 50:
-                print(f"   âš ï¸ Word similarity too low ({match_percentage:.1f}%) - using API transcription for accurate timing")
-                print(f"âœ… Using {len(api_lyrics)} AssemblyAI words with original timestamps")
+                print(f"   Ã¢Å¡Â Ã¯Â¸Â Word similarity too low ({match_percentage:.1f}%) - using API transcription for accurate timing")
+                print(f"Ã¢Å“â€¦ Using {len(api_lyrics)} AssemblyAI words with original timestamps")
                 return api_lyrics
             
             # Good match - use user words with API timestamps
-            print(f"   ðŸ”„ Small difference - using user words with API timestamps (1:1 mapping)")
+            print(f"   Ã°Å¸â€â€ž Small difference - using user words with API timestamps (1:1 mapping)")
             aligned = []
             
             for i in range(len(user_words)):
@@ -1142,13 +1152,13 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
                     'lineBreak': i in line_break_indices
                 })
             
-            print(f"   ðŸ“Š Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
-            print(f"   ðŸ“ Applied {len(line_break_indices)} line breaks from user lyrics")
-            print(f"âœ… Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
+            print(f"   Ã°Å¸â€œÅ  Word similarity: {matches}/{len(user_words)} ({match_percentage:.1f}%) match after normalization")
+            print(f"   Ã°Å¸â€œÂ Applied {len(line_break_indices)} line breaks from user lyrics")
+            print(f"Ã¢Å“â€¦ Aligned {len(aligned)} user words (API had {len(api_lyrics) - len(user_words)} extra)")
             return aligned
         else:
             # User has MORE words than API - fit user words to available timestamps
-            print(f"   ðŸ”„ User has more words - fitting {len(user_words)} user words to {len(api_lyrics)} timestamps")
+            print(f"   Ã°Å¸â€â€ž User has more words - fitting {len(user_words)} user words to {len(api_lyrics)} timestamps")
             aligned = []
             
             # Calculate how to distribute extra words across timestamps
@@ -1178,14 +1188,14 @@ def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
             
             extra_words = len(user_words) - len(api_lyrics)
             applied_breaks = sum(1 for w in aligned if w.get('lineBreak', False))
-            print(f"   ðŸ“Š Combined {len(user_words)} user words into {len(aligned)} timed slots")
-            print(f"   ðŸ“ Applied {applied_breaks} line breaks from user lyrics")
-            print(f"âœ… Aligned user lyrics with {extra_words} extra words distributed across timestamps")
+            print(f"   Ã°Å¸â€œÅ  Combined {len(user_words)} user words into {len(aligned)} timed slots")
+            print(f"   Ã°Å¸â€œÂ Applied {applied_breaks} line breaks from user lyrics")
+            print(f"Ã¢Å“â€¦ Aligned user lyrics with {extra_words} extra words distributed across timestamps")
             return aligned
     
     # Word counts too different - use API transcription for perfect timing
-    print(f"   âš ï¸ Word counts too different - using API transcription for perfect timing")
-    print(f"âœ… Using {len(api_lyrics)} AssemblyAI words with original timestamps")
+    print(f"   Ã¢Å¡Â Ã¯Â¸Â Word counts too different - using API transcription for perfect timing")
+    print(f"Ã¢Å“â€¦ Using {len(api_lyrics)} AssemblyAI words with original timestamps")
     return api_lyrics
 
 def parse_lyrics_text(lyrics_text):
@@ -1313,7 +1323,7 @@ def auto_correct_low_confidence_words(api_lyrics, user_lyrics_text):
                 })
                 used_user_indices.add(best_idx)
                 corrections += 1
-                print(f"      ðŸ”§ Auto-corrected: '{api_word['word']}' â†’ '{user_word}' (confidence: {confidence:.0%})")
+                print(f"      Ã°Å¸â€Â§ Auto-corrected: '{api_word['word']}' Ã¢â€ â€™ '{user_word}' (confidence: {confidence:.0%})")
             else:
                 # No user word available, keep API word
                 corrected_lyrics.append({
@@ -1332,7 +1342,7 @@ def auto_correct_low_confidence_words(api_lyrics, user_lyrics_text):
             })
     
     if corrections > 0:
-        print(f"   âœ¨ Auto-corrected {corrections} low-confidence words using uploaded lyrics")
+        print(f"   Ã¢Å“Â¨ Auto-corrected {corrections} low-confidence words using uploaded lyrics")
     
     return corrected_lyrics, corrections
 
@@ -1526,7 +1536,95 @@ def create_intro_frame(artist, title, frame_num, total_frames, width, height, co
     return img
 
 
-def create_countdown_frame_with_preview(countdown_time, width, height, lyrics, gap_end_time, display_mode, colors=None, total_dots=COUNTDOWN_DOTS, bg_image=None, video_reader=None, current_time=0):
+def create_instrumental_break_frame(current_time, gap_start, gap_end, width, height, lyrics, display_mode, colors=None, bg_image=None, video_reader=None):
+    """
+    Create frame for instrumental breaks with a PROGRESS BAR instead of countdown dots.
+    
+    NEW in 6.0: Replaces the old countdown dots with a smooth progress bar.
+    
+    Args:
+        current_time: Current playback time
+        gap_start: When the gap started
+        gap_end: When the gap ends (next lyrics start)
+        width, height: Frame dimensions
+        lyrics: Full lyrics array
+        display_mode: scroll/page/overwrite
+        colors: Color settings
+        bg_image: Optional background image
+        video_reader: Optional video background reader
+    """
+    # Check if we should show sweep-in bar instead of progress bar
+    time_until_lyrics = gap_end - current_time
+    gap_duration = gap_end - gap_start
+    
+    sweep_duration = calculate_sweep_in_duration(gap_duration)
+    
+    # If we're in the sweep-in window, just return the normal lyrics frame
+    # (the sweep-in bar is drawn by the lyrics frame functions)
+    if sweep_duration > 0 and time_until_lyrics <= sweep_duration:
+        # Let the normal lyrics frame handle the sweep-in bar
+        if display_mode == 'scroll':
+            return create_scroll_frame(current_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
+        elif display_mode == 'page':
+            return create_page_frame(current_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
+        else:
+            return create_overwrite_frame(current_time, lyrics, width, height, colors, bg_image, video_reader, current_time)
+    
+    # Create base frame with background
+    img = create_frame(width, height, colors, bg_image, video_reader, current_time)
+    draw = ImageDraw.Draw(img)
+    
+    scale = width / 1920
+    
+    # Get colors
+    highlight_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
+    text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
+    outline_color = colors.get('outline', (0, 0, 0)) if colors else (0, 0, 0)
+    
+    # Calculate progress (0 at gap_start, 1 at gap_end - sweep_duration)
+    progress_bar_end_time = gap_end - sweep_duration if sweep_duration > 0 else gap_end
+    progress_bar_duration = progress_bar_end_time - gap_start
+    
+    if progress_bar_duration > 0:
+        progress = (current_time - gap_start) / progress_bar_duration
+        progress = max(0, min(1, progress))
+    else:
+        progress = 1
+    
+    # Draw progress bar in upper portion of screen
+    bar_y = int(height * 0.35)  # 35% from top
+    draw_progress_bar(draw, width // 2, bar_y, progress, highlight_color, width, height, scale)
+    
+    # Draw upcoming lyrics preview below the progress bar
+    font_size_scale = colors.get('font_size_scale', 1.0) if colors else 1.0
+    font_name = colors.get('font', 'arial') if colors else 'arial'
+    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale * 0.7), font_name, colors.get('custom_font_path') if colors else None)
+    
+    # Find the line that starts at gap_end
+    lines = group_lyrics_into_lines(lyrics)
+    next_line_words = []
+    for line in lines:
+        if line and line[0]['start'] >= gap_end - 0.1:
+            next_line_words = line
+            break
+    
+    if next_line_words:
+        preview_text = ' '.join(w['word'] for w in next_line_words)
+        preview_y = int(height * 0.45)  # Below the progress bar
+        
+        # Calculate centered position
+        bbox = draw.textbbox((0, 0), preview_text, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_x = (width - text_width) // 2
+        
+        # Draw with reduced opacity
+        preview_color = tuple(int(c * 0.6) for c in text_color)
+        draw_text_with_outline(draw, preview_text, text_x, preview_y, font, preview_color, outline_color)
+    
+    return img
+
+
+def create_countdown_frame_with_preview(countdown_time, width, height, lyrics, gap_end_time, display_mode, colors=None, total_dots=6, bg_image=None, video_reader=None, current_time=0):
     """
     Create countdown frame with 6 dots ABOVE upcoming lyrics.
     
@@ -1670,8 +1768,208 @@ def group_lyrics_into_lines(lyrics, words_per_line=WORDS_PER_LINE):
     return lines
 
 
+# ============================================
+# SWEEP HIGHLIGHTING FUNCTIONS (NEW in 6.0)
+# ============================================
+
+def calculate_word_sweep_percent(current_time, word_start, word_end):
+    """
+    Calculate the sweep percentage for a word.
+    Returns 0-100 representing how much of the word should be highlighted.
+    """
+    if current_time < word_start:
+        return 0
+    if current_time >= word_end:
+        return 100
+    
+    duration = word_end - word_start
+    if duration <= 0:
+        return 100
+    
+    elapsed = current_time - word_start
+    return min(100, max(0, (elapsed / duration) * 100))
+
+
+def calculate_sweep_in_duration(gap_duration):
+    """
+    Determine the sweep-in duration based on gap length.
+    Returns the sweep duration in seconds, or 0 if no sweep.
+    """
+    if gap_duration >= SWEEP_IN_LONG_MIN_GAP:
+        return SWEEP_IN_LONG_DURATION  # 2 second sweep
+    elif gap_duration >= SWEEP_IN_SHORT_MIN_GAP:
+        return SWEEP_IN_SHORT_DURATION  # 1 second sweep
+    return 0  # No sweep
+
+
+def draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color):
+    """
+    Draw a word with character-by-character sweep highlighting.
+    
+    Uses PIL to draw the word in two passes:
+    1. Draw entire word in unsung color
+    2. Draw highlighted portion using character-level clipping
+    
+    Args:
+        draw: PIL ImageDraw object
+        word: Text to draw
+        x: X position
+        y: Y position  
+        font: PIL font object
+        sweep_percent: 0-100, how much of the word is highlighted
+        highlight_color: RGB tuple for highlighted text
+        unsung_color: RGB tuple for unhighlighted text
+        outline_color: RGB tuple for text outline
+    """
+    if sweep_percent <= 0:
+        # Not started - draw entirely in unsung color with outline
+        draw_text_with_outline(draw, word, x, y, font, unsung_color, outline_color)
+        return
+    
+    if sweep_percent >= 100:
+        # Fully sung - draw entirely in highlight color with glow
+        draw_text_with_outline(draw, word, x, y, font, highlight_color, outline_color, glow=True)
+        return
+    
+    # Partial sweep - need to draw character by character
+    word_bbox = draw.textbbox((0, 0), word, font=font)
+    total_width = word_bbox[2] - word_bbox[0]
+    
+    # Calculate where the sweep boundary is
+    sweep_x = x + (total_width * sweep_percent / 100)
+    
+    # Draw unhighlighted portion (entire word first as base)
+    draw_text_with_outline(draw, word, x, y, font, unsung_color, outline_color)
+    
+    # Now draw highlighted portion by measuring character positions
+    current_x = x
+    for i, char in enumerate(word):
+        char_bbox = draw.textbbox((0, 0), char, font=font)
+        char_width = char_bbox[2] - char_bbox[0]
+        char_center = current_x + char_width / 2
+        
+        if char_center <= sweep_x:
+            # This character should be fully highlighted
+            draw_text_with_outline(draw, char, current_x, y, font, highlight_color, outline_color, glow=True)
+        elif current_x < sweep_x:
+            # This character is partially swept - show as highlighted
+            # (We can't easily do partial character fill in PIL, so we use a threshold)
+            draw_text_with_outline(draw, char, current_x, y, font, highlight_color, outline_color, glow=True)
+        
+        current_x += char_width
+
+
+def draw_text_with_outline(draw, text, x, y, font, color, outline_color, glow=False):
+    """
+    Draw text with an outline for better visibility.
+    Optionally adds glow effect for highlighted text.
+    """
+    # Draw outline (offset in all directions)
+    outline_offsets = [(-1, -1), (-1, 1), (1, -1), (1, 1), (-1, 0), (1, 0), (0, -1), (0, 1)]
+    for ox, oy in outline_offsets:
+        draw.text((x + ox, y + oy), text, font=font, fill=outline_color)
+    
+    # Draw glow if requested (additional soft outline in highlight color)
+    if glow:
+        glow_color = tuple(min(255, int(c * 0.5)) for c in color)  # Dimmer version of highlight
+        glow_offsets = [(-2, 0), (2, 0), (0, -2), (0, 2)]
+        for ox, oy in glow_offsets:
+            draw.text((x + ox, y + oy), text, font=font, fill=glow_color)
+    
+    # Draw main text
+    draw.text((x, y), text, font=font, fill=color)
+
+
+def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
+    """
+    Draw the sweep-in bar that appears before lyrics start.
+    
+    Args:
+        draw: PIL ImageDraw object
+        x: X position (right edge, where it meets the first letter)
+        y: Y position (vertical center of the bar)
+        progress: 0-1, where 0 = full bar, 1 = bar disappeared
+        color: RGB tuple for the bar color
+        width: Frame width for scaling
+        height: Bar height in pixels
+        scale: Scale factor based on resolution
+    """
+    max_bar_width = int(SWEEP_IN_BAR_WIDTH * scale)
+    current_width = int(max_bar_width * (1 - progress))
+    
+    if current_width < 2:
+        return
+    
+    bar_height = int(height * 0.85)  # Match capital letter height
+    bar_left = x - current_width
+    bar_top = y - bar_height // 2
+    
+    # Draw gradient bar (fades from transparent to solid on the right)
+    # PIL doesn't support gradients directly, so we draw multiple rectangles
+    num_segments = min(20, current_width)
+    segment_width = current_width / num_segments
+    
+    for i in range(num_segments):
+        seg_x = bar_left + (i * segment_width)
+        # Gradient: more transparent on left, solid on right
+        alpha = int(255 * (i / num_segments) * 0.8)  # Max 80% opacity
+        seg_color = (*color, alpha)
+        
+        # Since PIL's rectangle doesn't support alpha easily, we approximate with color blending
+        blend_factor = i / num_segments
+        blended_color = tuple(int(c * blend_factor) for c in color)
+        
+        draw.rectangle(
+            [(int(seg_x), bar_top), (int(seg_x + segment_width + 1), bar_top + bar_height)],
+            fill=blended_color
+        )
+
+
+def draw_progress_bar(draw, x, y, progress, color, width, height, scale=1.0):
+    """
+    Draw the progress bar shown during instrumental breaks.
+    
+    Args:
+        draw: PIL ImageDraw object
+        x: X position (center)
+        y: Y position (center)
+        progress: 0-1, where 0 = empty, 1 = full
+        color: RGB tuple for the bar color
+        width: Frame width
+        height: Frame height
+        scale: Scale factor
+    """
+    bar_width = int(200 * scale)
+    bar_height = int(12 * scale)
+    
+    bar_left = x - bar_width // 2
+    bar_top = y - bar_height // 2
+    
+    # Draw background bar (dim)
+    bg_color = (60, 60, 60)
+    draw.rounded_rectangle(
+        [(bar_left, bar_top), (bar_left + bar_width, bar_top + bar_height)],
+        radius=bar_height // 2,
+        fill=bg_color
+    )
+    
+    # Draw fill bar
+    fill_width = int(bar_width * progress)
+    if fill_width > 0:
+        # Draw gradient fill (approximated with solid + glow)
+        draw.rounded_rectangle(
+            [(bar_left, bar_top), (bar_left + fill_width, bar_top + bar_height)],
+            radius=bar_height // 2,
+            fill=color
+        )
+
+
 def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_image=None, video_reader=None, frame_time=None):
-    """Create TELEPROMPTER-STYLE scrolling lyrics frame."""
+    """
+    Create TELEPROMPTER-STYLE scrolling lyrics frame with SWEEP HIGHLIGHTING.
+    
+    NEW in 6.0: Character-by-character sweep effect instead of instant word highlight.
+    """
     # Use frame_time for video background if provided, otherwise use current_time
     bg_time = frame_time if frame_time is not None else current_time
     img = create_frame(width, height, colors, bg_image, video_reader, bg_time)
@@ -1681,7 +1979,10 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
     text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
     sung_color = colors.get('sung', COLOR_SUNG) if colors else COLOR_SUNG
     highlight_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
+    outline_color = colors.get('outline', (0, 0, 0)) if colors else (0, 0, 0)
     upcoming_color = colors.get('text', COLOR_UPCOMING) if colors else COLOR_UPCOMING
+    unsung_color = (200, 200, 200)  # Light gray for words not yet sung
+    
     # Make upcoming slightly dimmer than main text
     if colors:
         upcoming_color = tuple(int(c * 0.7) for c in text_color)
@@ -1700,6 +2001,7 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
     if not lines:
         return img
     
+    # Find current line index
     current_line_idx = 0
     for i, line in enumerate(lines):
         if line and line[-1]['end'] >= current_time:
@@ -1707,6 +2009,7 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
             break
         current_line_idx = i
     
+    # Calculate scroll progress within current line
     scroll_progress = 0
     if current_line_idx < len(lines):
         line = lines[current_line_idx]
@@ -1733,26 +2036,52 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
             if y < -line_height or y > height + line_height:
                 continue
             
+            # Calculate total width for centering
             total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
-            x = (width - total_width) // 2
-            x = max(padding, x)
+            x_start = (width - total_width) // 2
+            x_start = max(padding, x_start)
+            x = x_start
             
-            for word_data in line:
+            # Check for sweep-in bar (before current line starts)
+            if line_idx == current_line_idx and line:
+                first_word_start = line[0]['start']
+                
+                # Calculate gap from previous line
+                if line_idx > 0:
+                    prev_line = lines[line_idx - 1]
+                    prev_line_end = prev_line[-1]['end'] if prev_line else 0
+                else:
+                    prev_line_end = 0
+                
+                gap_duration = first_word_start - prev_line_end
+                sweep_duration = calculate_sweep_in_duration(gap_duration)
+                
+                # Show sweep-in bar if we're in the sweep window
+                if sweep_duration > 0:
+                    time_until_line = first_word_start - current_time
+                    if 0 < time_until_line <= sweep_duration:
+                        sweep_progress = 1 - (time_until_line / sweep_duration)
+                        # Draw sweep-in bar to the left of the first word
+                        draw_sweep_in_bar(draw, x_start, y + line_height // 2, sweep_progress, highlight_color, width, line_height, scale)
+            
+            # Draw each word with sweep effect
+            for word_idx, word_data in enumerate(line):
                 word = word_data['word'] + ' '
-                word_width = draw.textbbox((0, 0), word, font=font)[2]
+                word_bbox = draw.textbbox((0, 0), word, font=font)
+                word_width = word_bbox[2] - word_bbox[0]
                 
                 if line_idx < current_line_idx:
-                    color = sung_color
+                    # Past line - fully highlighted
+                    draw_text_with_outline(draw, word, x, y, font, sung_color, outline_color)
                 elif line_idx == current_line_idx:
-                    if current_time >= word_data['start']:
-                        color = highlight_color
-                    else:
-                        color = text_color
+                    # Current line - use sweep highlighting
+                    sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
+                    
+                    if x + word_width <= width - padding:
+                        draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color)
                 else:
-                    color = upcoming_color
-                
-                if x + word_width <= width - padding:
-                    draw.text((x, y), word, font=font, fill=color)
+                    # Upcoming line
+                    draw_text_with_outline(draw, word, x, y, font, upcoming_color, outline_color)
                 
                 x += word_width
     
@@ -1760,7 +2089,11 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
 
 
 def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image=None, video_reader=None, frame_time=None):
-    """Create frame with page-by-page lyrics display."""
+    """
+    Create frame with page-by-page lyrics display with SWEEP HIGHLIGHTING.
+    
+    NEW in 6.0: Character-by-character sweep effect.
+    """
     # Use frame_time for video background if provided, otherwise use current_time
     bg_time = frame_time if frame_time is not None else current_time
     img = create_frame(width, height, colors, bg_image, video_reader, bg_time)
@@ -1770,6 +2103,8 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
     text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
     sung_color = colors.get('sung', COLOR_SUNG) if colors else COLOR_SUNG
     highlight_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
+    outline_color = colors.get('outline', (0, 0, 0)) if colors else (0, 0, 0)
+    unsung_color = (200, 200, 200)  # Light gray for words not yet sung
     
     # Get font settings
     font_size_scale = colors.get('font_size_scale', 1.0) if colors else 1.0
@@ -1807,39 +2142,61 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
             line_idx_global = current_page_idx * LINES_PER_PAGE + i
             
             total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
-            x = (width - total_width) // 2
-            x = max(padding, x)
+            x_start = (width - total_width) // 2
+            x_start = max(padding, x_start)
+            x = x_start
+            
+            # Check for sweep-in bar (before current line starts)
+            if line_idx_global == current_line_idx and line:
+                first_word_start = line[0]['start']
+                
+                # Calculate gap from previous line
+                if line_idx_global > 0 and line_idx_global - 1 < len(lines):
+                    prev_line = lines[line_idx_global - 1]
+                    prev_line_end = prev_line[-1]['end'] if prev_line else 0
+                else:
+                    prev_line_end = 0
+                
+                gap_duration = first_word_start - prev_line_end
+                sweep_duration = calculate_sweep_in_duration(gap_duration)
+                
+                if sweep_duration > 0:
+                    time_until_line = first_word_start - current_time
+                    if 0 < time_until_line <= sweep_duration:
+                        sweep_progress = 1 - (time_until_line / sweep_duration)
+                        draw_sweep_in_bar(draw, x_start, y + line_height // 2, sweep_progress, highlight_color, width, line_height, scale)
             
             for word_data in line:
                 word = word_data['word'] + ' '
+                word_bbox = draw.textbbox((0, 0), word, font=font)
+                word_width = word_bbox[2] - word_bbox[0]
                 
                 if line_idx_global < current_line_idx:
-                    color = sung_color
+                    # Past line - fully sung
+                    draw_text_with_outline(draw, word, x, y, font, sung_color, outline_color)
                 elif line_idx_global == current_line_idx:
-                    if current_time >= word_data['start']:
-                        color = highlight_color
-                    else:
-                        color = text_color
+                    # Current line - use sweep highlighting
+                    sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
+                    draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color)
                 else:
-                    color = text_color
+                    # Upcoming line
+                    draw_text_with_outline(draw, word, x, y, font, text_color, outline_color)
                 
-                draw.text((x, y), word, font=font, fill=color)
-                x += draw.textbbox((0, 0), word, font=font)[2]
+                x += word_width
     
     return img
 
 
 def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_image=None, video_reader=None, frame_time=None):
     """
-    Create frame with TRUE overwrite-style lyrics display.
+    Create frame with TRUE overwrite-style lyrics display with SWEEP HIGHLIGHTING.
     
     3 fixed positions on screen:
     - Position 0 (top): shows lines 0, 3, 6, 9...
     - Position 1 (middle): shows lines 1, 4, 7, 10...
     - Position 2 (bottom): shows lines 2, 5, 8, 11...
     
-    When a line is done being sung, the NEXT line for that position
-    appears instantly. Lines don't move - content is replaced in place.
+    NEW in 6.0: Character-by-character sweep effect.
     """
     # Use frame_time for video background if provided, otherwise use current_time
     bg_time = frame_time if frame_time is not None else current_time
@@ -1850,7 +2207,10 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
     text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
     sung_color = colors.get('sung', COLOR_SUNG) if colors else COLOR_SUNG
     highlight_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
+    outline_color = colors.get('outline', (0, 0, 0)) if colors else (0, 0, 0)
     upcoming_color = colors.get('text', COLOR_UPCOMING) if colors else COLOR_UPCOMING
+    unsung_color = (200, 200, 200)  # Light gray for words not yet sung
+    
     # Make upcoming slightly dimmer than main text
     if colors:
         upcoming_color = tuple(int(c * 0.7) for c in text_color)
@@ -1885,7 +2245,6 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
     start_y = (height - total_display_height) // 2
     
     # We always show the current line and the next 2 upcoming lines
-    # Each line's position is determined by: line_idx % NUM_POSITIONS
     lines_to_show = [current_line_idx, current_line_idx + 1, current_line_idx + 2]
     
     for line_idx in lines_to_show:
@@ -1901,28 +2260,48 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
         
         # Calculate total width for centering
         total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
-        x = (width - total_width) // 2
-        x = max(padding, x)
+        x_start = (width - total_width) // 2
+        x_start = max(padding, x_start)
+        x = x_start
+        
+        # Check for sweep-in bar (before current line starts)
+        if line_idx == current_line_idx and line:
+            first_word_start = line[0]['start']
+            
+            # Calculate gap from previous line
+            if line_idx > 0:
+                prev_line = lines[line_idx - 1]
+                prev_line_end = prev_line[-1]['end'] if prev_line else 0
+            else:
+                prev_line_end = 0
+            
+            gap_duration = first_word_start - prev_line_end
+            sweep_duration = calculate_sweep_in_duration(gap_duration)
+            
+            if sweep_duration > 0:
+                time_until_line = first_word_start - current_time
+                if 0 < time_until_line <= sweep_duration:
+                    sweep_progress = 1 - (time_until_line / sweep_duration)
+                    draw_sweep_in_bar(draw, x_start, y + line_height // 2, sweep_progress, highlight_color, width, line_height, scale)
         
         # Draw each word in the line
         for word_data in line:
             word = word_data['word'] + ' '
+            word_bbox = draw.textbbox((0, 0), word, font=font)
+            word_width = word_bbox[2] - word_bbox[0]
             
             if line_idx < current_line_idx:
-                # Already sung (shouldn't happen with this logic, but just in case)
-                color = sung_color
+                # Already sung
+                draw_text_with_outline(draw, word, x, y, font, sung_color, outline_color)
             elif line_idx == current_line_idx:
-                # Current line - highlight sung words
-                if current_time >= word_data['start']:
-                    color = highlight_color
-                else:
-                    color = text_color
+                # Current line - use sweep highlighting
+                sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
+                draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color)
             else:
                 # Upcoming lines
-                color = upcoming_color
+                draw_text_with_outline(draw, word, x, y, font, upcoming_color, outline_color)
             
-            draw.text((x, y), word, font=font, fill=color)
-            x += draw.textbbox((0, 0), word, font=font)[2]
+            x += word_width
     
     return img
 
@@ -1975,8 +2354,8 @@ def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, hei
 
 def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None):
     """Generate video with lyrics and countdown. Supports video/image backgrounds."""
-    print(f"🎬 Generating video (mode: {display_mode}, background: {bg_type})...")
-    print(f"   ðŸ‘¤ Subscription tier: {subscription_tier}")
+    print(f"ðŸŽ¬ Generating video (mode: {display_mode}, background: {bg_type})...")
+    print(f"   Ã°Å¸â€˜Â¤ Subscription tier: {subscription_tier}")
     
     # Determine watermark behavior based on tier
     # Free: Karatrack watermark
@@ -1986,11 +2365,11 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     apply_custom_watermark = subscription_tier == 'studio' and custom_watermark_url
     
     if apply_watermark_to_video:
-        print("   Ã°Å¸ÂÂ·Ã¯Â¸Â Karatrack watermark will be applied (free tier)")
+        print("   ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â·ÃƒÂ¯Ã‚Â¸Ã‚Â Karatrack watermark will be applied (free tier)")
     elif apply_custom_watermark:
-        print(f"   Ã°Å¸ÂÂ·Ã¯Â¸Â Custom watermark will be applied (Studio tier)")
+        print(f"   ÃƒÂ°Ã…Â¸Ã‚ÂÃ‚Â·ÃƒÂ¯Ã‚Â¸Ã‚Â Custom watermark will be applied (Studio tier)")
     else:
-        print("   Ã¢Å“Â¨ No watermark (paid tier)")
+        print("   ÃƒÂ¢Ã…â€œÃ‚Â¨ No watermark (paid tier)")
     
     # Default style options if not provided
     if style_options is None:
@@ -2032,7 +2411,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         'custom_font_path': style_options.get('custom_font_path'),
     }
     
-    print(f"   Ã°Å¸Å½Â¨ Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}, font={colors['font']}, font_scale={font_size_scale}")
+    print(f"   ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¨ Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}, font={colors['font']}, font_scale={font_size_scale}")
     
     if video_quality == '4k':
         width, height = 3840, 2160
@@ -2048,10 +2427,10 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     if bg_type == 'video' and bg_video_path:
         try:
             video_reader = VideoBackgroundReader(bg_video_path, width, height, FPS)
-            print(f"   📹 Video background loaded: {video_reader.duration:.1f}s duration, will loop as needed")
+            print(f"   ðŸ“¹ Video background loaded: {video_reader.duration:.1f}s duration, will loop as needed")
         except Exception as e:
-            print(f"   ⚠️ Failed to load video background: {e}")
-            print(f"   ⚠️ Falling back to gradient background")
+            print(f"   âš ï¸ Failed to load video background: {e}")
+            print(f"   âš ï¸ Falling back to gradient background")
             bg_type = 'gradient'
     
     # Add silence to beginning of audio for intro screen
@@ -2068,7 +2447,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         offset_word['end'] = word['end'] + INTRO_DURATION
         offset_lyrics.append(offset_word)
     
-    print(f"   Ã¢ÂÂ±Ã¯Â¸Â Lyrics offset by {INTRO_DURATION}s for intro")
+    print(f"   ÃƒÂ¢Ã‚ÂÃ‚Â±ÃƒÂ¯Ã‚Â¸Ã‚Â Lyrics offset by {INTRO_DURATION}s for intro")
     
     # Get duration of audio WITH intro silence
     total_duration = get_audio_duration(audio_with_intro)
@@ -2081,41 +2460,37 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     
     intro_frames = int(INTRO_DURATION * FPS)
     
-    # Detect gaps for countdown (with offset applied)
+    # Detect gaps for instrumental breaks (with offset applied)
+    # NEW in 6.0: Only show progress bar for gaps > 5 seconds (INSTRUMENTAL_BREAK_THRESHOLD)
     offset_gaps = []
     for gap in gaps:
-        offset_gap = gap.copy()
-        offset_gap['start'] = gap['start'] + INTRO_DURATION
-        offset_gap['end'] = gap['end'] + INTRO_DURATION
-        offset_gaps.append(offset_gap)
+        # Only include gaps that are long enough for progress bar
+        if gap.get('duration', gap['end'] - gap['start']) >= INSTRUMENTAL_BREAK_THRESHOLD:
+            offset_gap = gap.copy()
+            offset_gap['start'] = gap['start'] + INTRO_DURATION
+            offset_gap['end'] = gap['end'] + INTRO_DURATION
+            offset_gaps.append(offset_gap)
     
     # Check for long intro before first lyrics (only if not already detected)
-    # The detect_silence_gaps function may have already found this gap
     if offset_lyrics:
         first_lyric_time = offset_lyrics[0]['start']
         intro_gap_time = first_lyric_time - INTRO_DURATION  # Time after intro screen before first lyric
         
-        # Only add intro gap if:
-        # 1. Gap is long enough (>= 3 seconds)
-        # 2. We don't already have a gap that covers this period
+        # Only add intro gap if gap is long enough for progress bar (> 5 seconds)
         has_intro_gap = any(g.get('is_intro', False) for g in offset_gaps)
         
-        if intro_gap_time >= COUNTDOWN_THRESHOLD and not has_intro_gap:
-            # Add countdown before first lyrics
-            countdown_start = first_lyric_time - (COUNTDOWN_DOTS * COUNTDOWN_DOT_INTERVAL)
+        if intro_gap_time >= INSTRUMENTAL_BREAK_THRESHOLD and not has_intro_gap:
             offset_gaps.insert(0, {
                 'start': INTRO_DURATION,
                 'end': first_lyric_time,
                 'duration': intro_gap_time,
-                'is_intro': True,
-                'countdown_start': countdown_start
+                'is_intro': True
             })
-            print(f"   Ã¢Å¾â€¢ Added intro countdown gap: {INTRO_DURATION}s to {first_lyric_time:.2f}s")
+            print(f"   ➕ Added intro instrumental break: {INTRO_DURATION}s to {first_lyric_time:.2f}s")
     
     # Calculate countdown start times for each gap
     for gap in offset_gaps:
         if 'countdown_start' not in gap:
-            gap['countdown_start'] = gap['end'] - (COUNTDOWN_DOTS * COUNTDOWN_DOT_INTERVAL)
     
     # Get last lyric end time for fadeout
     last_lyric_end = offset_lyrics[-1]['end'] if offset_lyrics else total_duration
@@ -2126,10 +2501,10 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     outro_start = fadeout_end if offset_lyrics else INTRO_DURATION + 2
     has_outro_text = outro_text and subscription_tier == 'studio'
     if has_outro_text:
-        print(f"   ðŸ“ Outro text enabled: '{outro_text[:50]}...' (starts at {outro_start:.2f}s)")
+        print(f"   Ã°Å¸â€œÂ Outro text enabled: '{outro_text[:50]}...' (starts at {outro_start:.2f}s)")
     
     # Debug: Log timing info
-    print(f"   Ã°Å¸â€œÅ  Timing debug:")
+    print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â  Timing debug:")
     print(f"      Total duration (with intro): {total_duration:.2f}s")
     print(f"      Intro duration: {INTRO_DURATION}s ({intro_frames} frames)")
     print(f"      Total frames: {total_frames}")
@@ -2141,7 +2516,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         print(f"      First lyric '{offset_lyrics[0]['word']}' at {offset_lyrics[0]['start']:.2f}s (frame {int(offset_lyrics[0]['start'] * FPS)})")
     
     first_lyric_logged = False
-    countdown_gaps_logged = set()  # Track which gaps we've logged
+    breaks_logged = set()  # Track which gaps we've logged
     
     for frame_num in range(total_frames):
         current_time = frame_num / FPS
@@ -2151,34 +2526,35 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
             frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height, colors, bg_image, video_reader, current_time)
         else:
             # Check if we're in a countdown period
-            in_countdown = False
+            in_break = False
             for gap_idx, gap in enumerate(offset_gaps):
-                countdown_start = gap.get('countdown_start', gap['end'] - (COUNTDOWN_DOTS * COUNTDOWN_DOT_INTERVAL))
-                if countdown_start <= current_time < gap['end']:
-                    # We're in a countdown period
-                    in_countdown = True
-                    countdown_remaining = gap['end'] - current_time
+                if gap['start'] <= current_time < gap['end']:
+                    # We're in an instrumental break
+                    in_break = True
                     
                     # Debug: Log first time we enter this countdown gap
-                    if gap_idx not in countdown_gaps_logged:
-                        print(f"   Ã°Å¸â€Âµ COUNTDOWN GAP {gap_idx+1}: frame {frame_num}, time={current_time:.2f}s, remaining={countdown_remaining:.2f}s, lyrics resume at {gap['end']:.2f}s")
-                        countdown_gaps_logged.add(gap_idx)
+                    if gap_idx not in breaks_logged:
+                        print(f"   INSTRUMENTAL BREAK {gap_idx+1}: time={current_time:.2f}s, lyrics resume at {gap['end']:.2f}s")
+                        breaks_logged.add(gap_idx)
                     
-                    frame = create_countdown_frame_with_preview(
-                        countdown_remaining, 
+                    frame = create_instrumental_break_frame(
+                        current_time,
+                        gap['start'],
+                        gap['end'],
                         width, 
                         height, 
                         offset_lyrics, 
-                        gap['end'],
                         display_mode,
-                        colors
+                        colors,
+                        bg_image,
+                        video_reader
                     )
                     break
             
-            if not in_countdown:
+            if not in_break:
                 # Debug: Log when first lyric should appear
                 if not first_lyric_logged and offset_lyrics and current_time >= offset_lyrics[0]['start']:
-                    print(f"   Ã°Å¸â€œÅ  First lyric should appear now: frame {frame_num}, current_time={current_time:.2f}s")
+                    print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã…Â  First lyric should appear now: frame {frame_num}, current_time={current_time:.2f}s")
                     first_lyric_logged = True
                 
                 # Check if we're in fadeout period
@@ -2246,9 +2622,9 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     # Close video reader to free resources
     if video_reader:
         video_reader.close()
-        print("   📹 Video background reader closed")
+        print("   ðŸ“¹ Video background reader closed")
 
-    print("Ã°Å¸â€Â§ Encoding video with FFmpeg...")
+    print("ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂÃ‚Â§ Encoding video with FFmpeg...")
     
     # Use audio_with_intro which has silence at the beginning
     ffmpeg_cmd = [
@@ -2271,7 +2647,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     import shutil
     shutil.rmtree(frames_dir)
     
-    print("Ã¢Å“â€¦ Video generation complete")
+    print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Video generation complete")
     return output_path
 
 
@@ -2337,20 +2713,20 @@ def handler(event):
         bg_video_url = input_data.get('bg_video_url')  # Custom video URL (user uploads)
         bg_image_url = input_data.get('bg_image_url')  # Custom image URL
         
-        print(f"Ã°Å¸Å½Â¤ Processing project: {project_id}")
+        print(f"ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¤ Processing project: {project_id}")
         print(f"   Type: {processing_type}")
         print(f"   Lyrics provided: {'Yes' if user_lyrics_text else 'No (auto-transcribe)'}")
         print(f"   Display mode: {display_mode}")
         print(f"   Clean version: {clean_version}")
         print(f"   Quality: {video_quality}")
-        print(f"   Ã°Å¸â€˜Â¤ Subscription tier: {subscription_tier}")
-        print(f"   Ã°Å¸Å½Â¨ Style: bg={style_options['bg_color_1']}, text={style_options['text_color']}, sung={style_options['sung_color']}")
-        print(f"   Ã°Å¸Å¡â‚¬ Using AssemblyAI for precise timing!")
+        print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬ËœÃ‚Â¤ Subscription tier: {subscription_tier}")
+        print(f"   ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¨ Style: bg={style_options['bg_color_1']}, text={style_options['text_color']}, sung={style_options['sung_color']}")
+        print(f"   ÃƒÂ°Ã…Â¸Ã…Â¡Ã¢â€šÂ¬ Using AssemblyAI for precise timing!")
         print(f"   [4.1] Lyrics comparison uses NORMALIZED matching (ignores punctuation/case)")
         
         # Check processing mode early
         processing_mode = input_data.get('processing_mode', 'full')
-        print(f"   Ã°Å¸â€œâ€¹ Processing mode: {processing_mode}")
+        print(f"   ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Processing mode: {processing_mode}")
         
         work_dir = tempfile.mkdtemp()
         results = {}
@@ -2361,7 +2737,7 @@ def handler(event):
             custom_font_path = download_custom_font(style_options['custom_font_url'], work_dir)
             if custom_font_path:
                 style_options['custom_font_path'] = custom_font_path
-                print(f"   🔤 Custom font: {style_options.get('custom_font_name', 'Custom')}")
+                print(f"   ðŸ”¤ Custom font: {style_options.get('custom_font_name', 'Custom')}")
         
         # Download custom font if provided
         custom_font_path = None
@@ -2378,7 +2754,7 @@ def handler(event):
         if bg_type == 'video':
             bg_video_path = download_video_background(bg_type, bg_video_preset, bg_video_url, work_dir)
             if not bg_video_path:
-                print("   ⚠️ Video background not available, falling back to gradient")
+                print("   âš ï¸ Video background not available, falling back to gradient")
                 bg_type = 'gradient'
         
         if bg_type == 'image' and bg_image_url:
@@ -2394,12 +2770,12 @@ def handler(event):
             
             bg_image = download_image_background(bg_type, bg_image_url, work_dir, img_width, img_height)
             if not bg_image:
-                print("   ⚠️ Image background not available, falling back to gradient")
+                print("   âš ï¸ Image background not available, falling back to gradient")
                 bg_type = 'gradient'
         
         # RENDER_ONLY MODE: Skip vocal separation, use existing processed audio
         if processing_mode == 'render_only':
-            print("Ã°Å¸Å½Â¬ Render-only mode - using existing processed audio")
+            print("ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¬ Render-only mode - using existing processed audio")
             
             # Get the already-processed audio URL
             processed_audio_url = input_data.get('processed_audio_url')
@@ -2408,7 +2784,7 @@ def handler(event):
             
             # Download the processed audio
             instrumental_path = os.path.join(work_dir, 'instrumental.wav')
-            print(f"Ã°Å¸â€œÂ¥ Downloading processed audio from {processed_audio_url}")
+            print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¥ Downloading processed audio from {processed_audio_url}")
             download_file(processed_audio_url, instrumental_path)
             
             # Get edited lyrics from input
@@ -2416,7 +2792,7 @@ def handler(event):
             if not lyrics:
                 raise ValueError("render_only mode requires edited_lyrics")
             
-            print(f"Ã°Å¸â€œÂ Using {len(lyrics)} edited lyrics from user")
+            print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â Using {len(lyrics)} edited lyrics from user")
             
             # Keep existing URLs
             results['processed_audio_url'] = processed_audio_url
@@ -2424,7 +2800,7 @@ def handler(event):
                 results['vocals_audio_url'] = input_data.get('vocals_audio_url')
             
             gaps = detect_silence_gaps(lyrics)
-            print(f"   Found {len(gaps)} gaps for countdown (threshold: {COUNTDOWN_THRESHOLD}s)")
+            print(f"   Found {len(gaps)} gaps for instrumental breaks")
             for i, gap in enumerate(gaps):
                 print(f"      Gap {i+1}: {gap['start']:.2f}s - {gap['end']:.2f}s ({gap['duration']:.2f}s) {'[INTRO]' if gap.get('is_intro') else ''}")
             results['lyrics'] = lyrics
@@ -2436,10 +2812,10 @@ def handler(event):
         else:
             # FULL or TRANSCRIBE_ONLY MODE: Do vocal separation and transcription
             audio_path = os.path.join(work_dir, 'input_audio.mp3')
-            print(f"Ã°Å¸â€œÂ¥ Downloading audio from {audio_url}")
+            print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¥ Downloading audio from {audio_url}")
             download_file(audio_url, audio_path)
             
-            print("Ã°Å¸Å½Âµ Starting vocal separation...")
+            print("ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Âµ Starting vocal separation...")
             instrumental_path, vocals_path = separate_vocals(audio_path, work_dir)
             
             if processing_type in ['remove_vocals']:
@@ -2448,7 +2824,7 @@ def handler(event):
             
             elif processing_type == 'guide_vocals':
                 # Guide Vocals mode: Mix instrumental (100%) + vocals (30%) for singers who need guidance
-                print("Ã°Å¸Å½Â¤ Creating guide vocals track (instrumental + 30% vocals)...")
+                print("ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¤ Creating guide vocals track (instrumental + 30% vocals)...")
                 
                 # Load both tracks
                 instrumental_wav, sr = torchaudio.load(instrumental_path)
@@ -2486,7 +2862,7 @@ def handler(event):
                 # IMPORTANT: Use guide vocals mix for video generation
                 instrumental_path = guide_path
                 
-                print("Ã¢Å“â€¦ Guide vocals track created")
+                print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Guide vocals track created")
             
             # LYRICS PROCESSING - NOW USING ASSEMBLYAI
             lyrics = []
@@ -2497,12 +2873,12 @@ def handler(event):
                 lyrics = transcribe_with_assemblyai(vocals_path, user_lyrics_text)
                 
                 if clean_version and lyrics:
-                    print("Ã°Å¸â€ºÂ¡Ã¯Â¸Â Applying profanity filter...")
+                    print("ÃƒÂ°Ã…Â¸Ã¢â‚¬ÂºÃ‚Â¡ÃƒÂ¯Ã‚Â¸Ã‚Â Applying profanity filter...")
                     print(f"   Processing {len(lyrics)} words...")
                     lyrics = apply_profanity_filter(lyrics)
                 
                 gaps = detect_silence_gaps(lyrics)
-                print(f"   Found {len(gaps)} gaps for countdown (threshold: {COUNTDOWN_THRESHOLD}s)")
+                print(f"   Found {len(gaps)} gaps for instrumental breaks")
                 for i, gap in enumerate(gaps):
                     print(f"      Gap {i+1}: {gap['start']:.2f}s - {gap['end']:.2f}s ({gap['duration']:.2f}s) {'[INTRO]' if gap.get('is_intro') else ''}")
                 
@@ -2510,10 +2886,10 @@ def handler(event):
             
             # Check if transcribe_only - stop here
             if processing_mode == 'transcribe_only':
-                print("Ã°Å¸â€œâ€¹ Transcribe-only mode - skipping video generation")
+                print("ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã¢â‚¬Â¹ Transcribe-only mode - skipping video generation")
                 
                 if callback_url:
-                    print(f"Ã°Å¸â€œÂ¤ Sending callback to {callback_url}")
+                    print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¤ Sending callback to {callback_url}")
                     requests.post(callback_url, json={
                         'project_id': project_id,
                         'status': 'transcribed',
@@ -2523,7 +2899,7 @@ def handler(event):
                 import shutil
                 shutil.rmtree(work_dir)
                 
-                print("Ã¢Å“â€¦ Transcription complete!")
+                print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Transcription complete!")
                 return {
                     'status': 'transcribed',
                     'project_id': project_id,
@@ -2534,7 +2910,7 @@ def handler(event):
         audio_duration = get_audio_duration(instrumental_path if instrumental_path else audio_path)
         
         selected_display_mode = select_display_mode(lyrics, audio_duration, display_mode)
-        print(f"Ã°Å¸â€œÂº Selected display mode: {selected_display_mode}")
+        print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Âº Selected display mode: {selected_display_mode}")
         
         video_path = os.path.join(work_dir, f'{project_id}_output.mp4')
         audio_for_video = instrumental_path if instrumental_path else audio_path
@@ -2560,7 +2936,7 @@ def handler(event):
         results['video_url'] = upload_to_r2(video_path, video_key)
         
         if callback_url:
-            print(f"Ã°Å¸â€œÂ¤ Sending callback to {callback_url}")
+            print(f"ÃƒÂ°Ã…Â¸Ã¢â‚¬Å“Ã‚Â¤ Sending callback to {callback_url}")
             requests.post(callback_url, json={
                 'project_id': project_id,
                 'status': 'completed',
@@ -2570,7 +2946,7 @@ def handler(event):
         import shutil
         shutil.rmtree(work_dir)
         
-        print("Ã¢Å“â€¦ Processing complete!")
+        print("ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Processing complete!")
         return {
             'status': 'completed',
             'project_id': project_id,
@@ -2578,7 +2954,7 @@ def handler(event):
         }
         
     except Exception as e:
-        print(f"Ã¢ÂÅ’ Error: {str(e)}")
+        print(f"ÃƒÂ¢Ã‚ÂÃ…â€™ Error: {str(e)}")
         import traceback
         traceback.print_exc()
         
