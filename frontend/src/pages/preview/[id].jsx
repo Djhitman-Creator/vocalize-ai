@@ -147,22 +147,29 @@ const SweepInBar = ({ progress, color }) => {
       style={{
         display: 'inline-block',
         width: `${barWidth}px`,
-        height: '0.85em', // Match capital letter height (not full line height)
-        marginRight: '-0.25em', // Small overlap behind letter - just enough to blend
+        height: '0.85em', // Match capital letter height
+        marginRight: '-0.25em', // Small overlap behind letter
         verticalAlign: 'baseline',
-        background: `linear-gradient(90deg, 
-          transparent 0%, 
-          ${color}15 10%, 
-          ${color}40 30%, 
-          ${color}70 60%,
-          ${color}95 85%,
-          ${color} 100%)`,
-        borderRadius: '4px 0 0 4px',
-        filter: `drop-shadow(0 0 8px ${color})`,
+        // Use radial gradient to create soft edges on ALL sides
+        background: `
+          radial-gradient(ellipse 100% 100% at 100% 50%, ${color} 0%, ${color}dd 40%, ${color}99 60%, ${color}44 80%, transparent 100%),
+          linear-gradient(90deg, 
+            transparent 0%, 
+            ${color}10 5%,
+            ${color}30 15%, 
+            ${color}60 40%, 
+            ${color}90 70%,
+            ${color} 90%,
+            ${color} 100%)
+        `,
+        // Soft rounded edges on all sides
+        borderRadius: '50% 0 0 50% / 50% 0 0 50%',
+        // Blur the entire element slightly for softer edges
+        filter: `blur(1px) drop-shadow(0 0 6px ${color}) drop-shadow(0 0 12px ${color}50)`,
         transition: 'width 0.05s linear',
         position: 'relative',
-        top: '0.15em', // Adjust vertical position to align with capital letters
-        zIndex: 1, // Behind the text mask (zIndex: 2)
+        top: '0.15em',
+        zIndex: 1,
       }}
     />
   );
