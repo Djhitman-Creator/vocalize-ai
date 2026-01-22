@@ -2488,10 +2488,6 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
             })
             print(f"   ➕ Added intro instrumental break: {INTRO_DURATION}s to {first_lyric_time:.2f}s")
     
-    # Calculate countdown start times for each gap
-    for gap in offset_gaps:
-        if 'countdown_start' not in gap:
-    
     # Get last lyric end time for fadeout
     last_lyric_end = offset_lyrics[-1]['end'] if offset_lyrics else total_duration
     fadeout_start = last_lyric_end
