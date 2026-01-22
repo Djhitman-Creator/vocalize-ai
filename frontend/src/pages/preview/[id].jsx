@@ -131,33 +131,39 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
 
 // ============================================================
 // SWEEP-IN BAR COMPONENT - Shows before first word of line
+// Thick bar that fades left-to-right and blends into the first letter
 // ============================================================
-const SweepInBar = ({ progress, color, width = 60 }) => {
+const SweepInBar = ({ progress, color }) => {
   // progress: 0 = just started, 1 = completed (word about to start)
-  const fillWidth = Math.max(0, Math.min(100, progress * 100));
+  // Bar shrinks from left as progress increases, eventually disappearing into the first letter
+  
+  // Bar width shrinks as we approach the word (starts wide, ends at 0)
+  const barWidth = Math.max(0, (1 - progress) * 80); // 80px max width, shrinks to 0
+  
+  // Opacity increases as we get closer to the word
+  const opacity = 0.7 + (progress * 0.3); // 0.7 to 1.0
+  
+  if (barWidth <= 2) return null; // Don't show when nearly complete
   
   return (
-    <div 
-      className="inline-flex items-center mx-2"
-      style={{ width: `${width}px`, height: '4px' }}
-    >
-      <div 
-        className="h-full rounded-full overflow-hidden"
-        style={{ 
-          width: '100%', 
-          backgroundColor: 'rgba(255,255,255,0.2)',
-        }}
-      >
-        <div 
-          className="h-full rounded-full transition-all duration-75"
-          style={{ 
-            width: `${fillWidth}%`,
-            background: `linear-gradient(90deg, ${color} 0%, ${color} 90%, rgba(255,255,255,0.5) 100%)`,
-            boxShadow: `0 0 10px ${color}`,
-          }}
-        />
-      </div>
-    </div>
+    <span 
+      style={{
+        display: 'inline-block',
+        width: `${barWidth}px`,
+        height: '0.8em', // Match text height roughly
+        marginRight: '2px', // Small gap to first letter
+        verticalAlign: 'middle',
+        background: `linear-gradient(90deg, 
+          transparent 0%, 
+          ${color}40 20%, 
+          ${color}90 60%, 
+          ${color} 100%)`,
+        borderRadius: '4px 0 0 4px', // Rounded on left, flat on right to blend
+        opacity: opacity,
+        filter: `drop-shadow(0 0 6px ${color})`,
+        transition: 'width 0.05s linear',
+      }}
+    />
   );
 };
 
