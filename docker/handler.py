@@ -1,13 +1,18 @@
 """
 Karatrack Studio RunPod Handler
-Version 6.2 - Fast Sweep Highlighting
+Version 6.3 - Performance Optimized Sweep Highlighting
 
 Uses AssemblyAI API for word-level timestamps (~50ms accuracy)
 
 NEW in 4.1: Normalized lyrics comparison ignores punctuation & capitalization
 NEW in 5.0: Video background support (presets and custom uploads)
 NEW in 6.0: Character-by-character sweep highlighting with sweep-in bars
-NEW in 6.2: Optimized sweep - splits word at sweep point (2 draws vs N chars)
+NEW in 6.3: Major performance optimizations:
+  - Split word at sweep point (2 draws vs N characters)
+  - JPEG frame output (faster than PNG)
+  - FFmpeg 'fast' preset
+  - Text width caching
+  - Reduced outline passes (4 vs 8)
 
 Processes audio files: vocal removal, lyrics transcription, video generation
 Uploads results to Cloudflare R2
@@ -1773,6 +1778,22 @@ def group_lyrics_into_lines(lyrics, words_per_line=WORDS_PER_LINE):
 # SWEEP HIGHLIGHTING FUNCTIONS (NEW in 6.0)
 # ============================================
 
+# Cache for text width calculations (cleared per video)
+_text_width_cache = {}
+
+def get_text_width(draw, text, font):
+    """Get text width with caching for performance."""
+    cache_key = (id(font), text)
+    if cache_key not in _text_width_cache:
+        bbox = draw.textbbox((0, 0), text, font=font)
+        _text_width_cache[cache_key] = bbox[2] - bbox[0]
+    return _text_width_cache[cache_key]
+
+def clear_text_width_cache():
+    """Clear the text width cache (call at start of each video)."""
+    global _text_width_cache
+    _text_width_cache = {}
+
 def calculate_word_sweep_percent(current_time, word_start, word_end):
     """
     Calculate the sweep percentage for a word.
@@ -1857,9 +1878,8 @@ def draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color,
     highlighted_part = word[:split_index]
     unsung_part = word[split_index:]
     
-    # Get width of highlighted part to position unsung part
-    highlighted_bbox = draw.textbbox((0, 0), highlighted_part, font=font)
-    highlighted_width = highlighted_bbox[2] - highlighted_bbox[0]
+    # Get width of highlighted part to position unsung part (cached)
+    highlighted_width = get_text_width(draw, highlighted_part, font)
     
     # Draw highlighted part (left)
     draw_text_with_outline(draw, highlighted_part, x, y, font, highlight_color, outline_color, glow=True)
@@ -2355,8 +2375,11 @@ def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, hei
 
 def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None):
     """Generate video with lyrics and countdown. Supports video/image backgrounds."""
-    print(f"ðŸŽ¬ Generating video (mode: {display_mode}, background: {bg_type})...")
-    print(f"   Ã°Å¸â€˜Â¤ Subscription tier: {subscription_tier}")
+    print(f"Generating video (mode: {display_mode}, background: {bg_type})...")
+    print(f"   Subscription tier: {subscription_tier}")
+    
+    # Clear caches for fresh video generation
+    clear_text_width_cache()
     
     # Determine watermark behavior based on tier
     # Free: Karatrack watermark
@@ -2610,8 +2633,8 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         elif apply_custom_watermark:
             frame = apply_studio_watermark(frame, width, height, custom_watermark_url)
         
-        frame_path = os.path.join(frames_dir, f'frame_{frame_num:06d}.png')
-        frame.save(frame_path)
+        frame_path = os.path.join(frames_dir, f'frame_{frame_num:06d}.jpg')
+        frame.save(frame_path, 'JPEG', quality=92)
         
         if frame_num % 100 == 0:
             print(f"  Frame {frame_num}/{total_frames}")
@@ -2627,10 +2650,10 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     ffmpeg_cmd = [
         'ffmpeg', '-y',
         '-framerate', str(FPS),
-        '-i', os.path.join(frames_dir, 'frame_%06d.png'),
+        '-i', os.path.join(frames_dir, 'frame_%06d.jpg'),
         '-i', audio_with_intro,
         '-c:v', 'libx264',
-        '-preset', 'medium',
+        '-preset', 'fast',
         '-crf', '23',
         '-c:a', 'aac',
         '-b:a', '192k',
