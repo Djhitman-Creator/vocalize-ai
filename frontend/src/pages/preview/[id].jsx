@@ -1,20 +1,19 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V10.2)
+ * Preview/Edit Page - Karatrack Studio (V10.3)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V10.2 UI IMPROVEMENTS:
- * - Removed "Move to Next Line" button from top bar (redundant)
- * - Changed "Delete" to "Delete Word"
- * - Added note "Double-click a word to edit text"
- * - NEW: "To New Line ↑" button - splits line, words UP TO selected go above
- * - Renamed existing to "To New Line ↓" for clarity
+ * V10.3 FIXES:
+ * - Removed emoji arrows from button text (was causing encoding issues)
+ * - Renamed buttons: "Split Down" and "Split Up" (clearer names)
+ * - Made "Double-click to edit" note more prominent (cyan box at top)
+ * - Kept Add Word and Delete Word buttons in selected word bar
  * 
- * V10.1 FEATURES (preserved):
- * - Sweep-in bar animates smoothly
- * - Hover tooltips with timestamps
+ * V10.2 FEATURES (preserved):
+ * - Split Up button for maximum flexibility
+ * - All merge/split line functions
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -1335,7 +1334,6 @@ export default function PreviewEditPage() {
                             <Trash2 className="w-3 h-3" />Delete Word
                           </button>
                         </div>
-                        <span className="text-xs text-gray-400 italic ml-2">Double-click a word to edit text</span>
                       </div>
                     </div>
                   )}
@@ -1343,7 +1341,9 @@ export default function PreviewEditPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
                     {/* Left: Line Editor */}
                     <div className={`p-4 overflow-y-auto ${isDark ? 'border-r border-white/10' : 'border-r border-gray-200'}`} style={{ maxHeight: editorHeight }}>
-                      <div className="text-xs text-gray-500 mb-2">Double-click word to edit â€¢ Click to select</div>
+                      <div className={`text-sm font-medium mb-3 px-3 py-2 rounded-lg ${isDark ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30' : 'bg-cyan-50 text-cyan-700 border border-cyan-200'}`}>
+                        Double-click any word to edit its text. Click to select.
+                      </div>
                       <div className="space-y-2">
                         {lyricsLines.map((line, lineIndex) => {
                           const lineTooLong = isLineTooLong(line);
@@ -1365,12 +1365,12 @@ export default function PreviewEditPage() {
                                 )}
                                 {line.length > 1 && (
                                   <button onClick={() => mergeDownToNewLine(lineIndex)} className="opacity-0 group-hover:opacity-100 px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-all flex items-center gap-1" title="Split line: selected word and words AFTER go to NEW line below">
-                                    <ArrowDown className="w-3 h-3" />To New Line ↓
+                                    <ArrowDown className="w-3 h-3" />Split Down
                                   </button>
                                 )}
                                 {line.length > 1 && (
                                   <button onClick={() => mergeUpToNewLine(lineIndex)} className="opacity-0 group-hover:opacity-100 px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all flex items-center gap-1" title="Split line: selected word and words BEFORE become NEW line above">
-                                    <ArrowUp className="w-3 h-3" />To New Line ↑
+                                    <ArrowUp className="w-3 h-3" />Split Up
                                   </button>
                                 )}
                                 {lineTooLong && <LineLengthWarning lineIndex={lineIndex} wordCount={line.length} charCount={charCount} />}
