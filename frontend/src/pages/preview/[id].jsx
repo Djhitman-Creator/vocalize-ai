@@ -1,19 +1,20 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V10)
+ * Preview/Edit Page - Karatrack Studio (V10.2)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V10 ADDITIONS:
- * - NEW: Hover tooltip shows word timestamps (Start, End, Duration, Confidence)
- * - NEW: Playback time shows milliseconds for debugging timing
- * - Timestamps match AssemblyAI data exactly
+ * V10.2 UI IMPROVEMENTS:
+ * - Removed "Move to Next Line" button from top bar (redundant)
+ * - Changed "Delete" to "Delete Word"
+ * - Added note "Double-click a word to edit text"
+ * - NEW: "To New Line ↑" button - splits line, words UP TO selected go above
+ * - Renamed existing to "To New Line ↓" for clarity
  * 
- * V9.9 FEATURES (preserved):
- * - Timeline scrolls properly during playback
- * - Sweep-In Bar and Instrumental Progress Bar
- * - All editing features
+ * V10.1 FEATURES (preserved):
+ * - Sweep-in bar animates smoothly
+ * - Hover tooltips with timestamps
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -107,6 +108,7 @@ const SweepInBar = ({ progress, color }) => {
         opacity: opacity,
         borderRadius: '4px',
         boxShadow: `0 0 15px ${color}40`,
+        transition: 'width 50ms linear, opacity 50ms linear',
       }}
     />
   );
@@ -468,6 +470,39 @@ export default function PreviewEditPage() {
       if (!newWords[lastWordIndex].lineBreak && lineIndex < lyricsLines.length - 1) {
         newWords[lastWordIndex] = { ...newWords[lastWordIndex], lineBreak: true };
       }
+      return newWords;
+    });
+    setHasChanges(true);
+  }, [lyricsLines, selectedWordIndex]);
+
+  // Merge Up to New Line - Creates a NEW separate line ABOVE with words UP TO selected word
+  // Example: Select "rounds" in "making my rounds all" (line 1)
+  // Result: "making my rounds" (NEW line 1) + "all" (line 2 - what remains)
+  const mergeUpToNewLine = useCallback((lineIndex) => {
+    const currentLine = lyricsLines[lineIndex];
+    if (!currentLine || currentLine.length <= 1) return;
+    
+    // Find if selected word is in this line
+    let splitIndex = -1;
+    for (let i = 0; i < currentLine.length; i++) {
+      if (currentLine[i].globalIndex === selectedWordIndex) {
+        splitIndex = i;
+        break;
+      }
+    }
+    
+    // If no word selected, or last word selected, use first word (split after first)
+    if (splitIndex < 0 || splitIndex >= currentLine.length - 1) {
+      splitIndex = 0;
+    }
+    
+    // Add line break AFTER the selected word (words up to and including selected become new line)
+    const selectedWordGlobalIndex = currentLine[splitIndex].globalIndex;
+    
+    setWords(prev => {
+      const newWords = [...prev];
+      // Add line break after the selected word
+      newWords[selectedWordGlobalIndex] = { ...newWords[selectedWordGlobalIndex], lineBreak: true };
       return newWords;
     });
     setHasChanges(true);
@@ -909,7 +944,7 @@ export default function PreviewEditPage() {
   // ============================================================
   // GET CURRENT LYRICS FOR PREVIEW
   // ============================================================
-  const getCurrentLyrics = useCallback(() => {
+  const currentLyrics = useMemo(() => {
     if (!lyricsLines.length) return { 
       currentLine: null, 
       next: '', 
@@ -1136,7 +1171,7 @@ export default function PreviewEditPage() {
     return { backgroundColor: project.bg_color_1 || '#1a1a2e' };
   };
 
-  const currentLyrics = getCurrentLyrics();
+  // currentLyrics is now calculated via useMemo above
   const textColor = project?.text_color || '#ffffff';
   const outlineColor = project?.outline_color || '#000000';
   const unsungColor = '#cccccc';
@@ -1293,18 +1328,14 @@ export default function PreviewEditPage() {
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-xs text-gray-500">Selected: "{words[selectedWordIndex]?.word}"</span>
                         <div className="flex gap-1">
-                          {selectedWordIndex > 0 && (
-                            <button onClick={() => moveWordDown(selectedWordIndex)} className="px-2 py-1 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 flex items-center gap-1">
-                              <ArrowDown className="w-3 h-3" />Move to Next Line
-                            </button>
-                          )}
                           <button onClick={() => setShowAddWordModal(true)} className="px-2 py-1 text-xs bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 flex items-center gap-1">
                             <Plus className="w-3 h-3" />Add Word
                           </button>
                           <button onClick={deleteSelectedWord} className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 flex items-center gap-1">
-                            <Trash2 className="w-3 h-3" />Delete
+                            <Trash2 className="w-3 h-3" />Delete Word
                           </button>
                         </div>
+                        <span className="text-xs text-gray-400 italic ml-2">Double-click a word to edit text</span>
                       </div>
                     </div>
                   )}
@@ -1333,8 +1364,13 @@ export default function PreviewEditPage() {
                                   </button>
                                 )}
                                 {line.length > 1 && (
-                                  <button onClick={() => mergeDownToNewLine(lineIndex)} className="opacity-0 group-hover:opacity-100 px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-all flex items-center gap-1" title="Move selected word to NEW separate line">
-                                    <ArrowDown className="w-3 h-3" />To New Line
+                                  <button onClick={() => mergeDownToNewLine(lineIndex)} className="opacity-0 group-hover:opacity-100 px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-all flex items-center gap-1" title="Split line: selected word and words AFTER go to NEW line below">
+                                    <ArrowDown className="w-3 h-3" />To New Line ↓
+                                  </button>
+                                )}
+                                {line.length > 1 && (
+                                  <button onClick={() => mergeUpToNewLine(lineIndex)} className="opacity-0 group-hover:opacity-100 px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all flex items-center gap-1" title="Split line: selected word and words BEFORE become NEW line above">
+                                    <ArrowUp className="w-3 h-3" />To New Line ↑
                                   </button>
                                 )}
                                 {lineTooLong && <LineLengthWarning lineIndex={lineIndex} wordCount={line.length} charCount={charCount} />}
