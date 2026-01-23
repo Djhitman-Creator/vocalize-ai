@@ -1481,7 +1481,7 @@ export default function UploadPage() {
         description="Upload your music and create professional karaoke videos with synced lyrics."
       />
 
-      <div className={`min-h-screen transition-colors ${isDark ? 'bg-dark' : 'bg-light'}`}>
+      <div className={`min-h-screen transition-colors ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
         <AppNavigation />
 
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
