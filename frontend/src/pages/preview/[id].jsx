@@ -863,7 +863,7 @@ export default function PreviewEditPage() {
   }, [newWordText, selectedWordIndex, words, addWordPosition]);
 
   // ============================================================
-  // KEYBOARD SHORTCUTS
+  // KEYBOARD SHORTCUTS (moved after function definitions)
   // ============================================================
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -891,8 +891,7 @@ export default function PreviewEditPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedWordIndices, selectedWordIndex, editingWordIndex, isPlaying, showAddWordModal, paintMode, words, deleteSelectedWords, nudgeSelectedWords, togglePlayback]);
-
+  }, [selectedWordIndices, selectedWordIndex, editingWordIndex, showAddWordModal, paintMode, words, deleteSelectedWords, nudgeSelectedWords, togglePlayback]);
   // ============================================================
   // DUET MODE FUNCTIONS
   // ============================================================
