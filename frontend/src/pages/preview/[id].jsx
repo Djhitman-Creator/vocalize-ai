@@ -526,6 +526,11 @@ export default function PreviewEditPage() {
 
         if (projectError || !projectData) { setError('Project not found'); return; }
 
+        // Debug: Log custom font info
+        console.log('Custom font URL:', projectData.custom_font_url);
+        console.log('Custom font name:', projectData.custom_font_name);
+        console.log('Font setting:', projectData.font);
+
         setProject(projectData);
         let lyricsData = projectData.lyrics_json || [];
         
@@ -1299,7 +1304,7 @@ export default function PreviewEditPage() {
             <style>{`
               @font-face {
                 font-family: 'CustomKaraokeFont';
-                src: url('${project.custom_font_url}') format('${project.custom_font_url.endsWith('.woff2') ? 'woff2' : project.custom_font_url.endsWith('.woff') ? 'woff' : project.custom_font_url.endsWith('.otf') ? 'opentype' : 'truetype'}');
+                src: url('${project.custom_font_url}');
                 font-display: swap;
               }
             `}</style>
