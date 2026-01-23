@@ -1,28 +1,41 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V7)
+ * Preview/Edit Page - Karatrack Studio (V8)
  * 
- * V7 UPDATES - SWEEP HIGHLIGHTING:
+ * COMBINED PAGE - Replaces both old edit page and preview page
+ * Place this at: frontend/src/pages/preview/[id].jsx
+ * 
+ * V8 UPDATES - COMBINED EDITOR:
+ * - Line break control (rhyme sync) - Add/remove line breaks
+ * - Side-by-side original lyrics panel
+ * - Line length warning for lines that are too long
+ * - All V7 features preserved
+ * 
+ * V7 FEATURES:
  * - Character-by-character sweep effect on active words
- * - Soft gradient edge (not hard line)
- * - Sweep-in bar 1 second before each line (if gap ≥ 1 second)
+ * - Sweep-in bar before each line
  * - Progress bar during instrumental breaks > 5 seconds
- * - Removed "♪ ♪ ♪" dots
  * 
- * V6 UPDATES:
+ * V6 FEATURES:
  * - DRAG TO PAINT: Click and drag across multiple words to paint them all
- * - CLICK ANYWHERE TO SEEK: Click anywhere in timeline area (above/below/between words) to seek
+ * - CLICK ANYWHERE TO SEEK: Click anywhere in timeline area to seek
+ * - Timeline with drag-to-adjust timing
+ * - Duet mode coloring (Singer 1 / Singer 2 / Both)
+ * - Word editing (double-click)
+ * - Add/delete words
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Play, Pause, SkipBack, Mic, Music2, Save, RotateCcw,
   ZoomIn, ZoomOut, Users, Check, X, Edit3, Loader2, AlertCircle,
-  CheckCircle, Maximize2, Minimize2, Plus, Trash2, Paintbrush
+  CheckCircle, Maximize2, Minimize2, Plus, Trash2, Paintbrush,
+  ArrowDown, ArrowUp, Type, Eye, EyeOff, SplitSquareHorizontal,
+  AlertTriangle
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
@@ -41,84 +54,51 @@ const TIMELINE_HEIGHT = 140;
 const WORD_HEIGHT = 44;
 
 // Sweep highlighting constants - TIERED SYSTEM
-const SWEEP_IN_LONG_DURATION = 2.0; // Long sweep-in (2 seconds)
-const SWEEP_IN_LONG_MIN_GAP = 2.0; // Minimum gap required for long sweep
-const SWEEP_IN_SHORT_DURATION = 1.0; // Short sweep-in (1 second)
-const SWEEP_IN_SHORT_MIN_GAP = 1.25; // Minimum gap required for short sweep
-const INSTRUMENTAL_BREAK_THRESHOLD = 5.0; // seconds to trigger progress bar
+const SWEEP_IN_LONG_DURATION = 2.0;
+const SWEEP_IN_LONG_MIN_GAP = 2.0;
+const SWEEP_IN_SHORT_DURATION = 1.0;
+const SWEEP_IN_SHORT_MIN_GAP = 1.25;
+const INSTRUMENTAL_BREAK_THRESHOLD = 5.0;
+
+// Line length settings
+const MAX_LINE_WIDTH_PERCENT = 90; // Max width as % of video width
+const ESTIMATED_CHAR_WIDTH = 0.6; // Approximate em width per character
+const MAX_WORDS_PER_LINE = 10; // Absolute max words per line
 
 // ============================================================
-// SWEEP WORD COMPONENT - Renders a single word with sweep effect
-// Uses percentage-based clip-path to reveal highlighted text
+// SWEEP WORD COMPONENT
 // ============================================================
 const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isActive, isPast, showGlow }) => {
-  // sweepPercent: 0 = unsung, 0.5 = halfway, 1 = fully sung
-  
   const baseTextShadow = `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 1px 2px ${outlineColor}`;
   const glowTextShadow = `0 0 10px ${color}, 0 0 20px ${color}, 1px 1px 2px ${outlineColor}`;
   
-  // If fully past, render in highlight color
   if (isPast || sweepPercent >= 1) {
     return (
-      <span 
-        className="mx-1"
-        style={{
-          color: color,
-          textShadow: baseTextShadow,
-        }}
-      >
+      <span className="mx-1" style={{ color: color, textShadow: baseTextShadow }}>
         {word}
       </span>
     );
   }
   
-  // If not started yet, render unsung color
   if (sweepPercent <= 0 && !isActive) {
     return (
-      <span 
-        className="mx-1"
-        style={{
-          color: unsungColor,
-          textShadow: baseTextShadow,
-        }}
-      >
+      <span className="mx-1" style={{ color: unsungColor, textShadow: baseTextShadow }}>
         {word}
       </span>
     );
   }
   
-  // Active word with sweep effect using clip-path
-  // This clips the highlighted layer to reveal only the "sung" portion
   const clipPercent = Math.max(0, Math.min(100, sweepPercent * 100));
-  
-  // Add soft edge by using a slightly larger clip (creates visual blend)
   const softClipPercent = Math.min(100, clipPercent + 2);
   
   return (
-    <span 
-      className="mx-1"
-      style={{ 
-        position: 'relative',
-        display: 'inline-block',
-      }}
-    >
-      {/* Base layer: Unsung text (gray) - always visible */}
+    <span className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
+      <span style={{ color: unsungColor, textShadow: baseTextShadow }}>{word}</span>
       <span
-        style={{
-          color: unsungColor,
-          textShadow: baseTextShadow,
-        }}
-      >
-        {word}
-      </span>
-      
-      {/* Overlay layer: Highlighted text - clipped to show only sung portion */}
-      <span
-        aria-hidden="true"
         style={{
           position: 'absolute',
-          left: 0,
           top: 0,
+          left: 0,
           color: color,
           textShadow: showGlow ? glowTextShadow : baseTextShadow,
           clipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
@@ -132,96 +112,50 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
 };
 
 // ============================================================
-// SWEEP-IN BAR COMPONENT - Shows before first word of line
-// Bar appears full, then decays from LEFT toward the first letter
+// SWEEP-IN BAR COMPONENT
 // ============================================================
 const SweepInBar = ({ progress, color }) => {
-  // progress: 0 = just appeared (2 sec before word), 1 = word about to start
-  // Bar DECAYS from left to right - left edge moves toward the letter
+  const width = Math.max(0, (1 - progress) * 80);
+  const opacity = 0.3 + (progress * 0.4);
   
-  // At progress 0: full bar visible (120px wide)
-  // At progress 1: bar has shrunk to nothing (merged into letter)
-  
-  const maxWidth = 120; // Full width when it first appears
-  const currentWidth = maxWidth * (1 - progress);
-  
-  // Don't render if too small
-  if (currentWidth < 2) return null;
+  if (width < 2) return null;
   
   return (
-    <span 
+    <div
       style={{
-        display: 'block',
-        width: currentWidth,
-        height: '0.85em',
-        marginLeft: 'auto', // Push to the right so it shrinks from the left
-        // Gradient fades from transparent on left to solid color on right (toward letter)
-        background: `linear-gradient(90deg, 
-          transparent 0%, 
-          ${color}20 15%, 
-          ${color}50 35%, 
-          ${color}80 60%,
-          ${color}cc 80%,
-          ${color} 95%,
-          ${color} 100%)`,
-        borderRadius: '50% 0 0 50% / 50% 0 0 50%',
-        filter: `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 10px ${color}60)`,
+        width: `${width}px`,
+        height: '1.2em',
+        background: `linear-gradient(to right, transparent, ${color})`,
+        opacity: opacity,
+        borderRadius: '4px',
+        boxShadow: `0 0 15px ${color}40`,
       }}
     />
   );
 };
 
 // ============================================================
-// PROGRESS BAR COMPONENT - Shows during instrumental breaks
-// Styled to match sweep-in bar - gradient fade, tapered ends
+// INSTRUMENTAL PROGRESS BAR COMPONENT
 // ============================================================
 const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outlineColor }) => {
-  // progress: 0 = break just started, 1 = about to end
-  // Bar fills from left to right as progress increases
-  
-  const maxWidth = 200; // Full width of the bar container
-  const fillWidth = maxWidth * progress; // How much is filled
-  
   return (
     <div className="flex flex-col items-center gap-4">
-      {/* Progress bar container */}
-      <div 
-        style={{
-          width: `${maxWidth}px`,
-          height: '0.6em',
-          position: 'relative',
-          background: 'rgba(255,255,255,0.15)',
-          borderRadius: '50% / 50%', // Tapered ends on both sides
-          overflow: 'hidden',
-        }}
-      >
-        {/* Fill bar - sweeps from left to right */}
+      <div className="w-64 h-2 bg-white/20 rounded-full overflow-hidden">
         <div
+          className="h-full rounded-full transition-all duration-100"
           style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            height: '100%',
-            width: fillWidth,
-            background: `linear-gradient(90deg, 
-              ${color} 0%, 
-              ${color} 70%,
-              ${color}cc 85%,
-              ${color}80 95%,
-              transparent 100%)`,
-            borderRadius: '50% 0 0 50% / 50% 0 0 50%',
-            filter: `drop-shadow(0 0 6px ${color}) drop-shadow(0 0 10px ${color}60)`,
+            width: `${progress * 100}%`,
+            background: `linear-gradient(to right, ${color}, ${color}cc)`,
+            boxShadow: `0 0 10px ${color}60`,
           }}
         />
       </div>
-      
-      {/* Next lyrics preview */}
       {nextLyrics && (
-        <p 
-          className="text-lg opacity-60" 
-          style={{ 
-            color: textColor, 
-            textShadow: `1px 1px 2px ${outlineColor}` 
+        <p
+          className="text-lg opacity-40 text-center max-w-md"
+          style={{
+            color: textColor,
+            textShadow: `1px 1px 2px ${outlineColor}`,
           }}
         >
           {nextLyrics}
@@ -231,91 +165,180 @@ const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outli
   );
 };
 
-export default function PreviewPage() {
+// ============================================================
+// LINE LENGTH WARNING COMPONENT
+// ============================================================
+const LineLengthWarning = ({ lineIndex, wordCount, charCount }) => {
+  return (
+    <div className="flex items-center gap-1 text-yellow-400" title={`Line ${lineIndex + 1} may be too long (${wordCount} words, ${charCount} chars). Consider splitting it.`}>
+      <AlertTriangle className="w-3 h-3" />
+      <span className="text-xs">Too long</span>
+    </div>
+  );
+};
+
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+export default function PreviewEditPage() {
   const router = useRouter();
   const { id } = router.query;
   const { isDark } = useTheme();
 
+  // Core state
   const [project, setProject] = useState(null);
+  const [words, setWords] = useState([]);
+  const [originalWords, setOriginalWords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [words, setWords] = useState([]);
-  const [originalWords, setOriginalWords] = useState([]);
   const [hasChanges, setHasChanges] = useState(false);
 
-  const [selectedWordIndices, setSelectedWordIndices] = useState([]);
-  const [editingWordIndex, setEditingWordIndex] = useState(null);
-  const [editingText, setEditingText] = useState('');
+  // Original lyrics for side-by-side comparison
+  const [originalLyricsText, setOriginalLyricsText] = useState('');
+  const [showOriginalLyrics, setShowOriginalLyrics] = useState(true);
 
-  const [showAddWordModal, setShowAddWordModal] = useState(false);
-  const [addWordPosition, setAddWordPosition] = useState('after');
-  const [newWordText, setNewWordText] = useState('');
-
+  // Audio state
+  const instrumentalRef = useRef(null);
+  const vocalsRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [instrumentalVolume, setInstrumentalVolume] = useState(0.8);
-  const [vocalsVolume, setVocalsVolume] = useState(0.5);
   const [instrumentalMuted, setInstrumentalMuted] = useState(false);
   const [vocalsMuted, setVocalsMuted] = useState(true);
+  const [instrumentalVolume, setInstrumentalVolume] = useState(1);
+  const [vocalsVolume, setVocalsVolume] = useState(0.5);
+  const animationFrameRef = useRef(null);
 
+  // Timeline state
+  const timelineContainerRef = useRef(null);
   const [zoom, setZoom] = useState(PIXELS_PER_SECOND_DEFAULT);
+  const [selectedWordIndices, setSelectedWordIndices] = useState([]);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartTimes, setDragStartTimes] = useState({});
 
+  // Word editing state
+  const [editingWordIndex, setEditingWordIndex] = useState(null);
+  const [editingText, setEditingText] = useState('');
+  const [showAddWordModal, setShowAddWordModal] = useState(false);
+  const [newWordText, setNewWordText] = useState('');
+  const [addWordPosition, setAddWordPosition] = useState('after');
+
+  // Duet mode state
   const [isDuetMode, setIsDuetMode] = useState(false);
   const [duetColors, setDuetColors] = useState(DEFAULT_DUET_COLORS);
   const [showDuetPanel, setShowDuetPanel] = useState(false);
-  
-  // PAINT MODE
   const [paintMode, setPaintMode] = useState(null);
   const [isPainting, setIsPainting] = useState(false);
   const [paintedIndices, setPaintedIndices] = useState(new Set());
 
+  // Preview state
   const [previewExpanded, setPreviewExpanded] = useState(false);
 
-  const instrumentalRef = useRef(null);
-  const vocalsRef = useRef(null);
-  const animationFrameRef = useRef(null);
-  const timelineContainerRef = useRef(null);
-
+  // ============================================================
+  // GROUP LYRICS INTO LINES (with lineBreak support)
+  // ============================================================
   const groupedLines = useCallback(() => {
     if (!words.length) return [];
+    const lines = [];
+    let currentLine = [];
     
-    const hasLineProperty = words.some(w => w.line !== undefined);
-    
-    if (hasLineProperty) {
-      const lineMap = {};
-      words.forEach((word, idx) => {
-        const lineNum = word.line || 0;
-        if (!lineMap[lineNum]) lineMap[lineNum] = [];
-        lineMap[lineNum].push({ ...word, index: idx });
-      });
-      return Object.keys(lineMap).sort((a, b) => a - b).map(k => lineMap[k]);
-    } else {
-      const lines = [];
-      let currentLine = [];
+    words.forEach((word, idx) => {
+      currentLine.push({ ...word, index: idx });
       
-      words.forEach((word, idx) => {
-        currentLine.push({ ...word, index: idx });
-        
+      // Check if this word has a line break after it
+      if (word.lineBreak) {
+        lines.push(currentLine);
+        currentLine = [];
+      } else {
+        // Auto-break on large gaps or max words (fallback)
         const nextWord = words[idx + 1];
         const gap = nextWord ? nextWord.start - word.end : 0;
         
-        if (gap > 0.5 || currentLine.length >= 8 || word.lineBreak) {
+        if (gap > 0.5 || currentLine.length >= MAX_WORDS_PER_LINE) {
           lines.push(currentLine);
           currentLine = [];
         }
-      });
-      
-      if (currentLine.length > 0) lines.push(currentLine);
-      return lines;
-    }
+      }
+    });
+    
+    if (currentLine.length > 0) lines.push(currentLine);
+    return lines;
   }, [words]);
 
+  // ============================================================
+  // CHECK IF LINE IS TOO LONG
+  // ============================================================
+  const isLineTooLong = useCallback((line) => {
+    if (!line || line.length === 0) return false;
+    
+    // Check word count
+    if (line.length > MAX_WORDS_PER_LINE) return true;
+    
+    // Check character count (rough estimate)
+    const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0);
+    const maxChars = 50; // Approximately 50 chars is safe for most resolutions
+    
+    return charCount > maxChars;
+  }, []);
+
+  // ============================================================
+  // LINE BREAK FUNCTIONS (Rhyme Sync)
+  // ============================================================
+  const addLineBreakAfter = useCallback((globalIndex) => {
+    if (globalIndex >= words.length - 1) return; // Can't add break after last word
+    
+    setWords(prev => {
+      const updated = [...prev];
+      updated[globalIndex] = { ...updated[globalIndex], lineBreak: true };
+      return updated;
+    });
+    setHasChanges(true);
+  }, [words.length]);
+
+  const removeLineBreakAfter = useCallback((globalIndex) => {
+    setWords(prev => {
+      const updated = [...prev];
+      updated[globalIndex] = { ...updated[globalIndex], lineBreak: false };
+      return updated;
+    });
+    setHasChanges(true);
+  }, []);
+
+  const toggleLineBreakAfter = useCallback((globalIndex) => {
+    if (globalIndex >= words.length - 1) return;
+    
+    const currentWord = words[globalIndex];
+    if (currentWord.lineBreak) {
+      removeLineBreakAfter(globalIndex);
+    } else {
+      addLineBreakAfter(globalIndex);
+    }
+  }, [words, addLineBreakAfter, removeLineBreakAfter]);
+
+  // Move word to next line (add line break before it)
+  const moveWordToNextLine = useCallback((globalIndex) => {
+    if (globalIndex === 0) return; // Can't move first word down
+    addLineBreakAfter(globalIndex - 1);
+  }, [addLineBreakAfter]);
+
+  // Merge line with previous (remove line break before first word of line)
+  const mergeWithPreviousLine = useCallback((lineIndex) => {
+    if (lineIndex === 0) return; // Can't merge first line up
+    
+    const lines = groupedLines();
+    const prevLine = lines[lineIndex - 1];
+    if (!prevLine || prevLine.length === 0) return;
+    
+    const lastWordOfPrevLine = prevLine[prevLine.length - 1];
+    removeLineBreakAfter(lastWordOfPrevLine.index);
+  }, [groupedLines, removeLineBreakAfter]);
+
+  // ============================================================
+  // LOAD PROJECT
+  // ============================================================
   useEffect(() => {
     if (!id) return;
     const loadProject = async () => {
@@ -330,10 +353,40 @@ export default function PreviewPage() {
         if (projectError || !projectData) { setError('Project not found'); return; }
 
         setProject(projectData);
-        const lyricsData = projectData.lyrics_json || [];
-        setWords(lyricsData);
-        setOriginalWords(JSON.parse(JSON.stringify(lyricsData)));
+        
+        // Parse lyrics
+        let lyricsData = projectData.lyrics_json || [];
+        if (typeof lyricsData === 'string') {
+          lyricsData = JSON.parse(lyricsData);
+        }
+        
+        // Ensure each word has lineBreak property
+        const lyricsWithBreaks = lyricsData.map((word, index) => ({
+          ...word,
+          lineBreak: word.lineBreak || false
+        }));
+        
+        // Auto-add initial line breaks if none exist
+        const hasAnyBreaks = lyricsWithBreaks.some(w => w.lineBreak);
+        if (!hasAnyBreaks && lyricsWithBreaks.length > 0) {
+          // Add intelligent line breaks based on timing gaps
+          let wordsSinceBreak = 0;
+          for (let i = 0; i < lyricsWithBreaks.length - 1; i++) {
+            wordsSinceBreak++;
+            const gap = lyricsWithBreaks[i + 1].start - lyricsWithBreaks[i].end;
+            
+            if (wordsSinceBreak >= 7 || (wordsSinceBreak >= 3 && gap >= 0.5)) {
+              lyricsWithBreaks[i].lineBreak = true;
+              wordsSinceBreak = 0;
+            }
+          }
+        }
+        
+        setWords(lyricsWithBreaks);
+        setOriginalWords(JSON.parse(JSON.stringify(lyricsWithBreaks)));
+        setOriginalLyricsText(projectData.lyrics_text || '');
         setIsDuetMode(projectData.is_duet_mode || false);
+        
         if (projectData.duet_singer1_color) {
           setDuetColors({
             singer1: projectData.duet_singer1_color,
@@ -341,12 +394,18 @@ export default function PreviewPage() {
             both: projectData.duet_both_color || DEFAULT_DUET_COLORS.both
           });
         }
-      } catch (err) { console.error('Load error:', err); setError('Failed to load project'); }
+      } catch (err) { 
+        console.error('Load error:', err); 
+        setError('Failed to load project'); 
+      }
       finally { setLoading(false); }
     };
     loadProject();
   }, [id, router]);
 
+  // ============================================================
+  // AUDIO PLAYBACK
+  // ============================================================
   useEffect(() => {
     const updateTime = () => {
       if (instrumentalRef.current) setCurrentTime(instrumentalRef.current.currentTime);
@@ -362,40 +421,6 @@ export default function PreviewPage() {
       if (diff > 0.1) vocalsRef.current.currentTime = instrumentalRef.current.currentTime;
     }
   }, [currentTime]);
-
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.code === 'Space' && editingWordIndex === null) { e.preventDefault(); togglePlayback(); }
-      if (e.code === 'Escape') {
-        if (paintMode !== null) { setPaintMode(null); }
-        else if (showAddWordModal) { setShowAddWordModal(false); setNewWordText(''); }
-        else if (editingWordIndex !== null) { setEditingWordIndex(null); setEditingText(''); }
-        else setSelectedWordIndices([]);
-      }
-      if ((e.code === 'Delete' || e.code === 'Backspace') && selectedWordIndices.length > 0 && editingWordIndex === null && paintMode === null) {
-        e.preventDefault();
-        deleteSelectedWords();
-      }
-      if (selectedWordIndices.length > 0 && editingWordIndex === null && paintMode === null) {
-        if (e.code === 'ArrowLeft') { e.preventDefault(); nudgeSelectedWords(e.shiftKey ? -0.1 : -0.05); }
-        if (e.code === 'ArrowRight') { e.preventDefault(); nudgeSelectedWords(e.shiftKey ? 0.1 : 0.05); }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedWordIndices, editingWordIndex, isPlaying, showAddWordModal, paintMode]);
-
-  useEffect(() => {
-    const handleGlobalMouseUp = () => {
-      if (isPainting) {
-        setIsPainting(false);
-        setPaintedIndices(new Set());
-      }
-    };
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-  }, [isPainting]);
 
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) setDuration(instrumentalRef.current.duration);
@@ -422,6 +447,44 @@ export default function PreviewPage() {
 
   const restart = useCallback(() => seekTo(0), [seekTo]);
 
+  // ============================================================
+  // KEYBOARD SHORTCUTS
+  // ============================================================
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
+      if (e.code === 'Space' && editingWordIndex === null) { 
+        e.preventDefault(); 
+        togglePlayback(); 
+      }
+      if (e.code === 'Escape') {
+        if (paintMode !== null) { setPaintMode(null); }
+        else if (showAddWordModal) { setShowAddWordModal(false); setNewWordText(''); }
+        else if (editingWordIndex !== null) { setEditingWordIndex(null); setEditingText(''); }
+        else setSelectedWordIndices([]);
+      }
+      if ((e.code === 'Delete' || e.code === 'Backspace') && selectedWordIndices.length > 0 && editingWordIndex === null && paintMode === null) {
+        e.preventDefault();
+        deleteSelectedWords();
+      }
+      if (selectedWordIndices.length > 0 && editingWordIndex === null && paintMode === null) {
+        if (e.code === 'ArrowLeft') { e.preventDefault(); nudgeSelectedWords(e.shiftKey ? -0.1 : -0.05); }
+        if (e.code === 'ArrowRight') { e.preventDefault(); nudgeSelectedWords(e.shiftKey ? 0.1 : 0.05); }
+        // Enter to add/remove line break after selected word
+        if (e.code === 'Enter' && selectedWordIndices.length === 1) {
+          e.preventDefault();
+          toggleLineBreakAfter(selectedWordIndices[0]);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedWordIndices, editingWordIndex, isPlaying, showAddWordModal, paintMode, toggleLineBreakAfter]);
+
+  // ============================================================
+  // TIMELINE INTERACTIONS
+  // ============================================================
   const handleTimelineClick = useCallback((e) => {
     if (!timelineContainerRef.current || isDragging) return;
     const rect = timelineContainerRef.current.getBoundingClientRect();
@@ -438,6 +501,9 @@ export default function PreviewPage() {
     seekTo(percent * duration);
   }, [duration, seekTo]);
 
+  // ============================================================
+  // WORD INTERACTIONS
+  // ============================================================
   const paintWord = useCallback((index) => {
     if (paintMode === null) return;
     setWords(prev => {
@@ -563,7 +629,8 @@ export default function PreviewPage() {
         word: newWordText.trim(),
         start: selectedWord.start,
         end: midPoint,
-        confidence: 1.0
+        confidence: 1.0,
+        lineBreak: false
       };
       setWords(prev => {
         const updated = [...prev];
@@ -577,11 +644,12 @@ export default function PreviewPage() {
         word: newWordText.trim(),
         start: midPoint,
         end: selectedWord.end,
-        confidence: 1.0
+        confidence: 1.0,
+        lineBreak: selectedWord.lineBreak // Inherit line break from original word
       };
       setWords(prev => {
         const updated = [...prev];
-        updated[selectedIndex] = { ...updated[selectedIndex], end: midPoint };
+        updated[selectedIndex] = { ...updated[selectedIndex], end: midPoint, lineBreak: false };
         updated.splice(selectedIndex + 1, 0, newWord);
         return updated;
       });
@@ -593,6 +661,7 @@ export default function PreviewPage() {
     setHasChanges(true);
   }, [newWordText, selectedWordIndices, words, addWordPosition]);
 
+  // Dragging effect
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (!isDragging || paintMode !== null) return;
@@ -623,6 +692,21 @@ export default function PreviewPage() {
     };
   }, [isDragging, dragStartX, dragStartTimes, zoom, paintMode]);
 
+  // Paint mode mouse up
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isPainting) {
+        setIsPainting(false);
+        setPaintedIndices(new Set());
+      }
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, [isPainting]);
+
+  // ============================================================
+  // DUET MODE
+  // ============================================================
   const togglePaintMode = useCallback((singer) => {
     if (paintMode === singer) {
       setPaintMode(null);
@@ -642,6 +726,9 @@ export default function PreviewPage() {
     setHasChanges(true);
   }, [selectedWordIndices]);
 
+  // ============================================================
+  // SAVE / RESET / RENDER
+  // ============================================================
   const resetToOriginal = useCallback(() => {
     if (window.confirm('Reset all changes?')) {
       setWords(JSON.parse(JSON.stringify(originalWords)));
@@ -656,9 +743,12 @@ export default function PreviewPage() {
     setSaving(true);
     try {
       const { error: updateError } = await supabase.from('projects').update({
-        lyrics_json: words, is_duet_mode: isDuetMode,
-        duet_singer1_color: duetColors.singer1, duet_singer2_color: duetColors.singer2,
-        duet_both_color: duetColors.both, updated_at: new Date().toISOString()
+        lyrics_json: words, 
+        is_duet_mode: isDuetMode,
+        duet_singer1_color: duetColors.singer1, 
+        duet_singer2_color: duetColors.singer2,
+        duet_both_color: duetColors.both, 
+        updated_at: new Date().toISOString()
       }).eq('id', project.id);
       if (updateError) throw updateError;
       setOriginalWords(JSON.parse(JSON.stringify(words)));
@@ -670,11 +760,53 @@ export default function PreviewPage() {
   }, [project, words, isDuetMode, duetColors]);
 
   const proceedToRender = useCallback(async () => {
-    if (hasChanges) await saveChanges();
-    await supabase.from('projects').update({ status: 'rendering', lyrics_json: words }).eq('id', project.id);
-    router.push('/dashboard');
+    if (!project) return;
+    
+    try {
+      // Save first if there are changes
+      if (hasChanges) {
+        await saveChanges();
+      }
+      
+      // Get session for API call
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
+      }
+      
+      // Call the render API
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${project.id}/render`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            edited_lyrics: words,
+            processing_mode: 'render_only'
+          })
+        }
+      );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to start render');
+      }
+      
+      // Redirect to dashboard
+      router.push('/dashboard');
+    } catch (err) {
+      console.error('Render error:', err);
+      setError(err.message || 'Failed to start render');
+    }
   }, [hasChanges, saveChanges, project, words, router]);
 
+  // ============================================================
+  // UTILITY FUNCTIONS
+  // ============================================================
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
@@ -695,8 +827,18 @@ export default function PreviewPage() {
 
   const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
 
+  const getHighlightColor = (wordIndex) => {
+    if (isDuetMode && words[wordIndex]?.singer !== undefined) {
+      const singer = words[wordIndex].singer;
+      if (singer === SINGER.SINGER_1) return duetColors.singer1;
+      if (singer === SINGER.SINGER_2) return duetColors.singer2;
+      return duetColors.both;
+    }
+    return project?.sung_color || '#00d4ff';
+  };
+
   // ============================================================
-  // ENHANCED getCurrentLyrics with SWEEP DATA
+  // GET CURRENT LYRICS FOR PREVIEW
   // ============================================================
   const getCurrentLyrics = useCallback(() => {
     const lines = groupedLines();
@@ -712,7 +854,7 @@ export default function PreviewPage() {
     
     let currentLineIdx = -1;
     
-    // Find current line (where a word is actively being sung)
+    // Find current line
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       for (let j = 0; j < line.length; j++) {
@@ -730,39 +872,23 @@ export default function PreviewPage() {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
         if (line.length > 0 && line[0].start > currentTime) {
-          // We're before this line starts
           const firstWordStart = line[0].start;
           const timeUntilLine = firstWordStart - currentTime;
-          
-          // Calculate gap from previous line
           const prevLineEnd = i === 0 ? 0 : lines[i - 1][lines[i - 1].length - 1].end;
           const gapDuration = firstWordStart - prevLineEnd;
           
-          // TIERED SWEEP-IN SYSTEM:
-          // 1. Long sweep (2 sec) if gap >= 2 seconds
-          // 2. Short sweep (1 sec) if gap >= 1.25 seconds but < 2 seconds
-          // 3. No sweep if gap < 1.25 seconds
-          
           let sweepDuration = 0;
           if (gapDuration >= SWEEP_IN_LONG_MIN_GAP) {
-            sweepDuration = SWEEP_IN_LONG_DURATION; // 2 second sweep
+            sweepDuration = SWEEP_IN_LONG_DURATION;
           } else if (gapDuration >= SWEEP_IN_SHORT_MIN_GAP) {
-            sweepDuration = SWEEP_IN_SHORT_DURATION; // 1 second sweep
+            sweepDuration = SWEEP_IN_SHORT_DURATION;
           }
           
-          // Show sweep-in if we have a sweep duration and we're within that time window
           if (sweepDuration > 0 && timeUntilLine <= sweepDuration) {
             const sweepProgress = 1 - (timeUntilLine / sweepDuration);
-            
-            // Show the upcoming line with sweep-in bar
             const currentLineText = line.map(w => ({
-              word: w.word,
-              index: w.index,
-              start: w.start,
-              end: w.end,
-              isActive: false,
-              isPast: false,
-              sweepPercent: 0
+              word: w.word, index: w.index, start: w.start, end: w.end,
+              isActive: false, isPast: false, sweepPercent: 0
             }));
             
             return {
@@ -776,64 +902,42 @@ export default function PreviewPage() {
             };
           }
           
-          // Check for instrumental break progress bar (> 5 seconds gap, NOT for intro)
-          // Progress bar shows during the break and COMPLETES exactly when sweep-in starts
-          // So progress runs from start of gap until sweep-in begins
           const progressBarEndTime = sweepDuration > 0 ? sweepDuration : 0;
           if (i > 0 && gapDuration > INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine > progressBarEndTime) {
-            // Duration of progress bar = total gap minus the sweep-in time at the end
             const progressBarDuration = gapDuration - progressBarEndTime;
-            // How far into the progress bar are we?
             const timeIntoProgressBar = gapDuration - timeUntilLine;
-            // Progress: 0% at start of gap, 100% when sweep-in is about to start
             const progressPercent = Math.min(1, Math.max(0, timeIntoProgressBar / progressBarDuration));
             
             return {
-              currentLine: null,
-              next: '',
-              showSweepIn: false,
-              sweepInProgress: 0,
+              currentLine: null, next: '',
+              showSweepIn: false, sweepInProgress: 0,
               showProgressBar: true,
               progressBarPercent: progressPercent,
               nextLyricsForProgressBar: line.map(w => w.word).join(' ')
             };
           }
           
-          // Show previous line if within 2 seconds of its end
           if (i > 0) {
             const prevLine = lines[i - 1];
             const lastWordEnd = prevLine[prevLine.length - 1].end;
             if (currentTime - lastWordEnd <= 2) {
               const currentLineText = prevLine.map(w => ({
-                word: w.word,
-                index: w.index,
-                start: w.start,
-                end: w.end,
-                isActive: false,
-                isPast: true,
-                sweepPercent: 1
+                word: w.word, index: w.index, start: w.start, end: w.end,
+                isActive: false, isPast: true, sweepPercent: 1
               }));
               return { 
                 currentLine: currentLineText, 
                 next: line.map(w => w.word).join(' '),
-                showSweepIn: false,
-                sweepInProgress: 0,
-                showProgressBar: false,
-                progressBarPercent: 0,
-                nextLyricsForProgressBar: ''
+                showSweepIn: false, sweepInProgress: 0,
+                showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
               };
             }
           }
           
-          // Just show next line preview (no current line)
           return { 
-            currentLine: null, 
-            next: line.map(w => w.word).join(' '),
-            showSweepIn: false,
-            sweepInProgress: 0,
-            showProgressBar: false,
-            progressBarPercent: 0,
-            nextLyricsForProgressBar: ''
+            currentLine: null, next: line.map(w => w.word).join(' '),
+            showSweepIn: false, sweepInProgress: 0,
+            showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
           };
         }
         
@@ -843,40 +947,26 @@ export default function PreviewPage() {
         }
       }
       
-      // Handle end of song
       if (currentLineIdx === -1) {
         if (lines.length > 0) {
           const lastLine = lines[lines.length - 1];
           const lastWordEnd = lastLine[lastLine.length - 1].end;
           if (currentTime - lastWordEnd <= 2) {
             const currentLineText = lastLine.map(w => ({
-              word: w.word,
-              index: w.index,
-              start: w.start,
-              end: w.end,
-              isActive: false,
-              isPast: true,
-              sweepPercent: 1
+              word: w.word, index: w.index, start: w.start, end: w.end,
+              isActive: false, isPast: true, sweepPercent: 1
             }));
             return { 
-              currentLine: currentLineText, 
-              next: '',
-              showSweepIn: false,
-              sweepInProgress: 0,
-              showProgressBar: false,
-              progressBarPercent: 0,
-              nextLyricsForProgressBar: ''
+              currentLine: currentLineText, next: '',
+              showSweepIn: false, sweepInProgress: 0,
+              showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
             };
           }
         }
         return { 
-          currentLine: null, 
-          next: '',
-          showSweepIn: false,
-          sweepInProgress: 0,
-          showProgressBar: false,
-          progressBarPercent: 0,
-          nextLyricsForProgressBar: ''
+          currentLine: null, next: '',
+          showSweepIn: false, sweepInProgress: 0,
+          showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
         };
       }
     }
@@ -891,41 +981,31 @@ export default function PreviewPage() {
       if (isPast) {
         sweepPercent = 1;
       } else if (isActive) {
-        // Calculate sweep percentage within the word
         const wordDuration = w.end - w.start;
         if (wordDuration > 0) {
           sweepPercent = (currentTime - w.start) / wordDuration;
         }
       }
       
-      return {
-        word: w.word,
-        index: w.index,
-        start: w.start,
-        end: w.end,
-        isActive,
-        isPast,
-        sweepPercent
-      };
+      return { word: w.word, index: w.index, start: w.start, end: w.end, isActive, isPast, sweepPercent };
     });
 
     const nextLine = lines[currentLineIdx + 1];
     const nextText = nextLine ? nextLine.map(w => w.word).join(' ') : '';
     
     return { 
-      currentLine: currentLineText, 
-      next: nextText,
-      showSweepIn: false,
-      sweepInProgress: 0,
-      showProgressBar: false,
-      progressBarPercent: 0,
-      nextLyricsForProgressBar: ''
+      currentLine: currentLineText, next: nextText,
+      showSweepIn: false, sweepInProgress: 0,
+      showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
     };
   }, [groupedLines, currentTime]);
 
   const zoomIn = () => setZoom(prev => Math.min(prev * 1.25, 300));
   const zoomOut = () => setZoom(prev => Math.max(prev / 1.25, 30));
 
+  // ============================================================
+  // LOADING / ERROR STATES
+  // ============================================================
   if (loading) return (
     <div className={`min-h-screen flex items-center justify-center ${isDark ? 'bg-gray-950' : 'bg-gray-100'}`}>
       <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
@@ -947,26 +1027,18 @@ export default function PreviewPage() {
     return { backgroundColor: project.bg_color_1 || '#1a1a2e' };
   };
 
-  // Get highlight color based on duet mode
-  const getHighlightColor = (wordIndex) => {
-    if (isDuetMode && words[wordIndex]?.singer !== undefined) {
-      const singer = words[wordIndex].singer;
-      if (singer === SINGER.SINGER_1) return duetColors.singer1;
-      if (singer === SINGER.SINGER_2) return duetColors.singer2;
-      return duetColors.both;
-    }
-    return project?.sung_color || '#00d4ff';
-  };
-
   const currentLyrics = getCurrentLyrics();
-  const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
   const textColor = project?.text_color || '#ffffff';
   const outlineColor = project?.outline_color || '#000000';
   const unsungColor = '#cccccc';
+  const lines = groupedLines();
 
+  // ============================================================
+  // RENDER
+  // ============================================================
   return (
     <>
-      <SEO title={`Edit: ${project.title} | Karatrack Studio`} description="Edit lyrics timing" />
+      <SEO title={`Edit: ${project.title} | Karatrack Studio`} description="Edit lyrics timing and line breaks" />
 
       <audio ref={instrumentalRef} src={project.processed_audio_url} onLoadedMetadata={handleAudioLoaded} onEnded={() => setIsPlaying(false)} preload="auto" />
       {project.vocals_audio_url && <audio ref={vocalsRef} src={project.vocals_audio_url} preload="auto" muted={vocalsMuted} />}
@@ -1001,9 +1073,6 @@ export default function PreviewPage() {
                   autoFocus
                   className={`w-full px-4 py-2 rounded-lg text-sm ${isDark ? 'bg-white/5 border border-white/10 text-white' : 'bg-gray-50 border border-gray-200 text-gray-900'} focus:outline-none focus:ring-2 focus:ring-cyan-500`}
                 />
-                <p className="text-xs text-gray-500 mt-2">
-                  The new word will share timing with the selected word.
-                </p>
               </div>
               
               <div className="flex gap-2">
@@ -1026,7 +1095,7 @@ export default function PreviewPage() {
 
         <AppNavigation />
 
-        <main className="relative z-10 px-4 py-4 max-w-7xl mx-auto">
+        <main className="relative z-10 px-4 py-4 max-w-[1600px] mx-auto">
           {/* Header */}
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
@@ -1035,14 +1104,14 @@ export default function PreviewPage() {
               </Link>
               <div>
                 <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{project.title}</h1>
-                <p className="text-sm text-gray-500">Edit lyrics timing and text</p>
+                <p className="text-sm text-gray-500">Edit lyrics timing, text, and line breaks</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {paintMode !== null && (
                 <span className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/20 text-purple-400 text-xs rounded-lg animate-pulse">
                   <Paintbrush className="w-3 h-3" />
-                  Paint Mode - Click/drag words
+                  Paint Mode
                 </span>
               )}
               {hasChanges && <span className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-lg"><AlertCircle className="w-3 h-3" />Unsaved</span>}
@@ -1082,14 +1151,7 @@ export default function PreviewPage() {
                         <label className="block text-xs text-gray-500 mb-1">Singer 1</label>
                         <div className="flex items-center gap-2">
                           <input type="color" value={duetColors.singer1} onChange={(e) => { setDuetColors(prev => ({ ...prev, singer1: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer border-0" />
-                          <button 
-                            onClick={() => togglePaintMode(SINGER.SINGER_1)} 
-                            className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all flex items-center justify-center gap-1 ${
-                              paintMode === SINGER.SINGER_1 
-                                ? 'bg-cyan-500 text-white ring-2 ring-cyan-300' 
-                                : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/50'
-                            }`}
-                          >
+                          <button onClick={() => togglePaintMode(SINGER.SINGER_1)} className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all flex items-center justify-center gap-1 ${paintMode === SINGER.SINGER_1 ? 'bg-cyan-500 text-white ring-2 ring-cyan-300' : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border border-cyan-500/50'}`}>
                             <Paintbrush className="w-3 h-3" />
                             {paintMode === SINGER.SINGER_1 ? 'Painting...' : 'Paint'}
                           </button>
@@ -1099,13 +1161,7 @@ export default function PreviewPage() {
                         <label className="block text-xs text-gray-500 mb-1">Singer 2</label>
                         <div className="flex items-center gap-2">
                           <input type="color" value={duetColors.singer2} onChange={(e) => { setDuetColors(prev => ({ ...prev, singer2: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer border-0" />
-                          <button
-                            onClick={() => togglePaintMode(SINGER.SINGER_2)}
-                            className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all flex items-center justify-center gap-1 ${paintMode === SINGER.SINGER_2
-                                ? 'bg-pink-500 text-white ring-2 ring-pink-300'
-                                : 'bg-pink-500/20 text-pink-400 hover:bg-pink-500/30 border border-pink-500/50'
-                              }`}
-                          >
+                          <button onClick={() => togglePaintMode(SINGER.SINGER_2)} className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all flex items-center justify-center gap-1 ${paintMode === SINGER.SINGER_2 ? 'bg-pink-500 text-white ring-2 ring-pink-300' : 'bg-pink-500/20 text-pink-400 hover:bg-pink-500/30 border border-pink-500/50'}`}>
                             <Paintbrush className="w-3 h-3" />
                             {paintMode === SINGER.SINGER_2 ? 'Painting...' : 'Paint'}
                           </button>
@@ -1115,13 +1171,7 @@ export default function PreviewPage() {
                         <label className="block text-xs text-gray-500 mb-1">Both</label>
                         <div className="flex items-center gap-2">
                           <input type="color" value={duetColors.both} onChange={(e) => { setDuetColors(prev => ({ ...prev, both: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer border-0" />
-                          <button
-                            onClick={() => togglePaintMode(SINGER.BOTH)}
-                            className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all flex items-center justify-center gap-1 ${paintMode === SINGER.BOTH
-                                ? 'bg-yellow-500 text-white ring-2 ring-yellow-300'
-                                : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/50'
-                              }`}
-                          >
+                          <button onClick={() => togglePaintMode(SINGER.BOTH)} className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-all flex items-center justify-center gap-1 ${paintMode === SINGER.BOTH ? 'bg-yellow-500 text-white ring-2 ring-yellow-300' : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/50'}`}>
                             <Paintbrush className="w-3 h-3" />
                             {paintMode === SINGER.BOTH ? 'Painting...' : 'Paint'}
                           </button>
@@ -1129,168 +1179,175 @@ export default function PreviewPage() {
                       </div>
                     </div>
                   )}
-                  {paintMode !== null && (
-                    <div className="mt-3 pt-3 border-t border-white/10">
-                      <p className="text-xs text-gray-400">
-                        Click and drag across words to paint them. Press <kbd className="px-1 py-0.5 bg-white/10 rounded text-[10px]">Esc</kbd> or click the paint button again to exit.
-                      </p>
-                    </div>
-                  )}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* ============================================================ */}
-          {/* VIDEO PREVIEW - SWEEP HIGHLIGHTING V7 */}
-          {/* ============================================================ */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-black/40 border border-white/10' : 'bg-white border border-gray-200'}`}>
-            <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
-              <span className="text-xs font-medium text-gray-400">Video Preview</span>
-              <button onClick={() => setPreviewExpanded(!previewExpanded)} className="p-1 rounded hover:bg-white/10">
-                {previewExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </button>
-            </div>
-            <div className={`relative transition-all duration-300 ${previewExpanded ? 'h-80' : 'h-48'}`} style={getPreviewBackground()}>
-              {/* Background Image */}
-              {project.bg_image_url && !project.bg_video_url && (
-                <img 
-                  className="absolute inset-0 w-full h-full object-cover opacity-70" 
-                  src={project.bg_image_url} 
-                  alt="Background"
-                />
-              )}
-              {/* Background Video */}
-              {project.bg_video_url && (
-                <video 
-                  className="absolute inset-0 w-full h-full object-cover opacity-60" 
-                  src={project.bg_video_url} 
-                  autoPlay 
-                  loop 
-                  muted 
-                  playsInline 
-                />
-              )}
-              {/* Custom Font Style - loads the custom font if uploaded */}
-              {project.custom_font_url && (
-                <style>{`
-                  @font-face {
-                    font-family: 'CustomKaraokeFont';
-                    src: url('${project.custom_font_url}');
-                  }
-                `}</style>
-              )}
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
-                
-                {/* PROGRESS BAR FOR INSTRUMENTAL BREAKS > 5 SECONDS */}
-                {currentLyrics.showProgressBar ? (
-                  <InstrumentalProgressBar 
-                    key={`progress-${currentTime.toFixed(2)}`}
-                    progress={currentLyrics.progressBarPercent}
-                    nextLyrics={currentLyrics.nextLyricsForProgressBar}
-                    color={project?.sung_color || '#00d4ff'}
-                    textColor={textColor}
-                    outlineColor={outlineColor}
-                  />
-                ) : currentLyrics.currentLine ? (
-                  /* CURRENT LINE WITH SWEEP EFFECT */
-                  <div className="text-center mb-4">
-                    <p 
-                      className="text-2xl md:text-3xl font-bold relative inline-block" 
-                      style={{ fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial') }}
-                    >
-                      {/* SWEEP-IN BAR - absolutely positioned to the left of the first word */}
-                      {currentLyrics.showSweepIn && (
-                        <span
-                          key={`sweep-${currentTime.toFixed(2)}`}
-                          style={{
-                            position: 'absolute',
-                            right: '100%', // Position to the left of the text
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            marginRight: '-0.25em', // Small overlap into first letter
-                          }}
-                        >
-                          <SweepInBar 
-                            progress={currentLyrics.sweepInProgress}
-                            color={getHighlightColor(currentLyrics.currentLine[0]?.index)}
-                          />
-                        </span>
-                      )}
-                      
-                      {/* WORDS WITH SWEEP EFFECT */}
-                      {currentLyrics.currentLine.map((wordData, i) => {
-                        const highlightColor = getHighlightColor(wordData.index);
-                        const showGlow = wordData.isActive;
-                        
-                        // For the FIRST word when sweep-in is showing:
-                        // Just render in unsung color - the bar goes behind it
-                        // NO early highlighting - let the word timing take over naturally
-                        if (currentLyrics.showSweepIn && i === 0) {
+          {/* Main Content Grid - Video Preview + Original Lyrics Side by Side */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+            {/* Video Preview - Takes 2 columns */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`lg:col-span-2 rounded-2xl overflow-hidden ${isDark ? 'bg-black/40 border border-white/10' : 'bg-white border border-gray-200'}`}>
+              <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                <span className="text-xs font-medium text-gray-400">Video Preview</span>
+                <button onClick={() => setPreviewExpanded(!previewExpanded)} className="p-1 rounded hover:bg-white/10">
+                  {previewExpanded ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className={`relative transition-all duration-300 ${previewExpanded ? 'h-80' : 'h-48'}`} style={getPreviewBackground()}>
+                {project.bg_image_url && !project.bg_video_url && (
+                  <img className="absolute inset-0 w-full h-full object-cover opacity-70" src={project.bg_image_url} alt="Background" />
+                )}
+                {project.bg_video_url && (
+                  <video className="absolute inset-0 w-full h-full object-cover opacity-60" src={project.bg_video_url} autoPlay loop muted playsInline />
+                )}
+                {project.custom_font_url && (
+                  <style>{`@font-face { font-family: 'CustomKaraokeFont'; src: url('${project.custom_font_url}'); }`}</style>
+                )}
+                <div className="absolute inset-0 flex flex-col items-center justify-center p-8">
+                  {currentLyrics.showProgressBar ? (
+                    <InstrumentalProgressBar 
+                      progress={currentLyrics.progressBarPercent}
+                      nextLyrics={currentLyrics.nextLyricsForProgressBar}
+                      color={project?.sung_color || '#00d4ff'}
+                      textColor={textColor}
+                      outlineColor={outlineColor}
+                    />
+                  ) : currentLyrics.currentLine ? (
+                    <div className="text-center mb-4">
+                      <p className="text-2xl md:text-3xl font-bold relative inline-block" style={{ fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial') }}>
+                        {currentLyrics.showSweepIn && (
+                          <span style={{ position: 'absolute', right: '100%', top: '50%', transform: 'translateY(-50%)', marginRight: '-0.25em' }}>
+                            <SweepInBar progress={currentLyrics.sweepInProgress} color={getHighlightColor(currentLyrics.currentLine[0]?.index)} />
+                          </span>
+                        )}
+                        {currentLyrics.currentLine.map((wordData, i) => {
+                          const highlightColor = getHighlightColor(wordData.index);
+                          if (currentLyrics.showSweepIn && i === 0) {
+                            return (
+                              <span key={i} className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
+                                <span style={{ color: unsungColor, textShadow: `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}` }}>{wordData.word}</span>
+                              </span>
+                            );
+                          }
                           return (
-                            <span 
-                              key={i}
-                              className="mx-1"
-                              style={{ 
-                                position: 'relative',
-                                display: 'inline-block',
-                              }}
-                            >
-                              {/* First letter in unsung color - acts as mask for the sweep-in bar */}
-                              <span
-                                style={{
-                                  color: unsungColor,
-                                  textShadow: `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 1px 2px ${outlineColor}`,
-                                  position: 'relative',
-                                  zIndex: 2, // Above the sweep-in bar
-                                }}
+                            <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} />
+                          );
+                        })}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center mb-4" />
+                  )}
+                  {currentLyrics.next && !currentLyrics.showProgressBar && (
+                    <p className="text-lg md:text-xl opacity-50" style={{ color: textColor, fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'), textShadow: `1px 1px 2px ${outlineColor}` }}>
+                      {currentLyrics.next}
+                    </p>
+                  )}
+                </div>
+                <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 rounded text-xs text-white/70 font-mono">{formatTime(currentTime)}</div>
+              </div>
+            </motion.div>
+
+            {/* Original Lyrics Panel - Side by Side */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`rounded-2xl overflow-hidden ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
+              <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
+                <span className="text-xs font-medium text-gray-400 flex items-center gap-2">
+                  <Type className="w-3 h-3" />
+                  Original Lyrics
+                </span>
+                <button onClick={() => setShowOriginalLyrics(!showOriginalLyrics)} className="p-1 rounded hover:bg-white/10">
+                  {showOriginalLyrics ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {showOriginalLyrics && (
+                <div className={`p-4 h-48 overflow-y-auto text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {originalLyricsText ? (
+                    <pre className="whitespace-pre-wrap font-sans">{originalLyricsText}</pre>
+                  ) : (
+                    <p className="text-gray-500 italic">No original lyrics available</p>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          </div>
+
+          {/* Line Editor Panel - Rhyme Sync */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
+            <div className="flex items-center justify-between px-4 py-2 border-b border-white/10">
+              <span className="text-xs font-medium text-gray-400 flex items-center gap-2">
+                <SplitSquareHorizontal className="w-3 h-3" />
+                Line Editor (Rhyme Sync)
+              </span>
+              <span className="text-xs text-gray-500">{lines.length} lines • Click word then "Split Line" to add break</span>
+            </div>
+            <div className="p-4 max-h-64 overflow-y-auto">
+              <div className="space-y-2">
+                {lines.map((line, lineIndex) => {
+                  const lineTooLong = isLineTooLong(line);
+                  const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0);
+                  
+                  return (
+                    <div key={lineIndex} className="group">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs text-gray-500 w-6">{lineIndex + 1}</span>
+                        {lineIndex > 0 && (
+                          <button
+                            onClick={() => mergeWithPreviousLine(lineIndex)}
+                            className="opacity-0 group-hover:opacity-100 px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 transition-all flex items-center gap-1"
+                            title="Merge with line above"
+                          >
+                            <ArrowUp className="w-3 h-3" />
+                            Merge Up
+                          </button>
+                        )}
+                        {lineTooLong && (
+                          <LineLengthWarning lineIndex={lineIndex} wordCount={line.length} charCount={charCount} />
+                        )}
+                      </div>
+                      <div className={`flex flex-wrap items-center gap-1 p-2 rounded-lg ${lineTooLong ? 'bg-yellow-500/10 border border-yellow-500/30' : isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                        {line.map((wordData, wordIndex) => {
+                          const isSelected = selectedWordIndices.includes(wordData.index);
+                          const isLastInLine = wordIndex === line.length - 1;
+                          const hasLineBreak = wordData.lineBreak;
+                          
+                          return (
+                            <span key={wordData.index} className="inline-flex items-center">
+                              <button
+                                onClick={(e) => handleWordClick(wordData.index, e)}
+                                onDoubleClick={(e) => handleWordDoubleClick(wordData.index, e)}
+                                className={`px-2 py-1 rounded text-sm transition-all ${
+                                  isSelected
+                                    ? 'bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-500'
+                                    : wordData.confidence !== undefined && wordData.confidence < 0.5
+                                      ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
+                                      : isDark
+                                        ? 'hover:bg-white/10 text-gray-300'
+                                        : 'hover:bg-gray-200 text-gray-700'
+                                }`}
+                                title={`${wordData.start.toFixed(2)}s - ${wordData.end.toFixed(2)}s${wordData.confidence ? ` (${(wordData.confidence * 100).toFixed(0)}% conf)` : ''}`}
                               >
                                 {wordData.word}
-                              </span>
+                              </button>
+                              {/* Line break indicator */}
+                              {hasLineBreak && !isLastInLine && (
+                                <span className="ml-1 w-1 h-4 bg-cyan-500 rounded-full" title="Line break" />
+                              )}
+                              {isLastInLine && lineIndex < lines.length - 1 && (
+                                <span className="ml-1 w-1 h-4 bg-cyan-500 rounded-full" title="Line break" />
+                              )}
                             </span>
                           );
-                        }
-                        
-                        // Normal rendering for all other words
-                        return (
-                          <SweepWord
-                            key={i}
-                            word={wordData.word}
-                            sweepPercent={wordData.sweepPercent}
-                            color={highlightColor}
-                            unsungColor={unsungColor}
-                            outlineColor={outlineColor}
-                            isActive={wordData.isActive}
-                            isPast={wordData.isPast}
-                            showGlow={showGlow}
-                          />
-                        );
-                      })}
-                    </p>
-                  </div>
-                ) : (
-                  /* NO CURRENT LINE - Show empty (no more dots!) */
-                  <div className="text-center mb-4">
-                    {/* Empty space - dots removed */}
-                  </div>
-                )}
-                
-                {/* NEXT LINE PREVIEW */}
-                {currentLyrics.next && !currentLyrics.showProgressBar && (
-                  <p className="text-lg md:text-xl opacity-50" style={{ 
-                    color: textColor, 
-                    fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'), 
-                    textShadow: `1px 1px 2px ${outlineColor}` 
-                  }}>
-                    {currentLyrics.next}
-                  </p>
-                )}
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 rounded text-xs text-white/70 font-mono">{formatTime(currentTime)}</div>
             </div>
           </motion.div>
 
-          {/* TIMELINE EDITOR */}
+          {/* Timeline Editor */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={`rounded-2xl overflow-hidden ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
             <div className={`flex items-center justify-between px-4 py-2 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
               <span className="text-xs font-medium text-gray-400">Timeline Editor</span>
@@ -1301,49 +1358,32 @@ export default function PreviewPage() {
               </div>
             </div>
 
-            <div 
-              ref={timelineContainerRef} 
-              className={`relative overflow-hidden cursor-pointer ${isDark ? 'bg-gray-900/50' : 'bg-gray-50'}`} 
-              style={{ height: TIMELINE_HEIGHT }} 
-              onClick={handleTimelineClick}
-            >
-              {/* CENTERED PLAYHEAD */}
+            <div ref={timelineContainerRef} className={`relative overflow-hidden cursor-pointer ${isDark ? 'bg-gray-900/50' : 'bg-gray-50'}`} style={{ height: TIMELINE_HEIGHT }} onClick={handleTimelineClick}>
+              {/* Centered Playhead */}
               <div className="absolute top-0 bottom-0 w-0.5 bg-cyan-400 z-30 pointer-events-none" style={{ left: '50%', transform: 'translateX(-50%)', boxShadow: '0 0 15px rgba(0, 212, 255, 0.7)' }}>
-                <div className="absolute -top-0 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-r-[6px] border-t-[8px] border-l-transparent border-r-transparent border-t-cyan-400" />
+                <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-cyan-400" />
               </div>
 
-              {/* Time markers */}
-              <div className="absolute top-0 left-0 right-0 h-6 pointer-events-none" style={{ background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.8)' }}>
-                {Array.from({ length: Math.ceil(duration) + 1 }).map((_, i) => {
-                  const offset = (i - currentTime) * zoom;
-                  const position = containerWidth / 2 + offset;
-                  if (position < -100 || position > containerWidth + 100) return null;
-                  return (
-                    <div key={i} className="absolute top-0 h-full flex flex-col justify-end" style={{ left: position }}>
-                      <div className={`w-px h-2 ${isDark ? 'bg-white/30' : 'bg-gray-400'}`} />
-                      <span className="text-[10px] text-gray-500 ml-1">{formatTime(i)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Words */}
+              {/* Words on Timeline */}
               {words.map((word, index) => {
+                const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
+                const centerX = containerWidth / 2;
+                const wordX = centerX + (word.start - currentTime) * zoom;
+                const wordWidth = Math.max(40, (word.end - word.start) * zoom);
+                
+                if (wordX + wordWidth < -100 || wordX > containerWidth + 100) return null;
+                
                 const isSelected = selectedWordIndices.includes(index);
                 const isCurrent = isWordCurrent(word);
                 const isEditing = editingWordIndex === index;
-                const wordWidth = Math.max((word.end - word.start) * zoom, 35);
-                const timeOffset = word.start - currentTime;
-                const wordLeft = containerWidth / 2 + (timeOffset * zoom);
-                if (wordLeft + wordWidth < -100 || wordLeft > containerWidth + 100) return null;
 
                 return (
-                  <motion.div 
-                    key={index} 
-                    className={`absolute select-none ${paintMode !== null ? 'cursor-crosshair' : isDragging && isSelected ? 'cursor-grabbing' : 'cursor-grab'}`}
-                    style={{ left: wordLeft, top: '50%', transform: 'translateY(-50%)', width: wordWidth, height: WORD_HEIGHT, zIndex: isSelected ? 15 : isCurrent ? 10 : 5 }}
-                    onClick={(e) => handleWordClick(index, e)} 
-                    onDoubleClick={(e) => handleWordDoubleClick(index, e)} 
+                  <motion.div
+                    key={index}
+                    className="absolute cursor-pointer select-none"
+                    style={{ left: wordX, width: wordWidth, height: WORD_HEIGHT, top: (TIMELINE_HEIGHT - WORD_HEIGHT) / 2 }}
+                    onClick={(e) => handleWordClick(index, e)}
+                    onDoubleClick={(e) => handleWordDoubleClick(index, e)}
                     onMouseDown={(e) => handleWordMouseDown(index, e)}
                     onMouseEnter={() => handleWordMouseEnter(index)}
                   >
@@ -1358,6 +1398,7 @@ export default function PreviewPage() {
                       )}
                     </div>
                     {word.confidence && word.confidence < 0.8 && !isSelected && <div className="absolute -top-1 -right-1 w-2 h-2 bg-orange-400 rounded-full" title="Low confidence" />}
+                    {word.lineBreak && <div className="absolute -right-0.5 top-0 bottom-0 w-1 bg-cyan-500 rounded-full" title="Line break" />}
                     {isDuetMode && word.singer !== undefined && word.singer !== SINGER.BOTH && (
                       <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full" style={{ backgroundColor: word.singer === SINGER.SINGER_1 ? duetColors.singer1 : duetColors.singer2 }} />
                     )}
@@ -1367,7 +1408,7 @@ export default function PreviewPage() {
             </div>
           </motion.div>
 
-          {/* AUDIO CONTROLS */}
+          {/* Audio Controls */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className={`mt-4 p-4 rounded-2xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
             <div className={`h-2 rounded-full ${isDark ? 'bg-white/10' : 'bg-gray-200'} cursor-pointer mb-4 overflow-hidden`} onClick={handleProgressClick}>
               <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all duration-100" style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }} />
@@ -1408,15 +1449,36 @@ export default function PreviewPage() {
                     <span className="text-sm text-gray-400">{selectedWordIndices.length} word{selectedWordIndices.length > 1 ? 's' : ''} selected</span>
                     {selectedWordIndices.length === 1 && (
                       <div className="flex items-center gap-2 text-xs">
-                        <span className="text-gray-500">Start:</span><span className="font-mono text-cyan-400">{words[selectedWordIndices[0]].start.toFixed(2)}s</span>
-                        <span className="text-gray-500 ml-2">End:</span><span className="font-mono text-cyan-400">{words[selectedWordIndices[0]].end.toFixed(2)}s</span>
+                        <span className="text-gray-500">Start:</span><span className="font-mono text-cyan-400">{words[selectedWordIndices[0]]?.start.toFixed(2)}s</span>
+                        <span className="text-gray-500 ml-2">End:</span><span className="font-mono text-cyan-400">{words[selectedWordIndices[0]]?.end.toFixed(2)}s</span>
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Line Break Controls */}
+                    {selectedWordIndices.length === 1 && selectedWordIndices[0] < words.length - 1 && (
+                      <button 
+                        onClick={() => toggleLineBreakAfter(selectedWordIndices[0])} 
+                        className={`flex items-center gap-1 px-3 py-1 text-xs rounded-lg border transition-all ${
+                          words[selectedWordIndices[0]]?.lineBreak 
+                            ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50 hover:bg-cyan-500/30' 
+                            : 'bg-purple-500/20 text-purple-400 border-purple-500/50 hover:bg-purple-500/30'
+                        }`}
+                      >
+                        <SplitSquareHorizontal className="w-3 h-3" />
+                        {words[selectedWordIndices[0]]?.lineBreak ? 'Remove Break' : 'Split Line Here'}
+                      </button>
+                    )}
+                    
+                    {selectedWordIndices.length === 1 && selectedWordIndices[0] > 0 && (
+                      <button onClick={() => moveWordToNextLine(selectedWordIndices[0])} className="flex items-center gap-1 px-3 py-1 text-xs rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/50">
+                        <ArrowDown className="w-3 h-3" />Move to Next Line
+                      </button>
+                    )}
+                    
                     {selectedWordIndices.length === 1 && (
-                      <button onClick={() => setShowAddWordModal(true)} className="flex items-center gap-1 px-3 py-1 text-xs rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/50">
-                        <Plus className="w-3 h-3" />Add
+                      <button onClick={() => setShowAddWordModal(true)} className="flex items-center gap-1 px-3 py-1 text-xs rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border border-blue-500/50">
+                        <Plus className="w-3 h-3" />Add Word
                       </button>
                     )}
                     
@@ -1429,8 +1491,9 @@ export default function PreviewPage() {
                     <button onClick={() => nudgeSelectedWords(-0.05)} className={`px-2 py-1 text-xs rounded-lg ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>-0.05s</button>
                     <button onClick={() => nudgeSelectedWords(0.05)} className={`px-2 py-1 text-xs rounded-lg ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>+0.05s</button>
                     <button onClick={() => nudgeSelectedWords(0.1)} className={`px-2 py-1 text-xs rounded-lg ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>+0.1s</button>
+                    
                     {selectedWordIndices.length === 1 && (
-                      <button onClick={() => handleWordDoubleClick(selectedWordIndices[0], { stopPropagation: () => {} })} className="flex items-center gap-1 px-3 py-1 text-xs rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 ml-2"><Edit3 className="w-3 h-3" />Edit</button>
+                      <button onClick={() => handleWordDoubleClick(selectedWordIndices[0], { stopPropagation: () => {} })} className="flex items-center gap-1 px-3 py-1 text-xs rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 ml-2"><Edit3 className="w-3 h-3" />Edit Text</button>
                     )}
                     <button onClick={() => setSelectedWordIndices([])} className={`p-1.5 rounded-lg ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'} ml-2`}><X className="w-4 h-4" /></button>
                   </div>
@@ -1446,7 +1509,9 @@ export default function PreviewPage() {
           </motion.div>
 
           <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500"><span className="font-medium">Shortcuts:</span> Space = Play/Pause • ←/→ = Nudge • Delete = Remove • Shift+Click = Range • Double-click = Edit • Esc = Exit • Click timeline = Seek</p>
+            <p className="text-xs text-gray-500">
+              <span className="font-medium">Shortcuts:</span> Space = Play/Pause • ←/→ = Nudge timing • Enter = Toggle line break • Delete = Remove word • Shift+Click = Select range • Double-click = Edit text • Esc = Deselect
+            </p>
           </div>
         </main>
       </div>
