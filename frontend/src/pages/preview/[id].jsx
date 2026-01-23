@@ -1277,6 +1277,11 @@ export default function PreviewEditPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {project.custom_font_url && (
+                <span className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/20 text-cyan-400 text-xs rounded-lg">
+                  <Type className="w-3 h-3" />{project.custom_font_name || 'Custom Font'}
+                </span>
+              )}
               {paintMode !== null && (
                 <span className="flex items-center gap-2 px-3 py-1.5 bg-purple-500/20 text-purple-400 text-xs rounded-lg animate-pulse">
                   <Paintbrush className="w-3 h-3" />Paint Mode
@@ -1289,12 +1294,22 @@ export default function PreviewEditPage() {
             </div>
           </motion.div>
 
+          {/* Custom Font Loading - placed outside preview for better loading */}
+          {project.custom_font_url && (
+            <style>{`
+              @font-face {
+                font-family: 'CustomKaraokeFont';
+                src: url('${project.custom_font_url}') format('${project.custom_font_url.endsWith('.woff2') ? 'woff2' : project.custom_font_url.endsWith('.woff') ? 'woff' : project.custom_font_url.endsWith('.otf') ? 'opentype' : 'truetype'}');
+                font-display: swap;
+              }
+            `}</style>
+          )}
+
           {/* VIDEO PREVIEW - Resizable */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
             <div className="relative w-full overflow-hidden" style={{ height: previewHeight, ...getPreviewBackground() }}>
               {project.bg_image_url && <img className="absolute inset-0 w-full h-full object-cover opacity-60" src={project.bg_image_url} alt="" />}
               {videoBackgroundUrl && <video className="absolute inset-0 w-full h-full object-cover opacity-60" src={videoBackgroundUrl} autoPlay loop muted playsInline />}
-              {project.custom_font_url && <style>{`@font-face { font-family: 'CustomKaraokeFont'; src: url('${project.custom_font_url}'); }`}</style>}
               <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
                 {currentLyrics.showProgressBar ? (
                   <InstrumentalProgressBar 
