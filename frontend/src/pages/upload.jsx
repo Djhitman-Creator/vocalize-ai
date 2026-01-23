@@ -63,7 +63,7 @@ const supabase = createClient(
 
 // Available fonts
 const FONT_OPTIONS = [
-  { value: 'custom', label: '✨ Custom Font', family: 'CustomFont, sans-serif', isCustom: true },
+  { value: 'custom', label: 'âœ¨ Custom Font', family: 'CustomFont, sans-serif', isCustom: true },
   { value: 'arial', label: 'Arial', family: 'Arial, sans-serif' },
   { value: 'roboto', label: 'Roboto', family: '"Roboto", sans-serif' },
   { value: 'poppins', label: 'Poppins', family: '"Poppins", sans-serif' },
@@ -843,8 +843,8 @@ export default function UploadPage() {
                 className={`relative flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all ${isSelected
                     ? 'border-cyan-400 bg-cyan-400/10'
                     : isLocked
-                      ? 'border-white/10 bg-white/5 opacity-50 cursor-not-allowed'
-                      : 'border-white/10 bg-white/5 hover:border-white/30'
+                      ? isDark ? 'border-white/10 bg-white/5 opacity-50 cursor-not-allowed' : 'border-gray-200 bg-gray-50 opacity-50 cursor-not-allowed'
+                      : isDark ? 'border-white/10 bg-white/5 hover:border-white/30' : 'border-gray-200 bg-gray-50 hover:border-gray-300'
                   }`}
               >
                 {isLocked && (
@@ -926,8 +926,8 @@ export default function UploadPage() {
                 <option value="to top">Bottom to Top</option>
                 <option value="to right">Left to Right</option>
                 <option value="to left">Right to Left</option>
-                <option value="to bottom right">Diagonal ↘</option>
-                <option value="to bottom left">Diagonal ↙</option>
+                <option value="to bottom right">Diagonal â†˜</option>
+                <option value="to bottom left">Diagonal â†™</option>
               </select>
             </div>
           )}
@@ -956,7 +956,7 @@ export default function UploadPage() {
               {...getImageRootProps()}
               className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all ${isImageDragActive
                   ? 'border-cyan-400 bg-cyan-400/10'
-                  : 'border-white/20 hover:border-cyan-400/50'
+                  : isDark ? 'border-white/20 hover:border-cyan-400/50' : 'border-gray-300 hover:border-cyan-400/50'
                 }`}
             >
               <input {...getImageInputProps()} />
@@ -987,7 +987,7 @@ export default function UploadPage() {
                   onClick={() => setSelectedVideoCategory(cat.id)}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${selectedVideoCategory === cat.id
                       ? 'bg-cyan-500 text-white'
-                      : 'bg-white/10 text-gray-400 hover:bg-white/20'
+                      : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                 >
                   {cat.label}
@@ -1071,7 +1071,7 @@ export default function UploadPage() {
                 {...getVideoRootProps()}
                 className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all ${isVideoDragActive
                     ? 'border-cyan-400 bg-cyan-400/10'
-                    : 'border-white/20 hover:border-cyan-400/50'
+                    : isDark ? 'border-white/20 hover:border-cyan-400/50' : 'border-gray-300 hover:border-cyan-400/50'
                   }`}
               >
                 <input {...getVideoInputProps()} />
@@ -1085,7 +1085,7 @@ export default function UploadPage() {
           </div>
 
           <p className="text-xs text-gray-500">
-            💡 Videos will automatically loop or trim to match your track length.
+            ðŸ’¡ Videos will automatically loop or trim to match your track length.
           </p>
         </div>
       )}
@@ -1129,7 +1129,7 @@ export default function UploadPage() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mt-3 pt-3 border-t border-white/10"
+            className={`mt-3 pt-3 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}
           >
             <p className="text-xs text-gray-500 mb-3">
               Configure singer colors here. Assign words to singers on the Edit Lyrics page.
@@ -1223,7 +1223,7 @@ export default function UploadPage() {
             >
               {FONT_OPTIONS.map(font => (
                 <option key={font.value} value={font.value}>
-                  {font.isCustom && customFontName ? `✨ ${customFontName}` : font.label}
+                  {font.isCustom && customFontName ? `âœ¨ ${customFontName}` : font.label}
                 </option>
               ))}
             </select>
@@ -1259,7 +1259,7 @@ export default function UploadPage() {
                         ({(customFont.size / 1024).toFixed(1)} KB)
                       </span>
                     </div>
-                    <button type="button" onClick={clearCustomFont} className="p-1 hover:bg-white/10 rounded">
+                    <button type="button" onClick={clearCustomFont} className={`p-1 rounded ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}>
                       <X className="w-4 h-4 text-gray-400" />
                     </button>
                   </div>
@@ -1267,7 +1267,7 @@ export default function UploadPage() {
                   <div
                     {...getFontRootProps()}
                     className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-all ${
-                      isFontDragActive ? 'border-cyan-400 bg-cyan-400/10' : 'border-white/20 hover:border-cyan-400/50'
+                      isFontDragActive ? 'border-cyan-400 bg-cyan-400/10' : isDark ? 'border-white/20 hover:border-cyan-400/50' : 'border-gray-300 hover:border-cyan-400/50'
                     }`}
                   >
                     <input {...getFontInputProps()} />
@@ -1374,8 +1374,8 @@ export default function UploadPage() {
 
         {/* Duet mode message about standard colors */}
         {isDuetMode && (
-          <div className="col-span-2 text-xs text-gray-500 bg-white/5 p-2 rounded-lg">
-            💡 In Duet Mode, standard text/outline/sung colors are replaced by singer-specific colors.
+          <div className={`col-span-2 text-xs text-gray-500 p-2 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+            ðŸ’¡ In Duet Mode, standard text/outline/sung colors are replaced by singer-specific colors.
             Configure them above or fine-tune on the Edit Lyrics page after processing.
           </div>
         )}
@@ -1527,7 +1527,7 @@ export default function UploadPage() {
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setAudioFile(null); }}
-                          className="p-1 hover:bg-white/10 rounded"
+                          className={`p-1 rounded ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-200'}`}
                         >
                           <X className="w-4 h-4 text-gray-400" />
                         </button>
@@ -1756,7 +1756,7 @@ export default function UploadPage() {
                         <button
                           type="button"
                           onClick={resetToDefaults}
-                          className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                          className={`p-2 rounded-lg transition-colors ${isDark ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'}`}
                           title="Reset to defaults"
                         >
                           <RotateCcw className="w-4 h-4" />
@@ -1797,7 +1797,7 @@ export default function UploadPage() {
                     )}
 
                     {/* Tab Navigation */}
-                    <div className="flex gap-1 mb-4 p-1 bg-white/5 rounded-xl">
+                    <div className={`flex gap-1 mb-4 p-1 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
                       {STYLE_TABS.map((tab) => {
                         const Icon = tab.icon;
                         const isLocked = tab.tier === 'studio' && !isStudioUser();
@@ -1812,8 +1812,8 @@ export default function UploadPage() {
                             className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive
                                 ? 'bg-gradient-to-r from-cyan-500 to-purple-500 text-white'
                                 : isLocked
-                                  ? 'text-gray-600 cursor-not-allowed'
-                                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                  ? 'text-gray-500 cursor-not-allowed'
+                                  : isDark ? 'text-gray-400 hover:text-white hover:bg-white/5' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                               }`}
                           >
                             <Icon className="w-4 h-4" />
@@ -1874,7 +1874,7 @@ export default function UploadPage() {
                   {/* Email Notification Checkbox */}
                   <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${notifyOnComplete
                       ? 'bg-purple-500/20 border border-purple-400'
-                      : 'bg-white/5 border border-transparent hover:bg-white/10'
+                      : isDark ? 'bg-white/5 border border-transparent hover:bg-white/10' : 'bg-gray-50 border border-transparent hover:bg-gray-100'
                     }`}>
                     <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${notifyOnComplete ? 'bg-purple-500 border-purple-500' : 'border-gray-500'
                       }`}>
@@ -1900,7 +1900,7 @@ export default function UploadPage() {
                   {isPremiumUser() ? (
                     <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-3 ${reviewLyrics
                         ? 'bg-yellow-500/20 border border-yellow-400'
-                        : 'bg-white/5 border border-transparent hover:bg-white/10'
+                        : isDark ? 'bg-white/5 border border-transparent hover:bg-white/10' : 'bg-gray-50 border border-transparent hover:bg-gray-100'
                       }`}>
                       <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${reviewLyrics ? 'bg-yellow-500 border-yellow-500' : 'border-gray-500'
                         }`}>
@@ -1923,8 +1923,8 @@ export default function UploadPage() {
                       />
                     </label>
                   ) : (
-                    <div className={`flex items-start gap-3 p-3 rounded-xl mb-3 bg-white/5 border border-white/10 opacity-75`}>
-                      <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 border-gray-600 bg-gray-700/50`}>
+                    <div className={`flex items-start gap-3 p-3 rounded-xl mb-3 opacity-75 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
+                      <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 ${isDark ? 'border-gray-600 bg-gray-700/50' : 'border-gray-400 bg-gray-200'}`}>
                         <Lock className="w-3 h-3 text-gray-500" />
                       </div>
                       <div className="flex-1">
@@ -1946,7 +1946,7 @@ export default function UploadPage() {
                   {/* Rights Checkbox */}
                   <label className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all mb-4 ${rightsConfirmed
                       ? 'bg-cyan-500/20 border border-cyan-400'
-                      : 'bg-white/5 border border-red-500/50 hover:bg-white/10'
+                      : isDark ? 'bg-white/5 border border-red-500/50 hover:bg-white/10' : 'bg-gray-50 border border-red-500/50 hover:bg-gray-100'
                     }`}>
                     <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 mt-0.5 border-2 transition-colors ${rightsConfirmed ? 'bg-cyan-500 border-cyan-500' : 'border-gray-500'
                       }`}>
@@ -1998,7 +1998,7 @@ export default function UploadPage() {
                   </button>
 
                   {isUploading && (
-                    <div className="mt-4 h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className={`mt-4 h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
                       <motion.div
                         className="h-full bg-gradient-to-r from-cyan-500 to-purple-500"
                         initial={{ width: 0 }}
