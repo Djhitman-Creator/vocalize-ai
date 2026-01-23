@@ -1,19 +1,19 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V10.3)
+ * Preview/Edit Page - Karatrack Studio (V10.4)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V10.3 FIXES:
- * - Removed emoji arrows from button text (was causing encoding issues)
- * - Renamed buttons: "Split Down" and "Split Up" (clearer names)
- * - Made "Double-click to edit" note more prominent (cyan box at top)
- * - Kept Add Word and Delete Word buttons in selected word bar
+ * V10.4 FIXES:
+ * - FIXED: Sweep-in bar now animates during playback (not just when paused)
+ * - Simplified RAF loop - always updates during playback
+ * - Removed throttling that was preventing smooth animations
  * 
- * V10.2 FEATURES (preserved):
- * - Split Up button for maximum flexibility
- * - All merge/split line functions
+ * V10.3 FEATURES (preserved):
+ * - Split Up/Down buttons
+ * - Prominent help note
+ * - All other features
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -554,23 +554,27 @@ export default function PreviewEditPage() {
   // ============================================================
   // Use requestAnimationFrame for smooth visual updates
   // Read directly from audio.currentTime each frame
+  // Must update frequently enough for sweep-in bar animation to be smooth
+  
   useEffect(() => {
     let rafId = null;
     
     const updateTime = () => {
-      if (instrumentalRef.current) {
+      if (instrumentalRef.current && isPlaying) {
         const audioTime = instrumentalRef.current.currentTime;
         setCurrentTime(audioTime);
         
         // Keep vocals in sync
-        if (vocalsRef.current && isPlaying) {
+        if (vocalsRef.current) {
           const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
           if (diff > 0.1) {
             vocalsRef.current.currentTime = audioTime;
           }
         }
+        
+        // Continue the loop
+        rafId = requestAnimationFrame(updateTime);
       }
-      rafId = requestAnimationFrame(updateTime);
     };
     
     if (isPlaying) {
