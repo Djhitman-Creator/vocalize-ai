@@ -1,22 +1,22 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V9.7)
+ * Preview/Edit Page - Karatrack Studio (V9.8)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V9.7 ADDITIONS:
- * - NEW: "To New Line" button - creates NEW separate line with selected words
- * - NEW: Resizable Line & Word Editor (drag handle like video preview)
- * - Merge Down now requires line.length > 1
+ * V9.8 ADDITIONS:
+ * - RESTORED: Sweep-In Bar (animated bar before lyrics, 1-2s based on gap)
+ * - RESTORED: Instrumental Progress Bar (for breaks >5 seconds)
+ * - RESTORED: Full sweep timing logic from V8 original
  * 
- * V9.2 FEATURES (preserved):
- * - Merge Up/Down using original working logic
- * - Timeline sync with time markers
- * - Smaller default preview, resizable
- * - Inline word editing
+ * V9.7 FEATURES (preserved):
+ * - "To New Line" button - creates NEW separate line
+ * - Resizable Line & Word Editor
+ * - Merge Up/Down working
  * - Collapsible sections
  * - Duet mode toggle
+ * - Timeline with time markers
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -47,6 +47,13 @@ const TIMELINE_HEIGHT = 160;
 
 // Line length settings
 const MAX_WORDS_PER_LINE = 10;
+
+// Sweep highlighting constants - TIERED SYSTEM
+const SWEEP_IN_LONG_DURATION = 2.0;    // 2 seconds for gaps >= 2s
+const SWEEP_IN_LONG_MIN_GAP = 2.0;     // Minimum gap for long sweep
+const SWEEP_IN_SHORT_DURATION = 1.0;   // 1 second for gaps >= 1.25s
+const SWEEP_IN_SHORT_MIN_GAP = 1.25;   // Minimum gap for short sweep
+const INSTRUMENTAL_BREAK_THRESHOLD = 5.0;  // Seconds to trigger progress bar
 
 // Preview size settings
 const MIN_PREVIEW_HEIGHT = 150;
@@ -82,6 +89,60 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
         WebkitClipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
       }}>{word}</span>
     </span>
+  );
+};
+
+// ============================================================
+// SWEEP-IN BAR COMPONENT
+// ============================================================
+const SweepInBar = ({ progress, color }) => {
+  const width = Math.max(0, (1 - progress) * 80);
+  const opacity = 0.3 + (progress * 0.4);
+  
+  if (width < 2) return null;
+  
+  return (
+    <div
+      style={{
+        width: `${width}px`,
+        height: '1.2em',
+        background: `linear-gradient(to right, transparent, ${color})`,
+        opacity: opacity,
+        borderRadius: '4px',
+        boxShadow: `0 0 15px ${color}40`,
+      }}
+    />
+  );
+};
+
+// ============================================================
+// INSTRUMENTAL PROGRESS BAR COMPONENT
+// ============================================================
+const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outlineColor }) => {
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <div className="w-64 h-2 bg-white/20 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-100"
+          style={{
+            width: `${progress * 100}%`,
+            background: `linear-gradient(to right, ${color}, ${color}cc)`,
+            boxShadow: `0 0 10px ${color}60`,
+          }}
+        />
+      </div>
+      {nextLyrics && (
+        <p
+          className="text-lg opacity-40 text-center max-w-md"
+          style={{
+            color: textColor,
+            textShadow: `1px 1px 2px ${outlineColor}`,
+          }}
+        >
+          {nextLyrics}
+        </p>
+      )}
+    </div>
   );
 };
 
@@ -852,14 +913,24 @@ export default function PreviewEditPage() {
   // GET CURRENT LYRICS FOR PREVIEW
   // ============================================================
   const getCurrentLyrics = useCallback(() => {
-    if (!lyricsLines.length) return { currentLine: null, next: '' };
+    if (!lyricsLines.length) return { 
+      currentLine: null, 
+      next: '', 
+      showSweepIn: false, 
+      sweepInProgress: 0,
+      showProgressBar: false,
+      progressBarPercent: 0,
+      nextLyricsForProgressBar: ''
+    };
     
     let currentLineIdx = -1;
     
+    // Find current line
     for (let i = 0; i < lyricsLines.length; i++) {
       const line = lyricsLines[i];
       for (let j = 0; j < line.length; j++) {
-        if (currentTime >= line[j].start && currentTime <= line[j].end) {
+        const word = line[j];
+        if (currentTime >= word.start && currentTime <= word.end) {
           currentLineIdx = i;
           break;
         }
@@ -867,12 +938,60 @@ export default function PreviewEditPage() {
       if (currentLineIdx !== -1) break;
     }
     
-    // Handle gaps
+    // Handle gaps between lines
     if (currentLineIdx === -1) {
       for (let i = 0; i < lyricsLines.length; i++) {
         const line = lyricsLines[i];
         if (line.length > 0 && line[0].start > currentTime) {
-          // Show previous line if within 2 seconds
+          const firstWordStart = line[0].start;
+          const timeUntilLine = firstWordStart - currentTime;
+          const prevLineEnd = i === 0 ? 0 : lyricsLines[i - 1][lyricsLines[i - 1].length - 1].end;
+          const gapDuration = firstWordStart - prevLineEnd;
+          
+          // Determine sweep-in duration based on gap
+          let sweepDuration = 0;
+          if (gapDuration >= SWEEP_IN_LONG_MIN_GAP) {
+            sweepDuration = SWEEP_IN_LONG_DURATION;
+          } else if (gapDuration >= SWEEP_IN_SHORT_MIN_GAP) {
+            sweepDuration = SWEEP_IN_SHORT_DURATION;
+          }
+          
+          // Show sweep-in bar if within sweep duration
+          if (sweepDuration > 0 && timeUntilLine <= sweepDuration) {
+            const sweepProgress = 1 - (timeUntilLine / sweepDuration);
+            const currentLineText = line.map(w => ({
+              word: w.word, index: w.globalIndex, start: w.start, end: w.end,
+              isActive: false, isPast: false, sweepPercent: 0
+            }));
+            
+            return {
+              currentLine: currentLineText,
+              next: lyricsLines[i + 1] ? lyricsLines[i + 1].map(w => w.word).join(' ') : '',
+              showSweepIn: true,
+              sweepInProgress: sweepProgress,
+              showProgressBar: false,
+              progressBarPercent: 0,
+              nextLyricsForProgressBar: ''
+            };
+          }
+          
+          // Show progress bar for long instrumental breaks (>5 seconds)
+          const progressBarEndTime = sweepDuration > 0 ? sweepDuration : 0;
+          if (i > 0 && gapDuration > INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine > progressBarEndTime) {
+            const progressBarDuration = gapDuration - progressBarEndTime;
+            const timeIntoProgressBar = gapDuration - timeUntilLine;
+            const progressPercent = Math.min(1, Math.max(0, timeIntoProgressBar / progressBarDuration));
+            
+            return {
+              currentLine: null, next: '',
+              showSweepIn: false, sweepInProgress: 0,
+              showProgressBar: true,
+              progressBarPercent: progressPercent,
+              nextLyricsForProgressBar: line.map(w => w.word).join(' ')
+            };
+          }
+          
+          // Show previous line if within 2 seconds after it ended
           if (i > 0) {
             const prevLine = lyricsLines[i - 1];
             const lastWordEnd = prevLine[prevLine.length - 1].end;
@@ -881,45 +1000,79 @@ export default function PreviewEditPage() {
                 word: w.word, index: w.globalIndex, start: w.start, end: w.end,
                 isActive: false, isPast: true, sweepPercent: 1
               }));
-              return { currentLine: currentLineText, next: line.map(w => w.word).join(' ') };
+              return { 
+                currentLine: currentLineText, 
+                next: line.map(w => w.word).join(' '),
+                showSweepIn: false, sweepInProgress: 0,
+                showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
+              };
             }
           }
-          return { currentLine: null, next: line.map(w => w.word).join(' ') };
+          
+          return { 
+            currentLine: null, next: line.map(w => w.word).join(' '),
+            showSweepIn: false, sweepInProgress: 0,
+            showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
+          };
+        }
+        
+        if (line.length > 0 && line[line.length - 1].end >= currentTime) {
+          currentLineIdx = i;
+          break;
         }
       }
-    }
-
-    // After all lyrics
-    if (currentLineIdx === -1 && lyricsLines.length > 0) {
-      const lastLine = lyricsLines[lyricsLines.length - 1];
-      if (currentTime > lastLine[lastLine.length - 1].end) {
-        const currentLineText = lastLine.map(w => ({
-          word: w.word, index: w.globalIndex, start: w.start, end: w.end,
-          isActive: false, isPast: true, sweepPercent: 1
-        }));
-        return { currentLine: currentLineText, next: '' };
+      
+      // After all lyrics
+      if (currentLineIdx === -1) {
+        if (lyricsLines.length > 0) {
+          const lastLine = lyricsLines[lyricsLines.length - 1];
+          const lastWordEnd = lastLine[lastLine.length - 1].end;
+          if (currentTime - lastWordEnd <= 2) {
+            const currentLineText = lastLine.map(w => ({
+              word: w.word, index: w.globalIndex, start: w.start, end: w.end,
+              isActive: false, isPast: true, sweepPercent: 1
+            }));
+            return { 
+              currentLine: currentLineText, next: '',
+              showSweepIn: false, sweepInProgress: 0,
+              showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
+            };
+          }
+        }
+        return { 
+          currentLine: null, next: '',
+          showSweepIn: false, sweepInProgress: 0,
+          showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
+        };
       }
     }
 
-    if (currentLineIdx === -1) return { currentLine: null, next: '' };
-
-    const currentLine = lyricsLines[currentLineIdx];
-    const currentLineText = currentLine.map(w => {
+    // Build current line with sweep percentages
+    const line = lyricsLines[currentLineIdx];
+    const currentLineText = line.map(w => {
+      let sweepPercent = 0;
       const isActive = currentTime >= w.start && currentTime <= w.end;
       const isPast = currentTime > w.end;
-      let sweepPercent = 0;
-      if (isPast) sweepPercent = 1;
-      else if (isActive) {
+      
+      if (isPast) {
+        sweepPercent = 1;
+      } else if (isActive) {
         const wordDuration = w.end - w.start;
-        if (wordDuration > 0) sweepPercent = (currentTime - w.start) / wordDuration;
+        if (wordDuration > 0) {
+          sweepPercent = (currentTime - w.start) / wordDuration;
+        }
       }
+      
       return { word: w.word, index: w.globalIndex, start: w.start, end: w.end, isActive, isPast, sweepPercent };
     });
 
     const nextLine = lyricsLines[currentLineIdx + 1];
+    const nextText = nextLine ? nextLine.map(w => w.word).join(' ') : '';
+    
     return { 
-      currentLine: currentLineText,
-      next: nextLine ? nextLine.map(w => w.word).join(' ') : ''
+      currentLine: currentLineText, next: nextText,
+      showSweepIn: false, sweepInProgress: 0,
+      showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
     };
   }, [lyricsLines, currentTime]);
 
@@ -1078,16 +1231,39 @@ export default function PreviewEditPage() {
               {project.bg_video_url && <video className="absolute inset-0 w-full h-full object-cover opacity-60" src={project.bg_video_url} autoPlay loop muted playsInline />}
               {project.custom_font_url && <style>{`@font-face { font-family: 'CustomKaraokeFont'; src: url('${project.custom_font_url}'); }`}</style>}
               <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
-                {currentLyrics.currentLine ? (
+                {currentLyrics.showProgressBar ? (
+                  <InstrumentalProgressBar 
+                    progress={currentLyrics.progressBarPercent}
+                    nextLyrics={currentLyrics.nextLyricsForProgressBar}
+                    color={project?.sung_color || '#00d4ff'}
+                    textColor={textColor}
+                    outlineColor={outlineColor}
+                  />
+                ) : currentLyrics.currentLine ? (
                   <div className="text-center">
-                    <p className="text-xl md:text-2xl lg:text-3xl font-bold" style={{ fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial') }}>
-                      {currentLyrics.currentLine.map((wordData, i) => (
-                        <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={getHighlightColor(wordData.index)} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} />
-                      ))}
+                    <p className="text-xl md:text-2xl lg:text-3xl font-bold relative inline-block" style={{ fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial') }}>
+                      {currentLyrics.showSweepIn && (
+                        <span style={{ position: 'absolute', right: '100%', top: '50%', transform: 'translateY(-50%)', marginRight: '-0.25em' }}>
+                          <SweepInBar progress={currentLyrics.sweepInProgress} color={getHighlightColor(currentLyrics.currentLine[0]?.index)} />
+                        </span>
+                      )}
+                      {currentLyrics.currentLine.map((wordData, i) => {
+                        const highlightColor = getHighlightColor(wordData.index);
+                        if (currentLyrics.showSweepIn && i === 0) {
+                          return (
+                            <span key={i} className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
+                              <span style={{ color: unsungColor, textShadow: `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}` }}>{wordData.word}</span>
+                            </span>
+                          );
+                        }
+                        return (
+                          <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} />
+                        );
+                      })}
                     </p>
                   </div>
                 ) : null}
-                {currentLyrics.next && (
+                {currentLyrics.next && !currentLyrics.showProgressBar && (
                   <p className="text-sm md:text-base lg:text-lg opacity-50 mt-2" style={{ color: textColor, fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'), textShadow: `1px 1px 2px ${outlineColor}` }}>
                     {currentLyrics.next}
                   </p>
