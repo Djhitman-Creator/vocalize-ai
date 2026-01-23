@@ -292,22 +292,38 @@ export default function PreviewEditPage() {
     setHasChanges(true);
   }, [lyricsLines]);
 
-  // Merge line down - Move the LAST word of current line to the NEXT line
-  // This adds a line break BEFORE the last word of the current line
-  // Example: "making my rounds all" + "over town" → "making my rounds" + "all over town"
+  // Merge line down - Move the SELECTED word (and all after it on this line) to the NEXT line
+  // If no word selected, moves the last word
+  // Example: Select "my" in "making my rounds all" → "making" + "my rounds all over town"
   const mergeLineDown = useCallback((lineIndex) => {
     const currentLine = lyricsLines[lineIndex];
     if (!currentLine || currentLine.length <= 1) return; // Need at least 2 words to split
     
-    // Get the SECOND TO LAST word of the current line (the new line break point)
-    const secondToLastWordIndex = currentLine[currentLine.length - 2].globalIndex;
+    // Find if selected word is in this line
+    let splitIndex = -1;
+    for (let i = 0; i < currentLine.length; i++) {
+      if (currentLine[i].globalIndex === selectedWordIndex) {
+        splitIndex = i;
+        break;
+      }
+    }
+    
+    // If no word selected in this line, or first word selected, move the last word
+    if (splitIndex <= 0) {
+      splitIndex = currentLine.length - 1;
+    }
+    
+    // Get the word BEFORE the split point (this is where we add the line break)
+    const wordBeforeSplitIndex = currentLine[splitIndex - 1].globalIndex;
     
     setWords(prev => {
       const newWords = [...prev];
-      // Add line break after the second-to-last word (before the last word)
-      newWords[secondToLastWordIndex] = { ...newWords[secondToLastWordIndex], lineBreak: true };
       
-      // Remove the line break from the last word (it will now be at the start of next line)
+      // Add line break after the word BEFORE the selected word
+      newWords[wordBeforeSplitIndex] = { ...newWords[wordBeforeSplitIndex], lineBreak: true };
+      
+      // Remove the line break from the last word of the original line 
+      // (so it connects to the next line)
       const lastWordIndex = currentLine[currentLine.length - 1].globalIndex;
       if (newWords[lastWordIndex].lineBreak) {
         newWords[lastWordIndex] = { ...newWords[lastWordIndex], lineBreak: false };
@@ -316,7 +332,7 @@ export default function PreviewEditPage() {
       return newWords;
     });
     setHasChanges(true);
-  }, [lyricsLines]);
+  }, [lyricsLines, selectedWordIndex]);
 
   // ============================================================
   // LOAD PROJECT
@@ -361,26 +377,39 @@ export default function PreviewEditPage() {
   }, [id, router, addAutoLineBreaks]);
 
   // ============================================================
-  // AUDIO PLAYBACK - USING TIMEUPDATE EVENT FOR SMOOTH SYNC
+  // AUDIO PLAYBACK - SMOOTH ANIMATION WITH RAF
   // ============================================================
+  // Use requestAnimationFrame for smooth visual updates
+  // Read directly from audio.currentTime each frame
   useEffect(() => {
-    const audio = instrumentalRef.current;
-    if (!audio) return;
-
-    const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
-      // Keep vocals in sync
-      if (vocalsRef.current) {
-        const diff = Math.abs(vocalsRef.current.currentTime - audio.currentTime);
-        if (diff > 0.1) {
-          vocalsRef.current.currentTime = audio.currentTime;
+    let rafId = null;
+    
+    const updateTime = () => {
+      if (instrumentalRef.current) {
+        const audioTime = instrumentalRef.current.currentTime;
+        setCurrentTime(audioTime);
+        
+        // Keep vocals in sync
+        if (vocalsRef.current && isPlaying) {
+          const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
+          if (diff > 0.1) {
+            vocalsRef.current.currentTime = audioTime;
+          }
         }
       }
+      rafId = requestAnimationFrame(updateTime);
     };
-
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    return () => audio.removeEventListener('timeupdate', handleTimeUpdate);
-  }, [project]); // Re-attach when project loads
+    
+    if (isPlaying) {
+      rafId = requestAnimationFrame(updateTime);
+    }
+    
+    return () => {
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+      }
+    };
+  }, [isPlaying]);
 
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) setDuration(instrumentalRef.current.duration);
