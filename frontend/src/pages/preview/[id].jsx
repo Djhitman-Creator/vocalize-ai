@@ -1,21 +1,21 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V10.5)
+ * Preview/Edit Page - Karatrack Studio (V10.6)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V10.5 FIXES:
- * - FIXED: Sweep-in bar and word sweep now animate during playback
- * - Removed useMemo for currentLyrics - was causing stale values
- * - Now calculates fresh values on every render frame
- * - Same fix approach that worked for timeline scrolling
+ * V10.6 FIXES:
+ * - FIXED: Using flushSync to bypass React 18's automatic batching
+ * - Forces synchronous state updates during playback
+ * - This should fix sweep-in bar and word sweep animations
  * 
- * V10.4 FEATURES (preserved):
+ * V10.5 FEATURES (preserved):
  * - All previous features
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { flushSync } from 'react-dom';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -553,7 +553,7 @@ export default function PreviewEditPage() {
   // ============================================================
   // Use requestAnimationFrame for smooth visual updates
   // Read directly from audio.currentTime each frame
-  // Must update frequently enough for sweep-in bar animation to be smooth
+  // Use flushSync to bypass React 18's automatic batching for smooth animations
   
   useEffect(() => {
     let rafId = null;
@@ -561,7 +561,12 @@ export default function PreviewEditPage() {
     const updateTime = () => {
       if (instrumentalRef.current && isPlaying) {
         const audioTime = instrumentalRef.current.currentTime;
-        setCurrentTime(audioTime);
+        
+        // flushSync forces React to update synchronously, bypassing batching
+        // This ensures smooth animations during playback
+        flushSync(() => {
+          setCurrentTime(audioTime);
+        });
         
         // Keep vocals in sync
         if (vocalsRef.current) {
