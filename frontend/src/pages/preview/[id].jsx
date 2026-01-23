@@ -1,22 +1,22 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V9.8)
+ * Preview/Edit Page - Karatrack Studio (V9.9)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V9.8 ADDITIONS:
- * - RESTORED: Sweep-In Bar (animated bar before lyrics, 1-2s based on gap)
- * - RESTORED: Instrumental Progress Bar (for breaks >5 seconds)
- * - RESTORED: Full sweep timing logic from V8 original
+ * V9.9 FIXES:
+ * - FIXED: Timeline words now scroll properly during playback
+ * - Timeline uses direct pixel positioning (like original V8)
+ * - Uses motion.div for smooth word rendering
+ * - Playhead styled like original with glow effect
  * 
- * V9.7 FEATURES (preserved):
- * - "To New Line" button - creates NEW separate line
- * - Resizable Line & Word Editor
- * - Merge Up/Down working
+ * V9.8 FEATURES (preserved):
+ * - Sweep-In Bar (animated bar before lyrics)
+ * - Instrumental Progress Bar (for breaks >5 seconds)
+ * - "To New Line" button
+ * - Resizable editors
  * - Collapsible sections
- * - Duet mode toggle
- * - Timeline with time markers
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -1492,56 +1492,84 @@ export default function PreviewEditPage() {
                   <div ref={timelineContainerRef} onClick={handleTimelineClick} className="relative overflow-hidden cursor-crosshair border-t border-white/10" style={{ height: TIMELINE_HEIGHT }}>
                     {/* Time Markers */}
                     <div className="absolute bottom-0 left-0 right-0 h-6 border-t border-white/10">
-                      {timeMarkers.map(({ time, isMajor }) => {
-                        const offset = (time - currentTime) * zoom;
-                        return (
-                          <div
-                            key={time}
-                            className="absolute bottom-0 flex flex-col items-center"
-                            style={{ left: `calc(50% + ${offset}px)`, transform: 'translateX(-50%)' }}
-                          >
-                            <div className={`${isMajor ? 'h-4 w-0.5 bg-gray-400' : 'h-2 w-px bg-gray-600'}`} />
-                            {isMajor && (
-                              <span className="text-[10px] text-gray-500 mt-0.5">{formatTimeShort(time)}</span>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {(() => {
+                        const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
+                        const centerX = containerWidth / 2;
+                        return timeMarkers.map(({ time, isMajor }) => {
+                          const markerX = centerX + (time - currentTime) * zoom;
+                          if (markerX < -50 || markerX > containerWidth + 50) return null;
+                          return (
+                            <div
+                              key={time}
+                              className="absolute bottom-0 flex flex-col items-center"
+                              style={{ left: markerX, transform: 'translateX(-50%)' }}
+                            >
+                              <div className={`${isMajor ? 'h-4 w-0.5 bg-gray-400' : 'h-2 w-px bg-gray-600'}`} />
+                              {isMajor && (
+                                <span className="text-[10px] text-gray-500 mt-0.5">{formatTimeShort(time)}</span>
+                              )}
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
 
-                    {/* Center line indicator */}
-                    <div className="absolute left-1/2 top-0 bottom-6 w-0.5 bg-cyan-500 z-20" />
+                    {/* Center Playhead */}
+                    <div className="absolute top-0 bottom-6 w-0.5 bg-cyan-400 z-30 pointer-events-none" style={{ left: '50%', transform: 'translateX(-50%)', boxShadow: '0 0 15px rgba(0, 212, 255, 0.7)' }}>
+                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-cyan-400" />
+                    </div>
                     
-                    {/* Words on timeline */}
-                    <div className="absolute inset-0 bottom-6">
-                      {words.map((word, index) => {
-                        const centerOffset = (word.start - currentTime) * zoom;
-                        const width = Math.max(30, (word.end - word.start) * zoom);
+                    {/* Words on timeline - Direct pixel positioning like V8 */}
+                    {(() => {
+                      const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
+                      const centerX = containerWidth / 2;
+                      const wordHeight = 44;
+                      
+                      return words.map((word, index) => {
+                        const wordX = centerX + (word.start - currentTime) * zoom;
+                        const wordWidth = Math.max(40, (word.end - word.start) * zoom);
+                        
+                        // Skip if off-screen
+                        if (wordX + wordWidth < -100 || wordX > containerWidth + 100) return null;
+                        
                         const isSelected = selectedWordIndex === index;
                         const isCurrent = isWordCurrent(word);
                         const wordColor = getWordColor(word, isSelected, isCurrent);
                         
                         return (
-                          <div
+                          <motion.div
                             key={index}
+                            className="absolute cursor-pointer select-none"
+                            style={{ 
+                              left: wordX, 
+                              width: wordWidth, 
+                              height: wordHeight, 
+                              top: (TIMELINE_HEIGHT - 24 - wordHeight) / 2 
+                            }}
                             onMouseDown={(e) => handleTimelineWordMouseDown(index, e)}
                             onMouseEnter={() => handleTimelineWordMouseEnter(index)}
                             onClick={(e) => { e.stopPropagation(); handleWordClick(index); }}
-                            className={`absolute top-1/2 -translate-y-1/2 px-2 py-1 rounded text-xs font-medium cursor-pointer select-none transition-all ${isSelected ? 'ring-2 ring-cyan-400 z-10' : ''} ${isCurrent ? 'scale-110' : ''}`}
-                            style={{
-                              left: `calc(50% + ${centerOffset}px)`,
-                              width: `${width}px`,
-                              backgroundColor: isSelected ? 'rgba(0,212,255,0.3)' : `${wordColor}20`,
-                              borderLeft: `3px solid ${wordColor}`,
-                              color: isDark ? '#fff' : '#333',
-                            }}
-                            title={`${word.word}: ${word.start.toFixed(2)}s - ${word.end.toFixed(2)}s`}
                           >
-                            <span className="truncate block">{word.word}</span>
-                          </div>
+                            <div 
+                              className={`h-full rounded-lg border-2 flex items-center justify-center px-2 overflow-hidden transition-colors ${
+                                isSelected 
+                                  ? 'border-cyan-400 shadow-lg shadow-cyan-500/30 bg-cyan-500/20' 
+                                  : isCurrent 
+                                    ? 'border-white/40 bg-white/15' 
+                                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                              }`} 
+                              style={{ backdropFilter: 'blur(4px)' }}
+                            >
+                              <span className="text-xs font-medium truncate" style={{ color: wordColor }}>{word.word}</span>
+                            </div>
+                            {word.lineBreak && <div className="absolute -right-0.5 top-0 bottom-0 w-1 bg-cyan-500 rounded-full" title="Line break" />}
+                            {isDuetMode && word.singer !== undefined && word.singer !== SINGER.BOTH && (
+                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full" style={{ backgroundColor: word.singer === SINGER.SINGER_1 ? duetColors.singer1 : duetColors.singer2 }} />
+                            )}
+                          </motion.div>
                         );
-                      })}
-                    </div>
+                      });
+                    })()}
                   </div>
 
                   {/* Playback Controls */}
