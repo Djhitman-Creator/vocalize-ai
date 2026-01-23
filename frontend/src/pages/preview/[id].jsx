@@ -1,16 +1,17 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V10.6)
+ * Preview/Edit Page - Karatrack Studio (V10.7)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V10.6 FIXES:
- * - FIXED: Using flushSync to bypass React 18's automatic batching
- * - Forces synchronous state updates during playback
- * - This should fix sweep-in bar and word sweep animations
+ * V10.7 UI FIX:
+ * - Timeline Editor header now fully clickable to expand/collapse
+ * - Matches Line & Word Editor behavior
+ * - Duet Mode button uses stopPropagation so it doesn't toggle expand
  * 
- * V10.5 FEATURES (preserved):
+ * V10.6 FEATURES (preserved):
+ * - flushSync for smooth sweep animations
  * - All previous features
  */
 
@@ -1470,14 +1471,18 @@ export default function PreviewEditPage() {
 
           {/* TIMELINE EDITOR - Collapsible with Duet Mode Toggle */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
-            <div className={`flex items-center justify-between px-4 py-3 ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}>
-              <div className="flex items-center gap-2 cursor-pointer select-none" onClick={() => setTimelineEditorExpanded(!timelineEditorExpanded)}>
+            <div 
+              onClick={() => setTimelineEditorExpanded(!timelineEditorExpanded)} 
+              className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+            >
+              <div className="flex items-center gap-2">
                 {timelineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                 <Music2 className="w-4 h-4 text-cyan-400" />
                 <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Timeline Editor</span>
               </div>
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setIsDuetMode(!isDuetMode);
                   setHasChanges(true);
                   if (!isDuetMode && !timelineEditorExpanded) setTimelineEditorExpanded(true);
