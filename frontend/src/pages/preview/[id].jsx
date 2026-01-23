@@ -124,7 +124,6 @@ export default function PreviewEditPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const animationFrameRef = useRef(null);
 
   // Timeline state
   const timelineContainerRef = useRef(null);
@@ -293,19 +292,27 @@ export default function PreviewEditPage() {
     setHasChanges(true);
   }, [lyricsLines]);
 
-  // Merge line down (merge current line with next line)
-  // This is the same as calling mergeLineUp on the next line
+  // Merge line down - Move the LAST word of current line to the NEXT line
+  // This adds a line break BEFORE the last word of the current line
+  // Example: "making my rounds all" + "over town" → "making my rounds" + "all over town"
   const mergeLineDown = useCallback((lineIndex) => {
-    if (lineIndex >= lyricsLines.length - 1) return; // Can't merge last line down
-    
     const currentLine = lyricsLines[lineIndex];
-    if (!currentLine || currentLine.length === 0) return;
+    if (!currentLine || currentLine.length <= 1) return; // Need at least 2 words to split
     
-    const currentLineLastWordIndex = currentLine[currentLine.length - 1].globalIndex;
+    // Get the SECOND TO LAST word of the current line (the new line break point)
+    const secondToLastWordIndex = currentLine[currentLine.length - 2].globalIndex;
     
     setWords(prev => {
       const newWords = [...prev];
-      newWords[currentLineLastWordIndex] = { ...newWords[currentLineLastWordIndex], lineBreak: false };
+      // Add line break after the second-to-last word (before the last word)
+      newWords[secondToLastWordIndex] = { ...newWords[secondToLastWordIndex], lineBreak: true };
+      
+      // Remove the line break from the last word (it will now be at the start of next line)
+      const lastWordIndex = currentLine[currentLine.length - 1].globalIndex;
+      if (newWords[lastWordIndex].lineBreak) {
+        newWords[lastWordIndex] = { ...newWords[lastWordIndex], lineBreak: false };
+      }
+      
       return newWords;
     });
     setHasChanges(true);
@@ -354,40 +361,26 @@ export default function PreviewEditPage() {
   }, [id, router, addAutoLineBreaks]);
 
   // ============================================================
-  // AUDIO PLAYBACK - FIXED SYNC
+  // AUDIO PLAYBACK - USING TIMEUPDATE EVENT FOR SMOOTH SYNC
   // ============================================================
   useEffect(() => {
-    let lastUpdate = 0;
-    const updateTime = (timestamp) => {
-      if (timestamp - lastUpdate >= 16) { // ~60fps cap
-        if (instrumentalRef.current) {
-          setCurrentTime(instrumentalRef.current.currentTime);
-        }
-        lastUpdate = timestamp;
-      }
-      animationFrameRef.current = requestAnimationFrame(updateTime);
-    };
-    
-    if (isPlaying) {
-      animationFrameRef.current = requestAnimationFrame(updateTime);
-    }
-    
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [isPlaying]);
+    const audio = instrumentalRef.current;
+    if (!audio) return;
 
-  // Sync vocals with instrumental
-  useEffect(() => {
-    if (vocalsRef.current && instrumentalRef.current) {
-      const diff = Math.abs(vocalsRef.current.currentTime - instrumentalRef.current.currentTime);
-      if (diff > 0.05) {
-        vocalsRef.current.currentTime = instrumentalRef.current.currentTime;
+    const handleTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      // Keep vocals in sync
+      if (vocalsRef.current) {
+        const diff = Math.abs(vocalsRef.current.currentTime - audio.currentTime);
+        if (diff > 0.1) {
+          vocalsRef.current.currentTime = audio.currentTime;
+        }
       }
-    }
-  }, [currentTime]);
+    };
+
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+    return () => audio.removeEventListener('timeupdate', handleTimeUpdate);
+  }, [project]); // Re-attach when project loads
 
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) setDuration(instrumentalRef.current.duration);
