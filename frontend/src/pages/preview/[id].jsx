@@ -249,8 +249,6 @@ export default function PreviewEditPage() {
   const [zoom, setZoom] = useState(PIXELS_PER_SECOND_DEFAULT);
   // V10.9: Multi-selection - Set of selected word indices
   const [selectedWordIndices, setSelectedWordIndices] = useState(new Set());
-  // For backwards compatibility, compute single selected index
-  const selectedWordIndex = selectedWordIndices.size === 1 ? [...selectedWordIndices][0] : null;
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartTimes, setDragStartTimes] = useState({});
@@ -271,6 +269,8 @@ export default function PreviewEditPage() {
   const [paintMode, setPaintMode] = useState(null);
   const [isPainting, setIsPainting] = useState(false);
   const [paintedIndices, setPaintedIndices] = useState(new Set());
+  // For backwards compatibility - compute single selected index (must be after all useState)
+  const selectedWordIndex = selectedWordIndices.size === 1 ? [...selectedWordIndices][0] : null;
 
   // ============================================================
   // PREVIEW RESIZE HANDLERS
