@@ -1,18 +1,20 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V10.7)
+ * Preview/Edit Page - Karatrack Studio (V10.9)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V10.7 UI FIX:
- * - Timeline Editor header now fully clickable to expand/collapse
- * - Matches Line & Word Editor behavior
- * - Duet Mode button uses stopPropagation so it doesn't toggle expand
+ * V10.9 MULTI-SELECT:
+ * - Shift+Click to select range of words
+ * - Ctrl/Cmd+Click to toggle individual words
+ * - Ctrl/Cmd+A to select all words
+ * - Drag any selected word to move ALL selected
+ * - Arrow keys nudge all selected words
+ * - Delete/Backspace removes all selected
  * 
- * V10.6 FEATURES (preserved):
- * - flushSync for smooth sweep animations
- * - All previous features
+ * V10.8 FEATURES (preserved):
+ * - Volume sliders for backing track and vocals
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -67,18 +69,18 @@ const DEFAULT_PREVIEW_HEIGHT = 250;
 const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isActive, isPast, showGlow }) => {
   const baseTextShadow = `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 1px 2px ${outlineColor}`;
   const glowTextShadow = `0 0 10px ${color}, 0 0 20px ${color}, 1px 1px 2px ${outlineColor}`;
-  
+
   if (isPast || sweepPercent >= 1) {
     return <span className="mx-1" style={{ color: color, textShadow: baseTextShadow }}>{word}</span>;
   }
-  
+
   if (sweepPercent <= 0 && !isActive) {
     return <span className="mx-1" style={{ color: unsungColor, textShadow: baseTextShadow }}>{word}</span>;
   }
-  
+
   const clipPercent = Math.max(0, Math.min(100, sweepPercent * 100));
   const softClipPercent = Math.min(100, clipPercent + 2);
-  
+
   return (
     <span className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
       <span style={{ color: unsungColor, textShadow: baseTextShadow }}>{word}</span>
@@ -99,9 +101,9 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
 const SweepInBar = ({ progress, color }) => {
   const width = Math.max(0, (1 - progress) * 80);
   const opacity = 0.3 + (progress * 0.4);
-  
+
   if (width < 2) return null;
-  
+
   return (
     <div
       style={{
@@ -154,13 +156,12 @@ const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outli
 const VolumeSlider = ({ value, onChange, label, icon: Icon, color, muted, onMuteToggle, isDark }) => {
   return (
     <div className="flex items-center gap-2">
-      <button 
+      <button
         onClick={onMuteToggle}
-        className={`p-1.5 rounded transition-colors ${
-          muted 
-            ? 'text-red-400 hover:text-red-300' 
+        className={`p-1.5 rounded transition-colors ${muted
+            ? 'text-red-400 hover:text-red-300'
             : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
-        }`}
+          }`}
         title={muted ? `Unmute ${label}` : `Mute ${label}`}
       >
         {muted ? <VolumeX className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
@@ -246,7 +247,10 @@ export default function PreviewEditPage() {
   // Timeline state
   const timelineContainerRef = useRef(null);
   const [zoom, setZoom] = useState(PIXELS_PER_SECOND_DEFAULT);
-  const [selectedWordIndex, setSelectedWordIndex] = useState(null);
+  // V10.9: Multi-selection - Set of selected word indices
+  const [selectedWordIndices, setSelectedWordIndices] = useState(new Set());
+  // For backwards compatibility, compute single selected index
+  const selectedWordIndex = selectedWordIndices.size === 1 ? [...selectedWordIndices][0] : null;
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartTimes, setDragStartTimes] = useState({});
@@ -378,16 +382,16 @@ export default function PreviewEditPage() {
   const lyricsLines = useMemo(() => {
     const lines = [];
     let currentLine = [];
-    
+
     words.forEach((word, idx) => {
       currentLine.push({ ...word, globalIndex: idx });
-      
+
       if (word.lineBreak || idx === words.length - 1) {
         lines.push(currentLine);
         currentLine = [];
       }
     });
-    
+
     return lines;
   }, [words]);
 
@@ -396,32 +400,32 @@ export default function PreviewEditPage() {
   // ============================================================
   const addAutoLineBreaks = useCallback((wordsArray) => {
     if (!wordsArray.length) return wordsArray;
-    
+
     const result = [...wordsArray];
     let wordsSinceBreak = 0;
-    
+
     for (let i = 0; i < result.length; i++) {
       if (result[i].lineBreak === true) {
         wordsSinceBreak = 0;
         continue;
       }
-      
+
       wordsSinceBreak++;
       let shouldBreak = false;
-      
+
       if (wordsSinceBreak >= MAX_WORDS_PER_LINE) {
         shouldBreak = true;
       } else if (i < result.length - 1 && wordsSinceBreak >= 3) {
         const gap = result[i + 1].start - result[i].end;
         if (gap >= 0.5) shouldBreak = true;
       }
-      
+
       if (shouldBreak && i < result.length - 1) {
         result[i] = { ...result[i], lineBreak: true };
         wordsSinceBreak = 0;
       }
     }
-    
+
     return result;
   }, []);
 
@@ -438,20 +442,20 @@ export default function PreviewEditPage() {
   // ============================================================
   // LINE BREAK FUNCTIONS - ORIGINAL WORKING LOGIC
   // ============================================================
-  
+
   // Move word down (add line break before this word)
   // This moves the selected word to the NEXT line by:
   // 1. Adding a line break BEFORE the word (on previous word)
   // 2. Removing the next line break to redistribute lines
   const moveWordDown = useCallback((globalIndex) => {
     if (globalIndex === 0) return; // Can't move first word down
-    
+
     setWords(prev => {
       const newWords = [...prev];
-      
+
       // Add line break BEFORE this word (on the previous word)
       newWords[globalIndex - 1] = { ...newWords[globalIndex - 1], lineBreak: true };
-      
+
       // Find the next line break after this word and remove it (redistribute)
       for (let i = globalIndex; i < newWords.length; i++) {
         if (newWords[i].lineBreak) {
@@ -459,7 +463,7 @@ export default function PreviewEditPage() {
           break;
         }
       }
-      
+
       return newWords;
     });
     setHasChanges(true);
@@ -470,12 +474,12 @@ export default function PreviewEditPage() {
   // Removing the line break from the last word of the previous line
   const mergeLineUp = useCallback((lineIndex) => {
     if (lineIndex === 0) return; // Can't merge first line up
-    
+
     const prevLine = lyricsLines[lineIndex - 1];
     if (!prevLine || prevLine.length === 0) return;
-    
+
     const prevLineLastWordIndex = prevLine[prevLine.length - 1].globalIndex;
-    
+
     setWords(prev => {
       const newWords = [...prev];
       newWords[prevLineLastWordIndex] = { ...newWords[prevLineLastWordIndex], lineBreak: false };
@@ -490,7 +494,7 @@ export default function PreviewEditPage() {
   const mergeLineDown = useCallback((lineIndex) => {
     const currentLine = lyricsLines[lineIndex];
     if (!currentLine || currentLine.length <= 1) return; // Need at least 2 words to split
-    
+
     // Find if selected word is in this line
     let splitIndex = -1;
     for (let i = 0; i < currentLine.length; i++) {
@@ -499,28 +503,28 @@ export default function PreviewEditPage() {
         break;
       }
     }
-    
+
     // If no word selected in this line, or first word selected, move the last word
     if (splitIndex <= 0) {
       splitIndex = currentLine.length - 1;
     }
-    
+
     // Get the word BEFORE the split point (this is where we add the line break)
     const wordBeforeSplitIndex = currentLine[splitIndex - 1].globalIndex;
-    
+
     setWords(prev => {
       const newWords = [...prev];
-      
+
       // Add line break after the word BEFORE the selected word
       newWords[wordBeforeSplitIndex] = { ...newWords[wordBeforeSplitIndex], lineBreak: true };
-      
+
       // Remove the line break from the last word of the original line 
       // (so it connects to the next line)
       const lastWordIndex = currentLine[currentLine.length - 1].globalIndex;
       if (newWords[lastWordIndex].lineBreak) {
         newWords[lastWordIndex] = { ...newWords[lastWordIndex], lineBreak: false };
       }
-      
+
       return newWords;
     });
     setHasChanges(true);
@@ -533,7 +537,7 @@ export default function PreviewEditPage() {
   const mergeDownToNewLine = useCallback((lineIndex) => {
     const currentLine = lyricsLines[lineIndex];
     if (!currentLine || currentLine.length <= 1) return;
-    
+
     // Find if selected word is in this line
     let splitIndex = -1;
     for (let i = 0; i < currentLine.length; i++) {
@@ -542,15 +546,15 @@ export default function PreviewEditPage() {
         break;
       }
     }
-    
+
     // If no word selected or first word selected, use last word
     if (splitIndex <= 0) {
       splitIndex = currentLine.length - 1;
     }
-    
+
     const wordBeforeSplitIndex = currentLine[splitIndex - 1].globalIndex;
     const lastWordIndex = currentLine[currentLine.length - 1].globalIndex;
-    
+
     setWords(prev => {
       const newWords = [...prev];
       // Add line break before the selected word (creates new line)
@@ -571,7 +575,7 @@ export default function PreviewEditPage() {
   const mergeUpToNewLine = useCallback((lineIndex) => {
     const currentLine = lyricsLines[lineIndex];
     if (!currentLine || currentLine.length <= 1) return;
-    
+
     // Find if selected word is in this line
     let splitIndex = -1;
     for (let i = 0; i < currentLine.length; i++) {
@@ -580,15 +584,15 @@ export default function PreviewEditPage() {
         break;
       }
     }
-    
+
     // If no word selected, or last word selected, use first word (split after first)
     if (splitIndex < 0 || splitIndex >= currentLine.length - 1) {
       splitIndex = 0;
     }
-    
+
     // Add line break AFTER the selected word (words up to and including selected become new line)
     const selectedWordGlobalIndex = currentLine[splitIndex].globalIndex;
-    
+
     setWords(prev => {
       const newWords = [...prev];
       // Add line break after the selected word
@@ -621,13 +625,13 @@ export default function PreviewEditPage() {
 
         setProject(projectData);
         let lyricsData = projectData.lyrics_json || [];
-        
+
         // Auto-add line breaks if none exist
         const hasAnyLineBreaks = lyricsData.some(w => w.lineBreak === true);
         if (!hasAnyLineBreaks && lyricsData.length > 0) {
           lyricsData = addAutoLineBreaks(lyricsData);
         }
-        
+
         setWords(lyricsData);
         setOriginalWords(JSON.parse(JSON.stringify(lyricsData)));
         setOriginalLyricsText(projectData.lyrics_text || '');
@@ -651,20 +655,20 @@ export default function PreviewEditPage() {
   // Use requestAnimationFrame for smooth visual updates
   // Read directly from audio.currentTime each frame
   // Use flushSync to bypass React 18's automatic batching for smooth animations
-  
+
   useEffect(() => {
     let rafId = null;
-    
+
     const updateTime = () => {
       if (instrumentalRef.current && isPlaying) {
         const audioTime = instrumentalRef.current.currentTime;
-        
+
         // flushSync forces React to update synchronously, bypassing batching
         // This ensures smooth animations during playback
         flushSync(() => {
           setCurrentTime(audioTime);
         });
-        
+
         // Keep vocals in sync
         if (vocalsRef.current) {
           const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
@@ -672,16 +676,16 @@ export default function PreviewEditPage() {
             vocalsRef.current.currentTime = audioTime;
           }
         }
-        
+
         // Continue the loop
         rafId = requestAnimationFrame(updateTime);
       }
     };
-    
+
     if (isPlaying) {
       rafId = requestAnimationFrame(updateTime);
     }
-    
+
     return () => {
       if (rafId) {
         cancelAnimationFrame(rafId);
@@ -740,15 +744,20 @@ export default function PreviewEditPage() {
         if (paintMode !== null) setPaintMode(null);
         else if (showAddWordModal) { setShowAddWordModal(false); setNewWordText(''); }
         else if (editingWordIndex !== null) { setEditingWordIndex(null); setEditingText(''); }
-        else setSelectedWordIndex(null);
+        else setSelectedWordIndices(new Set());
       }
-      if ((e.code === 'Delete' || e.code === 'Backspace') && selectedWordIndex !== null && editingWordIndex === null) {
+      if ((e.code === 'Delete' || e.code === 'Backspace') && selectedWordIndices.size > 0 && editingWordIndex === null) {
         e.preventDefault();
-        deleteSelectedWord();
+        deleteSelectedWords();
       }
-      if (selectedWordIndex !== null && editingWordIndex === null) {
-        if (e.code === 'ArrowLeft') { e.preventDefault(); nudgeSelectedWord(e.shiftKey ? -0.1 : -0.05); }
-        if (e.code === 'ArrowRight') { e.preventDefault(); nudgeSelectedWord(e.shiftKey ? 0.1 : 0.05); }
+      if (selectedWordIndices.size > 0 && editingWordIndex === null) {
+        if (e.code === 'ArrowLeft') { e.preventDefault(); nudgeSelectedWords(e.shiftKey ? -0.1 : -0.05); }
+        if (e.code === 'ArrowRight') { e.preventDefault(); nudgeSelectedWords(e.shiftKey ? 0.1 : 0.05); }
+      }
+      // Ctrl+A to select all words
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyA' && editingWordIndex === null) {
+        e.preventDefault();
+        setSelectedWordIndices(new Set(words.map((_, i) => i)));
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -758,20 +767,40 @@ export default function PreviewEditPage() {
   // ============================================================
   // WORD CLICK & INLINE EDITING
   // ============================================================
-  const handleWordClick = useCallback((index) => {
+  const handleWordClick = useCallback((index, e) => {
     if (paintMode !== null) return;
     if (editingWordIndex !== null && editingWordIndex !== index) {
       saveWordEdit();
     }
-    setSelectedWordIndex(index);
-  }, [paintMode, editingWordIndex]);
+
+    if (e?.shiftKey && selectedWordIndices.size > 0) {
+      // Shift+Click: Select range from first/last selected to this one
+      const existing = [...selectedWordIndices].sort((a, b) => a - b);
+      const minIdx = Math.min(existing[0], index);
+      const maxIdx = Math.max(existing[existing.length - 1], index);
+      const newSelection = new Set();
+      for (let i = minIdx; i <= maxIdx; i++) newSelection.add(i);
+      setSelectedWordIndices(newSelection);
+    } else if (e?.ctrlKey || e?.metaKey) {
+      // Ctrl/Cmd+Click: Toggle individual word
+      setSelectedWordIndices(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(index)) newSet.delete(index);
+        else newSet.add(index);
+        return newSet;
+      });
+    } else {
+      // Regular click: Select only this word
+      setSelectedWordIndices(new Set([index]));
+    }
+  }, [paintMode, editingWordIndex, selectedWordIndices, saveWordEdit]);
 
   const handleWordDoubleClick = useCallback((index, e) => {
     e?.stopPropagation();
     if (paintMode !== null) return;
     setEditingWordIndex(index);
     setEditingText(words[index].word);
-    setSelectedWordIndex(index);
+    setSelectedWordIndices(new Set([index]));
   }, [words, paintMode]);
 
   useEffect(() => {
@@ -800,36 +829,44 @@ export default function PreviewEditPage() {
     setEditingText('');
   }, []);
 
-  const nudgeSelectedWord = useCallback((delta) => {
-    if (selectedWordIndex === null) return;
+  const nudgeSelectedWords = useCallback((delta) => {
+    if (selectedWordIndices.size === 0) return;
     setWords(prev => {
       const updated = [...prev];
-      const word = updated[selectedWordIndex];
-      const newStart = Math.max(0, word.start + delta);
-      const wordDuration = word.end - word.start;
-      updated[selectedWordIndex] = { ...word, start: newStart, end: newStart + wordDuration };
+      selectedWordIndices.forEach(index => {
+        const word = updated[index];
+        const newStart = Math.max(0, word.start + delta);
+        const wordDuration = word.end - word.start;
+        updated[index] = { ...word, start: newStart, end: newStart + wordDuration };
+      });
       return updated;
     });
     setHasChanges(true);
-  }, [selectedWordIndex]);
+  }, [selectedWordIndices]);
 
-  const deleteSelectedWord = useCallback(() => {
-    if (selectedWordIndex === null) return;
-    if (window.confirm(`Delete "${words[selectedWordIndex].word}"?`)) {
+  const deleteSelectedWords = useCallback(() => {
+    if (selectedWordIndices.size === 0) return;
+    const count = selectedWordIndices.size;
+    const msg = count === 1
+      ? `Delete "${words[[...selectedWordIndices][0]].word}"?`
+      : `Delete ${count} selected words?`;
+    if (window.confirm(msg)) {
       setWords(prev => {
+        // Sort indices descending so we delete from end first (preserves indices)
+        const sorted = [...selectedWordIndices].sort((a, b) => b - a);
         const updated = [...prev];
-        updated.splice(selectedWordIndex, 1);
+        sorted.forEach(i => updated.splice(i, 1));
         return updated;
       });
-      setSelectedWordIndex(null);
+      setSelectedWordIndices(new Set());
       setHasChanges(true);
     }
-  }, [selectedWordIndex, words]);
+  }, [selectedWordIndices, words]);
 
   const addNewWord = useCallback(() => {
     if (!newWordText.trim() || selectedWordIndex === null) return;
     const selectedWord = words[selectedWordIndex];
-    
+
     if (addWordPosition === 'before') {
       const midPoint = selectedWord.start + (selectedWord.end - selectedWord.start) / 2;
       const newWord = { word: newWordText.trim(), start: selectedWord.start, end: midPoint, confidence: 1.0 };
@@ -849,10 +886,10 @@ export default function PreviewEditPage() {
         return updated;
       });
     }
-    
+
     setShowAddWordModal(false);
     setNewWordText('');
-    setSelectedWordIndex(null);
+    setSelectedWordIndices(new Set());
     setHasChanges(true);
   }, [newWordText, selectedWordIndex, words, addWordPosition]);
 
@@ -877,11 +914,42 @@ export default function PreviewEditPage() {
       paintWord(index);
       return;
     }
-    setSelectedWordIndex(index);
+
+    // V10.9: Determine which words to drag based on selection
+    let indicesToDrag;
+
+    if (e.shiftKey && selectedWordIndices.size > 0) {
+      // Shift+Click: Extend range and drag all
+      const existing = [...selectedWordIndices].sort((a, b) => a - b);
+      const minIdx = Math.min(existing[0], index);
+      const maxIdx = Math.max(existing[existing.length - 1], index);
+      indicesToDrag = new Set();
+      for (let i = minIdx; i <= maxIdx; i++) indicesToDrag.add(i);
+      setSelectedWordIndices(indicesToDrag);
+    } else if (e.ctrlKey || e.metaKey) {
+      // Ctrl/Cmd+Click: Toggle in selection
+      indicesToDrag = new Set(selectedWordIndices);
+      if (indicesToDrag.has(index)) indicesToDrag.delete(index);
+      else indicesToDrag.add(index);
+      setSelectedWordIndices(indicesToDrag);
+    } else if (selectedWordIndices.has(index)) {
+      // Clicking on already-selected word: drag all selected
+      indicesToDrag = selectedWordIndices;
+    } else {
+      // Regular click on unselected: select only this word
+      indicesToDrag = new Set([index]);
+      setSelectedWordIndices(indicesToDrag);
+    }
+
+    // Set up drag for all selected words
     setIsDragging(true);
     setDragStartX(e.clientX);
-    setDragStartTimes({ [index]: { start: words[index].start, end: words[index].end } });
-  }, [words, paintMode, paintWord]);
+    const startTimes = {};
+    indicesToDrag.forEach(idx => {
+      startTimes[idx] = { start: words[idx].start, end: words[idx].end };
+    });
+    setDragStartTimes(startTimes);
+  }, [words, paintMode, paintWord, selectedWordIndices]);
 
   const handleTimelineWordMouseEnter = useCallback((index) => {
     if (isPainting && paintMode !== null && !paintedIndices.has(index)) {
@@ -948,7 +1016,7 @@ export default function PreviewEditPage() {
     if (window.confirm('Reset all changes to original?')) {
       setWords(JSON.parse(JSON.stringify(originalWords)));
       setHasChanges(false);
-      setSelectedWordIndex(null);
+      setSelectedWordIndices(new Set());
       setEditingWordIndex(null);
       setIsDuetMode(project?.is_duet_mode || false);
     }
@@ -987,7 +1055,7 @@ export default function PreviewEditPage() {
 
   const handleApproveAndRender = useCallback(async () => {
     if (hasChanges) await saveChanges();
-    
+
     setSaving(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1062,18 +1130,18 @@ export default function PreviewEditPage() {
   // Calculate directly during render (not useMemo) to ensure smooth animations
   // useMemo was causing stale values during rapid currentTime updates
   const getCurrentLyricsData = () => {
-    if (!lyricsLines.length) return { 
-      currentLine: null, 
-      next: '', 
-      showSweepIn: false, 
+    if (!lyricsLines.length) return {
+      currentLine: null,
+      next: '',
+      showSweepIn: false,
       sweepInProgress: 0,
       showProgressBar: false,
       progressBarPercent: 0,
       nextLyricsForProgressBar: ''
     };
-    
+
     let currentLineIdx = -1;
-    
+
     // Find current line
     for (let i = 0; i < lyricsLines.length; i++) {
       const line = lyricsLines[i];
@@ -1086,7 +1154,7 @@ export default function PreviewEditPage() {
       }
       if (currentLineIdx !== -1) break;
     }
-    
+
     // Handle gaps between lines
     if (currentLineIdx === -1) {
       for (let i = 0; i < lyricsLines.length; i++) {
@@ -1096,7 +1164,7 @@ export default function PreviewEditPage() {
           const timeUntilLine = firstWordStart - currentTime;
           const prevLineEnd = i === 0 ? 0 : lyricsLines[i - 1][lyricsLines[i - 1].length - 1].end;
           const gapDuration = firstWordStart - prevLineEnd;
-          
+
           // Determine sweep-in duration based on gap
           let sweepDuration = 0;
           if (gapDuration >= SWEEP_IN_LONG_MIN_GAP) {
@@ -1104,7 +1172,7 @@ export default function PreviewEditPage() {
           } else if (gapDuration >= SWEEP_IN_SHORT_MIN_GAP) {
             sweepDuration = SWEEP_IN_SHORT_DURATION;
           }
-          
+
           // Show sweep-in bar if within sweep duration
           if (sweepDuration > 0 && timeUntilLine <= sweepDuration) {
             const sweepProgress = 1 - (timeUntilLine / sweepDuration);
@@ -1112,7 +1180,7 @@ export default function PreviewEditPage() {
               word: w.word, index: w.globalIndex, start: w.start, end: w.end,
               isActive: false, isPast: false, sweepPercent: 0
             }));
-            
+
             return {
               currentLine: currentLineText,
               next: lyricsLines[i + 1] ? lyricsLines[i + 1].map(w => w.word).join(' ') : '',
@@ -1123,14 +1191,14 @@ export default function PreviewEditPage() {
               nextLyricsForProgressBar: ''
             };
           }
-          
+
           // Show progress bar for long instrumental breaks (>5 seconds)
           const progressBarEndTime = sweepDuration > 0 ? sweepDuration : 0;
           if (i > 0 && gapDuration > INSTRUMENTAL_BREAK_THRESHOLD && timeUntilLine > progressBarEndTime) {
             const progressBarDuration = gapDuration - progressBarEndTime;
             const timeIntoProgressBar = gapDuration - timeUntilLine;
             const progressPercent = Math.min(1, Math.max(0, timeIntoProgressBar / progressBarDuration));
-            
+
             return {
               currentLine: null, next: '',
               showSweepIn: false, sweepInProgress: 0,
@@ -1139,7 +1207,7 @@ export default function PreviewEditPage() {
               nextLyricsForProgressBar: line.map(w => w.word).join(' ')
             };
           }
-          
+
           // Show previous line if within 2 seconds after it ended
           if (i > 0) {
             const prevLine = lyricsLines[i - 1];
@@ -1149,28 +1217,28 @@ export default function PreviewEditPage() {
                 word: w.word, index: w.globalIndex, start: w.start, end: w.end,
                 isActive: false, isPast: true, sweepPercent: 1
               }));
-              return { 
-                currentLine: currentLineText, 
+              return {
+                currentLine: currentLineText,
                 next: line.map(w => w.word).join(' '),
                 showSweepIn: false, sweepInProgress: 0,
                 showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
               };
             }
           }
-          
-          return { 
+
+          return {
             currentLine: null, next: line.map(w => w.word).join(' '),
             showSweepIn: false, sweepInProgress: 0,
             showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
           };
         }
-        
+
         if (line.length > 0 && line[line.length - 1].end >= currentTime) {
           currentLineIdx = i;
           break;
         }
       }
-      
+
       // After all lyrics
       if (currentLineIdx === -1) {
         if (lyricsLines.length > 0) {
@@ -1181,14 +1249,14 @@ export default function PreviewEditPage() {
               word: w.word, index: w.globalIndex, start: w.start, end: w.end,
               isActive: false, isPast: true, sweepPercent: 1
             }));
-            return { 
+            return {
               currentLine: currentLineText, next: '',
               showSweepIn: false, sweepInProgress: 0,
               showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
             };
           }
         }
-        return { 
+        return {
           currentLine: null, next: '',
           showSweepIn: false, sweepInProgress: 0,
           showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
@@ -1202,7 +1270,7 @@ export default function PreviewEditPage() {
       let sweepPercent = 0;
       const isActive = currentTime >= w.start && currentTime <= w.end;
       const isPast = currentTime > w.end;
-      
+
       if (isPast) {
         sweepPercent = 1;
       } else if (isActive) {
@@ -1211,20 +1279,20 @@ export default function PreviewEditPage() {
           sweepPercent = (currentTime - w.start) / wordDuration;
         }
       }
-      
+
       return { word: w.word, index: w.globalIndex, start: w.start, end: w.end, isActive, isPast, sweepPercent };
     });
 
     const nextLine = lyricsLines[currentLineIdx + 1];
     const nextText = nextLine ? nextLine.map(w => w.word).join(' ') : '';
-    
-    return { 
+
+    return {
       currentLine: currentLineText, next: nextText,
       showSweepIn: false, sweepInProgress: 0,
       showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
     };
   };
-  
+
   // Call during render to get fresh values every frame
   const currentLyrics = getCurrentLyricsData();
 
@@ -1252,18 +1320,18 @@ export default function PreviewEditPage() {
   // ============================================================
   const timeMarkers = useMemo(() => {
     if (!duration || !timelineContainerRef.current) return [];
-    
+
     const markers = [];
     const visibleRange = 20; // seconds visible on each side of center
     const startTime = Math.max(0, currentTime - visibleRange);
     const endTime = Math.min(duration, currentTime + visibleRange);
-    
+
     // Generate markers for every second in visible range
     for (let t = Math.floor(startTime); t <= Math.ceil(endTime); t++) {
       const isMajor = t % 5 === 0;
       markers.push({ time: t, isMajor });
     }
-    
+
     return markers;
   }, [currentTime, duration]);
 
@@ -1321,19 +1389,19 @@ export default function PreviewEditPage() {
       <SEO title={`Edit: ${project.title} | Karatrack Studio`} description="Edit lyrics timing and line breaks" />
 
       {/* Audio Elements */}
-      <audio 
-        ref={instrumentalRef} 
-        src={project.processed_audio_url} 
-        onLoadedMetadata={handleAudioLoaded} 
-        onEnded={() => setIsPlaying(false)} 
-        preload="auto" 
+      <audio
+        ref={instrumentalRef}
+        src={project.processed_audio_url}
+        onLoadedMetadata={handleAudioLoaded}
+        onEnded={() => setIsPlaying(false)}
+        preload="auto"
       />
       {project.vocals_audio_url && (
-        <audio 
-          ref={vocalsRef} 
-          src={project.vocals_audio_url} 
+        <audio
+          ref={vocalsRef}
+          src={project.vocals_audio_url}
           onLoadedMetadata={handleVocalsLoaded}
-          preload="auto" 
+          preload="auto"
         />
       )}
 
@@ -1343,7 +1411,7 @@ export default function PreviewEditPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className={`p-6 rounded-2xl max-w-md w-full mx-4 ${isDark ? 'bg-gray-900 border border-white/10' : 'bg-white border border-gray-200'}`}>
               <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Add New Word</h3>
-              
+
               <div className="mb-4">
                 <label className="block text-sm text-gray-500 mb-2">Position</label>
                 <div className="flex gap-2">
@@ -1355,7 +1423,7 @@ export default function PreviewEditPage() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <label className="block text-sm text-gray-500 mb-2">New Word</label>
                 <input
@@ -1365,7 +1433,7 @@ export default function PreviewEditPage() {
                   className={`w-full px-4 py-2 rounded-lg text-sm ${isDark ? 'bg-white/5 border border-white/10 text-white' : 'bg-gray-50 border border-gray-200 text-gray-900'} focus:outline-none focus:ring-2 focus:ring-cyan-500`}
                 />
               </div>
-              
+
               <div className="flex gap-2">
                 <button onClick={() => { setShowAddWordModal(false); setNewWordText(''); }} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}>Cancel</button>
                 <button onClick={addNewWord} disabled={!newWordText.trim()} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${newWordText.trim() ? 'bg-cyan-500 text-white hover:bg-cyan-600' : 'bg-gray-500 text-gray-300 cursor-not-allowed'}`}>Add Word</button>
@@ -1430,7 +1498,7 @@ export default function PreviewEditPage() {
               {videoBackgroundUrl && <video className="absolute inset-0 w-full h-full object-cover opacity-60" src={videoBackgroundUrl} autoPlay loop muted playsInline />}
               <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
                 {currentLyrics.showProgressBar ? (
-                  <InstrumentalProgressBar 
+                  <InstrumentalProgressBar
                     progress={currentLyrics.progressBarPercent}
                     nextLyrics={currentLyrics.nextLyricsForProgressBar}
                     color={project?.sung_color || '#00d4ff'}
@@ -1484,7 +1552,7 @@ export default function PreviewEditPage() {
               </div>
               <span className="text-xs text-gray-500">{lyricsLines.length} lines Ã¢â‚¬Â¢ {words.length} words</span>
             </div>
-            
+
             <AnimatePresence>
               {lineEditorExpanded && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
@@ -1515,7 +1583,7 @@ export default function PreviewEditPage() {
                         {lyricsLines.map((line, lineIndex) => {
                           const lineTooLong = isLineTooLong(line);
                           const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0);
-                          
+
                           return (
                             <div key={lineIndex} className="group">
                               <div className="flex items-center gap-2 mb-1">
@@ -1544,11 +1612,11 @@ export default function PreviewEditPage() {
                               </div>
                               <div className={`flex flex-wrap items-center gap-1 p-2 rounded-lg ${lineTooLong ? 'bg-yellow-500/10 border border-yellow-500/30' : isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
                                 {line.map((wordData, wordIndex) => {
-                                  const isSelected = selectedWordIndex === wordData.globalIndex;
+                                  const isSelected = selectedWordIndices.has(wordData.globalIndex);
                                   const isEditing = editingWordIndex === wordData.globalIndex;
                                   const isLastInLine = wordIndex === line.length - 1;
                                   const isCurrent = isWordCurrent(wordData);
-                                  
+
                                   return (
                                     <span key={wordData.globalIndex} className="inline-flex items-center">
                                       {isEditing ? (
@@ -1567,15 +1635,14 @@ export default function PreviewEditPage() {
                                         />
                                       ) : (
                                         <button
-                                          onClick={() => handleWordClick(wordData.globalIndex)}
+                                          onClick={(e) => handleWordClick(wordData.globalIndex, e)}
                                           onDoubleClick={(e) => handleWordDoubleClick(wordData.globalIndex, e)}
-                                          className={`px-2 py-1 rounded text-sm transition-all ${
-                                            isSelected ? 'bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-500' :
-                                            isCurrent ? 'bg-green-500/30 text-green-300' :
-                                            wordData.confidence !== undefined && wordData.confidence < 0.5
-                                              ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
-                                              : isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-700'
-                                          }`}
+                                          className={`px-2 py-1 rounded text-sm transition-all ${isSelected ? 'bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-500' :
+                                              isCurrent ? 'bg-green-500/30 text-green-300' :
+                                                wordData.confidence !== undefined && wordData.confidence < 0.5
+                                                  ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
+                                                  : isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-700'
+                                            }`}
                                           title={`"${wordData.word}"\nStart: ${Math.floor(wordData.start / 60)}:${(wordData.start % 60).toFixed(3).padStart(6, '0')}\nEnd: ${Math.floor(wordData.end / 60)}:${(wordData.end % 60).toFixed(3).padStart(6, '0')}\nDuration: ${(wordData.end - wordData.start).toFixed(3)}s${wordData.confidence ? `\nConfidence: ${(wordData.confidence * 100).toFixed(0)}%` : ''}\n\nDouble-click to edit`}
                                         >
                                           {wordData.word}
@@ -1609,10 +1676,10 @@ export default function PreviewEditPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Editor Resize Handle */}
-                  <div 
-                    onMouseDown={handleEditorResizeStart} 
+                  <div
+                    onMouseDown={handleEditorResizeStart}
                     className={`h-3 cursor-ns-resize flex items-center justify-center ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}
                   >
                     <GripHorizontal className="w-4 h-4 text-gray-400" />
@@ -1624,8 +1691,8 @@ export default function PreviewEditPage() {
 
           {/* TIMELINE EDITOR - Collapsible with Duet Mode Toggle */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
-            <div 
-              onClick={() => setTimelineEditorExpanded(!timelineEditorExpanded)} 
+            <div
+              onClick={() => setTimelineEditorExpanded(!timelineEditorExpanded)}
               className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
             >
               <div className="flex items-center gap-2">
@@ -1649,7 +1716,7 @@ export default function PreviewEditPage() {
             <AnimatePresence>
               {timelineEditorExpanded && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                  
+
                   {/* Duet Color Settings */}
                   {isDuetMode && (
                     <div className={`px-4 py-3 border-t ${isDark ? 'border-white/10 bg-gradient-to-r from-cyan-500/10 to-pink-500/10' : 'border-gray-200 bg-gradient-to-r from-cyan-50 to-pink-50'}`}>
@@ -1689,7 +1756,12 @@ export default function PreviewEditPage() {
                       <span className="text-xs text-gray-500 w-16 text-center">{zoom.toFixed(0)}px/s</span>
                       <button onClick={zoomIn} className={`p-1.5 rounded ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}><ZoomIn className="w-4 h-4" /></button>
                     </div>
-                    <span className="text-xs text-gray-500">Drag words to adjust timing Ã¢â‚¬Â¢ Arrow keys to nudge</span>
+                    <div className="flex items-center gap-2">
+                      {selectedWordIndices.size > 1 && (
+                        <span className="text-xs text-cyan-400 font-medium">{selectedWordIndices.size} words selected</span>
+                      )}
+                      <span className="text-xs text-gray-500">Shift+Click range • Ctrl+Click toggle • Ctrl+A all</span>
+                    </div>
                   </div>
 
                   {/* Timeline with Time Markers */}
@@ -1722,24 +1794,24 @@ export default function PreviewEditPage() {
                     <div className="absolute top-0 bottom-6 w-0.5 bg-cyan-400 z-30 pointer-events-none" style={{ left: '50%', transform: 'translateX(-50%)', boxShadow: '0 0 15px rgba(0, 212, 255, 0.7)' }}>
                       <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-cyan-400" />
                     </div>
-                    
+
                     {/* Words on timeline - Direct pixel positioning like V8 */}
                     {(() => {
                       const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
                       const centerX = containerWidth / 2;
                       const wordHeight = 44;
-                      
+
                       return words.map((word, index) => {
                         const wordX = centerX + (word.start - currentTime) * zoom;
                         const wordWidth = Math.max(40, (word.end - word.start) * zoom);
-                        
+
                         // Skip if off-screen
                         if (wordX + wordWidth < -100 || wordX > containerWidth + 100) return null;
-                        
-                        const isSelected = selectedWordIndex === index;
+
+                        const isSelected = selectedWordIndices.has(index);
                         const isCurrent = isWordCurrent(word);
                         const wordColor = getWordColor(word, isSelected, isCurrent);
-                        
+
                         // Format timestamp for tooltip - shows exact AssemblyAI timing
                         const formatTimestamp = (seconds) => {
                           const mins = Math.floor(seconds / 60);
@@ -1747,30 +1819,29 @@ export default function PreviewEditPage() {
                           return `${mins}:${secs.padStart(6, '0')}`;
                         };
                         const tooltipText = `"${word.word}"\nStart: ${formatTimestamp(word.start)}\nEnd: ${formatTimestamp(word.end)}\nDuration: ${(word.end - word.start).toFixed(3)}s${word.confidence ? `\nConfidence: ${(word.confidence * 100).toFixed(0)}%` : ''}`;
-                        
+
                         return (
                           <motion.div
                             key={index}
                             className="absolute cursor-pointer select-none"
-                            style={{ 
-                              left: wordX, 
-                              width: wordWidth, 
-                              height: wordHeight, 
-                              top: (TIMELINE_HEIGHT - 24 - wordHeight) / 2 
+                            style={{
+                              left: wordX,
+                              width: wordWidth,
+                              height: wordHeight,
+                              top: (TIMELINE_HEIGHT - 24 - wordHeight) / 2
                             }}
                             onMouseDown={(e) => handleTimelineWordMouseDown(index, e)}
                             onMouseEnter={() => handleTimelineWordMouseEnter(index)}
-                            onClick={(e) => { e.stopPropagation(); handleWordClick(index); }}
+                            onClick={(e) => { e.stopPropagation(); handleWordClick(index, e); }}
                             title={tooltipText}
                           >
-                            <div 
-                              className={`h-full rounded-lg border-2 flex items-center justify-center px-2 overflow-hidden transition-colors ${
-                                isSelected 
-                                  ? 'border-cyan-400 shadow-lg shadow-cyan-500/30 bg-cyan-500/20' 
-                                  : isCurrent 
+                            <div
+                              className={`h-full rounded-lg border-2 flex items-center justify-center px-2 overflow-hidden transition-colors ${isSelected
+                                  ? 'border-cyan-400 shadow-lg shadow-cyan-500/30 bg-cyan-500/20'
+                                  : isCurrent
                                     ? isDark ? 'border-white/40 bg-white/15' : 'border-gray-400 bg-gray-200/50'
                                     : isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-gray-200 bg-gray-100 hover:bg-gray-200'
-                              }`} 
+                                }`}
                               style={{ backdropFilter: 'blur(4px)' }}
                             >
                               <span className="text-xs font-medium truncate" style={{ color: wordColor }}>{word.word}</span>
@@ -1795,7 +1866,7 @@ export default function PreviewEditPage() {
                           {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                         </button>
                       </div>
-                      
+
                       <div className="flex-1 flex items-center gap-2">
                         <span className="text-xs font-mono text-cyan-400 w-20" title="Current playback time">
                           {Math.floor(currentTime / 60)}:{(currentTime % 60).toFixed(2).padStart(5, '0')}
