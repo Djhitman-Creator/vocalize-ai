@@ -1584,6 +1584,10 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       outline_color: project.outline_color || '#000000',
       sung_color: project.sung_color || '#F4E409',
       font: project.font || 'arial',
+      font_size: project.font_size || 'normal',
+      // FIX: Include custom font URL and name (was missing!)
+      custom_font_url: project.custom_font_url || null,
+      custom_font_name: project.custom_font_name || null,
       // Render-only specific
       processed_audio_url: project.processed_audio_url,
       vocals_audio_url: project.vocals_audio_url,
