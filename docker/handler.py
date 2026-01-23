@@ -2918,12 +2918,12 @@ def handler(event):
             instrumental_path, vocals_path = separate_vocals(audio_path, work_dir)
             
             if processing_type in ['remove_vocals']:
-            instrumental_key = f"processed/{project_id}/instrumental.wav"
-            results['processed_audio_url'] = upload_to_r2(instrumental_path, instrumental_key)
-    
-            # Save isolated vocals for editor reference
-            vocals_key = f"processed/{project_id}/vocals.wav"
-            results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
+                instrumental_key = f"processed/{project_id}/instrumental.wav"
+                results['processed_audio_url'] = upload_to_r2(instrumental_path, instrumental_key)
+                
+                # Save isolated vocals for editor reference
+                vocals_key = f"processed/{project_id}/vocals.wav"
+                results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
             
             elif processing_type == 'guide_vocals':
                 # Guide Vocals mode: Mix instrumental (100%) + vocals (30%) for singers who need guidance
