@@ -51,10 +51,10 @@ import {
   ExternalLink,
   FileType
 } from 'lucide-react';
-import { useTheme } from '../context/ThemeContext';
-import AppNavigation from '../components/AppNavigation';
+import { useTheme } from '../../context/ThemeContext';
+import AppNavigation from '../../components/AppNavigation';
 import { createClient } from '@supabase/supabase-js';
-import SEO from '../components/SEO';
+import SEO from '../../components/SEO';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
