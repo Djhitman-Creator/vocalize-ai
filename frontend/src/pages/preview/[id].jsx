@@ -395,7 +395,7 @@ export default function PreviewEditPage() {
 
   // Merge line down - Move the SELECTED word (and all after it on this line) to the NEXT line
   // If no word selected, moves the last word
-  // Example: Select "my" in "making my rounds all" â†’ "making" + "my rounds all over town"
+  // Example: Select "my" in "making my rounds all" Ã¢â€ â€™ "making" + "my rounds all over town"
   const mergeLineDown = useCallback((lineIndex) => {
     const currentLine = lyricsLines[lineIndex];
     if (!currentLine || currentLine.length <= 1) return; // Need at least 2 words to split
@@ -1329,7 +1329,7 @@ export default function PreviewEditPage() {
                 <SplitSquareHorizontal className="w-4 h-4 text-cyan-400" />
                 <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Line & Word Editor (Rhyme Sync)</span>
               </div>
-              <span className="text-xs text-gray-500">{lyricsLines.length} lines â€¢ {words.length} words</span>
+              <span className="text-xs text-gray-500">{lyricsLines.length} lines Ã¢â‚¬Â¢ {words.length} words</span>
             </div>
             
             <AnimatePresence>
@@ -1504,21 +1504,21 @@ export default function PreviewEditPage() {
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500">Singer 1:</span>
                           <input type="color" value={duetColors.singer1} onChange={(e) => { setDuetColors(prev => ({ ...prev, singer1: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer" />
-                          <button onClick={() => setPaintMode(paintMode === SINGER.SINGER_1 ? null : SINGER.SINGER_1)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.SINGER_1 ? 'bg-cyan-500 text-white' : 'bg-white/10 text-gray-400'}`}>
+                          <button onClick={() => setPaintMode(paintMode === SINGER.SINGER_1 ? null : SINGER.SINGER_1)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.SINGER_1 ? 'bg-cyan-500 text-white' : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
                             {paintMode === SINGER.SINGER_1 ? 'Painting...' : 'Paint'}
                           </button>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500">Singer 2:</span>
                           <input type="color" value={duetColors.singer2} onChange={(e) => { setDuetColors(prev => ({ ...prev, singer2: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer" />
-                          <button onClick={() => setPaintMode(paintMode === SINGER.SINGER_2 ? null : SINGER.SINGER_2)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.SINGER_2 ? 'bg-pink-500 text-white' : 'bg-white/10 text-gray-400'}`}>
+                          <button onClick={() => setPaintMode(paintMode === SINGER.SINGER_2 ? null : SINGER.SINGER_2)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.SINGER_2 ? 'bg-pink-500 text-white' : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
                             {paintMode === SINGER.SINGER_2 ? 'Painting...' : 'Paint'}
                           </button>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-gray-500">Both:</span>
                           <input type="color" value={duetColors.both} onChange={(e) => { setDuetColors(prev => ({ ...prev, both: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer" />
-                          <button onClick={() => setPaintMode(paintMode === SINGER.BOTH ? null : SINGER.BOTH)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.BOTH ? 'bg-yellow-500 text-white' : 'bg-white/10 text-gray-400'}`}>
+                          <button onClick={() => setPaintMode(paintMode === SINGER.BOTH ? null : SINGER.BOTH)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.BOTH ? 'bg-yellow-500 text-white' : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
                             {paintMode === SINGER.BOTH ? 'Painting...' : 'Paint'}
                           </button>
                         </div>
@@ -1536,13 +1536,13 @@ export default function PreviewEditPage() {
                       <span className="text-xs text-gray-500 w-16 text-center">{zoom.toFixed(0)}px/s</span>
                       <button onClick={zoomIn} className={`p-1.5 rounded ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}><ZoomIn className="w-4 h-4" /></button>
                     </div>
-                    <span className="text-xs text-gray-500">Drag words to adjust timing â€¢ Arrow keys to nudge</span>
+                    <span className="text-xs text-gray-500">Drag words to adjust timing Ã¢â‚¬Â¢ Arrow keys to nudge</span>
                   </div>
 
                   {/* Timeline with Time Markers */}
-                  <div ref={timelineContainerRef} onClick={handleTimelineClick} className="relative overflow-hidden cursor-crosshair border-t border-white/10" style={{ height: TIMELINE_HEIGHT }}>
+                  <div ref={timelineContainerRef} onClick={handleTimelineClick} className={`relative overflow-hidden cursor-crosshair border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`} style={{ height: TIMELINE_HEIGHT }}>
                     {/* Time Markers */}
-                    <div className="absolute bottom-0 left-0 right-0 h-6 border-t border-white/10">
+                    <div className={`absolute bottom-0 left-0 right-0 h-6 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
                       {(() => {
                         const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
                         const centerX = containerWidth / 2;
@@ -1615,8 +1615,8 @@ export default function PreviewEditPage() {
                                 isSelected 
                                   ? 'border-cyan-400 shadow-lg shadow-cyan-500/30 bg-cyan-500/20' 
                                   : isCurrent 
-                                    ? 'border-white/40 bg-white/15' 
-                                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                                    ? isDark ? 'border-white/40 bg-white/15' : 'border-gray-400 bg-gray-200/50'
+                                    : isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-gray-200 bg-gray-100 hover:bg-gray-200'
                               }`} 
                               style={{ backdropFilter: 'blur(4px)' }}
                             >
@@ -1646,7 +1646,7 @@ export default function PreviewEditPage() {
                         <span className="text-xs font-mono text-cyan-400 w-20" title="Current playback time (from audio element)">
                           {Math.floor(currentTime / 60)}:{(currentTime % 60).toFixed(2).padStart(5, '0')}
                         </span>
-                        <div onClick={handleProgressClick} className="flex-1 h-2 bg-white/10 rounded-full cursor-pointer overflow-hidden">
+                        <div onClick={handleProgressClick} className={`flex-1 h-2 rounded-full cursor-pointer overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
                           <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all" style={{ width: `${(currentTime / duration) * 100}%` }} />
                         </div>
                         <span className="text-xs text-gray-500 w-12">{formatTime(duration)}</span>
