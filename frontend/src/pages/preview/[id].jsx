@@ -734,37 +734,6 @@ export default function PreviewEditPage() {
   const restart = useCallback(() => seekTo(0), [seekTo]);
 
   // ============================================================
-  // KEYBOARD SHORTCUTS
-  // ============================================================
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.code === 'Space' && editingWordIndex === null) { e.preventDefault(); togglePlayback(); }
-      if (e.code === 'Escape') {
-        if (paintMode !== null) setPaintMode(null);
-        else if (showAddWordModal) { setShowAddWordModal(false); setNewWordText(''); }
-        else if (editingWordIndex !== null) { setEditingWordIndex(null); setEditingText(''); }
-        else setSelectedWordIndices(new Set());
-      }
-      if ((e.code === 'Delete' || e.code === 'Backspace') && selectedWordIndices.size > 0 && editingWordIndex === null) {
-        e.preventDefault();
-        deleteSelectedWords();
-      }
-      if (selectedWordIndices.size > 0 && editingWordIndex === null) {
-        if (e.code === 'ArrowLeft') { e.preventDefault(); nudgeSelectedWords(e.shiftKey ? -0.1 : -0.05); }
-        if (e.code === 'ArrowRight') { e.preventDefault(); nudgeSelectedWords(e.shiftKey ? 0.1 : 0.05); }
-      }
-      // Ctrl+A to select all words
-      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyA' && editingWordIndex === null) {
-        e.preventDefault();
-        setSelectedWordIndices(new Set(words.map((_, i) => i)));
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedWordIndex, editingWordIndex, isPlaying, showAddWordModal, paintMode]);
-
-  // ============================================================
   // WORD CLICK & INLINE EDITING
   // ============================================================
   const handleWordClick = useCallback((index, e) => {
@@ -892,6 +861,37 @@ export default function PreviewEditPage() {
     setSelectedWordIndices(new Set());
     setHasChanges(true);
   }, [newWordText, selectedWordIndex, words, addWordPosition]);
+
+  // ============================================================
+  // KEYBOARD SHORTCUTS
+  // ============================================================
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.code === 'Space' && editingWordIndex === null) { e.preventDefault(); togglePlayback(); }
+      if (e.code === 'Escape') {
+        if (paintMode !== null) setPaintMode(null);
+        else if (showAddWordModal) { setShowAddWordModal(false); setNewWordText(''); }
+        else if (editingWordIndex !== null) { setEditingWordIndex(null); setEditingText(''); }
+        else setSelectedWordIndices(new Set());
+      }
+      if ((e.code === 'Delete' || e.code === 'Backspace') && selectedWordIndices.size > 0 && editingWordIndex === null) {
+        e.preventDefault();
+        deleteSelectedWords();
+      }
+      if (selectedWordIndices.size > 0 && editingWordIndex === null) {
+        if (e.code === 'ArrowLeft') { e.preventDefault(); nudgeSelectedWords(e.shiftKey ? -0.1 : -0.05); }
+        if (e.code === 'ArrowRight') { e.preventDefault(); nudgeSelectedWords(e.shiftKey ? 0.1 : 0.05); }
+      }
+      // Ctrl+A to select all words
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyA' && editingWordIndex === null) {
+        e.preventDefault();
+        setSelectedWordIndices(new Set(words.map((_, i) => i)));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedWordIndices, selectedWordIndex, editingWordIndex, isPlaying, showAddWordModal, paintMode, words, deleteSelectedWords, nudgeSelectedWords, togglePlayback]);
 
   // ============================================================
   // DUET MODE FUNCTIONS
