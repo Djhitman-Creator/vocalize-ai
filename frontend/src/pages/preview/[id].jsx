@@ -25,7 +25,8 @@ import {
   ZoomIn, ZoomOut, Users, Check, X, Loader2, AlertCircle,
   CheckCircle, Plus, Trash2, Paintbrush,
   ArrowDown, ArrowUp, Type, SplitSquareHorizontal,
-  AlertTriangle, ChevronDown, ChevronRight, GripHorizontal
+  AlertTriangle, ChevronDown, ChevronRight, GripHorizontal,
+  Volume2, VolumeX, Mic, Music  // NEW: Volume and track icons
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
@@ -148,6 +149,43 @@ const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outli
 };
 
 // ============================================================
+// VOLUME SLIDER COMPONENT - NEW in V10.8
+// ============================================================
+const VolumeSlider = ({ value, onChange, label, icon: Icon, color, muted, onMuteToggle, isDark }) => {
+  return (
+    <div className="flex items-center gap-2">
+      <button 
+        onClick={onMuteToggle}
+        className={`p-1.5 rounded transition-colors ${
+          muted 
+            ? 'text-red-400 hover:text-red-300' 
+            : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+        }`}
+        title={muted ? `Unmute ${label}` : `Mute ${label}`}
+      >
+        {muted ? <VolumeX className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
+      </button>
+      <div className="flex items-center gap-1.5">
+        <span className={`text-xs w-14 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{label}</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={muted ? 0 : value}
+          onChange={(e) => onChange(parseInt(e.target.value))}
+          className="w-20 h-1.5 rounded-full appearance-none cursor-pointer"
+          style={{
+            background: `linear-gradient(to right, ${color} ${muted ? 0 : value}%, ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} ${muted ? 0 : value}%)`,
+          }}
+          title={`${label}: ${value}%`}
+        />
+        <span className={`text-xs w-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{value}%</span>
+      </div>
+    </div>
+  );
+};
+
+// ============================================================
 // LINE LENGTH WARNING COMPONENT
 // ============================================================
 const LineLengthWarning = ({ lineIndex, wordCount, charCount }) => (
@@ -198,6 +236,12 @@ export default function PreviewEditPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+
+  // Volume state - NEW in V10.8
+  const [instrumentalVolume, setInstrumentalVolume] = useState(100);
+  const [vocalsVolume, setVocalsVolume] = useState(0);  // Start at 0 - vocals are for reference only
+  const [instrumentalMuted, setInstrumentalMuted] = useState(false);
+  const [vocalsMuted, setVocalsMuted] = useState(true);  // Start muted
 
   // Timeline state
   const timelineContainerRef = useRef(null);
@@ -283,6 +327,50 @@ export default function PreviewEditPage() {
       window.removeEventListener('mouseup', handleEditorResizeEnd);
     };
   }, [isResizingEditor]);
+
+  // ============================================================
+  // VOLUME HANDLERS - NEW in V10.8
+  // ============================================================
+  // Update instrumental volume when state changes
+  useEffect(() => {
+    if (instrumentalRef.current) {
+      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
+    }
+  }, [instrumentalVolume, instrumentalMuted]);
+
+  // Update vocals volume when state changes
+  useEffect(() => {
+    if (vocalsRef.current) {
+      vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
+      vocalsRef.current.muted = false;  // Remove permanent mute - we control via volume
+    }
+  }, [vocalsVolume, vocalsMuted]);
+
+  const handleInstrumentalVolumeChange = useCallback((value) => {
+    setInstrumentalVolume(value);
+    if (value > 0 && instrumentalMuted) {
+      setInstrumentalMuted(false);
+    }
+  }, [instrumentalMuted]);
+
+  const handleVocalsVolumeChange = useCallback((value) => {
+    setVocalsVolume(value);
+    if (value > 0 && vocalsMuted) {
+      setVocalsMuted(false);
+    }
+  }, [vocalsMuted]);
+
+  const toggleInstrumentalMute = useCallback(() => {
+    setInstrumentalMuted(prev => !prev);
+  }, []);
+
+  const toggleVocalsMute = useCallback(() => {
+    setVocalsMuted(prev => !prev);
+    // If unmuting and volume is 0, set to a reasonable default
+    if (vocalsMuted && vocalsVolume === 0) {
+      setVocalsVolume(50);
+    }
+  }, [vocalsMuted, vocalsVolume]);
 
   // ============================================================
   // GROUP LYRICS INTO LINES (using lineBreak property)
@@ -602,8 +690,19 @@ export default function PreviewEditPage() {
   }, [isPlaying]);
 
   const handleAudioLoaded = useCallback(() => {
-    if (instrumentalRef.current) setDuration(instrumentalRef.current.duration);
-  }, []);
+    if (instrumentalRef.current) {
+      setDuration(instrumentalRef.current.duration);
+      // Apply initial volume
+      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
+    }
+  }, [instrumentalVolume, instrumentalMuted]);
+
+  const handleVocalsLoaded = useCallback(() => {
+    if (vocalsRef.current) {
+      // Apply initial volume - vocals start muted for reference only
+      vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
+    }
+  }, [vocalsVolume, vocalsMuted]);
 
   const togglePlayback = useCallback(() => {
     if (!instrumentalRef.current) return;
@@ -1221,8 +1320,22 @@ export default function PreviewEditPage() {
     <>
       <SEO title={`Edit: ${project.title} | Karatrack Studio`} description="Edit lyrics timing and line breaks" />
 
-      <audio ref={instrumentalRef} src={project.processed_audio_url} onLoadedMetadata={handleAudioLoaded} onEnded={() => setIsPlaying(false)} preload="auto" />
-      {project.vocals_audio_url && <audio ref={vocalsRef} src={project.vocals_audio_url} preload="auto" muted />}
+      {/* Audio Elements */}
+      <audio 
+        ref={instrumentalRef} 
+        src={project.processed_audio_url} 
+        onLoadedMetadata={handleAudioLoaded} 
+        onEnded={() => setIsPlaying(false)} 
+        preload="auto" 
+      />
+      {project.vocals_audio_url && (
+        <audio 
+          ref={vocalsRef} 
+          src={project.vocals_audio_url} 
+          onLoadedMetadata={handleVocalsLoaded}
+          preload="auto" 
+        />
+      )}
 
       {/* ADD WORD MODAL */}
       <AnimatePresence>
@@ -1672,18 +1785,19 @@ export default function PreviewEditPage() {
                     })()}
                   </div>
 
-                  {/* Playback Controls */}
+                  {/* Playback Controls - V10.8 with Volume Sliders */}
                   <div className={`px-4 py-3 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                    <div className="flex items-center gap-4">
+                    {/* Main Playback Row */}
+                    <div className="flex items-center gap-4 mb-3">
                       <div className="flex items-center gap-2">
                         <button onClick={restart} className={`p-2 rounded-lg ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}><SkipBack className="w-4 h-4" /></button>
                         <button onClick={togglePlayback} className={`p-3 rounded-xl ${isPlaying ? 'bg-red-500 hover:bg-red-600' : 'bg-cyan-500 hover:bg-cyan-600'} text-white`}>
                           {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                         </button>
                       </div>
+                      
                       <div className="flex-1 flex items-center gap-2">
-                        {/* Detailed time with milliseconds */}
-                        <span className="text-xs font-mono text-cyan-400 w-20" title="Current playback time (from audio element)">
+                        <span className="text-xs font-mono text-cyan-400 w-20" title="Current playback time">
                           {Math.floor(currentTime / 60)}:{(currentTime % 60).toFixed(2).padStart(5, '0')}
                         </span>
                         <div onClick={handleProgressClick} className={`flex-1 h-2 rounded-full cursor-pointer overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
@@ -1691,6 +1805,45 @@ export default function PreviewEditPage() {
                         </div>
                         <span className="text-xs text-gray-500 w-12">{formatTime(duration)}</span>
                       </div>
+                    </div>
+
+                    {/* Volume Controls Row - NEW in V10.8 */}
+                    <div className={`flex items-center justify-between pt-2 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
+                      {/* Backing Track Volume */}
+                      <VolumeSlider
+                        value={instrumentalVolume}
+                        onChange={handleInstrumentalVolumeChange}
+                        label="Backing"
+                        icon={Music}
+                        color="#06b6d4"
+                        muted={instrumentalMuted}
+                        onMuteToggle={toggleInstrumentalMute}
+                        isDark={isDark}
+                      />
+
+                      {/* Vocals Volume (Reference Only) */}
+                      {project.vocals_audio_url ? (
+                        <div className="flex items-center gap-3">
+                          <VolumeSlider
+                            value={vocalsVolume}
+                            onChange={handleVocalsVolumeChange}
+                            label="Vocals"
+                            icon={Mic}
+                            color="#f472b6"
+                            muted={vocalsMuted}
+                            onMuteToggle={toggleVocalsMute}
+                            isDark={isDark}
+                          />
+                          <span className={`text-[10px] px-2 py-0.5 rounded ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
+                            Reference only
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Mic className="w-4 h-4 text-gray-500" />
+                          <span className="text-xs text-gray-500">No vocals track available</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </motion.div>
