@@ -42,6 +42,9 @@ const DEFAULT_DUET_COLORS = { singer1: '#00FFFF', singer2: '#FF69B4', both: '#FF
 const PIXELS_PER_SECOND_DEFAULT = 100;
 const TIMELINE_HEIGHT = 160;
 
+// Preset video backgrounds base URL
+const PRESET_BASE_URL = process.env.NEXT_PUBLIC_PRESET_VIDEOS_URL || 'https://pub-71dae0f9e45e4d8e8d1eedd472780341.r2.dev/presets';
+
 // Line length settings
 const MAX_WORDS_PER_LINE = 10;
 
@@ -1184,6 +1187,23 @@ export default function PreviewEditPage() {
     return { backgroundColor: project.bg_color_1 || '#1a1a2e' };
   };
 
+  // Get video URL - either from custom upload or preset
+  const getVideoBackgroundUrl = () => {
+    if (project.bg_video_url) {
+      return project.bg_video_url;
+    }
+    if (project.bg_video_preset_filename) {
+      return `${PRESET_BASE_URL}/${project.bg_video_preset_filename}`;
+    }
+    if (project.bg_video_preset) {
+      // Fallback: if only preset ID is stored, try to use it as filename
+      return `${PRESET_BASE_URL}/${project.bg_video_preset}`;
+    }
+    return null;
+  };
+
+  const videoBackgroundUrl = getVideoBackgroundUrl();
+
   // currentLyrics is now calculated via useMemo above
   const textColor = project?.text_color || '#ffffff';
   const outlineColor = project?.outline_color || '#000000';
@@ -1273,7 +1293,7 @@ export default function PreviewEditPage() {
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
             <div className="relative w-full overflow-hidden" style={{ height: previewHeight, ...getPreviewBackground() }}>
               {project.bg_image_url && <img className="absolute inset-0 w-full h-full object-cover opacity-60" src={project.bg_image_url} alt="" />}
-              {project.bg_video_url && <video className="absolute inset-0 w-full h-full object-cover opacity-60" src={project.bg_video_url} autoPlay loop muted playsInline />}
+              {videoBackgroundUrl && <video className="absolute inset-0 w-full h-full object-cover opacity-60" src={videoBackgroundUrl} autoPlay loop muted playsInline />}
               {project.custom_font_url && <style>{`@font-face { font-family: 'CustomKaraokeFont'; src: url('${project.custom_font_url}'); }`}</style>}
               <div className="absolute inset-0 flex flex-col items-center justify-center p-4">
                 {currentLyrics.showProgressBar ? (
