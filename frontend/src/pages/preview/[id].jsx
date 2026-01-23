@@ -1,19 +1,18 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V10.4)
+ * Preview/Edit Page - Karatrack Studio (V10.5)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V10.4 FIXES:
- * - FIXED: Sweep-in bar now animates during playback (not just when paused)
- * - Simplified RAF loop - always updates during playback
- * - Removed throttling that was preventing smooth animations
+ * V10.5 FIXES:
+ * - FIXED: Sweep-in bar and word sweep now animate during playback
+ * - Removed useMemo for currentLyrics - was causing stale values
+ * - Now calculates fresh values on every render frame
+ * - Same fix approach that worked for timeline scrolling
  * 
- * V10.3 FEATURES (preserved):
- * - Split Up/Down buttons
- * - Prominent help note
- * - All other features
+ * V10.4 FEATURES (preserved):
+ * - All previous features
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -947,7 +946,9 @@ export default function PreviewEditPage() {
   // ============================================================
   // GET CURRENT LYRICS FOR PREVIEW
   // ============================================================
-  const currentLyrics = useMemo(() => {
+  // Calculate directly during render (not useMemo) to ensure smooth animations
+  // useMemo was causing stale values during rapid currentTime updates
+  const getCurrentLyricsData = () => {
     if (!lyricsLines.length) return { 
       currentLine: null, 
       next: '', 
@@ -1109,7 +1110,10 @@ export default function PreviewEditPage() {
       showSweepIn: false, sweepInProgress: 0,
       showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
     };
-  }, [lyricsLines, currentTime]);
+  };
+  
+  // Call during render to get fresh values every frame
+  const currentLyrics = getCurrentLyricsData();
 
   const handleTimelineClick = useCallback((e) => {
     if (!timelineContainerRef.current || isDragging) return;
