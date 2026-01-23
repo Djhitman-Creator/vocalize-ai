@@ -1,22 +1,19 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V9.9)
+ * Preview/Edit Page - Karatrack Studio (V10)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V9.9 FIXES:
- * - FIXED: Timeline words now scroll properly during playback
- * - Timeline uses direct pixel positioning (like original V8)
- * - Uses motion.div for smooth word rendering
- * - Playhead styled like original with glow effect
+ * V10 ADDITIONS:
+ * - NEW: Hover tooltip shows word timestamps (Start, End, Duration, Confidence)
+ * - NEW: Playback time shows milliseconds for debugging timing
+ * - Timestamps match AssemblyAI data exactly
  * 
- * V9.8 FEATURES (preserved):
- * - Sweep-In Bar (animated bar before lyrics)
- * - Instrumental Progress Bar (for breaks >5 seconds)
- * - "To New Line" button
- * - Resizable editors
- * - Collapsible sections
+ * V9.9 FEATURES (preserved):
+ * - Timeline scrolls properly during playback
+ * - Sweep-In Bar and Instrumental Progress Bar
+ * - All editing features
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -1376,7 +1373,7 @@ export default function PreviewEditPage() {
                                               ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
                                               : isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-700'
                                           }`}
-                                          title={`${wordData.start.toFixed(2)}s - ${wordData.end.toFixed(2)}s â€¢ Double-click to edit`}
+                                          title={`"${wordData.word}"\nStart: ${Math.floor(wordData.start / 60)}:${(wordData.start % 60).toFixed(3).padStart(6, '0')}\nEnd: ${Math.floor(wordData.end / 60)}:${(wordData.end % 60).toFixed(3).padStart(6, '0')}\nDuration: ${(wordData.end - wordData.start).toFixed(3)}s${wordData.confidence ? `\nConfidence: ${(wordData.confidence * 100).toFixed(0)}%` : ''}\n\nDouble-click to edit`}
                                         >
                                           {wordData.word}
                                         </button>
@@ -1536,6 +1533,14 @@ export default function PreviewEditPage() {
                         const isCurrent = isWordCurrent(word);
                         const wordColor = getWordColor(word, isSelected, isCurrent);
                         
+                        // Format timestamp for tooltip - shows exact AssemblyAI timing
+                        const formatTimestamp = (seconds) => {
+                          const mins = Math.floor(seconds / 60);
+                          const secs = (seconds % 60).toFixed(3);
+                          return `${mins}:${secs.padStart(6, '0')}`;
+                        };
+                        const tooltipText = `"${word.word}"\nStart: ${formatTimestamp(word.start)}\nEnd: ${formatTimestamp(word.end)}\nDuration: ${(word.end - word.start).toFixed(3)}s${word.confidence ? `\nConfidence: ${(word.confidence * 100).toFixed(0)}%` : ''}`;
+                        
                         return (
                           <motion.div
                             key={index}
@@ -1549,6 +1554,7 @@ export default function PreviewEditPage() {
                             onMouseDown={(e) => handleTimelineWordMouseDown(index, e)}
                             onMouseEnter={() => handleTimelineWordMouseEnter(index)}
                             onClick={(e) => { e.stopPropagation(); handleWordClick(index); }}
+                            title={tooltipText}
                           >
                             <div 
                               className={`h-full rounded-lg border-2 flex items-center justify-center px-2 overflow-hidden transition-colors ${
@@ -1582,7 +1588,10 @@ export default function PreviewEditPage() {
                         </button>
                       </div>
                       <div className="flex-1 flex items-center gap-2">
-                        <span className="text-xs text-gray-500 w-12">{formatTime(currentTime)}</span>
+                        {/* Detailed time with milliseconds */}
+                        <span className="text-xs font-mono text-cyan-400 w-20" title="Current playback time (from audio element)">
+                          {Math.floor(currentTime / 60)}:{(currentTime % 60).toFixed(2).padStart(5, '0')}
+                        </span>
                         <div onClick={handleProgressClick} className="flex-1 h-2 bg-white/10 rounded-full cursor-pointer overflow-hidden">
                           <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all" style={{ width: `${(currentTime / duration) * 100}%` }} />
                         </div>
