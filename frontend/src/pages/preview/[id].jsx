@@ -2185,7 +2185,6 @@ export default function PreviewEditPage() {
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                 Render
               </button>
-              </button>
             </div>
           </motion.div>
 
