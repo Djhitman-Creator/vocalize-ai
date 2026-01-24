@@ -65,3 +65,4 @@ export default function LanguageSwitcher({ compact = false }) {
     </select>
   );
 }
+

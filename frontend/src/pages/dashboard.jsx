@@ -211,7 +211,7 @@ export default function DashboardPage() {
         return;
       }
       
-      console.log('Ã°Å¸â€œâ€¹ Pending plan detected:', planToActivate);
+      console.log('Pending plan detected:', planToActivate);
       setCheckingPendingPlan(true);
       
       // Small delay to ensure auth session is fully established after email confirmation
@@ -227,7 +227,7 @@ export default function DashboardPage() {
           return;
         }
         
-        console.log('Ã°Å¸â€œâ€¹ Session found, fetching plan data for:', planToActivate);
+        console.log('Session found, fetching plan data for:', planToActivate);
         
         // Get the Stripe price ID for this plan
         const { data: planData, error: planError } = await supabase
@@ -251,7 +251,7 @@ export default function DashboardPage() {
           return;
         }
         
-        console.log('Ã°Å¸â€œâ€¹ Creating checkout session with price:', planData.stripe_price_id);
+        console.log('Creating checkout session with price:', planData.stripe_price_id);
         
         // Clear the pending plan from localStorage BEFORE redirect
         // This prevents redirect loops if user cancels checkout
@@ -277,7 +277,7 @@ export default function DashboardPage() {
         }
         
         // Redirect to Stripe checkout
-        console.log('Ã°Å¸Å¡â‚¬ Redirecting to Stripe checkout for', planToActivate);
+        console.log('STRIPE] Redirecting to Stripe checkout for', planToActivate);
         window.location.href = data.url;
         
       } catch (err) {
@@ -317,7 +317,7 @@ export default function DashboardPage() {
         year: 'numeric'
       });
       addNotification(
-        `Ã°Å¸â€œâ€¦ Downgrade scheduled! You'll switch to ${profile.scheduled_tier} on ${effectiveDate}. You keep all current benefits until then.`,
+        `Downgrade scheduled! You'll switch to ${profile.scheduled_tier} on ${effectiveDate}. You keep all current benefits until then.`,
         'info'
       );
       router.replace('/dashboard', undefined, { shallow: true });
@@ -345,14 +345,14 @@ export default function DashboardPage() {
 
     if (!hasActiveProjects) return;
 
-    console.log('Ã°Å¸â€â€ž Starting polling - active projects detected');
+    console.log('Starting polling - active projects detected');
 
     const pollInterval = setInterval(() => {
       fetchProjects(user.id, true);
     }, POLL_INTERVAL);
 
     return () => {
-      console.log('Ã¢ÂÂ¹Ã¯Â¸Â Stopping polling');
+      console.log('Stopping polling');
       clearInterval(pollInterval);
     };
   }, [user, projects, fetchProjects]);
@@ -724,7 +724,7 @@ export default function DashboardPage() {
                       <div>
                         <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{project.title}</h3>
                         <p className="text-gray-400 text-sm">
-                          {new Date(project.created_at).toLocaleDateString()} â€¢ {project.artist_name || 'Unknown Artist'}
+                          {new Date(project.created_at).toLocaleDateString()} • {project.artist_name || 'Unknown Artist'}
                         </p>
                       </div>
                     </div>

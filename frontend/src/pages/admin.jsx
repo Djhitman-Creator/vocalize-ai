@@ -424,7 +424,7 @@ export default function AdminPage() {
           >
             <CheckCircle className="w-5 h-5 text-green-400" />
             <span className="text-green-400">{successMessage}</span>
-            <button onClick={() => setSuccessMessage('')} className="ml-auto text-green-400 hover:text-green-300">Ã—</button>
+            <button onClick={() => setSuccessMessage('')} className="ml-auto text-green-400 hover:text-green-300">×”</button>
           </motion.div>
         )}
         {errorMessage && (
@@ -435,7 +435,7 @@ export default function AdminPage() {
           >
             <AlertCircle className="w-5 h-5 text-red-400" />
             <span className="text-red-400">{errorMessage}</span>
-            <button onClick={() => setErrorMessage('')} className="ml-auto text-red-400 hover:text-red-300">Ã—</button>
+            <button onClick={() => setErrorMessage('')} className="ml-auto text-red-400 hover:text-red-300">×”</button>
           </motion.div>
         )}
 
@@ -651,7 +651,7 @@ export default function AdminPage() {
                 <h3 className="text-cyan-400 font-medium mb-2">Mailchimp Integration</h3>
                 <ol className="text-sm text-gray-400 space-y-1 list-decimal list-inside">
                   <li>Export using "Mailchimp CSV" button</li>
-                  <li>Go to Mailchimp â†’ Audience â†’ Import contacts</li>
+                  <li>Go to Mailchimp → Audience → Import contacts</li>
                   <li>Upload the CSV file</li>
                   <li>Map fields: Email Address, TIER, CREDITS, JOINED</li>
                   <li>Use TIER field to segment by subscription level</li>

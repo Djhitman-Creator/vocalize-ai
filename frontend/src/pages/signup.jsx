@@ -181,7 +181,7 @@ export default function SignupPage() {
                 <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
                   <CheckCircle className="w-8 h-8 text-green-400" />
                 </div>
-                <h1 className="text-2xl font-bold text-white mb-2">Email Confirmed! ✓</h1>
+                <h1 className="text-2xl font-bold text-white mb-2">Email Confirmed! âœ“</h1>
                 <p className="text-gray-400 mb-6">
                   Your account has been verified. You can safely close this tab.
                 </p>
@@ -195,7 +195,7 @@ export default function SignupPage() {
                 </div>
                 
                 <Link href="/dashboard" className="glass-button glass-button-primary px-6 py-3 inline-block">
-                  Or continue here →
+                  Or continue here â†’
                 </Link>
               </div>
             </motion.div>
@@ -383,7 +383,7 @@ export default function SignupPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-12 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors"
-                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                    placeholder="••••••••"
                     required
                   />
                   <button
@@ -406,7 +406,7 @@ export default function SignupPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="w-full bg-white/5 border border-white/10 rounded-xl py-3 pl-12 pr-4 text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 transition-colors"
-                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                    placeholder="••••••••"
                     required
                   />
                 </div>

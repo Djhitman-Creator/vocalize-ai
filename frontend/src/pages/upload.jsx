@@ -63,7 +63,7 @@ const supabase = createClient(
 
 // Available fonts
 const FONT_OPTIONS = [
-  { value: 'custom', label: 'âœ¨ Custom Font', family: 'CustomFont, sans-serif', isCustom: true },
+  { value: 'custom', label: '✓ Custom Font', family: 'CustomFont, sans-serif', isCustom: true },
   { value: 'arial', label: 'Arial', family: 'Arial, sans-serif' },
   { value: 'roboto', label: 'Roboto', family: '"Roboto", sans-serif' },
   { value: 'poppins', label: 'Poppins', family: '"Poppins", sans-serif' },
@@ -926,8 +926,8 @@ export default function UploadPage() {
                 <option value="to top">Bottom to Top</option>
                 <option value="to right">Left to Right</option>
                 <option value="to left">Right to Left</option>
-                <option value="to bottom right">Diagonal â†˜</option>
-                <option value="to bottom left">Diagonal â†™</option>
+                <option value="to bottom right">Diagonal ↘</option>
+                <option value="to bottom left">Diagonal ↙</option>
               </select>
             </div>
           )}
@@ -1085,7 +1085,7 @@ export default function UploadPage() {
           </div>
 
           <p className="text-xs text-gray-500">
-            ðŸ’¡ Videos will automatically loop or trim to match your track length.
+            💡 Videos will automatically loop or trim to match your track length.
           </p>
         </div>
       )}
@@ -1223,7 +1223,7 @@ export default function UploadPage() {
             >
               {FONT_OPTIONS.map(font => (
                 <option key={font.value} value={font.value}>
-                  {font.isCustom && customFontName ? `âœ¨ ${customFontName}` : font.label}
+                  {font.isCustom && customFontName ? `✓ ${customFontName}` : font.label}
                 </option>
               ))}
             </select>
@@ -1375,7 +1375,7 @@ export default function UploadPage() {
         {/* Duet mode message about standard colors */}
         {isDuetMode && (
           <div className={`col-span-2 text-xs text-gray-500 p-2 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
-            ðŸ’¡ In Duet Mode, standard text/outline/sung colors are replaced by singer-specific colors.
+            💡 In Duet Mode, standard text/outline/sung colors are replaced by singer-specific colors.
             Configure them above or fine-tune on the Edit Lyrics page after processing.
           </div>
         )}
