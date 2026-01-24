@@ -1996,15 +1996,19 @@ export default function PreviewEditPage() {
                   {/* Zoom Controls */}
                   <div className={`px-4 py-2 border-t ${isDark ? 'border-white/10' : 'border-gray-200'} flex items-center justify-between`}>
                     <div className="flex items-center gap-2">
-                      <button onClick={zoomOut} className={`p-1.5 rounded ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}><ZoomOut className="w-4 h-4" /></button>
-                      <span className="text-xs text-gray-500 w-16 text-center">{zoom.toFixed(0)}px/s</span>
-                      <button onClick={zoomIn} className={`p-1.5 rounded ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}><ZoomIn className="w-4 h-4" /></button>
+                      <button onClick={zoomOut} className={`p-2 rounded-lg ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'} transition-colors`}>
+                        <ZoomOut className="w-4 h-4" />
+                      </button>
+                      <span className={`text-sm font-medium w-20 text-center ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{zoom.toFixed(0)}px/s</span>
+                      <button onClick={zoomIn} className={`p-2 rounded-lg ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'} transition-colors`}>
+                        <ZoomIn className="w-4 h-4" />
+                      </button>
                     </div>
                     <div className="flex items-center gap-2">
                       {selectedWordIndices.size > 1 && (
                         <span className="text-xs text-cyan-400 font-medium">{selectedWordIndices.size} words selected</span>
                       )}
-                      <span className="text-xs text-gray-500">Shift+Click range • Ctrl+Click toggle • Ctrl+A all</span>
+                      <span className="text-xs text-gray-500 hidden sm:inline">Shift+Click range • Ctrl+Click toggle • Ctrl+A all</span>
                     </div>
                   </div>
 
@@ -2177,9 +2181,10 @@ export default function PreviewEditPage() {
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Save
                 </button>
               </div>
-              <button onClick={handleApproveAndRender} disabled={saving} className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90 transition-opacity">
+              <button onClick={handleApproveAndRender} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90 transition-opacity">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                Approve & Render Video
+                Render
+              </button>
               </button>
             </div>
           </motion.div>
