@@ -1585,28 +1585,41 @@ export default function PreviewEditPage() {
                         {lyricsLines.map((line, lineIndex) => {
                           const lineTooLong = isLineTooLong(line);
                           const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0);
+                          
+                          // Check if any word in THIS line is selected
+                          const lineHasSelectedWord = line.some(w => selectedWordIndices.has(w.globalIndex));
+                          
+                          // Find position of selected word within this line (for smart button visibility)
+                          const selectedWordPositionInLine = line.findIndex(w => selectedWordIndices.has(w.globalIndex));
+                          const isFirstWordSelected = selectedWordPositionInLine === 0;
+                          const isLastWordSelected = selectedWordPositionInLine === line.length - 1;
+                          const hasMultipleWordsInLine = line.length > 1;
 
                           return (
-                            <div key={lineIndex} className="group">
+                            <div key={lineIndex}>
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-xs text-gray-500 w-6">{lineIndex + 1}</span>
-                                {lineIndex > 0 && (
-                                  <button onClick={() => mergeLineUp(lineIndex)} className="opacity-0 group-hover:opacity-100 px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 transition-all flex items-center gap-1" title="Merge with line above">
+                                {/* Merge Up - show if line has selection AND not first line */}
+                                {lineHasSelectedWord && lineIndex > 0 && (
+                                  <button onClick={() => mergeLineUp(lineIndex)} className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 transition-all flex items-center gap-1" title="Merge this entire line with the line above">
                                     <ArrowUp className="w-3 h-3" />Merge Up
                                   </button>
                                 )}
-                                {line.length > 1 && lineIndex < lyricsLines.length - 1 && (
-                                  <button onClick={() => mergeLineDown(lineIndex)} className="opacity-0 group-hover:opacity-100 px-2 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition-all flex items-center gap-1" title="Move selected word to next line">
+                                {/* Merge Down - show if line has selection AND multiple words AND not last line */}
+                                {lineHasSelectedWord && hasMultipleWordsInLine && lineIndex < lyricsLines.length - 1 && (
+                                  <button onClick={() => mergeLineDown(lineIndex)} className="px-2 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition-all flex items-center gap-1" title="Merge this entire line with the line below">
                                     <ArrowDown className="w-3 h-3" />Merge Down
                                   </button>
                                 )}
-                                {line.length > 1 && (
-                                  <button onClick={() => mergeDownToNewLine(lineIndex)} className="opacity-0 group-hover:opacity-100 px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-all flex items-center gap-1" title="Split line: selected word and words AFTER go to NEW line below">
+                                {/* Split Down - show if selected word is NOT the last word (words after it will move down) */}
+                                {lineHasSelectedWord && hasMultipleWordsInLine && !isLastWordSelected && (
+                                  <button onClick={() => mergeDownToNewLine(lineIndex)} className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-all flex items-center gap-1" title="Split: selected word and all words AFTER it move to a new line below">
                                     <ArrowDown className="w-3 h-3" />Split Down
                                   </button>
                                 )}
-                                {line.length > 1 && (
-                                  <button onClick={() => mergeUpToNewLine(lineIndex)} className="opacity-0 group-hover:opacity-100 px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all flex items-center gap-1" title="Split line: selected word and words BEFORE become NEW line above">
+                                {/* Split Up - show if selected word is NOT the first word (words before it will move up) */}
+                                {lineHasSelectedWord && hasMultipleWordsInLine && !isFirstWordSelected && (
+                                  <button onClick={() => mergeUpToNewLine(lineIndex)} className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all flex items-center gap-1" title="Split: selected word and all words BEFORE it become a new line above">
                                     <ArrowUp className="w-3 h-3" />Split Up
                                   </button>
                                 )}
