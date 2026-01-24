@@ -734,28 +734,6 @@ export default function PreviewEditPage() {
   const restart = useCallback(() => seekTo(0), [seekTo]);
 
   // ============================================================
-  // WORD EDITING FUNCTIONS (must be defined before handleWordClick)
-  // ============================================================
-  const saveWordEdit = useCallback(() => {
-    if (editingWordIndex === null) return;
-    if (editingText.trim()) {
-      setWords(prev => {
-        const updated = [...prev];
-        updated[editingWordIndex] = { ...updated[editingWordIndex], word: editingText.trim() };
-        return updated;
-      });
-      setHasChanges(true);
-    }
-    setEditingWordIndex(null);
-    setEditingText('');
-  }, [editingWordIndex, editingText]);
-
-  const cancelWordEdit = useCallback(() => {
-    setEditingWordIndex(null);
-    setEditingText('');
-  }, []);
-
-  // ============================================================
   // WORD CLICK & INLINE EDITING
   // ============================================================
   const handleWordClick = useCallback((index, e) => {
@@ -800,6 +778,26 @@ export default function PreviewEditPage() {
       editInputRef.current.select();
     }
   }, [editingWordIndex]);
+
+  const saveWordEdit = useCallback(() => {
+    if (editingWordIndex === null) return;
+    if (editingText.trim()) {
+      setWords(prev => {
+        const updated = [...prev];
+        updated[editingWordIndex] = { ...updated[editingWordIndex], word: editingText.trim() };
+        return updated;
+      });
+      setHasChanges(true);
+    }
+    setEditingWordIndex(null);
+    setEditingText('');
+  }, [editingWordIndex, editingText]);
+
+  const cancelWordEdit = useCallback(() => {
+    setEditingWordIndex(null);
+    setEditingText('');
+  }, []);
+
   const nudgeSelectedWords = useCallback((delta) => {
     if (selectedWordIndices.size === 0) return;
     setWords(prev => {
@@ -1566,7 +1564,7 @@ export default function PreviewEditPage() {
                           <button onClick={() => setShowAddWordModal(true)} className="px-2 py-1 text-xs bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 flex items-center gap-1">
                             <Plus className="w-3 h-3" />Add Word
                           </button>
-                          <button onClick={deleteSelectedWord} className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 flex items-center gap-1">
+                          <button onClick={deleteSelectedWords} className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 flex items-center gap-1">
                             <Trash2 className="w-3 h-3" />Delete Word
                           </button>
                         </div>
