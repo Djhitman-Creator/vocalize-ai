@@ -397,18 +397,9 @@ export default function DashboardPage() {
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
         
         if (isIOS || isSafari) {
-          // For iOS/Safari: Show instructions and open in new tab
-          // Safari doesn't support programmatic downloads well
-          const userChoice = confirm(
-            'To save this video on iOS:\n\n' +
-            '1. Tap OK to open the video\n' +
-            '2. Long-press the video\n' +
-            '3. Tap "Save to Files" or "Download"\n\n' +
-            'Tap OK to continue.'
-          );
-          if (userChoice) {
-            window.open(downloadUrl, '_blank');
-          }
+          // For iOS/Safari: Navigate directly to the video URL
+          // This opens the video in the browser where user can long-press to save
+          window.location.href = downloadUrl;
         } else {
           // For desktop/Android: Use anchor tag download
           const link = document.createElement('a');
