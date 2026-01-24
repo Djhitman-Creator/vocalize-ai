@@ -490,7 +490,7 @@ export default function PreviewEditPage() {
 
   // Merge line down - Move the SELECTED word (and all after it on this line) to the NEXT line
   // If no word selected, moves the last word
-  // Example: Select "my" in "making my rounds all" Ã¢â€ â€™ "making" + "my rounds all over town"
+  // Example: Select "my" in "making my rounds all" ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ "making" + "my rounds all over town"
   const mergeLineDown = useCallback((lineIndex) => {
     const currentLine = lyricsLines[lineIndex];
     if (!currentLine || currentLine.length <= 1) return; // Need at least 2 words to split
@@ -1549,7 +1549,7 @@ export default function PreviewEditPage() {
                 <SplitSquareHorizontal className="w-4 h-4 text-cyan-400" />
                 <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Line & Word Editor (Rhyme Sync)</span>
               </div>
-              <span className="text-xs text-gray-500">{lyricsLines.length} lines Ã¢â‚¬Â¢ {words.length} words</span>
+              <span className="text-xs text-gray-500">{lyricsLines.length} lines ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ {words.length} words</span>
             </div>
 
             <AnimatePresence>
@@ -1759,7 +1759,7 @@ export default function PreviewEditPage() {
                       {selectedWordIndices.size > 1 && (
                         <span className="text-xs text-cyan-400 font-medium">{selectedWordIndices.size} words selected</span>
                       )}
-                      <span className="text-xs text-gray-500">Shift+Click range • Ctrl+Click toggle • Ctrl+A all</span>
+                      <span className="text-xs text-gray-500">Shift+Click range â€¢ Ctrl+Click toggle â€¢ Ctrl+A all</span>
                     </div>
                   </div>
 
