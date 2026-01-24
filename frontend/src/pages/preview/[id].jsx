@@ -734,6 +734,28 @@ export default function PreviewEditPage() {
   const restart = useCallback(() => seekTo(0), [seekTo]);
 
   // ============================================================
+  // WORD EDITING - SAVE/CANCEL (must be defined before handleWordClick)
+  // ============================================================
+  const saveWordEdit = useCallback(() => {
+    if (editingWordIndex === null) return;
+    if (editingText.trim()) {
+      setWords(prev => {
+        const updated = [...prev];
+        updated[editingWordIndex] = { ...updated[editingWordIndex], word: editingText.trim() };
+        return updated;
+      });
+      setHasChanges(true);
+    }
+    setEditingWordIndex(null);
+    setEditingText('');
+  }, [editingWordIndex, editingText]);
+
+  const cancelWordEdit = useCallback(() => {
+    setEditingWordIndex(null);
+    setEditingText('');
+  }, []);
+
+  // ============================================================
   // WORD CLICK & INLINE EDITING
   // ============================================================
   const handleWordClick = useCallback((index, e) => {
@@ -778,25 +800,6 @@ export default function PreviewEditPage() {
       editInputRef.current.select();
     }
   }, [editingWordIndex]);
-
-  const saveWordEdit = useCallback(() => {
-    if (editingWordIndex === null) return;
-    if (editingText.trim()) {
-      setWords(prev => {
-        const updated = [...prev];
-        updated[editingWordIndex] = { ...updated[editingWordIndex], word: editingText.trim() };
-        return updated;
-      });
-      setHasChanges(true);
-    }
-    setEditingWordIndex(null);
-    setEditingText('');
-  }, [editingWordIndex, editingText]);
-
-  const cancelWordEdit = useCallback(() => {
-    setEditingWordIndex(null);
-    setEditingText('');
-  }, []);
 
   const nudgeSelectedWords = useCallback((delta) => {
     if (selectedWordIndices.size === 0) return;
