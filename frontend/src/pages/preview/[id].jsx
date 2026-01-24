@@ -1,11 +1,19 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V10.9)
+ * Preview/Edit Page - Karatrack Studio (V10.10)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V10.9 MULTI-SELECT:
+ * V10.10 WORD DURATION CONTEXT MENU:
+ * - Right-click on any word in timeline to access duration controls
+ * - Extend word end time (makes highlighting last longer for drawn-out vocals)
+ * - Shorten word end time (for quick syllables)
+ * - Extend word start time (delay when highlighting begins)
+ * - Shorten word start time (start highlighting earlier)
+ * - Custom duration input for precise timing
+ * 
+ * V10.9 MULTI-SELECT (preserved):
  * - Shift+Click to select range of words
  * - Ctrl/Cmd+Click to toggle individual words
  * - Ctrl/Cmd+A to select all words
@@ -28,7 +36,8 @@ import {
   CheckCircle, Plus, Trash2, Paintbrush,
   ArrowDown, ArrowUp, Type, SplitSquareHorizontal,
   AlertTriangle, ChevronDown, ChevronRight, GripHorizontal,
-  Volume2, VolumeX, Mic, Music, FileVideo  // Added FileVideo for preview header
+  Volume2, VolumeX, Mic, Music, FileVideo,
+  Clock, Timer, Minus, MoreHorizontal  // Added for context menu duration controls
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
@@ -197,6 +206,203 @@ const LineLengthWarning = ({ lineIndex, wordCount, charCount }) => (
 );
 
 // ============================================================
+// WORD DURATION CONTEXT MENU COMPONENT - NEW in V10.10
+// ============================================================
+const WordDurationContextMenu = ({ 
+  isOpen, 
+  position, 
+  word, 
+  wordIndex, 
+  onClose, 
+  onExtendEnd, 
+  onShortenEnd, 
+  onExtendStart, 
+  onShortenStart,
+  onSetCustomDuration,
+  isDark 
+}) => {
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [customDuration, setCustomDuration] = useState('');
+  const menuRef = useRef(null);
+
+  // Close on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onClose]);
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+    }
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !word) return null;
+
+  const currentDuration = (word.end - word.start).toFixed(3);
+
+  const handleCustomSubmit = (e) => {
+    e.preventDefault();
+    const newDuration = parseFloat(customDuration);
+    if (!isNaN(newDuration) && newDuration > 0) {
+      onSetCustomDuration(wordIndex, newDuration);
+      setShowCustomInput(false);
+      setCustomDuration('');
+      onClose();
+    }
+  };
+
+  const MenuItem = ({ icon: Icon, label, onClick, danger = false, disabled = false }) => (
+    <button
+      onClick={() => { onClick(); onClose(); }}
+      disabled={disabled}
+      className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-lg
+        ${disabled 
+          ? 'opacity-50 cursor-not-allowed' 
+          : danger 
+            ? 'hover:bg-red-500/20 text-red-400' 
+            : isDark 
+              ? 'hover:bg-white/10 text-white' 
+              : 'hover:bg-gray-100 text-gray-700'
+        }`}
+    >
+      <Icon className="w-4 h-4" />
+      <span>{label}</span>
+    </button>
+  );
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        ref={menuRef}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        transition={{ duration: 0.1 }}
+        className={`fixed z-50 min-w-[220px] rounded-xl shadow-xl border overflow-hidden
+          ${isDark 
+            ? 'bg-gray-900/95 border-white/10 backdrop-blur-xl' 
+            : 'bg-white/95 border-gray-200 backdrop-blur-xl'
+          }`}
+        style={{ 
+          left: position.x, 
+          top: position.y,
+          maxHeight: '80vh'
+        }}
+      >
+        {/* Header with word info */}
+        <div className={`px-3 py-2 border-b ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-100 bg-gray-50'}`}>
+          <div className="flex items-center justify-between">
+            <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>"{word.word}"</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${isDark ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-100 text-cyan-700'}`}>
+              {currentDuration}s
+            </span>
+          </div>
+          <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            {word.start.toFixed(2)}s → {word.end.toFixed(2)}s
+          </div>
+        </div>
+
+        {/* Menu items */}
+        <div className="p-1">
+          {/* Extend End Section */}
+          <div className={`px-2 py-1 text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+            Extend End (for drawn-out vocals)
+          </div>
+          <MenuItem icon={Plus} label="Extend +0.1s" onClick={() => onExtendEnd(wordIndex, 0.1)} />
+          <MenuItem icon={Plus} label="Extend +0.25s" onClick={() => onExtendEnd(wordIndex, 0.25)} />
+          <MenuItem icon={Plus} label="Extend +0.5s" onClick={() => onExtendEnd(wordIndex, 0.5)} />
+          <MenuItem icon={Plus} label="Extend +1.0s" onClick={() => onExtendEnd(wordIndex, 1.0)} />
+          
+          <div className={`my-1 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`} />
+
+          {/* Shorten End Section */}
+          <div className={`px-2 py-1 text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+            Shorten End (for quick syllables)
+          </div>
+          <MenuItem 
+            icon={Minus} 
+            label="Shorten -0.1s" 
+            onClick={() => onShortenEnd(wordIndex, 0.1)} 
+            disabled={word.end - word.start <= 0.15}
+          />
+          <MenuItem 
+            icon={Minus} 
+            label="Shorten -0.25s" 
+            onClick={() => onShortenEnd(wordIndex, 0.25)} 
+            disabled={word.end - word.start <= 0.3}
+          />
+          
+          <div className={`my-1 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`} />
+
+          {/* Adjust Start Section */}
+          <div className={`px-2 py-1 text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+            Adjust Start Time
+          </div>
+          <MenuItem 
+            icon={Clock} 
+            label="Start earlier -0.1s" 
+            onClick={() => onShortenStart(wordIndex, 0.1)} 
+            disabled={word.start <= 0.1}
+          />
+          <MenuItem icon={Clock} label="Start later +0.1s" onClick={() => onExtendStart(wordIndex, 0.1)} />
+          
+          <div className={`my-1 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`} />
+
+          {/* Custom Duration */}
+          {!showCustomInput ? (
+            <MenuItem 
+              icon={Timer} 
+              label="Set custom duration..." 
+              onClick={(e) => { e?.stopPropagation?.(); setShowCustomInput(true); setCustomDuration(currentDuration); }}
+            />
+          ) : (
+            <form onSubmit={handleCustomSubmit} className="px-3 py-2">
+              <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                New duration (seconds):
+              </label>
+              <div className="flex gap-2 mt-1">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.05"
+                  value={customDuration}
+                  onChange={(e) => setCustomDuration(e.target.value)}
+                  className={`flex-1 px-2 py-1 text-sm rounded border ${isDark 
+                    ? 'bg-white/5 border-white/10 text-white' 
+                    : 'bg-gray-50 border-gray-200 text-gray-900'
+                  }`}
+                  autoFocus
+                  onKeyDown={(e) => e.stopPropagation()}
+                />
+                <button
+                  type="submit"
+                  className="px-2 py-1 bg-cyan-500 text-white text-sm rounded hover:bg-cyan-600"
+                >
+                  Set
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+// ============================================================
 // MAIN COMPONENT
 // ============================================================
 export default function PreviewEditPage() {
@@ -269,6 +475,14 @@ export default function PreviewEditPage() {
   const [paintMode, setPaintMode] = useState(null);
   const [isPainting, setIsPainting] = useState(false);
   const [paintedIndices, setPaintedIndices] = useState(new Set());
+  
+  // V10.10: Context menu state for word duration adjustment
+  const [contextMenu, setContextMenu] = useState({
+    isOpen: false,
+    position: { x: 0, y: 0 },
+    wordIndex: null
+  });
+  
   // For backwards compatibility - compute single selected index (must be after all useState)
   const selectedWordIndex = selectedWordIndices.size === 1 ? [...selectedWordIndices][0] : null;
 
@@ -873,7 +1087,8 @@ export default function PreviewEditPage() {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.code === 'Space' && editingWordIndex === null) { e.preventDefault(); togglePlayback(); }
       if (e.code === 'Escape') {
-        if (paintMode !== null) setPaintMode(null);
+        if (contextMenu.isOpen) { setContextMenu(prev => ({ ...prev, isOpen: false })); }
+        else if (paintMode !== null) setPaintMode(null);
         else if (showAddWordModal) { setShowAddWordModal(false); setNewWordText(''); }
         else if (editingWordIndex !== null) { setEditingWordIndex(null); setEditingText(''); }
         else setSelectedWordIndices(new Set());
@@ -894,7 +1109,7 @@ export default function PreviewEditPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedWordIndices, selectedWordIndex, editingWordIndex, showAddWordModal, paintMode, words, deleteSelectedWords, nudgeSelectedWords, togglePlayback]);
+  }, [selectedWordIndices, selectedWordIndex, editingWordIndex, showAddWordModal, paintMode, words, deleteSelectedWords, nudgeSelectedWords, togglePlayback, contextMenu.isOpen]);
   // ============================================================
   // DUET MODE FUNCTIONS
   // ============================================================
@@ -959,6 +1174,107 @@ export default function PreviewEditPage() {
       paintWord(index);
     }
   }, [isPainting, paintMode, paintedIndices, paintWord]);
+
+  // ============================================================
+  // V10.10: CONTEXT MENU FOR WORD DURATION ADJUSTMENT
+  // ============================================================
+  const handleWordContextMenu = useCallback((index, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Close any editing modes
+    if (editingWordIndex !== null) {
+      setEditingWordIndex(null);
+      setEditingText('');
+    }
+    
+    // Select the word
+    setSelectedWordIndices(new Set([index]));
+    
+    // Calculate position - ensure menu stays on screen
+    const menuWidth = 240;
+    const menuHeight = 400;
+    const padding = 10;
+    
+    let x = e.clientX;
+    let y = e.clientY;
+    
+    // Adjust if menu would go off-screen
+    if (x + menuWidth > window.innerWidth - padding) {
+      x = window.innerWidth - menuWidth - padding;
+    }
+    if (y + menuHeight > window.innerHeight - padding) {
+      y = window.innerHeight - menuHeight - padding;
+    }
+    
+    setContextMenu({
+      isOpen: true,
+      position: { x, y },
+      wordIndex: index
+    });
+  }, [editingWordIndex]);
+
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
+  // Extend word end time (makes the word last longer)
+  const extendWordEnd = useCallback((index, amount) => {
+    setWords(prev => {
+      const updated = [...prev];
+      const word = updated[index];
+      updated[index] = { ...word, end: word.end + amount };
+      return updated;
+    });
+    setHasChanges(true);
+  }, []);
+
+  // Shorten word end time (makes the word shorter)
+  const shortenWordEnd = useCallback((index, amount) => {
+    setWords(prev => {
+      const updated = [...prev];
+      const word = updated[index];
+      const newEnd = Math.max(word.start + 0.05, word.end - amount); // Minimum 0.05s duration
+      updated[index] = { ...word, end: newEnd };
+      return updated;
+    });
+    setHasChanges(true);
+  }, []);
+
+  // Extend word start time (delay when word starts)
+  const extendWordStart = useCallback((index, amount) => {
+    setWords(prev => {
+      const updated = [...prev];
+      const word = updated[index];
+      const newStart = Math.min(word.end - 0.05, word.start + amount); // Keep minimum duration
+      updated[index] = { ...word, start: newStart };
+      return updated;
+    });
+    setHasChanges(true);
+  }, []);
+
+  // Shorten word start time (start word earlier)
+  const shortenWordStart = useCallback((index, amount) => {
+    setWords(prev => {
+      const updated = [...prev];
+      const word = updated[index];
+      const newStart = Math.max(0, word.start - amount);
+      updated[index] = { ...word, start: newStart };
+      return updated;
+    });
+    setHasChanges(true);
+  }, []);
+
+  // Set custom word duration (keeps start time, adjusts end)
+  const setWordCustomDuration = useCallback((index, newDuration) => {
+    setWords(prev => {
+      const updated = [...prev];
+      const word = updated[index];
+      updated[index] = { ...word, end: word.start + newDuration };
+      return updated;
+    });
+    setHasChanges(true);
+  }, []);
 
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -2008,7 +2324,7 @@ export default function PreviewEditPage() {
                       {selectedWordIndices.size > 1 && (
                         <span className="text-xs text-cyan-400 font-medium">{selectedWordIndices.size} words selected</span>
                       )}
-                      <span className="text-xs text-gray-500 hidden sm:inline">Shift+Click range • Ctrl+Click toggle • Ctrl+A all</span>
+                      <span className="text-xs text-gray-500 hidden sm:inline">Right-click word for duration • Shift+Click range • Ctrl+Click toggle</span>
                     </div>
                   </div>
 
@@ -2081,7 +2397,8 @@ export default function PreviewEditPage() {
                             onMouseDown={(e) => handleTimelineWordMouseDown(index, e)}
                             onMouseEnter={() => handleTimelineWordMouseEnter(index)}
                             onClick={(e) => { e.stopPropagation(); handleWordClick(index, e); }}
-                            title={tooltipText}
+                            onContextMenu={(e) => handleWordContextMenu(index, e)}
+                            title={tooltipText + '\n\nRight-click for duration options'}
                           >
                             <div
                               className={`h-full rounded-lg border-2 flex items-center justify-center px-2 overflow-hidden transition-colors ${isSelected
@@ -2190,6 +2507,21 @@ export default function PreviewEditPage() {
 
         </main>
       </div>
+
+      {/* V10.10: Word Duration Context Menu */}
+      <WordDurationContextMenu
+        isOpen={contextMenu.isOpen}
+        position={contextMenu.position}
+        word={contextMenu.wordIndex !== null ? words[contextMenu.wordIndex] : null}
+        wordIndex={contextMenu.wordIndex}
+        onClose={closeContextMenu}
+        onExtendEnd={extendWordEnd}
+        onShortenEnd={shortenWordEnd}
+        onExtendStart={extendWordStart}
+        onShortenStart={shortenWordStart}
+        onSetCustomDuration={setWordCustomDuration}
+        isDark={isDark}
+      />
     </>
   );
 }
