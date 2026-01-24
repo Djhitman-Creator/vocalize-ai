@@ -388,10 +388,37 @@ export default function DashboardPage() {
 
       const urls = await response.json();
 
-      if (urls.video) {
-        window.open(urls.video, '_blank');
-      } else if (urls.processed_audio) {
-        window.open(urls.processed_audio, '_blank');
+      if (urls.video || urls.processed_audio) {
+        const downloadUrl = urls.video || urls.processed_audio;
+        const filename = `${project.song_title || project.title} - ${project.artist_name || 'Karaoke'}.mp4`;
+        
+        // Check if iOS/Safari
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+        
+        if (isIOS || isSafari) {
+          // For iOS/Safari: Show instructions and open in new tab
+          // Safari doesn't support programmatic downloads well
+          const userChoice = confirm(
+            'To save this video on iOS:\n\n' +
+            '1. Tap OK to open the video\n' +
+            '2. Long-press the video\n' +
+            '3. Tap "Save to Files" or "Download"\n\n' +
+            'Tap OK to continue.'
+          );
+          if (userChoice) {
+            window.open(downloadUrl, '_blank');
+          }
+        } else {
+          // For desktop/Android: Use anchor tag download
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = filename;
+          link.target = '_blank';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
       } else {
         alert('No files available for download');
       }
@@ -724,7 +751,7 @@ export default function DashboardPage() {
                       <div>
                         <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{project.title}</h3>
                         <p className="text-gray-400 text-sm">
-                          {new Date(project.created_at).toLocaleDateString()} • {project.artist_name || 'Unknown Artist'}
+                          {new Date(project.created_at).toLocaleDateString()} â€¢ {project.artist_name || 'Unknown Artist'}
                         </p>
                       </div>
                     </div>
