@@ -63,7 +63,7 @@ const supabase = createClient(
 
 // Available fonts
 const FONT_OPTIONS = [
-  { value: 'custom', label: '✓ Custom Font', family: 'CustomFont, sans-serif', isCustom: true },
+  { value: 'custom', label: 'âœ“ Custom Font', family: 'CustomFont, sans-serif', isCustom: true },
   { value: 'arial', label: 'Arial', family: 'Arial, sans-serif' },
   { value: 'roboto', label: 'Roboto', family: '"Roboto", sans-serif' },
   { value: 'poppins', label: 'Poppins', family: '"Poppins", sans-serif' },
@@ -231,6 +231,7 @@ export default function UploadPage() {
   const [bgVideoPreset, setBgVideoPreset] = useState(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(true);
   const [selectedVideoCategory, setSelectedVideoCategory] = useState('all');
+  const [videoLoadError, setVideoLoadError] = useState(null);
 
   // Text customization
   const [textColor, setTextColor] = useState('#ffffff');
@@ -522,6 +523,7 @@ export default function UploadPage() {
     setBgVideoPreset(preset);
     setBgVideo(null);
     setBgVideoPreview(null);
+    setVideoLoadError(null);
   };
 
   // Toggle video playback in preview
@@ -926,8 +928,8 @@ export default function UploadPage() {
                 <option value="to top">Bottom to Top</option>
                 <option value="to right">Left to Right</option>
                 <option value="to left">Right to Left</option>
-                <option value="to bottom right">Diagonal ↘</option>
-                <option value="to bottom left">Diagonal ↙</option>
+                <option value="to bottom right">Diagonal â†˜</option>
+                <option value="to bottom left">Diagonal â†™</option>
               </select>
             </div>
           )}
@@ -1085,7 +1087,7 @@ export default function UploadPage() {
           </div>
 
           <p className="text-xs text-gray-500">
-            💡 Videos will automatically loop or trim to match your track length.
+            ðŸ’¡ Videos will automatically loop or trim to match your track length.
           </p>
         </div>
       )}
@@ -1223,7 +1225,7 @@ export default function UploadPage() {
             >
               {FONT_OPTIONS.map(font => (
                 <option key={font.value} value={font.value}>
-                  {font.isCustom && customFontName ? `✓ ${customFontName}` : font.label}
+                  {font.isCustom && customFontName ? `âœ“ ${customFontName}` : font.label}
                 </option>
               ))}
             </select>
@@ -1375,7 +1377,7 @@ export default function UploadPage() {
         {/* Duet mode message about standard colors */}
         {isDuetMode && (
           <div className={`col-span-2 text-xs text-gray-500 p-2 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
-            💡 In Duet Mode, standard text/outline/sung colors are replaced by singer-specific colors.
+            ðŸ’¡ In Duet Mode, standard text/outline/sung colors are replaced by singer-specific colors.
             Configure them above or fine-tune on the Edit Lyrics page after processing.
           </div>
         )}
@@ -1672,67 +1674,92 @@ export default function UploadPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 }}
-                  className="glass-panel p-6"
+                  className="glass-panel p-4 sm:p-6"
                 >
                   <h2 className={`text-lg font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     <Eye className="w-5 h-5 text-cyan-400" />
                     Live Preview
                   </h2>
 
-                  {/* Preview Box */}
+                  {/* Preview Box - 16:9 aspect ratio */}
                   <div
-                    className="rounded-xl overflow-hidden aspect-video flex items-center justify-center p-6 relative"
-                    style={getBackgroundStyle()}
+                    className="rounded-xl overflow-hidden relative"
+                    style={{ 
+                      ...getBackgroundStyle(),
+                      aspectRatio: '16 / 9'
+                    }}
                   >
                     {/* Video Background */}
                     {bgType === 'video' && (bgVideoPreview || bgVideoPreset) && (
                       <>
-                        <video
-                          ref={videoPreviewRef}
-                          src={bgVideoPreview || getPresetVideoUrl(bgVideoPreset)}
-                          className="absolute inset-0 w-full h-full object-cover"
-                          muted
-                          loop
-                          autoPlay
-                          playsInline
-                        />
+                        {videoLoadError ? (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
+                            <AlertCircle className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400 mb-2" />
+                            <p className="text-xs text-yellow-400 text-center px-4">
+                              Video preview unavailable
+                            </p>
+                          </div>
+                        ) : (
+                          <video
+                            ref={videoPreviewRef}
+                            src={bgVideoPreview || getPresetVideoUrl(bgVideoPreset)}
+                            className="absolute inset-0 w-full h-full object-cover"
+                            muted
+                            loop
+                            autoPlay
+                            playsInline
+                            onError={(e) => {
+                              console.error('Video load error:', bgVideoPreset?.filename || 'custom', e);
+                              setVideoLoadError(bgVideoPreset?.filename || 'custom');
+                            }}
+                            onLoadedData={() => setVideoLoadError(null)}
+                          />
+                        )}
                         <button
                           type="button"
                           onClick={toggleVideoPlayback}
-                          className="absolute bottom-2 right-2 w-8 h-8 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black/70 transition-colors z-10"
+                          className="absolute bottom-2 right-2 w-7 h-7 sm:w-8 sm:h-8 bg-black/50 text-white rounded-full flex items-center justify-center hover:bg-black/70 transition-colors z-10"
                         >
-                          {isVideoPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                          {isVideoPlaying ? <Pause className="w-3 h-3 sm:w-4 sm:h-4" /> : <Play className="w-3 h-3 sm:w-4 sm:h-4" />}
                         </button>
                       </>
                     )}
 
-                    {/* Lyrics Preview */}
-                    <div className="text-center relative z-10" style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: fontSize === 'xlarge' ? '0.75rem' : fontSize === 'large' ? '0.6rem' : '0.5rem'
-                    }}>
-                      {SAMPLE_LYRICS.split('\n').map((line, i) => {
-                        const fontSizeMap = { 'normal': '1.1rem', 'large': '1.25rem', 'xlarge': '1.45rem' };
-                        const previewFontSize = fontSizeMap[fontSize] || '1.1rem';
+                    {/* Lyrics Preview - Centered, responsive text */}
+                    <div className="absolute inset-0 flex items-center justify-center p-3 sm:p-6">
+                      <div className="text-center w-full" style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: fontSize === 'xlarge' ? '0.5rem' : fontSize === 'large' ? '0.4rem' : '0.3rem'
+                      }}>
+                        {SAMPLE_LYRICS.split('\n').slice(0, 3).map((line, i) => {
+                          // Responsive font sizes
+                          const fontSizeMap = { 
+                            'normal': 'clamp(0.7rem, 2.5vw, 1.1rem)', 
+                            'large': 'clamp(0.8rem, 3vw, 1.25rem)', 
+                            'xlarge': 'clamp(0.9rem, 3.5vw, 1.45rem)' 
+                          };
+                          const previewFontSize = fontSizeMap[fontSize] || fontSizeMap['normal'];
 
-                        return (
-                          <p
-                            key={i}
-                            style={{
-                              fontFamily: getCurrentFontFamily(),
-                              color: i === 0 ? sungColor : textColor,
-                              textShadow: `-1px -1px 0 ${outlineColor}, 1px -1px 0 ${outlineColor}, -1px 1px 0 ${outlineColor}, 1px 1px 0 ${outlineColor}`,
-                              fontSize: previewFontSize,
-                              fontWeight: 'bold',
-                              transition: 'all 0.2s ease',
-                              margin: 0
-                            }}
-                          >
-                            {line}
-                          </p>
-                        );
-                      })}
+                          return (
+                            <p
+                              key={i}
+                              style={{
+                                fontFamily: getCurrentFontFamily(),
+                                color: i === 0 ? sungColor : textColor,
+                                textShadow: `-1px -1px 0 ${outlineColor}, 1px -1px 0 ${outlineColor}, -1px 1px 0 ${outlineColor}, 1px 1px 0 ${outlineColor}`,
+                                fontSize: previewFontSize,
+                                fontWeight: 'bold',
+                                transition: 'all 0.2s ease',
+                                margin: 0,
+                                lineHeight: 1.3
+                              }}
+                            >
+                              {line}
+                            </p>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </motion.div>
