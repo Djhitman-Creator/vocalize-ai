@@ -1131,11 +1131,15 @@ export default function PreviewEditPage() {
   // ============================================================
   // Calculate directly during render (not useMemo) to ensure smooth animations
   // useMemo was causing stale values during rapid currentTime updates
+  const LINES_PER_PAGE = 4; // Match handler.py
+
   const getCurrentLyricsData = () => {
     if (!lyricsLines.length) return {
       prevLine: '',
       currentLine: null,
       next: '',
+      pageLines: [], // For page mode - array of {words, isCurrentLine, isPastLine}
+      currentLineIdx: -1,
       showSweepIn: false,
       sweepInProgress: 0,
       showProgressBar: false,
@@ -1301,9 +1305,46 @@ export default function PreviewEditPage() {
     const nextLine = lyricsLines[currentLineIdx + 1];
     const nextText = nextLine ? nextLine.map(w => w.word).join(' ') : '';
 
+    // Build pageLines for page mode (4 lines per page)
+    const currentPageIdx = Math.floor(currentLineIdx / LINES_PER_PAGE);
+    const pageStartIdx = currentPageIdx * LINES_PER_PAGE;
+    const pageEndIdx = Math.min(pageStartIdx + LINES_PER_PAGE, lyricsLines.length);
+    
+    const pageLines = [];
+    for (let i = pageStartIdx; i < pageEndIdx; i++) {
+      const pageLine = lyricsLines[i];
+      const isCurrentLine = i === currentLineIdx;
+      const isPastLine = i < currentLineIdx;
+      
+      const lineWords = pageLine.map(w => {
+        let sweepPct = 0;
+        const isWordActive = currentTime >= w.start && currentTime <= w.end;
+        const isWordPast = currentTime > w.end;
+        
+        if (isPastLine || isWordPast) {
+          sweepPct = 1;
+        } else if (isCurrentLine && isWordActive) {
+          const dur = w.end - w.start;
+          if (dur > 0) sweepPct = (currentTime - w.start) / dur;
+        }
+        
+        return { word: w.word, index: w.globalIndex, start: w.start, end: w.end, isActive: isWordActive, isPast: isWordPast || isPastLine, sweepPercent: sweepPct };
+      });
+      
+      pageLines.push({
+        words: lineWords,
+        isCurrentLine,
+        isPastLine,
+        lineText: pageLine.map(w => w.word).join(' ')
+      });
+    }
+
     return {
       prevLine: prevText,
-      currentLine: currentLineText, next: nextText,
+      currentLine: currentLineText, 
+      next: nextText,
+      pageLines,
+      currentLineIdx,
       showSweepIn: false, sweepInProgress: 0,
       showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
     };
@@ -1527,157 +1568,200 @@ export default function PreviewEditPage() {
               style={{ minHeight: previewHeight }}
             >
               {/* Actual 16:9 Preview Box */}
-              <div 
-                className="relative overflow-hidden rounded-lg shadow-2xl"
-                style={{ 
-                  width: `${(previewHeight - 32) * (16/9)}px`,
-                  height: `${previewHeight - 32}px`,
-                  maxWidth: '100%',
-                  aspectRatio: '16 / 9',
-                  ...getPreviewBackground()
-                }}
-              >
-                {/* Background Image */}
-                {project.bg_image_url && (
-                  <img 
-                    className="absolute inset-0 w-full h-full object-cover opacity-60" 
-                    src={project.bg_image_url} 
-                    alt="" 
-                  />
-                )}
+              {(() => {
+                // Calculate dynamic font sizes based on preview height
+                // Base reference: 1080p video height = 1080px, typical font size ~48px
+                // Scale proportionally to preview height
+                const boxHeight = previewHeight - 32;
+                const scaleFactor = boxHeight / 270; // 270px as baseline (small preview)
+                const baseFontSize = Math.max(12, Math.min(32, 14 * scaleFactor)); // Clamp between 12-32px
+                const currentLineFontSize = Math.max(14, Math.min(40, 18 * scaleFactor));
+                const lineGap = Math.max(2, Math.min(12, 4 * scaleFactor));
+                const textShadowSize = Math.max(1, Math.min(3, 1.5 * scaleFactor));
+                const wordSpacing = Math.max(2, Math.min(8, 3 * scaleFactor));
                 
-                {/* Background Video */}
-                {videoBackgroundUrl && (
-                  <video 
-                    className="absolute inset-0 w-full h-full object-cover opacity-60" 
-                    src={videoBackgroundUrl} 
-                    autoPlay 
-                    loop 
-                    muted 
-                    playsInline 
-                  />
-                )}
-                
-                {/* Lyrics Overlay */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-2 sm:p-4">
-                  {currentLyrics.showProgressBar ? (
-                    <InstrumentalProgressBar
-                      progress={currentLyrics.progressBarPercent}
-                      nextLyrics={currentLyrics.nextLyricsForProgressBar}
-                      color={project?.sung_color || '#00d4ff'}
-                      textColor={textColor}
-                      outlineColor={outlineColor}
-                    />
-                  ) : project.display_mode === 'overwrite' ? (
-                    /* OVERWRITE MODE - Single line at a time, centered */
-                    <div className="flex flex-col items-center justify-center w-full px-2">
-                      {currentLyrics.currentLine ? (
-                        <div className="text-center w-full">
-                          <p 
-                            className="text-sm sm:text-base md:text-lg lg:text-xl font-bold relative inline-flex flex-wrap justify-center" 
-                            style={{ fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial') }}
-                          >
-                            {currentLyrics.showSweepIn && (
-                              <span style={{ position: 'absolute', right: '100%', top: '50%', transform: 'translateY(-50%)', marginRight: '-0.25em' }}>
-                                <SweepInBar progress={currentLyrics.sweepInProgress} color={getHighlightColor(currentLyrics.currentLine[0]?.index)} />
-                              </span>
-                            )}
-                            {currentLyrics.currentLine.map((wordData, i) => {
-                              const highlightColor = getHighlightColor(wordData.index);
-                              if (currentLyrics.showSweepIn && i === 0) {
-                                return (
-                                  <span key={i} className="mx-0.5" style={{ position: 'relative', display: 'inline-block' }}>
-                                    <span style={{ color: unsungColor, textShadow: `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 1px 2px ${outlineColor}` }}>{wordData.word}</span>
-                                  </span>
-                                );
-                              }
-                              return (
-                                <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} />
-                              );
-                            })}
-                          </p>
+                return (
+                  <div 
+                    className="relative overflow-hidden rounded-lg shadow-2xl"
+                    style={{ 
+                      width: `${boxHeight * (16/9)}px`,
+                      height: `${boxHeight}px`,
+                      maxWidth: '100%',
+                      aspectRatio: '16 / 9',
+                      ...getPreviewBackground()
+                    }}
+                  >
+                    {/* Background Image */}
+                    {project.bg_image_url && (
+                      <img 
+                        className="absolute inset-0 w-full h-full object-cover opacity-60" 
+                        src={project.bg_image_url} 
+                        alt="" 
+                      />
+                    )}
+                    
+                    {/* Background Video */}
+                    {videoBackgroundUrl && (
+                      <video 
+                        className="absolute inset-0 w-full h-full object-cover opacity-60" 
+                        src={videoBackgroundUrl} 
+                        autoPlay 
+                        loop 
+                        muted 
+                        playsInline 
+                      />
+                    )}
+                    
+                    {/* Lyrics Overlay - with dynamic font scaling */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ padding: `${Math.max(8, 16 * scaleFactor)}px` }}>
+                      {currentLyrics.showProgressBar ? (
+                        <InstrumentalProgressBar
+                          progress={currentLyrics.progressBarPercent}
+                          nextLyrics={currentLyrics.nextLyricsForProgressBar}
+                          color={project?.sung_color || '#00d4ff'}
+                          textColor={textColor}
+                          outlineColor={outlineColor}
+                        />
+                      ) : project.display_mode === 'overwrite' ? (
+                        /* OVERWRITE MODE - Single line at a time, centered */
+                        <div className="flex flex-col items-center justify-center w-full">
+                          {currentLyrics.currentLine ? (
+                            <div className="text-center w-full">
+                              <p 
+                                className="font-bold relative inline-flex flex-wrap justify-center" 
+                                style={{ 
+                                  fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
+                                  fontSize: `${currentLineFontSize}px`,
+                                  gap: `${wordSpacing}px`
+                                }}
+                              >
+                                {currentLyrics.currentLine.map((wordData, i) => {
+                                  const highlightColor = getHighlightColor(wordData.index);
+                                  return (
+                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} />
+                                  );
+                                })}
+                              </p>
+                            </div>
+                          ) : null}
                         </div>
-                      ) : null}
-                    </div>
-                  ) : (
-                    /* SCROLL MODE (default) - 3 lines: previous, current, next */
-                    <div className="flex flex-col items-center justify-center gap-1 sm:gap-2 w-full px-2">
-                      {/* Previous Line - fully highlighted (sung) */}
-                      {currentLyrics.prevLine && (
-                        <p 
-                          className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-center opacity-70 w-full"
-                          style={{ 
-                            fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
-                            color: project?.sung_color || '#00d4ff',
-                            textShadow: `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 2px 2px ${outlineColor}`,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          {currentLyrics.prevLine}
-                        </p>
-                      )}
-                      
-                      {/* Current Line - with sweep highlighting */}
-                      {currentLyrics.currentLine ? (
-                        <div className="text-center w-full">
-                          <p 
-                            className="text-sm sm:text-base md:text-lg lg:text-xl font-bold relative inline-flex flex-wrap justify-center" 
-                            style={{ fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial') }}
-                          >
-                            {currentLyrics.showSweepIn && (
-                              <span style={{ position: 'absolute', right: '100%', top: '50%', transform: 'translateY(-50%)', marginRight: '-0.25em' }}>
-                                <SweepInBar progress={currentLyrics.sweepInProgress} color={getHighlightColor(currentLyrics.currentLine[0]?.index)} />
-                              </span>
-                            )}
-                            {currentLyrics.currentLine.map((wordData, i) => {
-                              const highlightColor = getHighlightColor(wordData.index);
-                              if (currentLyrics.showSweepIn && i === 0) {
-                                return (
-                                  <span key={i} className="mx-0.5" style={{ position: 'relative', display: 'inline-block' }}>
-                                    <span style={{ color: unsungColor, textShadow: `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 1px 2px ${outlineColor}` }}>{wordData.word}</span>
-                                  </span>
-                                );
-                              }
-                              return (
-                                <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} />
-                              );
-                            })}
-                          </p>
+                      ) : project.display_mode === 'page' ? (
+                        /* PAGE MODE - Show 4 lines per page, all visible at once */
+                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
+                          {currentLyrics.pageLines && currentLyrics.pageLines.map((lineData, lineIdx) => (
+                            <div key={lineIdx} className="text-center w-full">
+                              <p 
+                                className="font-bold relative inline-flex flex-wrap justify-center"
+                                style={{ 
+                                  fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
+                                  fontSize: `${baseFontSize}px`,
+                                  gap: `${wordSpacing}px`,
+                                  opacity: lineData.isCurrentLine ? 1 : lineData.isPastLine ? 0.8 : 0.6
+                                }}
+                              >
+                                {lineData.words.map((wordData, wordIdx) => {
+                                  const highlightColor = getHighlightColor(wordData.index);
+                                  const shadowStyle = `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, ${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`;
+                                  
+                                  if (lineData.isPastLine) {
+                                    return (
+                                      <span key={wordIdx} style={{ color: project?.sung_color || '#00d4ff', textShadow: shadowStyle }}>
+                                        {wordData.word}
+                                      </span>
+                                    );
+                                  }
+                                  if (lineData.isCurrentLine) {
+                                    return (
+                                      <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} />
+                                    );
+                                  }
+                                  return (
+                                    <span key={wordIdx} style={{ color: textColor, textShadow: shadowStyle }}>
+                                      {wordData.word}
+                                    </span>
+                                  );
+                                })}
+                              </p>
+                            </div>
+                          ))}
                         </div>
-                      ) : null}
-                      
-                      {/* Next Line - upcoming (dimmed) */}
-                      {currentLyrics.next && (
-                        <p 
-                          className="text-xs sm:text-sm md:text-base lg:text-lg font-bold text-center opacity-50 w-full"
-                          style={{ 
-                            fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
-                            color: textColor,
-                            textShadow: `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 1px 2px ${outlineColor}`,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                          }}
-                        >
-                          {currentLyrics.next}
-                        </p>
+                      ) : (
+                        /* SCROLL MODE (default) - 3 lines: previous, current, next */
+                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
+                          {/* Previous Line - fully highlighted (sung) */}
+                          {currentLyrics.prevLine && (
+                            <p 
+                              className="font-bold text-center w-full"
+                              style={{ 
+                                fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
+                                fontSize: `${baseFontSize}px`,
+                                color: project?.sung_color || '#00d4ff',
+                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                                opacity: 0.7,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {currentLyrics.prevLine}
+                            </p>
+                          )}
+                          
+                          {/* Current Line - with sweep highlighting */}
+                          {currentLyrics.currentLine ? (
+                            <div className="text-center w-full">
+                              <p 
+                                className="font-bold relative inline-flex flex-wrap justify-center" 
+                                style={{ 
+                                  fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
+                                  fontSize: `${currentLineFontSize}px`,
+                                  gap: `${wordSpacing}px`
+                                }}
+                              >
+                                {currentLyrics.currentLine.map((wordData, i) => {
+                                  const highlightColor = getHighlightColor(wordData.index);
+                                  return (
+                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} />
+                                  );
+                                })}
+                              </p>
+                            </div>
+                          ) : null}
+                          
+                          {/* Next Line - upcoming (dimmed) */}
+                          {currentLyrics.next && (
+                            <p 
+                              className="font-bold text-center w-full"
+                              style={{ 
+                                fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
+                                fontSize: `${baseFontSize}px`,
+                                color: textColor,
+                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                                opacity: 0.5,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {currentLyrics.next}
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
-                  )}
-                </div>
-                
-                {/* Timestamp overlay */}
-                <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] sm:text-xs text-white/80 font-mono">
-                  {formatTime(currentTime)}
-                </div>
-                
-                {/* Resolution indicator */}
-                <div className="absolute top-1 left-1 sm:top-2 sm:left-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] text-white/60 font-mono">
-                  16:9
-                </div>
-              </div>
+                    
+                    {/* Timestamp overlay */}
+                    <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] sm:text-xs text-white/80 font-mono">
+                      {formatTime(currentTime)}
+                    </div>
+                    
+                    {/* Resolution indicator */}
+                    <div className="absolute top-1 left-1 sm:top-2 sm:left-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] text-white/60 font-mono">
+                      16:9
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             
             {/* Resize Handle */}
