@@ -13,7 +13,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   Search,
@@ -32,7 +32,17 @@ import {
   Calendar,
   DollarSign,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Lightbulb,
+  ThumbsUp,
+  Clock,
+  Rocket,
+  CheckCircle2,
+  X,
+  MessageSquare,
+  ChevronDown,
+  ChevronUp,
+  Eye
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -48,6 +58,15 @@ const ADMIN_EMAILS = [
   'djhitman72@gmail.com',
   'agent@karatrack.com'
 ];
+
+// Status configuration for roadmap
+const STATUS_CONFIG = {
+  pending: { label: 'Pending Review', color: 'yellow', icon: Clock },
+  approved: { label: 'Open for Voting', color: 'cyan', icon: ThumbsUp },
+  in_progress: { label: 'In Progress', color: 'purple', icon: Rocket },
+  completed: { label: 'Completed', color: 'green', icon: CheckCircle2 },
+  rejected: { label: 'Rejected', color: 'red', icon: X }
+};
 
 export default function AdminPage() {
   const router = useRouter();
@@ -82,6 +101,22 @@ export default function AdminPage() {
   const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  // Roadmap state
+  const [roadmapSuggestions, setRoadmapSuggestions] = useState([]);
+  const [loadingRoadmap, setLoadingRoadmap] = useState(false);
+  const [roadmapFilter, setRoadmapFilter] = useState('pending');
+  const [expandedSuggestion, setExpandedSuggestion] = useState(null);
+  const [adminComment, setAdminComment] = useState('');
+  const [savingComment, setSavingComment] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(null);
+  const [roadmapStats, setRoadmapStats] = useState({
+    pending: 0,
+    approved: 0,
+    in_progress: 0,
+    completed: 0,
+    rejected: 0
+  });
+
   // Check admin access
   useEffect(() => {
     const checkAdmin = async () => {
@@ -98,6 +133,7 @@ export default function AdminPage() {
         if (ADMIN_EMAILS.includes(session.user.email)) {
           setIsAdmin(true);
           loadUsers();
+          loadRoadmapSuggestions();
         } else {
           setIsAdmin(false);
         }
@@ -137,6 +173,40 @@ export default function AdminPage() {
       setErrorMessage('Failed to load users');
     } finally {
       setLoadingUsers(false);
+    }
+  };
+
+  // Load roadmap suggestions
+  const loadRoadmapSuggestions = async () => {
+    setLoadingRoadmap(true);
+    try {
+      const { data, error } = await supabase
+        .from('roadmap_suggestions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setRoadmapSuggestions(data || []);
+
+      // Calculate stats
+      const stats = {
+        pending: 0,
+        approved: 0,
+        in_progress: 0,
+        completed: 0,
+        rejected: 0
+      };
+      (data || []).forEach(s => {
+        if (stats.hasOwnProperty(s.status)) {
+          stats[s.status]++;
+        }
+      });
+      setRoadmapStats(stats);
+    } catch (err) {
+      console.error('Error loading roadmap:', err);
+    } finally {
+      setLoadingRoadmap(false);
     }
   };
 
@@ -371,6 +441,91 @@ export default function AdminPage() {
     }
   };
 
+  // Update roadmap suggestion status
+  const handleUpdateSuggestionStatus = async (suggestionId, newStatus) => {
+    setUpdatingStatus(suggestionId);
+    try {
+      const { error } = await supabase
+        .from('roadmap_suggestions')
+        .update({ 
+          status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', suggestionId);
+
+      if (error) throw error;
+
+      setSuccessMessage(`Suggestion status updated to "${STATUS_CONFIG[newStatus]?.label || newStatus}"`);
+      loadRoadmapSuggestions();
+    } catch (err) {
+      console.error('Status update error:', err);
+      setErrorMessage('Failed to update status: ' + err.message);
+    } finally {
+      setUpdatingStatus(null);
+    }
+  };
+
+  // Save admin comment on suggestion
+  const handleSaveComment = async (suggestionId) => {
+    setSavingComment(true);
+    try {
+      const { error } = await supabase
+        .from('roadmap_suggestions')
+        .update({ 
+          admin_comment: adminComment,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', suggestionId);
+
+      if (error) throw error;
+
+      setSuccessMessage('Comment saved successfully');
+      setAdminComment('');
+      setExpandedSuggestion(null);
+      loadRoadmapSuggestions();
+    } catch (err) {
+      console.error('Comment save error:', err);
+      setErrorMessage('Failed to save comment: ' + err.message);
+    } finally {
+      setSavingComment(false);
+    }
+  };
+
+  // Delete roadmap suggestion
+  const handleDeleteSuggestion = async (suggestionId) => {
+    if (!confirm('Are you sure you want to delete this suggestion? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      // First delete any votes for this suggestion
+      await supabase
+        .from('roadmap_votes')
+        .delete()
+        .eq('suggestion_id', suggestionId);
+
+      // Then delete the suggestion
+      const { error } = await supabase
+        .from('roadmap_suggestions')
+        .delete()
+        .eq('id', suggestionId);
+
+      if (error) throw error;
+
+      setSuccessMessage('Suggestion deleted successfully');
+      loadRoadmapSuggestions();
+    } catch (err) {
+      console.error('Delete suggestion error:', err);
+      setErrorMessage('Failed to delete suggestion: ' + err.message);
+    }
+  };
+
+  // Filter roadmap suggestions
+  const filteredSuggestions = roadmapSuggestions.filter(s => {
+    if (roadmapFilter === 'all') return true;
+    return s.status === roadmapFilter;
+  });
+
   // Loading state
   if (loading) {
     return (
@@ -410,7 +565,13 @@ export default function AdminPage() {
               <h1 className="text-xl font-bold text-white">Admin Panel</h1>
             </div>
           </div>
-          <span className="text-sm text-gray-400">{currentUser?.email}</span>
+          <div className="flex items-center gap-4">
+            <Link href="/roadmap" className="text-cyan-400 hover:text-cyan-300 text-sm flex items-center gap-1">
+              <Eye className="w-4 h-4" />
+              View Public Roadmap
+            </Link>
+            <span className="text-sm text-gray-400">{currentUser?.email}</span>
+          </div>
         </div>
       </nav>
 
@@ -424,7 +585,9 @@ export default function AdminPage() {
           >
             <CheckCircle className="w-5 h-5 text-green-400" />
             <span className="text-green-400">{successMessage}</span>
-            <button onClick={() => setSuccessMessage('')} className="ml-auto text-green-400 hover:text-green-300">×”</button>
+            <button onClick={() => setSuccessMessage('')} className="ml-auto text-green-400 hover:text-green-300">
+              <X className="w-4 h-4" />
+            </button>
           </motion.div>
         )}
         {errorMessage && (
@@ -435,12 +598,14 @@ export default function AdminPage() {
           >
             <AlertCircle className="w-5 h-5 text-red-400" />
             <span className="text-red-400">{errorMessage}</span>
-            <button onClick={() => setErrorMessage('')} className="ml-auto text-red-400 hover:text-red-300">×”</button>
+            <button onClick={() => setErrorMessage('')} className="ml-auto text-red-400 hover:text-red-300">
+              <X className="w-4 h-4" />
+            </button>
           </motion.div>
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className={`glass-panel p-6 ${isDark ? 'bg-white/5' : 'bg-white/80'}`}>
             <div className="flex items-center gap-3 mb-2">
               <Users className="w-5 h-5 text-cyan-400" />
@@ -457,10 +622,17 @@ export default function AdminPage() {
           </div>
           <div className={`glass-panel p-6 ${isDark ? 'bg-white/5' : 'bg-white/80'}`}>
             <div className="flex items-center gap-3 mb-2">
-              <UserX className="w-5 h-5 text-orange-400" />
-              <span className="text-gray-400">Opted Out</span>
+              <Lightbulb className="w-5 h-5 text-yellow-400" />
+              <span className="text-gray-400">Pending Suggestions</span>
             </div>
-            <p className="text-3xl font-bold text-white">{userStats.optedOut}</p>
+            <p className="text-3xl font-bold text-white">{roadmapStats.pending}</p>
+          </div>
+          <div className={`glass-panel p-6 ${isDark ? 'bg-white/5' : 'bg-white/80'}`}>
+            <div className="flex items-center gap-3 mb-2">
+              <Rocket className="w-5 h-5 text-purple-400" />
+              <span className="text-gray-400">In Progress</span>
+            </div>
+            <p className="text-3xl font-bold text-white">{roadmapStats.in_progress}</p>
           </div>
         </div>
 
@@ -705,6 +877,298 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Roadmap Management Section */}
+        <div className={`glass-panel p-6 mt-8 ${isDark ? 'bg-white/5' : 'bg-white/80'}`}>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-yellow-400" />
+              Roadmap Management
+            </h2>
+            <button
+              onClick={loadRoadmapSuggestions}
+              disabled={loadingRoadmap}
+              className="text-cyan-400 hover:text-cyan-300 transition-colors"
+            >
+              <RefreshCw className={`w-5 h-5 ${loadingRoadmap ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            <button
+              onClick={() => setRoadmapFilter('pending')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                roadmapFilter === 'pending'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              Pending ({roadmapStats.pending})
+            </button>
+            <button
+              onClick={() => setRoadmapFilter('approved')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                roadmapFilter === 'approved'
+                  ? 'bg-cyan-500 text-white'
+                  : 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30'
+              }`}
+            >
+              <ThumbsUp className="w-4 h-4" />
+              Voting ({roadmapStats.approved})
+            </button>
+            <button
+              onClick={() => setRoadmapFilter('in_progress')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                roadmapFilter === 'in_progress'
+                  ? 'bg-purple-500 text-white'
+                  : 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'
+              }`}
+            >
+              <Rocket className="w-4 h-4" />
+              In Progress ({roadmapStats.in_progress})
+            </button>
+            <button
+              onClick={() => setRoadmapFilter('completed')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                roadmapFilter === 'completed'
+                  ? 'bg-green-500 text-white'
+                  : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Completed ({roadmapStats.completed})
+            </button>
+            <button
+              onClick={() => setRoadmapFilter('rejected')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${
+                roadmapFilter === 'rejected'
+                  ? 'bg-red-500 text-white'
+                  : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+              }`}
+            >
+              <X className="w-4 h-4" />
+              Rejected ({roadmapStats.rejected})
+            </button>
+            <button
+              onClick={() => setRoadmapFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                roadmapFilter === 'all'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-white/10 text-gray-400 hover:bg-white/20'
+              }`}
+            >
+              All ({roadmapSuggestions.length})
+            </button>
+          </div>
+
+          {/* Suggestions List */}
+          {loadingRoadmap ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+            </div>
+          ) : filteredSuggestions.length === 0 ? (
+            <div className={`text-center py-12 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
+              <Lightbulb className={`w-12 h-12 mx-auto mb-4 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
+              <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+                No suggestions in this category
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+              <AnimatePresence>
+                {filteredSuggestions.map((suggestion) => {
+                  const statusConfig = STATUS_CONFIG[suggestion.status] || STATUS_CONFIG.pending;
+                  const StatusIcon = statusConfig.icon;
+                  const isExpanded = expandedSuggestion === suggestion.id;
+
+                  return (
+                    <motion.div
+                      key={suggestion.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className={`p-4 rounded-xl border ${isDark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}
+                    >
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {suggestion.title}
+                            </h3>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              statusConfig.color === 'yellow' ? 'bg-yellow-500/20 text-yellow-400' :
+                              statusConfig.color === 'cyan' ? 'bg-cyan-500/20 text-cyan-400' :
+                              statusConfig.color === 'purple' ? 'bg-purple-500/20 text-purple-400' :
+                              statusConfig.color === 'green' ? 'bg-green-500/20 text-green-400' :
+                              'bg-red-500/20 text-red-400'
+                            }`}>
+                              <StatusIcon className="w-3 h-3" />
+                              {statusConfig.label}
+                            </span>
+                          </div>
+                          <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            {suggestion.description}
+                          </p>
+                        </div>
+                        <div className={`px-3 py-1 rounded-lg ${isDark ? 'bg-white/10' : 'bg-gray-200'} text-center flex-shrink-0`}>
+                          <p className="text-xs text-gray-500">Votes</p>
+                          <p className={`font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{suggestion.vote_count || 0}</p>
+                        </div>
+                      </div>
+
+                      {/* Meta Info */}
+                      <div className={`flex items-center gap-4 text-xs mb-3 flex-wrap ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        <span>From: {suggestion.user_email || 'Anonymous'}</span>
+                        <span>Category: {suggestion.category || 'General'}</span>
+                        <span>Date: {new Date(suggestion.created_at).toLocaleDateString()}</span>
+                      </div>
+
+                      {/* Current Admin Comment (if exists) */}
+                      {suggestion.admin_comment && !isExpanded && (
+                        <div className={`p-3 rounded-lg mb-3 ${isDark ? 'bg-cyan-500/10 border border-cyan-500/20' : 'bg-cyan-50 border border-cyan-200'}`}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <MessageSquare className="w-3 h-3 text-cyan-500" />
+                            <span className="text-xs font-medium text-cyan-500">Admin Comment</span>
+                          </div>
+                          <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                            {suggestion.admin_comment}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {/* Status Change Buttons */}
+                        {suggestion.status === 'pending' && (
+                          <>
+                            <button
+                              onClick={() => handleUpdateSuggestionStatus(suggestion.id, 'approved')}
+                              disabled={updatingStatus === suggestion.id}
+                              className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 text-xs font-medium transition-colors flex items-center gap-1"
+                            >
+                              {updatingStatus === suggestion.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleUpdateSuggestionStatus(suggestion.id, 'rejected')}
+                              disabled={updatingStatus === suggestion.id}
+                              className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 text-xs font-medium transition-colors flex items-center gap-1"
+                            >
+                              <X className="w-3 h-3" />
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        {suggestion.status === 'approved' && (
+                          <button
+                            onClick={() => handleUpdateSuggestionStatus(suggestion.id, 'in_progress')}
+                            disabled={updatingStatus === suggestion.id}
+                            className="px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 text-xs font-medium transition-colors flex items-center gap-1"
+                          >
+                            {updatingStatus === suggestion.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Rocket className="w-3 h-3" />}
+                            Start Progress
+                          </button>
+                        )}
+                        {suggestion.status === 'in_progress' && (
+                          <button
+                            onClick={() => handleUpdateSuggestionStatus(suggestion.id, 'completed')}
+                            disabled={updatingStatus === suggestion.id}
+                            className="px-3 py-1.5 rounded-lg bg-green-500/20 text-green-400 hover:bg-green-500/30 text-xs font-medium transition-colors flex items-center gap-1"
+                          >
+                            {updatingStatus === suggestion.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                            Mark Complete
+                          </button>
+                        )}
+
+                        {/* Add/Edit Comment Button */}
+                        <button
+                          onClick={() => {
+                            if (isExpanded) {
+                              setExpandedSuggestion(null);
+                              setAdminComment('');
+                            } else {
+                              setExpandedSuggestion(suggestion.id);
+                              setAdminComment(suggestion.admin_comment || '');
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 text-xs font-medium transition-colors flex items-center gap-1"
+                        >
+                          <MessageSquare className="w-3 h-3" />
+                          {suggestion.admin_comment ? 'Edit Comment' : 'Add Comment'}
+                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        </button>
+
+                        {/* Delete Button */}
+                        <button
+                          onClick={() => handleDeleteSuggestion(suggestion.id)}
+                          className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs font-medium transition-colors flex items-center gap-1 ml-auto"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          Delete
+                        </button>
+                      </div>
+
+                      {/* Expanded Comment Section */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-4 pt-4 border-t border-white/10"
+                          >
+                            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                              Admin Comment (visible to users)
+                            </label>
+                            <textarea
+                              value={adminComment}
+                              onChange={(e) => setAdminComment(e.target.value)}
+                              placeholder="Add a public comment explaining the status or providing updates..."
+                              rows={3}
+                              className={`w-full px-4 py-3 rounded-lg border resize-none ${
+                                isDark 
+                                  ? 'bg-white/5 border-white/20 text-white placeholder-gray-500' 
+                                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                              } focus:outline-none focus:border-cyan-500`}
+                            />
+                            <div className="flex justify-end gap-2 mt-3">
+                              <button
+                                onClick={() => {
+                                  setExpandedSuggestion(null);
+                                  setAdminComment('');
+                                }}
+                                className="px-4 py-2 rounded-lg bg-white/10 text-gray-400 hover:bg-white/20 text-sm font-medium transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => handleSaveComment(suggestion.id)}
+                                disabled={savingComment}
+                                className="px-4 py-2 rounded-lg bg-cyan-500 text-white hover:bg-cyan-600 text-sm font-medium transition-colors flex items-center gap-2"
+                              >
+                                {savingComment ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-4 h-4" />
+                                    Save Comment
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
       </main>
 
