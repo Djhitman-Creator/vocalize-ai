@@ -110,6 +110,69 @@ const FONT_SIZE_OPTIONS = [
   { value: 'xlarge', label: 'X-Large', scale: 1.3 },
 ];
 
+// V11: Video background categories
+const VIDEO_CATEGORIES = [
+  { id: 'all', label: 'All' },
+  { id: 'abstract', label: 'Abstract' },
+  { id: 'elegant', label: 'Elegant' },
+  { id: 'nature', label: 'Nature' },
+  { id: 'space', label: 'Space' },
+  { id: '80s', label: '80s/Retro' },
+  { id: 'western', label: 'Western' },
+];
+
+// V11: Preset video backgrounds
+const PRESET_VIDEO_BACKGROUNDS = [
+  // Abstract
+  { id: 'abstract-smokecurling', name: 'Smoke Curling', filename: 'bg-abstract-smokecurling.mp4', category: 'abstract' },
+  { id: 'abstract-gradientpinklavenderblue', name: 'Pink Lavender Blue', filename: 'bg-abstract-gradientpinklavenderblue.mp4', category: 'abstract' },
+  { id: 'abstract-flowinggradient', name: 'Flowing Gradient', filename: 'bg-abstract-flowinggradient.mp4', category: 'abstract' },
+  { id: 'abstract-iridescencesoapbubble', name: 'Soap Bubble', filename: 'bg-abstract-iridescencesoapbubble.mp4', category: 'abstract' },
+  { id: 'abstract-fiberoptics', name: 'Fiber Optics', filename: 'bg-abstract-fiberoptics.mp4', category: 'abstract' },
+  { id: 'abstract-geometricshapes', name: 'Geometric Shapes', filename: 'bg-abstract-geometricshapes.mp4', category: 'abstract' },
+  { id: 'abstract-inkinwater', name: 'Ink in Water', filename: 'bg-abstract-inkinwater.mp4', category: 'abstract' },
+  { id: 'abstract-liquidchrome', name: 'Liquid Chrome', filename: 'bg-abstract-liquidchrome.mp4', category: 'abstract' },
+  { id: 'abstract-liquidglass', name: 'Liquid Glass', filename: 'bg-abstract-liquidglass.mp4', category: 'abstract' },
+  { id: 'abstract-matrix', name: 'Matrix', filename: 'bg-abstract-matrix.mp4', category: 'abstract' },
+  { id: 'abstract-neonlightwaves', name: 'Neon Light Waves', filename: 'bg-abstract-neonlightwaves.mp4', category: 'abstract' },
+  { id: 'abstract-neonrings', name: 'Neon Rings', filename: 'bg-abstract-neonrings.mp4', category: 'abstract' },
+  { id: 'abstract-neontriangletunnel', name: 'Neon Triangle Tunnel', filename: 'bg-abstract-neontriangletunnel.mp4', category: 'abstract' },
+  { id: 'abstract-prismlight', name: 'Prism Light', filename: 'bg-abstract-prismlight.mp4', category: 'abstract' },
+  { id: 'abstract-smoketwist', name: 'Smoke Twist', filename: 'bg-abstract-smoketwist.mp4', category: 'abstract' },
+  // Elegant
+  { id: 'elegant-bokehlights', name: 'Bokeh Lights', filename: 'bg-elegant-bokehlights.mp4', category: 'elegant' },
+  { id: 'elegant-goldendust', name: 'Golden Dust', filename: 'bg-elegant-goldendust.mp4', category: 'elegant' },
+  { id: 'elegant-orbs', name: 'Floating Orbs', filename: 'bg-elegant-orbs.mp4', category: 'elegant' },
+  { id: 'elegant-redsilkflowing', name: 'Red Silk Flowing', filename: 'bg-elegant-redsilkflowing.mp4', category: 'elegant' },
+  // Nature
+  { id: 'nature-nightsnow', name: 'Night Snow', filename: 'bg-nature-nightsnow.mp4', category: 'nature' },
+  { id: 'nature-watercolorclouds', name: 'Watercolor Clouds', filename: 'bg-nature-watercolorclouds.mp4', category: 'nature' },
+  { id: 'nature-pool', name: 'Pool Water', filename: 'bg-nature-pool.mp4', category: 'nature' },
+  { id: 'nature-oceandepths', name: 'Ocean Depths', filename: 'bg-nature-oceandepths.mp4', category: 'nature' },
+  { id: 'nature-aurora1', name: 'Northern Lights', filename: 'bg-nature-aurora1.mp4', category: 'nature' },
+  { id: 'nature-cherryblossum', name: 'Cherry Blossom', filename: 'bg-nature-cherryblossum.mp4', category: 'nature' },
+  { id: 'nature-fireflies', name: 'Fireflies', filename: 'bg-nature-fireflies.mp4', category: 'nature' },
+  { id: 'nature-jellyfish', name: 'Jellyfish', filename: 'bg-nature-jellyfish.mp4', category: 'nature' },
+  { id: 'nature-lightning', name: 'Lightning', filename: 'bg-nature-lightning.mp4', category: 'nature' },
+  { id: 'nature-rainonwater', name: 'Rain on Water', filename: 'bg-nature-rainonwater.mp4', category: 'nature' },
+  // Space
+  { id: 'space-milkyway', name: 'Milky Way', filename: 'bg-space-milkyway.mp4', category: 'space' },
+  { id: 'space-nebula1', name: 'Nebula 1', filename: 'bg-space-nebula1.mp4', category: 'space' },
+  { id: 'space-nebula2', name: 'Nebula 2', filename: 'bg-space-nebula2.mp4', category: 'space' },
+  { id: 'space-nebulaclouds1', name: 'Nebula Clouds', filename: 'bg-space-nebulaclouds1.mp4', category: 'space' },
+  { id: 'space-saturn', name: 'Saturn', filename: 'bg-space-saturn.mp4', category: 'space' },
+  { id: 'space-asteroidfield', name: 'Asteroid Field', filename: 'bg-space-asteroidfield.mp4', category: 'space' },
+  { id: 'space-blackhole', name: 'Black Hole', filename: 'bg-space-blackhole.mp4', category: 'space' },
+  // 80s/Retro
+  { id: '80s-dancingkids', name: 'Dancing Kids', filename: 'bg-80s-dancingkids.mp4', category: '80s' },
+  { id: '80s-neongrid', name: 'Neon Grid', filename: 'bg-80s-neongrid.mp4', category: '80s' },
+  { id: '80s-neonpalms', name: 'Neon Palms', filename: 'bg-80s-nonpalms.mp4', category: '80s' },
+  { id: '80s-watersunset', name: 'Water Sunset', filename: 'bg-80s-watersunset.mp4', category: '80s' },
+  // Western
+  { id: 'western-horse', name: 'Horse', filename: 'bg-western-horse.mp4', category: 'western' },
+  { id: 'western-stampede', name: 'Stampede', filename: 'bg-western-stampede.mp4', category: 'western' },
+];
+
 // ============================================================
 // SWEEP WORD COMPONENT
 // ============================================================
@@ -547,6 +610,154 @@ export default function PreviewEditPage() {
       setCustomFontUploading(false);
     }
   }, [id, router, updateStyleSettings]);
+
+  // V11: Background settings state
+  const [bgSettings, setBgSettings] = useState({
+    bgType: 'gradient', // 'color', 'gradient', 'image', 'video', 'custom-video'
+    bgColor1: '#1a1a2e',
+    bgColor2: '#16213e',
+    gradientDirection: 'to bottom',
+    bgImageUrl: null,
+    bgImagePreview: null,
+    bgVideoPreset: null,
+    bgVideoPresetFilename: null,
+    bgCustomVideoUrl: null,
+    bgCustomVideoPreview: null,
+  });
+
+  // V11: Background category filter state
+  const [selectedVideoCategory, setSelectedVideoCategory] = useState('all');
+
+  // V11: Background upload states
+  const [bgImageUploading, setBgImageUploading] = useState(false);
+  const [bgVideoUploading, setBgVideoUploading] = useState(false);
+  const [bgUploadError, setBgUploadError] = useState(null);
+
+  // V11: Update background settings helper
+  const updateBgSettings = useCallback((updates) => {
+    setBgSettings(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+  }, []);
+
+  // V11: Filter video presets by category
+  const filteredVideoPresets = useMemo(() => {
+    if (selectedVideoCategory === 'all') return PRESET_VIDEO_BACKGROUNDS;
+    return PRESET_VIDEO_BACKGROUNDS.filter(p => p.category === selectedVideoCategory);
+  }, [selectedVideoCategory]);
+
+  // V11: Handle background image upload
+  const handleBgImageUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setBgUploadError('Please upload an image file (JPG, PNG, etc.)');
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setBgUploadError('Image must be less than 10MB');
+      return;
+    }
+
+    setBgImageUploading(true);
+    setBgUploadError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('projectId', id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-background-image`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to upload image');
+      }
+
+      const result = await response.json();
+      updateBgSettings({ 
+        bgType: 'image',
+        bgImageUrl: result.imageUrl,
+        bgImagePreview: result.imageUrl,
+      });
+      
+      // Update project state
+      setProject(prev => ({ ...prev, bg_image_url: result.imageUrl }));
+    } catch (err) {
+      console.error('Image upload error:', err);
+      setBgUploadError(err.message || 'Failed to upload image');
+    } finally {
+      setBgImageUploading(false);
+    }
+  }, [id, router, updateBgSettings]);
+
+  // V11: Handle custom video upload
+  const handleBgVideoUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('video/')) {
+      setBgUploadError('Please upload a video file (MP4 recommended)');
+      return;
+    }
+
+    // Validate file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      setBgUploadError('Video must be less than 50MB');
+      return;
+    }
+
+    setBgVideoUploading(true);
+    setBgUploadError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const formData = new FormData();
+      formData.append('video', file);
+      formData.append('projectId', id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-background-video`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to upload video');
+      }
+
+      const result = await response.json();
+      updateBgSettings({ 
+        bgType: 'custom-video',
+        bgCustomVideoUrl: result.videoUrl,
+        bgCustomVideoPreview: result.videoUrl,
+        bgVideoPreset: null,
+        bgVideoPresetFilename: null,
+      });
+      
+      // Update project state
+      setProject(prev => ({ ...prev, bg_video_url: result.videoUrl }));
+    } catch (err) {
+      console.error('Video upload error:', err);
+      setBgUploadError(err.message || 'Failed to upload video');
+    } finally {
+      setBgVideoUploading(false);
+    }
+  }, [id, router, updateBgSettings]);
 
   // Section collapse state - ALL START COLLAPSED
   const [lineEditorExpanded, setLineEditorExpanded] = useState(false);
@@ -992,6 +1203,24 @@ export default function PreviewEditPage() {
           textColor: projectData.text_color || '#ffffff',
           sungColor: projectData.sung_color || '#00d4ff',
           outlineColor: projectData.outline_color || '#000000',
+        });
+        
+        // V11: Initialize background settings from project data
+        const bgPreset = projectData.bg_video_preset_filename 
+          ? PRESET_VIDEO_BACKGROUNDS.find(p => p.filename === projectData.bg_video_preset_filename)
+          : null;
+        
+        setBgSettings({
+          bgType: projectData.bg_type || 'gradient',
+          bgColor1: projectData.bg_color_1 || '#1a1a2e',
+          bgColor2: projectData.bg_color_2 || '#16213e',
+          gradientDirection: projectData.gradient_direction || 'to bottom',
+          bgImageUrl: projectData.bg_image_url || null,
+          bgImagePreview: projectData.bg_image_url || null,
+          bgVideoPreset: bgPreset || null,
+          bgVideoPresetFilename: projectData.bg_video_preset_filename || null,
+          bgCustomVideoUrl: projectData.bg_video_url || null,
+          bgCustomVideoPreview: projectData.bg_video_url || null,
         });
       } catch (err) { console.error('Load error:', err); setError('Failed to load project'); }
       finally { setLoading(false); }
@@ -1497,6 +1726,14 @@ export default function PreviewEditPage() {
           text_color: styleSettings.textColor,
           sung_color: styleSettings.sungColor,
           outline_color: styleSettings.outlineColor,
+          // V11: Background settings
+          bg_type: bgSettings.bgType,
+          bg_color_1: bgSettings.bgColor1,
+          bg_color_2: bgSettings.bgColor2,
+          gradient_direction: bgSettings.gradientDirection,
+          bg_image_url: bgSettings.bgImageUrl,
+          bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
+          bg_video_url: bgSettings.bgCustomVideoUrl,
         })
         .eq('id', id);
 
@@ -1511,7 +1748,7 @@ export default function PreviewEditPage() {
     } finally {
       setSaving(false);
     }
-  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, id, router]);
+  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, id, router]);
 
   const handleApproveAndRender = useCallback(async () => {
     if (hasChanges) await saveChanges();
@@ -1869,29 +2106,57 @@ export default function PreviewEditPage() {
     </div>
   );
 
+  // V11: Use bgSettings for live preview background
   const getPreviewBackground = () => {
-    if (project.bg_type === 'gradient' || project.use_gradient) {
-      return { background: `linear-gradient(${project.gradient_direction || 'to bottom'}, ${project.bg_color_1 || '#1a1a2e'}, ${project.bg_color_2 || '#16213e'})` };
+    // Use bgSettings for live preview, fallback to project data
+    const bgType = bgSettings.bgType || project.bg_type;
+    const bgColor1 = bgSettings.bgColor1 || project.bg_color_1 || '#1a1a2e';
+    const bgColor2 = bgSettings.bgColor2 || project.bg_color_2 || '#16213e';
+    const direction = bgSettings.gradientDirection || project.gradient_direction || 'to bottom';
+    
+    if (bgType === 'gradient') {
+      return { background: `linear-gradient(${direction}, ${bgColor1}, ${bgColor2})` };
     }
-    return { backgroundColor: project.bg_color_1 || '#1a1a2e' };
+    return { backgroundColor: bgColor1 };
   };
 
-  // Get video URL - either from custom upload or preset
+  // V11: Get video URL using bgSettings for live preview
   const getVideoBackgroundUrl = () => {
-    if (project.bg_video_url) {
+    const bgType = bgSettings.bgType || project.bg_type;
+    
+    // Only show video for video-type backgrounds
+    if (bgType !== 'video' && bgType !== 'custom-video') {
+      return null;
+    }
+    
+    // Custom uploaded video
+    if (bgSettings.bgCustomVideoUrl) {
+      return bgSettings.bgCustomVideoUrl;
+    }
+    if (bgType === 'custom-video' && project.bg_video_url) {
       return project.bg_video_url;
+    }
+    
+    // Preset video
+    if (bgSettings.bgVideoPresetFilename) {
+      return `${PRESET_BASE_URL}/${bgSettings.bgVideoPresetFilename}`;
     }
     if (project.bg_video_preset_filename) {
       return `${PRESET_BASE_URL}/${project.bg_video_preset_filename}`;
     }
-    if (project.bg_video_preset) {
-      // Fallback: if only preset ID is stored, try to use it as filename
-      return `${PRESET_BASE_URL}/${project.bg_video_preset}`;
-    }
+    
     return null;
   };
 
+  // V11: Check if we should show background image
+  const getBackgroundImageUrl = () => {
+    const bgType = bgSettings.bgType || project.bg_type;
+    if (bgType !== 'image') return null;
+    return bgSettings.bgImageUrl || project.bg_image_url || null;
+  };
+
   const videoBackgroundUrl = getVideoBackgroundUrl();
+  const backgroundImageUrl = getBackgroundImageUrl();
 
   // V11: Use styleSettings for live preview (falls back to project values if not set)
   const textColor = styleSettings.textColor || project?.text_color || '#ffffff';
@@ -2062,10 +2327,10 @@ export default function PreviewEditPage() {
                     }}
                   >
                     {/* Background Image */}
-                    {project.bg_image_url && (
+                    {backgroundImageUrl && (
                       <img 
                         className="absolute inset-0 w-full h-full object-cover opacity-60" 
-                        src={project.bg_image_url} 
+                        src={backgroundImageUrl} 
                         alt="" 
                       />
                     )}
@@ -2934,13 +3199,277 @@ export default function PreviewEditPage() {
                 </div>
               )}
 
-              {/* BACKGROUND TAB - Placeholder */}
+              {/* BACKGROUND TAB - V11 Implementation */}
               {activeTab === 'background' && (
-                <div className="p-6">
-                  <div className={`text-center py-12 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <Image className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Background Settings</h3>
-                    <p className="text-sm">Background colors, images, and video presets coming in Stage 3</p>
+                <div className="p-4 space-y-6 max-h-[500px] overflow-y-auto">
+                  {/* Background Type Selector */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Background Type
+                    </label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {[
+                        { value: 'color', label: 'Color', icon: Palette },
+                        { value: 'gradient', label: 'Gradient', icon: Sparkles },
+                        { value: 'image', label: 'Image', icon: Image },
+                        { value: 'video', label: 'Video', icon: Video },
+                        { value: 'custom-video', label: 'Custom', icon: Upload },
+                      ].map(type => (
+                        <button
+                          key={type.value}
+                          onClick={() => updateBgSettings({ bgType: type.value })}
+                          className={`flex flex-col items-center gap-1 p-3 rounded-lg text-xs font-medium transition-all ${
+                            bgSettings.bgType === type.value
+                              ? 'bg-cyan-500 text-white'
+                              : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          <type.icon className="w-5 h-5" />
+                          {type.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SOLID COLOR */}
+                  {bgSettings.bgType === 'color' && (
+                    <div>
+                      <label className={`block text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Background Color
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={bgSettings.bgColor1}
+                          onChange={(e) => updateBgSettings({ bgColor1: e.target.value })}
+                          className="w-16 h-16 rounded-lg cursor-pointer border-0"
+                        />
+                        <input
+                          type="text"
+                          value={bgSettings.bgColor1}
+                          onChange={(e) => updateBgSettings({ bgColor1: e.target.value })}
+                          className={`flex-1 px-3 py-2 rounded-lg text-sm ${isDark ? 'bg-white/10 text-white border-white/10' : 'bg-gray-100 text-gray-900 border-gray-200'} border`}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* GRADIENT */}
+                  {bgSettings.bgType === 'gradient' && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className={`block text-xs mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Color 1</label>
+                          <input
+                            type="color"
+                            value={bgSettings.bgColor1}
+                            onChange={(e) => updateBgSettings({ bgColor1: e.target.value })}
+                            className="w-full h-12 rounded-lg cursor-pointer border-0"
+                          />
+                        </div>
+                        <div>
+                          <label className={`block text-xs mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Color 2</label>
+                          <input
+                            type="color"
+                            value={bgSettings.bgColor2}
+                            onChange={(e) => updateBgSettings({ bgColor2: e.target.value })}
+                            className="w-full h-12 rounded-lg cursor-pointer border-0"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className={`block text-xs mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Direction</label>
+                        <select
+                          value={bgSettings.gradientDirection}
+                          onChange={(e) => updateBgSettings({ gradientDirection: e.target.value })}
+                          className={`w-full px-3 py-2 rounded-lg text-sm border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                          style={{ colorScheme: isDark ? 'dark' : 'light' }}
+                        >
+                          <option value="to bottom">↓ Top to Bottom</option>
+                          <option value="to top">↑ Bottom to Top</option>
+                          <option value="to right">→ Left to Right</option>
+                          <option value="to left">← Right to Left</option>
+                          <option value="to bottom right">↘ Diagonal Down</option>
+                          <option value="to top right">↗ Diagonal Up</option>
+                        </select>
+                      </div>
+
+                      {/* Gradient Preview */}
+                      <div 
+                        className="h-20 rounded-lg border"
+                        style={{ 
+                          background: `linear-gradient(${bgSettings.gradientDirection}, ${bgSettings.bgColor1}, ${bgSettings.bgColor2})`,
+                          borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {/* IMAGE UPLOAD */}
+                  {bgSettings.bgType === 'image' && (
+                    <div>
+                      <label className={`block text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Background Image
+                      </label>
+                      {bgSettings.bgImagePreview ? (
+                        <div className="relative">
+                          <img 
+                            src={bgSettings.bgImagePreview} 
+                            alt="Background" 
+                            className="w-full h-32 object-cover rounded-lg" 
+                          />
+                          <button
+                            onClick={() => updateBgSettings({ bgImageUrl: null, bgImagePreview: null })}
+                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className={`flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                          bgImageUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-cyan-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-cyan-50'
+                        }`}>
+                          {bgImageUploading ? (
+                            <>
+                              <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
+                              <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Uploading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Image className="w-8 h-8 text-gray-400 mb-2" />
+                              <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Click to upload image</span>
+                              <span className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>JPG, PNG up to 10MB</span>
+                            </>
+                          )}
+                          <input type="file" accept="image/*" onChange={handleBgImageUpload} disabled={bgImageUploading} className="hidden" />
+                        </label>
+                      )}
+                    </div>
+                  )}
+
+                  {/* VIDEO PRESETS */}
+                  {bgSettings.bgType === 'video' && (
+                    <div className="space-y-4">
+                      {/* Category Filter */}
+                      <div className="flex flex-wrap gap-2">
+                        {VIDEO_CATEGORIES.map(cat => (
+                          <button
+                            key={cat.id}
+                            onClick={() => setSelectedVideoCategory(cat.id)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                              selectedVideoCategory === cat.id
+                                ? 'bg-cyan-500 text-white'
+                                : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {cat.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Video Grid */}
+                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1">
+                        {filteredVideoPresets.map(preset => (
+                          <button
+                            key={preset.id}
+                            onClick={() => updateBgSettings({ 
+                              bgVideoPreset: preset, 
+                              bgVideoPresetFilename: preset.filename,
+                              bgCustomVideoUrl: null,
+                              bgCustomVideoPreview: null,
+                            })}
+                            className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all ${
+                              bgSettings.bgVideoPreset?.id === preset.id
+                                ? 'border-cyan-400 ring-2 ring-cyan-400/50'
+                                : 'border-transparent hover:border-white/30'
+                            }`}
+                          >
+                            <img
+                              src={`${PRESET_BASE_URL}/${preset.filename.replace('.mp4', '.jpg')}`}
+                              alt={preset.name}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                              onError={(e) => { e.target.style.background = '#333'; }}
+                            />
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1">
+                              <p className="text-[10px] text-white truncate">{preset.name}</p>
+                            </div>
+                            {bgSettings.bgVideoPreset?.id === preset.id && (
+                              <div className="absolute top-1 right-1 w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center">
+                                <Check className="w-3 h-3 text-white" />
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* CUSTOM VIDEO UPLOAD */}
+                  {bgSettings.bgType === 'custom-video' && (
+                    <div>
+                      <label className={`block text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Upload Custom Video Background
+                      </label>
+                      {bgSettings.bgCustomVideoPreview ? (
+                        <div className="relative">
+                          <video 
+                            src={bgSettings.bgCustomVideoPreview} 
+                            className="w-full h-32 object-cover rounded-lg"
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                          />
+                          <button
+                            onClick={() => updateBgSettings({ bgCustomVideoUrl: null, bgCustomVideoPreview: null })}
+                            className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className={`flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                          bgVideoUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-cyan-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-cyan-50'
+                        }`}>
+                          {bgVideoUploading ? (
+                            <>
+                              <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
+                              <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Uploading video...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Video className="w-8 h-8 text-gray-400 mb-2" />
+                              <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Click to upload video</span>
+                              <span className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>MP4 recommended, up to 50MB</span>
+                            </>
+                          )}
+                          <input type="file" accept="video/*" onChange={handleBgVideoUpload} disabled={bgVideoUploading} className="hidden" />
+                        </label>
+                      )}
+                      
+                      <p className={`mt-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        💡 For best results, use a looping video with 1920x1080 resolution
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Error Message */}
+                  {bgUploadError && (
+                    <div className={`p-3 rounded-lg ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}`}>
+                      <p className="text-sm text-red-400 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        {bgUploadError}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Preview Hint */}
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
+                    <p className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
+                      💡 Your background is shown in the preview above. Click Save to keep your changes.
+                    </p>
                   </div>
                 </div>
               )}
