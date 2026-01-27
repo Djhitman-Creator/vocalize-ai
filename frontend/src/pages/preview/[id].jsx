@@ -193,7 +193,7 @@ const LINES_PER_PAGE_OPTIONS = [2, 3, 4, 5, 6];
 // V11: Audio track options for export
 const AUDIO_TRACK_OPTIONS = [
   { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: '🎤' },
-  { value: 'backing', label: 'Keep Backing Vocals', description: 'Removes lead vocals but keeps harmonies', icon: '🎵' },
+  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: '🎵' },
   { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: '🎧' },
 ];
 
