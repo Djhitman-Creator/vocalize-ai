@@ -173,6 +173,23 @@ const PRESET_VIDEO_BACKGROUNDS = [
   { id: 'western-stampede', name: 'Stampede', filename: 'bg-western-stampede.mp4', category: 'western' },
 ];
 
+// V11: Display mode options
+const DISPLAY_MODE_OPTIONS = [
+  { value: 'scroll', label: 'Scroll', description: 'Teleprompter style - lyrics scroll up as you sing', icon: '📜' },
+  { value: 'page', label: 'Page', description: 'Show multiple lines at once, highlight current line', icon: '📄' },
+  { value: 'overwrite', label: 'Overwrite', description: 'Single line display, each line replaces the previous', icon: '✏️' },
+];
+
+// V11: Aspect ratio options
+const ASPECT_RATIO_OPTIONS = [
+  { value: '16:9', label: '16:9', description: 'Widescreen (YouTube, TV)', icon: Monitor },
+  { value: '4:3', label: '4:3', description: 'Standard (Classic TV)', icon: Square },
+  { value: '9:16', label: '9:16', description: 'Portrait (TikTok, Reels)', icon: Smartphone },
+];
+
+// V11: Lines per page options (for page mode)
+const LINES_PER_PAGE_OPTIONS = [2, 3, 4, 5, 6];
+
 // ============================================================
 // SWEEP WORD COMPONENT
 // ============================================================
@@ -624,6 +641,22 @@ export default function PreviewEditPage() {
     bgCustomVideoUrl: null,
     bgCustomVideoPreview: null,
   });
+
+  // V11: Layout settings state
+  const [layoutSettings, setLayoutSettings] = useState({
+    displayMode: 'scroll', // 'scroll', 'page', 'overwrite'
+    aspectRatio: '16:9', // '16:9', '4:3', '9:16'
+    linesPerPage: 4, // 2-6, only for page mode
+    showProgressBar: true, // Show progress bar during instrumental breaks
+    showCountdown: true, // Show countdown dots before lyrics start
+    showLeadInBars: true, // Show lead-in sweep bars before each line
+  });
+
+  // V11: Update layout settings helper
+  const updateLayoutSettings = useCallback((updates) => {
+    setLayoutSettings(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+  }, []);
 
   // V11: Background category filter state
   const [selectedVideoCategory, setSelectedVideoCategory] = useState('all');
@@ -1222,6 +1255,16 @@ export default function PreviewEditPage() {
           bgCustomVideoUrl: projectData.bg_video_url || null,
           bgCustomVideoPreview: projectData.bg_video_url || null,
         });
+        
+        // V11: Initialize layout settings from project data
+        setLayoutSettings({
+          displayMode: projectData.display_mode || 'scroll',
+          aspectRatio: projectData.aspect_ratio || '16:9',
+          linesPerPage: projectData.lines_per_page || 4,
+          showProgressBar: projectData.show_progress_bar !== false, // default true
+          showCountdown: projectData.show_countdown !== false, // default true
+          showLeadInBars: projectData.show_lead_in_bars !== false, // default true
+        });
       } catch (err) { console.error('Load error:', err); setError('Failed to load project'); }
       finally { setLoading(false); }
     };
@@ -1734,6 +1777,13 @@ export default function PreviewEditPage() {
           bg_image_url: bgSettings.bgImageUrl,
           bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
           bg_video_url: bgSettings.bgCustomVideoUrl,
+          // V11: Layout settings
+          display_mode: layoutSettings.displayMode,
+          aspect_ratio: layoutSettings.aspectRatio,
+          lines_per_page: layoutSettings.linesPerPage,
+          show_progress_bar: layoutSettings.showProgressBar,
+          show_countdown: layoutSettings.showCountdown,
+          show_lead_in_bars: layoutSettings.showLeadInBars,
         })
         .eq('id', id);
 
@@ -1748,7 +1798,7 @@ export default function PreviewEditPage() {
     } finally {
       setSaving(false);
     }
-  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, id, router]);
+  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, layoutSettings, id, router]);
 
   const handleApproveAndRender = useCallback(async () => {
     if (hasChanges) await saveChanges();
@@ -3479,13 +3529,156 @@ export default function PreviewEditPage() {
                 </div>
               )}
 
-              {/* LAYOUT TAB - Placeholder */}
+              {/* LAYOUT TAB - V11 Implementation */}
               {activeTab === 'layout' && (
-                <div className="p-6">
-                  <div className={`text-center py-12 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <Grid3X3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Layout Settings</h3>
-                    <p className="text-sm">Display mode, aspect ratio, and layout options coming in Stage 4</p>
+                <div className="p-4 space-y-6 max-h-[500px] overflow-y-auto">
+                  {/* Display Mode */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Display Mode
+                    </label>
+                    <div className="space-y-2">
+                      {DISPLAY_MODE_OPTIONS.map(mode => (
+                        <button
+                          key={mode.value}
+                          onClick={() => updateLayoutSettings({ displayMode: mode.value })}
+                          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
+                            layoutSettings.displayMode === mode.value
+                              ? 'bg-cyan-500/20 border-2 border-cyan-500'
+                              : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                          }`}
+                        >
+                          <span className="text-2xl">{mode.icon}</span>
+                          <div className="flex-1">
+                            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{mode.label}</p>
+                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{mode.description}</p>
+                          </div>
+                          {layoutSettings.displayMode === mode.value && (
+                            <Check className="w-5 h-5 text-cyan-400" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Lines Per Page - Only show for Page mode */}
+                  {layoutSettings.displayMode === 'page' && (
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Lines Per Page
+                      </label>
+                      <div className="flex gap-2">
+                        {LINES_PER_PAGE_OPTIONS.map(num => (
+                          <button
+                            key={num}
+                            onClick={() => updateLayoutSettings({ linesPerPage: num })}
+                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                              layoutSettings.linesPerPage === num
+                                ? 'bg-cyan-500 text-white'
+                                : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {num}
+                          </button>
+                        ))}
+                      </div>
+                      <p className={`text-xs mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        Number of lyric lines visible at once
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Aspect Ratio */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Aspect Ratio
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {ASPECT_RATIO_OPTIONS.map(ratio => (
+                        <button
+                          key={ratio.value}
+                          onClick={() => updateLayoutSettings({ aspectRatio: ratio.value })}
+                          className={`flex flex-col items-center gap-2 p-4 rounded-lg transition-all ${
+                            layoutSettings.aspectRatio === ratio.value
+                              ? 'bg-cyan-500/20 border-2 border-cyan-500'
+                              : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                          }`}
+                        >
+                          <ratio.icon className={`w-8 h-8 ${layoutSettings.aspectRatio === ratio.value ? 'text-cyan-400' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                          <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{ratio.label}</span>
+                          <span className={`text-[10px] text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{ratio.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Timer & Animation Options */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Timing & Animations
+                    </label>
+                    <div className="space-y-3">
+                      {/* Progress Bar Toggle */}
+                      <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            Show Progress Bar
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Display progress bar during instrumental breaks (5+ seconds)
+                          </p>
+                        </div>
+                        <div 
+                          onClick={() => updateLayoutSettings({ showProgressBar: !layoutSettings.showProgressBar })}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.showProgressBar ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
+                        >
+                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${layoutSettings.showProgressBar ? 'translate-x-7' : 'translate-x-1'}`} />
+                        </div>
+                      </label>
+
+                      {/* Countdown Toggle */}
+                      <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            Show Countdown
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Animated countdown dots before lyrics begin
+                          </p>
+                        </div>
+                        <div 
+                          onClick={() => updateLayoutSettings({ showCountdown: !layoutSettings.showCountdown })}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.showCountdown ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
+                        >
+                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${layoutSettings.showCountdown ? 'translate-x-7' : 'translate-x-1'}`} />
+                        </div>
+                      </label>
+
+                      {/* Lead-in Bars Toggle */}
+                      <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            Show Lead-in Bars
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Sweep animation 1-2 seconds before each line
+                          </p>
+                        </div>
+                        <div 
+                          onClick={() => updateLayoutSettings({ showLeadInBars: !layoutSettings.showLeadInBars })}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.showLeadInBars ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
+                        >
+                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${layoutSettings.showLeadInBars ? 'translate-x-7' : 'translate-x-1'}`} />
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Preview Hint */}
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
+                    <p className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
+                      💡 Display mode changes will be reflected in your rendered video. Click Save to keep changes.
+                    </p>
                   </div>
                 </div>
               )}
