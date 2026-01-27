@@ -63,7 +63,7 @@ const supabase = createClient(
 
 // Available fonts
 const FONT_OPTIONS = [
-  { value: 'custom', label: 'âœ“ Custom Font', family: 'CustomFont, sans-serif', isCustom: true },
+  { value: 'custom', label: 'Custom Font', family: 'CustomFont, sans-serif', isCustom: true },
   { value: 'arial', label: 'Arial', family: 'Arial, sans-serif' },
   { value: 'roboto', label: 'Roboto', family: '"Roboto", sans-serif' },
   { value: 'poppins', label: 'Poppins', family: '"Poppins", sans-serif' },
@@ -1145,13 +1145,13 @@ export default function UploadPage() {
                     type="color"
                     value={duetSinger1Color}
                     onChange={(e) => setDuetSinger1Color(e.target.value)}
-                    className="w-8 h-8 rounded cursor-pointer border-0"
+                    className="w-10 h-8 rounded cursor-pointer border-0 flex-shrink-0"
                   />
                   <input
                     type="text"
                     value={duetSinger1Color}
                     onChange={(e) => setDuetSinger1Color(e.target.value)}
-                    className="glass-input flex-1 px-2 py-1 rounded text-[10px] uppercase"
+                    className="glass-input w-16 px-1 py-1 rounded text-[10px] uppercase"
                   />
                 </div>
               </div>
@@ -1163,13 +1163,13 @@ export default function UploadPage() {
                     type="color"
                     value={duetSinger2Color}
                     onChange={(e) => setDuetSinger2Color(e.target.value)}
-                    className="w-8 h-8 rounded cursor-pointer border-0"
+                    className="w-10 h-8 rounded cursor-pointer border-0 flex-shrink-0"
                   />
                   <input
                     type="text"
                     value={duetSinger2Color}
                     onChange={(e) => setDuetSinger2Color(e.target.value)}
-                    className="glass-input flex-1 px-2 py-1 rounded text-[10px] uppercase"
+                    className="glass-input w-16 px-1 py-1 rounded text-[10px] uppercase"
                   />
                 </div>
               </div>
@@ -1181,13 +1181,13 @@ export default function UploadPage() {
                     type="color"
                     value={duetBothColor}
                     onChange={(e) => setDuetBothColor(e.target.value)}
-                    className="w-8 h-8 rounded cursor-pointer border-0"
+                    className="w-10 h-8 rounded cursor-pointer border-0 flex-shrink-0"
                   />
                   <input
                     type="text"
                     value={duetBothColor}
                     onChange={(e) => setDuetBothColor(e.target.value)}
-                    className="glass-input flex-1 px-2 py-1 rounded text-[10px] uppercase"
+                    className="glass-input w-16 px-1 py-1 rounded text-[10px] uppercase"
                   />
                 </div>
               </div>
