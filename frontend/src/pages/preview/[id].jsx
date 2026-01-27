@@ -2114,6 +2114,11 @@ export default function PreviewEditPage() {
     const bgColor2 = bgSettings.bgColor2 || project.bg_color_2 || '#16213e';
     const direction = bgSettings.gradientDirection || project.gradient_direction || 'to bottom';
     
+    // For video and image backgrounds, use dark background (video/image will overlay)
+    if (bgType === 'video' || bgType === 'custom-video' || bgType === 'image') {
+      return { backgroundColor: '#000000' };
+    }
+    
     if (bgType === 'gradient') {
       return { background: `linear-gradient(${direction}, ${bgColor1}, ${bgColor2})` };
     }
@@ -3386,7 +3391,7 @@ export default function PreviewEditPage() {
                             }`}
                           >
                             <img
-                              src={`${PRESET_BASE_URL}/${preset.filename.replace('.mp4', '.jpg')}`}
+                              src={`${PRESET_BASE_URL}/${preset.filename.replace('.mp4', '-thumb.jpg')}`}
                               alt={preset.name}
                               className="w-full h-full object-cover"
                               loading="lazy"
