@@ -1963,8 +1963,17 @@ export default function PreviewEditPage() {
                 // Scale proportionally to preview height
                 const boxHeight = previewHeight - 32;
                 const scaleFactor = boxHeight / 270; // 270px as baseline (small preview)
-                const baseFontSize = Math.max(12, Math.min(32, 14 * scaleFactor)); // Clamp between 12-32px
-                const currentLineFontSize = Math.max(14, Math.min(40, 18 * scaleFactor));
+                
+                // V11: Get font size multiplier from styleSettings
+                const fontSizeMultiplier = FONT_SIZE_OPTIONS.find(opt => opt.value === styleSettings.fontSize)?.scale || 1.0;
+                
+                // V11: Get font family from styleSettings
+                const previewFontFamily = project?.custom_font_url && styleSettings.selectedFont === 'custom'
+                  ? 'CustomKaraokeFont' 
+                  : FONT_OPTIONS.find(f => f.value === styleSettings.selectedFont)?.family || 'Arial, sans-serif';
+                
+                const baseFontSize = Math.max(12, Math.min(32, 14 * scaleFactor * fontSizeMultiplier)); // Clamp between 12-32px
+                const currentLineFontSize = Math.max(14, Math.min(40, 18 * scaleFactor * fontSizeMultiplier));
                 const lineGap = Math.max(2, Math.min(12, 4 * scaleFactor));
                 const textShadowSize = Math.max(1, Math.min(3, 1.5 * scaleFactor));
                 const wordSpacing = Math.max(2, Math.min(8, 3 * scaleFactor));
@@ -2019,7 +2028,7 @@ export default function PreviewEditPage() {
                               <p 
                                 className="font-bold relative inline-flex flex-wrap justify-center" 
                                 style={{ 
-                                  fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
+                                  fontFamily: previewFontFamily,
                                   fontSize: `${currentLineFontSize}px`,
                                   gap: `${wordSpacing}px`
                                 }}
@@ -2042,7 +2051,7 @@ export default function PreviewEditPage() {
                               <p 
                                 className="font-bold relative inline-flex flex-wrap justify-center"
                                 style={{ 
-                                  fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
+                                  fontFamily: previewFontFamily,
                                   fontSize: `${baseFontSize}px`,
                                   gap: `${wordSpacing}px`,
                                   opacity: lineData.isCurrentLine ? 1 : lineData.isPastLine ? 0.8 : 0.6
@@ -2082,7 +2091,7 @@ export default function PreviewEditPage() {
                             <p 
                               className="font-bold text-center w-full"
                               style={{ 
-                                fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
+                                fontFamily: previewFontFamily,
                                 fontSize: `${baseFontSize}px`,
                                 color: sungColor,
                                 textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
@@ -2102,7 +2111,7 @@ export default function PreviewEditPage() {
                               <p 
                                 className="font-bold relative inline-flex flex-wrap justify-center" 
                                 style={{ 
-                                  fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
+                                  fontFamily: previewFontFamily,
                                   fontSize: `${currentLineFontSize}px`,
                                   gap: `${wordSpacing}px`
                                 }}
@@ -2122,7 +2131,7 @@ export default function PreviewEditPage() {
                             <p 
                               className="font-bold text-center w-full"
                               style={{ 
-                                fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
+                                fontFamily: previewFontFamily,
                                 fontSize: `${baseFontSize}px`,
                                 color: textColor,
                                 textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
@@ -2607,10 +2616,16 @@ export default function PreviewEditPage() {
                     <select
                       value={styleSettings.selectedFont}
                       onChange={(e) => updateStyleSettings({ selectedFont: e.target.value })}
-                      className={`w-full px-3 py-2 rounded-lg text-sm ${isDark ? 'bg-white/10 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'} border focus:ring-2 focus:ring-cyan-500 focus:border-transparent`}
+                      className={`w-full px-3 py-2 rounded-lg text-sm border focus:ring-2 focus:ring-cyan-500 focus:border-transparent ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
+                      style={{ colorScheme: isDark ? 'dark' : 'light' }}
                     >
                       {FONT_OPTIONS.map(font => (
-                        <option key={font.value} value={font.value} disabled={font.requiresStudio && !project?.custom_font_url}>
+                        <option 
+                          key={font.value} 
+                          value={font.value} 
+                          disabled={font.requiresStudio && !project?.custom_font_url}
+                          className={isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
+                        >
                           {font.label} {font.requiresStudio ? '(Studio)' : ''}
                         </option>
                       ))}
