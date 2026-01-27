@@ -2559,9 +2559,9 @@ export default function PreviewEditPage() {
                       {formatTime(currentTime)}
                     </div>
                     
-                    {/* Resolution indicator */}
+                    {/* Resolution indicator - shows current aspect ratio */}
                     <div className="absolute top-1 left-1 sm:top-2 sm:left-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] text-white/60 font-mono">
-                      16:9
+                      {layoutSettings.aspectRatio}
                     </div>
                   </div>
                 );
