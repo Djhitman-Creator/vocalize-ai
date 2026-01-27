@@ -1,25 +1,28 @@
 'use client';
 
 /**
- * Preview/Edit Page - Karatrack Studio (V10.10)
+ * Preview/Edit Page - Karatrack Studio (V11.0)
  * 
  * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * V10.10 WORD DURATION CONTEXT MENU:
+ * V11.0 TABBED INTERFACE:
+ * - New 5-tab layout: Timing, Style, Background, Layout, Export
+ * - All settings will be moved from Upload page to Preview page
+ * - Users can experiment with different settings before rendering
+ * 
+ * TABS:
+ * 1. TIMING - Timeline editor, word/line editing, duet mode (implemented)
+ * 2. STYLE - Font, colors, text effects (placeholder - Stage 2)
+ * 3. BACKGROUND - Color/gradient, image, video presets (placeholder - Stage 3)
+ * 4. LAYOUT - Display mode, aspect ratio (placeholder - Stage 4)
+ * 5. EXPORT - Audio track, quality, watermark (placeholder - Stage 5)
+ * 
+ * V10.10 WORD DURATION CONTEXT MENU (preserved):
  * - Right-click on any word in timeline to access duration controls
- * - Extend word end time (makes highlighting last longer for drawn-out vocals)
- * - Shorten word end time (for quick syllables)
- * - Extend word start time (delay when highlighting begins)
- * - Shorten word start time (start highlighting earlier)
- * - Custom duration input for precise timing
  * 
  * V10.9 MULTI-SELECT (preserved):
  * - Shift+Click to select range of words
  * - Ctrl/Cmd+Click to toggle individual words
- * - Ctrl/Cmd+A to select all words
- * - Drag any selected word to move ALL selected
- * - Arrow keys nudge all selected words
- * - Delete/Backspace removes all selected
  * 
  * V10.8 FEATURES (preserved):
  * - Volume sliders for backing track and vocals
@@ -37,7 +40,10 @@ import {
   ArrowDown, ArrowUp, Type, SplitSquareHorizontal,
   AlertTriangle, ChevronDown, ChevronRight, GripHorizontal,
   Volume2, VolumeX, Mic, Music, FileVideo,
-  Clock, Timer, Minus, MoreHorizontal  // Added for context menu duration controls
+  Clock, Timer, Minus, MoreHorizontal,
+  // V11: Tab icons
+  Image, Download, Grid3X3, Palette, Sparkles, Video,
+  Monitor, Smartphone, Square, Upload, Lock, Undo2, Redo2
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
@@ -71,6 +77,37 @@ const INSTRUMENTAL_BREAK_THRESHOLD = 5.0;  // Seconds to trigger progress bar
 const MIN_PREVIEW_HEIGHT = 200;
 const MAX_PREVIEW_HEIGHT = 500;
 const DEFAULT_PREVIEW_HEIGHT = 300;
+
+// ============================================================
+// V11: TAB DEFINITIONS
+// ============================================================
+const TABS = [
+  { id: 'timing', label: 'Timing', icon: Clock, mobileLabel: '🎵' },
+  { id: 'style', label: 'Style', icon: Type, mobileLabel: '🎨' },
+  { id: 'background', label: 'Background', icon: Image, mobileLabel: '🖼️' },
+  { id: 'layout', label: 'Layout', icon: Grid3X3, mobileLabel: '📐' },
+  { id: 'export', label: 'Export', icon: Download, mobileLabel: '📤' },
+];
+
+// V11: Font options for Style tab
+const FONT_OPTIONS = [
+  { value: 'arial', label: 'Arial', family: 'Arial, sans-serif' },
+  { value: 'roboto', label: 'Roboto', family: '"Roboto", sans-serif' },
+  { value: 'poppins', label: 'Poppins', family: '"Poppins", sans-serif' },
+  { value: 'montserrat', label: 'Montserrat', family: '"Montserrat", sans-serif' },
+  { value: 'oswald', label: 'Oswald', family: '"Oswald", sans-serif' },
+  { value: 'playfair', label: 'Playfair Display', family: '"Playfair Display", serif' },
+  { value: 'bebas', label: 'Bebas Neue', family: '"Bebas Neue", sans-serif' },
+  { value: 'impact', label: 'Impact', family: 'Impact, sans-serif' },
+  { value: 'custom', label: 'Custom Font', family: 'CustomKaraokeFont, sans-serif', requiresStudio: true },
+];
+
+const FONT_SIZE_OPTIONS = [
+  { value: 'small', label: 'Small', scale: 0.85 },
+  { value: 'normal', label: 'Normal', scale: 1.0 },
+  { value: 'large', label: 'Large', scale: 1.15 },
+  { value: 'xlarge', label: 'X-Large', scale: 1.3 },
+];
 
 // ============================================================
 // SWEEP WORD COMPONENT
@@ -311,7 +348,7 @@ const WordDurationContextMenu = ({
             </span>
           </div>
           <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            {word.start.toFixed(2)}s → {word.end.toFixed(2)}s
+            {word.start.toFixed(2)}s â†’ {word.end.toFixed(2)}s
           </div>
         </div>
 
@@ -420,6 +457,24 @@ export default function PreviewEditPage() {
   const [error, setError] = useState(null);
   const [hasChanges, setHasChanges] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // V11: Active tab state
+  const [activeTab, setActiveTab] = useState('timing');
+
+  // V11: Style settings state (will be initialized from project data)
+  const [styleSettings, setStyleSettings] = useState({
+    selectedFont: 'arial',
+    fontSize: 'normal',
+    textColor: '#ffffff',
+    sungColor: '#00d4ff',
+    outlineColor: '#000000',
+  });
+
+  // V11: Update style settings helper
+  const updateStyleSettings = useCallback((updates) => {
+    setStyleSettings(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+  }, []);
 
   // Section collapse state - ALL START COLLAPSED
   const [lineEditorExpanded, setLineEditorExpanded] = useState(false);
@@ -857,6 +912,15 @@ export default function PreviewEditPage() {
             both: projectData.duet_both_color || DEFAULT_DUET_COLORS.both
           });
         }
+        
+        // V11: Initialize style settings from project data
+        setStyleSettings({
+          selectedFont: projectData.font || 'arial',
+          fontSize: projectData.font_size || 'normal',
+          textColor: projectData.text_color || '#ffffff',
+          sungColor: projectData.sung_color || '#00d4ff',
+          outlineColor: projectData.outline_color || '#000000',
+        });
       } catch (err) { console.error('Load error:', err); setError('Failed to load project'); }
       finally { setLoading(false); }
     };
@@ -1355,6 +1419,12 @@ export default function PreviewEditPage() {
           duet_singer1_color: duetColors.singer1,
           duet_singer2_color: duetColors.singer2,
           duet_both_color: duetColors.both,
+          // V11: Style settings
+          font: styleSettings.selectedFont,
+          font_size: styleSettings.fontSize,
+          text_color: styleSettings.textColor,
+          sung_color: styleSettings.sungColor,
+          outline_color: styleSettings.outlineColor,
         })
         .eq('id', id);
 
@@ -1369,7 +1439,7 @@ export default function PreviewEditPage() {
     } finally {
       setSaving(false);
     }
-  }, [hasChanges, words, isDuetMode, duetColors, id, router]);
+  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, id, router]);
 
   const handleApproveAndRender = useCallback(async () => {
     if (hasChanges) await saveChanges();
@@ -1427,8 +1497,9 @@ export default function PreviewEditPage() {
       if (singer === SINGER.SINGER_2) return duetColors.singer2;
       return duetColors.both;
     }
-    return isCurrent ? (project?.sung_color || '#00d4ff') : (project?.text_color || '#ffffff');
-  }, [isDuetMode, duetColors, project]);
+    // V11: Use styleSettings for live preview
+    return isCurrent ? (styleSettings.sungColor || '#00d4ff') : (styleSettings.textColor || '#ffffff');
+  }, [isDuetMode, duetColors, styleSettings]);
 
   const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
 
@@ -1439,8 +1510,9 @@ export default function PreviewEditPage() {
       if (singer === SINGER.SINGER_2) return duetColors.singer2;
       return duetColors.both;
     }
-    return project?.sung_color || '#00d4ff';
-  }, [isDuetMode, words, duetColors, project]);
+    // V11: Use styleSettings for live preview
+    return styleSettings.sungColor || '#00d4ff';
+  }, [isDuetMode, words, duetColors, styleSettings]);
 
   // ============================================================
   // GET CURRENT LYRICS FOR PREVIEW
@@ -1749,9 +1821,10 @@ export default function PreviewEditPage() {
 
   const videoBackgroundUrl = getVideoBackgroundUrl();
 
-  // currentLyrics is now calculated via useMemo above
-  const textColor = project?.text_color || '#ffffff';
-  const outlineColor = project?.outline_color || '#000000';
+  // V11: Use styleSettings for live preview (falls back to project values if not set)
+  const textColor = styleSettings.textColor || project?.text_color || '#ffffff';
+  const outlineColor = styleSettings.outlineColor || project?.outline_color || '#000000';
+  const sungColor = styleSettings.sungColor || project?.sung_color || '#00d4ff';
   const unsungColor = '#cccccc';
 
   // ============================================================
@@ -1934,7 +2007,7 @@ export default function PreviewEditPage() {
                         <InstrumentalProgressBar
                           progress={currentLyrics.progressBarPercent}
                           nextLyrics={currentLyrics.nextLyricsForProgressBar}
-                          color={project?.sung_color || '#00d4ff'}
+                          color={sungColor}
                           textColor={textColor}
                           outlineColor={outlineColor}
                         />
@@ -1981,7 +2054,7 @@ export default function PreviewEditPage() {
                                   
                                   if (lineData.isPastLine) {
                                     return (
-                                      <span key={wordIdx} style={{ color: project?.sung_color || '#00d4ff', textShadow: shadowStyle }}>
+                                      <span key={wordIdx} style={{ color: sungColor, textShadow: shadowStyle }}>
                                         {wordData.word}
                                       </span>
                                     );
@@ -2011,7 +2084,7 @@ export default function PreviewEditPage() {
                               style={{ 
                                 fontFamily: project.custom_font_url ? 'CustomKaraokeFont' : (project.font || 'Arial'),
                                 fontSize: `${baseFontSize}px`,
-                                color: project?.sung_color || '#00d4ff',
+                                color: sungColor,
                                 textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
                                 opacity: 0.7,
                                 overflow: 'hidden',
@@ -2089,16 +2162,49 @@ export default function PreviewEditPage() {
             </div>
           </motion.div>
 
-          {/* LINE & WORD EDITOR - Collapsible */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
-            <div onClick={() => setLineEditorExpanded(!lineEditorExpanded)} className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}>
-              <div className="flex items-center gap-2">
-                {lineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-                <SplitSquareHorizontal className="w-4 h-4 text-cyan-400" />
-                <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Line & Word Editor (Rhyme Sync)</span>
-              </div>
-              <span className="text-xs text-gray-500">{lyricsLines.length} lines &bull; {words.length} words</span>
+          {/* V11: TAB BAR */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ delay: 0.03 }}
+            className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}
+          >
+            {/* Tab Navigation */}
+            <div className={`flex border-b overflow-x-auto scrollbar-hide ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+              {TABS.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all whitespace-nowrap
+                    ${activeTab === tab.id 
+                      ? `border-b-2 border-cyan-500 ${isDark ? 'text-cyan-400 bg-white/5' : 'text-cyan-600 bg-cyan-50'}` 
+                      : isDark 
+                        ? 'text-gray-400 hover:text-white hover:bg-white/5' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    }`}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                  <span className="sm:hidden">{tab.mobileLabel}</span>
+                </button>
+              ))}
             </div>
+
+            {/* Tab Content Area */}
+            <div className="min-h-[200px]">
+              {/* TIMING TAB */}
+              {activeTab === 'timing' && (
+                <>
+                  {/* LINE & WORD EDITOR - Collapsible */}
+                  <div className={`${isDark ? 'border-b border-white/10' : 'border-b border-gray-200'}`}>
+                    <div onClick={() => setLineEditorExpanded(!lineEditorExpanded)} className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}>
+                      <div className="flex items-center gap-2">
+                        {lineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+                        <SplitSquareHorizontal className="w-4 h-4 text-cyan-400" />
+                        <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Line & Word Editor (Rhyme Sync)</span>
+                      </div>
+                      <span className="text-xs text-gray-500">{lyricsLines.length} lines • {words.length} words</span>
+                    </div>
 
             <AnimatePresence>
               {lineEditorExpanded && (
@@ -2247,10 +2353,10 @@ export default function PreviewEditPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </motion.div>
+          </div>
 
           {/* TIMELINE EDITOR - Collapsible with Duet Mode Toggle */}
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
+          <div className={`${isDark ? 'border-t border-white/10' : 'border-t border-gray-200'}`}>
             <div
               onClick={() => setTimelineEditorExpanded(!timelineEditorExpanded)}
               className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
@@ -2258,6 +2364,7 @@ export default function PreviewEditPage() {
               <div className="flex items-center gap-2">
                 {timelineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                 <Music2 className="w-4 h-4 text-cyan-400" />
+
                 <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Timeline Editor</span>
               </div>
               <button
@@ -2324,7 +2431,7 @@ export default function PreviewEditPage() {
                       {selectedWordIndices.size > 1 && (
                         <span className="text-xs text-cyan-400 font-medium">{selectedWordIndices.size} words selected</span>
                       )}
-                      <span className="text-xs text-gray-500 hidden sm:inline">Right-click word for duration • Shift+Click range • Ctrl+Click toggle</span>
+                      <span className="text-xs text-gray-500 hidden sm:inline">Right-click word for duration â€¢ Shift+Click range â€¢ Ctrl+Click toggle</span>
                     </div>
                   </div>
 
@@ -2485,6 +2592,215 @@ export default function PreviewEditPage() {
                 </motion.div>
               )}
             </AnimatePresence>
+          </div>
+                </>
+              )}
+
+              {/* STYLE TAB - V11 Implementation */}
+              {activeTab === 'style' && (
+                <div className="p-4 space-y-6 max-h-[450px] overflow-y-auto">
+                  {/* Font Selection */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Font
+                    </label>
+                    <select
+                      value={styleSettings.selectedFont}
+                      onChange={(e) => updateStyleSettings({ selectedFont: e.target.value })}
+                      className={`w-full px-3 py-2 rounded-lg text-sm ${isDark ? 'bg-white/10 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'} border focus:ring-2 focus:ring-cyan-500 focus:border-transparent`}
+                    >
+                      {FONT_OPTIONS.map(font => (
+                        <option key={font.value} value={font.value} disabled={font.requiresStudio && !project?.custom_font_url}>
+                          {font.label} {font.requiresStudio ? '(Studio)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {project?.custom_font_url && (
+                      <p className={`text-xs mt-1 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                        ✓ Custom font uploaded: {project.custom_font_name || 'CustomFont'}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Font Size */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Font Size
+                    </label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {FONT_SIZE_OPTIONS.map(size => (
+                        <button
+                          key={size.value}
+                          onClick={() => updateStyleSettings({ fontSize: size.value })}
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                            styleSettings.fontSize === size.value
+                              ? 'bg-cyan-500 text-white'
+                              : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {size.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Colors Section */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Text Colors
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* Text Color */}
+                      <div>
+                        <label className={`block text-xs mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Unsung Text
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={styleSettings.textColor}
+                            onChange={(e) => updateStyleSettings({ textColor: e.target.value })}
+                            className="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent"
+                          />
+                          <input
+                            type="text"
+                            value={styleSettings.textColor}
+                            onChange={(e) => updateStyleSettings({ textColor: e.target.value })}
+                            className={`flex-1 px-2 py-1.5 text-xs rounded-lg ${isDark ? 'bg-white/10 text-white border-white/10' : 'bg-gray-100 text-gray-900 border-gray-200'} border`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Highlight/Sung Color */}
+                      <div>
+                        <label className={`block text-xs mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Highlight/Sung
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={styleSettings.sungColor}
+                            onChange={(e) => updateStyleSettings({ sungColor: e.target.value })}
+                            className="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent"
+                          />
+                          <input
+                            type="text"
+                            value={styleSettings.sungColor}
+                            onChange={(e) => updateStyleSettings({ sungColor: e.target.value })}
+                            className={`flex-1 px-2 py-1.5 text-xs rounded-lg ${isDark ? 'bg-white/10 text-white border-white/10' : 'bg-gray-100 text-gray-900 border-gray-200'} border`}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Outline Color */}
+                      <div>
+                        <label className={`block text-xs mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          Text Outline
+                        </label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={styleSettings.outlineColor}
+                            onChange={(e) => updateStyleSettings({ outlineColor: e.target.value })}
+                            className="w-10 h-10 rounded-lg cursor-pointer border-0 bg-transparent"
+                          />
+                          <input
+                            type="text"
+                            value={styleSettings.outlineColor}
+                            onChange={(e) => updateStyleSettings({ outlineColor: e.target.value })}
+                            className={`flex-1 px-2 py-1.5 text-xs rounded-lg ${isDark ? 'bg-white/10 text-white border-white/10' : 'bg-gray-100 text-gray-900 border-gray-200'} border`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Duet Mode Colors (if enabled) */}
+                  {isDuetMode && (
+                    <div>
+                      <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Duet Mode Colors
+                      </label>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <label className={`block text-xs mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Singer 1
+                          </label>
+                          <input
+                            type="color"
+                            value={duetColors.singer1}
+                            onChange={(e) => { setDuetColors(prev => ({ ...prev, singer1: e.target.value })); setHasChanges(true); }}
+                            className="w-full h-10 rounded-lg cursor-pointer border-0"
+                          />
+                        </div>
+                        <div>
+                          <label className={`block text-xs mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Singer 2
+                          </label>
+                          <input
+                            type="color"
+                            value={duetColors.singer2}
+                            onChange={(e) => { setDuetColors(prev => ({ ...prev, singer2: e.target.value })); setHasChanges(true); }}
+                            className="w-full h-10 rounded-lg cursor-pointer border-0"
+                          />
+                        </div>
+                        <div>
+                          <label className={`block text-xs mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Both
+                          </label>
+                          <input
+                            type="color"
+                            value={duetColors.both}
+                            onChange={(e) => { setDuetColors(prev => ({ ...prev, both: e.target.value })); setHasChanges(true); }}
+                            className="w-full h-10 rounded-lg cursor-pointer border-0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Preview Hint */}
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
+                    <p className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
+                      💡 Changes are previewed in real-time above. Click Save to keep your changes.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* BACKGROUND TAB - Placeholder */}
+              {activeTab === 'background' && (
+                <div className="p-6">
+                  <div className={`text-center py-12 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <Image className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Background Settings</h3>
+                    <p className="text-sm">Background colors, images, and video presets coming in Stage 3</p>
+                  </div>
+                </div>
+              )}
+
+              {/* LAYOUT TAB - Placeholder */}
+              {activeTab === 'layout' && (
+                <div className="p-6">
+                  <div className={`text-center py-12 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <Grid3X3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Layout Settings</h3>
+                    <p className="text-sm">Display mode, aspect ratio, and layout options coming in Stage 4</p>
+                  </div>
+                </div>
+              )}
+
+              {/* EXPORT TAB - Placeholder */}
+              {activeTab === 'export' && (
+                <div className="p-6">
+                  <div className={`text-center py-12 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <Download className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Export Settings</h3>
+                    <p className="text-sm">Video quality, audio options, and render settings coming in Stage 5</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </motion.div>
 
           {/* BOTTOM ACTION BAR */}
