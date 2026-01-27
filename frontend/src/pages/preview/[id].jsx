@@ -205,6 +205,23 @@ const VIDEO_QUALITY_OPTIONS = [
   { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840×2160', tier: 'studio' },
 ];
 
+// V11: Branding - Logo position options
+const LOGO_POSITION_OPTIONS = [
+  { value: 'top-left', label: '↖', gridArea: '1 / 1' },
+  { value: 'top-center', label: '↑', gridArea: '1 / 2' },
+  { value: 'top-right', label: '↗', gridArea: '1 / 3' },
+  { value: 'bottom-left', label: '↙', gridArea: '2 / 1' },
+  { value: 'bottom-center', label: '↓', gridArea: '2 / 2' },
+  { value: 'bottom-right', label: '↘', gridArea: '2 / 3' },
+];
+
+// V11: Branding - Size options
+const SIZE_OPTIONS = [
+  { value: 'small', label: 'S', scale: 0.7 },
+  { value: 'medium', label: 'M', scale: 1.0 },
+  { value: 'large', label: 'L', scale: 1.3 },
+];
+
 // ============================================================
 // SWEEP WORD COMPONENT
 // ============================================================
@@ -569,6 +586,129 @@ export default function PreviewEditPage() {
   // V11: Custom font upload state
   const [customFontUploading, setCustomFontUploading] = useState(false);
   const [customFontError, setCustomFontError] = useState(null);
+
+  // V11: Branding settings state (Studio tier)
+  const [brandingSettings, setBrandingSettings] = useState({
+    // Logo/Watermark
+    logoUrl: null,
+    logoPosition: 'bottom-right', // top-left, top-center, top-right, bottom-left, bottom-center, bottom-right
+    logoSize: 'medium', // small, medium, large
+    logoOpacity: 80, // 0-100
+    // Start Image
+    startImageUrl: null,
+    startImageDuration: 3, // 1-5 seconds
+    // Outro
+    outroText: '',
+    outroDuration: 3, // 2-5 seconds
+    outroFontSize: 'medium', // small, medium, large
+  });
+
+  // V11: Branding upload states
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [startImageUploading, setStartImageUploading] = useState(false);
+  const [brandingError, setBrandingError] = useState(null);
+
+  // V11: Update branding settings helper
+  const updateBrandingSettings = useCallback((updates) => {
+    setBrandingSettings(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+  }, []);
+
+  // V11: Handle logo upload
+  const handleLogoUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setBrandingError('Please upload an image file (PNG recommended for transparency)');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setBrandingError('Logo must be less than 5MB');
+      return;
+    }
+
+    setLogoUploading(true);
+    setBrandingError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const formData = new FormData();
+      formData.append('logo', file);
+      formData.append('projectId', id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-logo`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to upload logo');
+      }
+
+      const result = await response.json();
+      updateBrandingSettings({ logoUrl: result.logoUrl });
+      setProject(prev => ({ ...prev, logo_url: result.logoUrl }));
+    } catch (err) {
+      console.error('Logo upload error:', err);
+      setBrandingError(err.message || 'Failed to upload logo');
+    } finally {
+      setLogoUploading(false);
+    }
+  }, [id, router, updateBrandingSettings]);
+
+  // V11: Handle start image upload
+  const handleStartImageUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setBrandingError('Please upload an image file (PNG recommended for transparency)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setBrandingError('Start image must be less than 10MB');
+      return;
+    }
+
+    setStartImageUploading(true);
+    setBrandingError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const formData = new FormData();
+      formData.append('startImage', file);
+      formData.append('projectId', id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-start-image`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to upload start image');
+      }
+
+      const result = await response.json();
+      updateBrandingSettings({ startImageUrl: result.startImageUrl });
+      setProject(prev => ({ ...prev, start_image_url: result.startImageUrl }));
+    } catch (err) {
+      console.error('Start image upload error:', err);
+      setBrandingError(err.message || 'Failed to upload start image');
+    } finally {
+      setStartImageUploading(false);
+    }
+  }, [id, router, updateBrandingSettings]);
 
   // V11: Update style settings helper
   const updateStyleSettings = useCallback((updates) => {
@@ -1298,6 +1438,19 @@ export default function PreviewEditPage() {
           audioTrack: projectData.audio_track || 'instrumental',
           videoQuality: projectData.video_quality || '720p',
         });
+        
+        // V11: Initialize branding settings from project data
+        setBrandingSettings({
+          logoUrl: projectData.logo_url || null,
+          logoPosition: projectData.logo_position || 'bottom-right',
+          logoSize: projectData.logo_size || 'medium',
+          logoOpacity: projectData.logo_opacity ?? 80,
+          startImageUrl: projectData.start_image_url || null,
+          startImageDuration: projectData.start_image_duration || 3,
+          outroText: projectData.outro_text || '',
+          outroDuration: projectData.outro_duration || 3,
+          outroFontSize: projectData.outro_font_size || 'medium',
+        });
       } catch (err) { console.error('Load error:', err); setError('Failed to load project'); }
       finally { setLoading(false); }
     };
@@ -1820,6 +1973,16 @@ export default function PreviewEditPage() {
           // V11: Export settings
           audio_track: exportSettings.audioTrack,
           video_quality: exportSettings.videoQuality,
+          // V11: Branding settings
+          logo_url: brandingSettings.logoUrl,
+          logo_position: brandingSettings.logoPosition,
+          logo_size: brandingSettings.logoSize,
+          logo_opacity: brandingSettings.logoOpacity,
+          start_image_url: brandingSettings.startImageUrl,
+          start_image_duration: brandingSettings.startImageDuration,
+          outro_text: brandingSettings.outroText,
+          outro_duration: brandingSettings.outroDuration,
+          outro_font_size: brandingSettings.outroFontSize,
         })
         .eq('id', id);
 
@@ -1834,7 +1997,7 @@ export default function PreviewEditPage() {
     } finally {
       setSaving(false);
     }
-  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, layoutSettings, exportSettings, id, router]);
+  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, layoutSettings, exportSettings, brandingSettings, id, router]);
 
   const handleApproveAndRender = useCallback(async () => {
     if (hasChanges) await saveChanges();
@@ -3294,6 +3457,216 @@ export default function PreviewEditPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* BRANDING SECTION - Studio Tier */}
+                  <div className={`border-t pt-6 ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-purple-400" />
+                        <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Branding</h3>
+                        <span className="px-2 py-0.5 text-[10px] rounded-full bg-purple-500/20 text-purple-400">
+                          Studio
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Logo/Watermark */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className={`block text-xs font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Logo / Watermark
+                        </label>
+                        {brandingSettings.logoUrl ? (
+                          <div className="flex items-start gap-3">
+                            <div className={`relative w-20 h-20 rounded-lg overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-100'}`} style={{ backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)', backgroundSize: '10px 10px', backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px' }}>
+                              <img src={brandingSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <button
+                                onClick={() => updateBrandingSettings({ logoUrl: null })}
+                                className="text-xs text-red-400 hover:text-red-300"
+                              >
+                                Remove Logo
+                              </button>
+                              
+                              {/* Position Selector */}
+                              <div>
+                                <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Position</label>
+                                <div className="grid grid-cols-3 gap-1 w-24">
+                                  {LOGO_POSITION_OPTIONS.map(pos => (
+                                    <button
+                                      key={pos.value}
+                                      onClick={() => updateBrandingSettings({ logoPosition: pos.value })}
+                                      className={`w-7 h-7 rounded text-xs flex items-center justify-center transition-all ${
+                                        brandingSettings.logoPosition === pos.value
+                                          ? 'bg-cyan-500 text-white'
+                                          : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                      }`}
+                                    >
+                                      {pos.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Size Selector */}
+                              <div>
+                                <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Size</label>
+                                <div className="flex gap-1">
+                                  {SIZE_OPTIONS.map(size => (
+                                    <button
+                                      key={size.value}
+                                      onClick={() => updateBrandingSettings({ logoSize: size.value })}
+                                      className={`w-8 h-6 rounded text-xs font-medium transition-all ${
+                                        brandingSettings.logoSize === size.value
+                                          ? 'bg-cyan-500 text-white'
+                                          : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                      }`}
+                                    >
+                                      {size.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Opacity Slider */}
+                              <div>
+                                <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Opacity: {brandingSettings.logoOpacity}%</label>
+                                <input
+                                  type="range"
+                                  min="10"
+                                  max="100"
+                                  value={brandingSettings.logoOpacity}
+                                  onChange={(e) => updateBrandingSettings({ logoOpacity: parseInt(e.target.value) })}
+                                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                                  style={{ background: `linear-gradient(to right, #06b6d4 ${brandingSettings.logoOpacity}%, ${isDark ? '#374151' : '#d1d5db'} ${brandingSettings.logoOpacity}%)` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <label className={`flex flex-col items-center justify-center h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                            logoUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-purple-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-purple-500 hover:bg-purple-50'
+                          }`}>
+                            {logoUploading ? (
+                              <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+                            ) : (
+                              <>
+                                <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Upload Logo (PNG for transparency)</span>
+                              </>
+                            )}
+                            <input type="file" accept="image/*" onChange={handleLogoUpload} disabled={logoUploading} className="hidden" />
+                          </label>
+                        )}
+                      </div>
+
+                      {/* Start Image */}
+                      <div>
+                        <label className={`block text-xs font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Start Image / Intro Overlay
+                        </label>
+                        {brandingSettings.startImageUrl ? (
+                          <div className="flex items-start gap-3">
+                            <div className={`relative w-28 h-16 rounded-lg overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-100'}`} style={{ backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)', backgroundSize: '10px 10px', backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px' }}>
+                              <img src={brandingSettings.startImageUrl} alt="Start" className="w-full h-full object-contain" />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <button
+                                onClick={() => updateBrandingSettings({ startImageUrl: null })}
+                                className="text-xs text-red-400 hover:text-red-300"
+                              >
+                                Remove
+                              </button>
+                              
+                              {/* Duration */}
+                              <div>
+                                <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Duration: {brandingSettings.startImageDuration}s</label>
+                                <div className="flex gap-1">
+                                  {[1, 2, 3, 4, 5].map(sec => (
+                                    <button
+                                      key={sec}
+                                      onClick={() => updateBrandingSettings({ startImageDuration: sec })}
+                                      className={`w-7 h-6 rounded text-xs font-medium transition-all ${
+                                        brandingSettings.startImageDuration === sec
+                                          ? 'bg-cyan-500 text-white'
+                                          : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                      }`}
+                                    >
+                                      {sec}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <label className={`flex flex-col items-center justify-center h-20 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                            startImageUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-purple-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-purple-500 hover:bg-purple-50'
+                          }`}>
+                            {startImageUploading ? (
+                              <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
+                            ) : (
+                              <>
+                                <Image className="w-6 h-6 text-gray-400 mb-1" />
+                                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Upload Start Image (PNG for transparency)</span>
+                              </>
+                            )}
+                            <input type="file" accept="image/*" onChange={handleStartImageUpload} disabled={startImageUploading} className="hidden" />
+                          </label>
+                        )}
+                        <p className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          Displays over the background at the start of the video
+                        </p>
+                      </div>
+
+                      {/* Outro Message */}
+                      <div>
+                        <label className={`block text-xs font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                          Outro Message
+                        </label>
+                        <textarea
+                          value={brandingSettings.outroText}
+                          onChange={(e) => updateBrandingSettings({ outroText: e.target.value })}
+                          placeholder="Thanks for watching! Subscribe for more..."
+                          maxLength={150}
+                          rows={2}
+                          className={`w-full px-3 py-2 rounded-lg text-sm border resize-none ${isDark ? 'bg-white/10 border-white/10 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'}`}
+                        />
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Duration:</span>
+                            {[2, 3, 4, 5].map(sec => (
+                              <button
+                                key={sec}
+                                onClick={() => updateBrandingSettings({ outroDuration: sec })}
+                                className={`w-6 h-5 rounded text-[10px] font-medium transition-all ${
+                                  brandingSettings.outroDuration === sec
+                                    ? 'bg-cyan-500 text-white'
+                                    : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                              >
+                                {sec}s
+                              </button>
+                            ))}
+                          </div>
+                          <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {brandingSettings.outroText.length}/150
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Branding Error */}
+                      {brandingError && (
+                        <div className={`p-2 rounded-lg ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}`}>
+                          <p className="text-xs text-red-400 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {brandingError}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
                   {/* Preview Hint */}
                   <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
