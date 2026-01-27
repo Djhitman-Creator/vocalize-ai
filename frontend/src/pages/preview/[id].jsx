@@ -43,7 +43,8 @@ import {
   Clock, Timer, Minus, MoreHorizontal,
   // V11: Tab icons
   Image, Download, Grid3X3, Palette, Sparkles, Video,
-  Monitor, Smartphone, Square, Upload, Lock, Undo2, Redo2
+  Monitor, Smartphone, Square, Upload, Lock, Undo2, Redo2,
+  ExternalLink
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
@@ -470,11 +471,82 @@ export default function PreviewEditPage() {
     outlineColor: '#000000',
   });
 
+  // V11: Custom font upload state
+  const [customFontUploading, setCustomFontUploading] = useState(false);
+  const [customFontError, setCustomFontError] = useState(null);
+
   // V11: Update style settings helper
   const updateStyleSettings = useCallback((updates) => {
     setStyleSettings(prev => ({ ...prev, ...updates }));
     setHasChanges(true);
   }, []);
+
+  // V11: Handle custom font upload
+  const handleCustomFontUpload = useCallback(async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['.ttf', '.otf', '.woff', '.woff2'];
+    const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    if (!validTypes.includes(ext)) {
+      setCustomFontError('Please upload a .ttf, .otf, .woff, or .woff2 font file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setCustomFontError('Font file must be less than 5MB');
+      return;
+    }
+
+    setCustomFontUploading(true);
+    setCustomFontError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
+      }
+
+      // Upload to R2 via API
+      const formData = new FormData();
+      formData.append('font', file);
+      formData.append('projectId', id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-font`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to upload font');
+      }
+
+      const result = await response.json();
+      
+      // Update project state with new font URL
+      setProject(prev => ({
+        ...prev,
+        custom_font_url: result.fontUrl,
+        custom_font_name: file.name.replace(/\.[^/.]+$/, ''),
+      }));
+
+      // Auto-select custom font
+      updateStyleSettings({ selectedFont: 'custom' });
+      
+    } catch (err) {
+      console.error('Font upload error:', err);
+      setCustomFontError(err.message || 'Failed to upload font');
+    } finally {
+      setCustomFontUploading(false);
+    }
+  }, [id, router, updateStyleSettings]);
 
   // Section collapse state - ALL START COLLAPSED
   const [lineEditorExpanded, setLineEditorExpanded] = useState(false);
@@ -2623,17 +2695,96 @@ export default function PreviewEditPage() {
                         <option 
                           key={font.value} 
                           value={font.value} 
-                          disabled={font.requiresStudio && !project?.custom_font_url}
                           className={isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}
                         >
                           {font.label} {font.requiresStudio ? '(Studio)' : ''}
                         </option>
                       ))}
                     </select>
-                    {project?.custom_font_url && (
-                      <p className={`text-xs mt-1 ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-                        ✓ Custom font uploaded: {project.custom_font_name || 'CustomFont'}
-                      </p>
+                    
+                    {/* Custom Font Upload Section - Shows when Custom Font is selected */}
+                    {styleSettings.selectedFont === 'custom' && (
+                      <div className={`mt-3 p-4 rounded-lg ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
+                        {/* DaFont Link */}
+                        <div className="flex items-center justify-between mb-3">
+                          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Need a font?
+                          </span>
+                          <a 
+                            href="https://www.dafont.com/" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            Browse DaFont
+                          </a>
+                        </div>
+
+                        {/* Current Font Status */}
+                        {project?.custom_font_url && (
+                          <div className={`mb-3 p-2 rounded-lg ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
+                            <p className={`text-sm ${isDark ? 'text-green-400' : 'text-green-700'}`}>
+                              ✓ <span className="font-medium">{project.custom_font_name || 'CustomFont'}</span> is active
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Upload Box */}
+                        <div>
+                          <label className={`block text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Upload Custom Font (.ttf, .otf, .woff, .woff2)
+                          </label>
+                          <label 
+                            className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                              customFontUploading 
+                                ? 'opacity-50 cursor-wait' 
+                                : isDark 
+                                  ? 'border-white/20 hover:border-cyan-500/50 hover:bg-white/5' 
+                                  : 'border-gray-300 hover:border-cyan-500 hover:bg-cyan-50'
+                            }`}
+                          >
+                            {customFontUploading ? (
+                              <>
+                                <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
+                                <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                  Uploading font...
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <Upload className={`w-8 h-8 mb-2 ${isDark ? 'text-gray-400' : 'text-gray-400'}`} />
+                                <span className={`text-sm font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                  {project?.custom_font_url ? 'Upload New Font' : 'Click to Upload Font'}
+                                </span>
+                                <span className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                  Max 5MB
+                                </span>
+                              </>
+                            )}
+                            <input 
+                              type="file" 
+                              accept=".ttf,.otf,.woff,.woff2" 
+                              onChange={handleCustomFontUpload}
+                              disabled={customFontUploading}
+                              className="hidden" 
+                            />
+                          </label>
+                          
+                          {/* Error Message */}
+                          {customFontError && (
+                            <p className="mt-2 text-sm text-red-400 flex items-center gap-1">
+                              <AlertCircle className="w-4 h-4" />
+                              {customFontError}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Tip */}
+                        <p className={`mt-3 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          💡 Download a .ttf or .otf file from DaFont, then upload it here
+                        </p>
+                      </div>
                     )}
                   </div>
 
