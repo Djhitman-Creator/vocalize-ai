@@ -2329,31 +2329,45 @@ export default function PreviewEditPage() {
             `}</style>
           )}
 
-          {/* VIDEO PREVIEW - 16:9 Aspect Ratio Centered Container */}
+          {/* VIDEO PREVIEW - Dynamic Aspect Ratio Container */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
             {/* Preview Label */}
             <div className={`px-4 py-2 flex items-center justify-between ${isDark ? 'border-b border-white/10' : 'border-b border-gray-200'}`}>
               <div className="flex items-center gap-2">
                 <FileVideo className="w-4 h-4 text-cyan-400" />
-                <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Video Preview (16:9)</span>
-                <span className={`px-2 py-0.5 text-[10px] rounded ${project.display_mode === 'overwrite' ? 'bg-purple-500/20 text-purple-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
-                  {project.display_mode === 'overwrite' ? 'Overwrite' : project.display_mode === 'page' ? 'Page' : 'Scroll'}
+                <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Video Preview ({layoutSettings.aspectRatio})</span>
+                <span className={`px-2 py-0.5 text-[10px] rounded ${layoutSettings.displayMode === 'overwrite' ? 'bg-purple-500/20 text-purple-400' : 'bg-cyan-500/20 text-cyan-400'}`}>
+                  {layoutSettings.displayMode === 'overwrite' ? 'Overwrite' : layoutSettings.displayMode === 'page' ? 'Page' : 'Scroll'}
                 </span>
               </div>
               <span className="text-xs text-gray-500">Drag bottom edge to resize</span>
             </div>
             
-            {/* 16:9 Container - Centered with proper aspect ratio */}
+            {/* Dynamic Aspect Ratio Container - Centered */}
             <div 
               className={`flex items-center justify-center p-4 ${isDark ? 'bg-black/30' : 'bg-gray-100'}`}
               style={{ minHeight: previewHeight }}
             >
-              {/* Actual 16:9 Preview Box */}
+              {/* Actual Preview Box with Dynamic Aspect Ratio */}
               {(() => {
+                // V11: Calculate aspect ratio dimensions
+                const getAspectRatioDimensions = () => {
+                  switch (layoutSettings.aspectRatio) {
+                    case '4:3': return { ratio: 4/3, cssRatio: '4 / 3' };
+                    case '9:16': return { ratio: 9/16, cssRatio: '9 / 16' };
+                    default: return { ratio: 16/9, cssRatio: '16 / 9' }; // 16:9
+                  }
+                };
+                const { ratio, cssRatio } = getAspectRatioDimensions();
+                
                 // Calculate dynamic font sizes based on preview height
                 // Base reference: 1080p video height = 1080px, typical font size ~48px
                 // Scale proportionally to preview height
                 const boxHeight = previewHeight - 32;
+                const boxWidth = layoutSettings.aspectRatio === '9:16' 
+                  ? boxHeight * ratio  // Portrait: narrower
+                  : boxHeight * ratio; // Landscape: wider
+                
                 const scaleFactor = boxHeight / 270; // 270px as baseline (small preview)
                 
                 // V11: Get font size multiplier from styleSettings
@@ -2374,10 +2388,10 @@ export default function PreviewEditPage() {
                   <div 
                     className="relative overflow-hidden rounded-lg shadow-2xl"
                     style={{ 
-                      width: `${boxHeight * (16/9)}px`,
+                      width: `${boxWidth}px`,
                       height: `${boxHeight}px`,
                       maxWidth: '100%',
-                      aspectRatio: '16 / 9',
+                      aspectRatio: cssRatio,
                       ...getPreviewBackground()
                     }}
                   >
