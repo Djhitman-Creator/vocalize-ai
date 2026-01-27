@@ -190,6 +190,21 @@ const ASPECT_RATIO_OPTIONS = [
 // V11: Lines per page options (for page mode)
 const LINES_PER_PAGE_OPTIONS = [2, 3, 4, 5, 6];
 
+// V11: Audio track options for export
+const AUDIO_TRACK_OPTIONS = [
+  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: '🎤' },
+  { value: 'backing', label: 'Keep Backing Vocals', description: 'Removes lead vocals but keeps harmonies', icon: '🎵' },
+  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: '🎧' },
+];
+
+// V11: Video quality options
+const VIDEO_QUALITY_OPTIONS = [
+  { value: '480p', label: '480p', description: 'SD - Fast render', resolution: '854×480', tier: 'free' },
+  { value: '720p', label: '720p', description: 'HD - Good quality', resolution: '1280×720', tier: 'free' },
+  { value: '1080p', label: '1080p', description: 'Full HD - Best for YouTube', resolution: '1920×1080', tier: 'pro' },
+  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840×2160', tier: 'studio' },
+];
+
 // ============================================================
 // SWEEP WORD COMPONENT
 // ============================================================
@@ -655,6 +670,18 @@ export default function PreviewEditPage() {
   // V11: Update layout settings helper
   const updateLayoutSettings = useCallback((updates) => {
     setLayoutSettings(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+  }, []);
+
+  // V11: Export settings state
+  const [exportSettings, setExportSettings] = useState({
+    audioTrack: 'instrumental', // 'instrumental', 'backing', 'original'
+    videoQuality: '720p', // '480p', '720p', '1080p', '4k'
+  });
+
+  // V11: Update export settings helper
+  const updateExportSettings = useCallback((updates) => {
+    setExportSettings(prev => ({ ...prev, ...updates }));
     setHasChanges(true);
   }, []);
 
@@ -1265,6 +1292,12 @@ export default function PreviewEditPage() {
           showCountdown: projectData.show_countdown !== false, // default true
           showLeadInBars: projectData.show_lead_in_bars !== false, // default true
         });
+        
+        // V11: Initialize export settings from project data
+        setExportSettings({
+          audioTrack: projectData.audio_track || 'instrumental',
+          videoQuality: projectData.video_quality || '720p',
+        });
       } catch (err) { console.error('Load error:', err); setError('Failed to load project'); }
       finally { setLoading(false); }
     };
@@ -1784,6 +1817,9 @@ export default function PreviewEditPage() {
           show_progress_bar: layoutSettings.showProgressBar,
           show_countdown: layoutSettings.showCountdown,
           show_lead_in_bars: layoutSettings.showLeadInBars,
+          // V11: Export settings
+          audio_track: exportSettings.audioTrack,
+          video_quality: exportSettings.videoQuality,
         })
         .eq('id', id);
 
@@ -1798,7 +1834,7 @@ export default function PreviewEditPage() {
     } finally {
       setSaving(false);
     }
-  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, layoutSettings, id, router]);
+  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, layoutSettings, exportSettings, id, router]);
 
   const handleApproveAndRender = useCallback(async () => {
     if (hasChanges) await saveChanges();
@@ -3697,13 +3733,135 @@ export default function PreviewEditPage() {
                 </div>
               )}
 
-              {/* EXPORT TAB - Placeholder */}
+              {/* EXPORT TAB - V11 Implementation */}
               {activeTab === 'export' && (
-                <div className="p-6">
-                  <div className={`text-center py-12 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <Download className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <h3 className={`text-lg font-medium mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Export Settings</h3>
-                    <p className="text-sm">Video quality, audio options, and render settings coming in Stage 5</p>
+                <div className="p-4 space-y-6 max-h-[500px] overflow-y-auto">
+                  {/* Audio Track Selection */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Audio Track
+                    </label>
+                    <div className="space-y-2">
+                      {AUDIO_TRACK_OPTIONS.map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => updateExportSettings({ audioTrack: option.value })}
+                          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
+                            exportSettings.audioTrack === option.value
+                              ? 'bg-cyan-500/20 border-2 border-cyan-500'
+                              : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                          }`}
+                        >
+                          <span className="text-2xl">{option.icon}</span>
+                          <div className="flex-1">
+                            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</p>
+                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{option.description}</p>
+                          </div>
+                          {exportSettings.audioTrack === option.value && (
+                            <Check className="w-5 h-5 text-cyan-400" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Video Quality Selection */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Video Quality
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {VIDEO_QUALITY_OPTIONS.map(option => {
+                        // Check tier restrictions (simplified - you'd check actual user tier)
+                        const isLocked = option.tier === 'pro' || option.tier === 'studio';
+                        const tierLabel = option.tier === 'pro' ? 'Pro' : option.tier === 'studio' ? 'Studio' : null;
+                        
+                        return (
+                          <button
+                            key={option.value}
+                            onClick={() => !isLocked && updateExportSettings({ videoQuality: option.value })}
+                            disabled={isLocked}
+                            className={`relative flex flex-col items-center gap-1 p-4 rounded-lg transition-all ${
+                              exportSettings.videoQuality === option.value
+                                ? 'bg-cyan-500/20 border-2 border-cyan-500'
+                                : isLocked
+                                  ? isDark ? 'bg-white/5 border-2 border-transparent opacity-50 cursor-not-allowed' : 'bg-gray-50 border-2 border-transparent opacity-50 cursor-not-allowed'
+                                  : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                            }`}
+                          >
+                            {isLocked && (
+                              <div className="absolute top-2 right-2">
+                                <Lock className="w-4 h-4 text-yellow-500" />
+                              </div>
+                            )}
+                            <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</span>
+                            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{option.resolution}</span>
+                            <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{option.description}</span>
+                            {tierLabel && (
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full ${option.tier === 'studio' ? 'bg-purple-500/20 text-purple-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                {tierLabel}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Credit Cost Info */}
+                  <div className={`p-4 rounded-lg ${isDark ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30' : 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200'}`}>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Render Cost</p>
+                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>This will use credits from your balance</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-green-400">1</p>
+                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>credit</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Render Info */}
+                  <div className={`space-y-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <p className="flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Rendering typically takes 2-5 minutes depending on video length
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      You'll receive an email notification when your video is ready
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <Download className="w-4 h-4" />
+                      Download your finished video from the Dashboard
+                    </p>
+                  </div>
+
+                  {/* Render Button - Large prominent button */}
+                  <button
+                    onClick={handleApproveAndRender}
+                    disabled={saving}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-lg font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50"
+                  >
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                        Starting Render...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-6 h-6" />
+                        Render Video
+                      </>
+                    )}
+                  </button>
+
+                  {/* Tip */}
+                  <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
+                    <p className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
+                      💡 Make sure to Save your changes before rendering. All your customizations will be applied to the final video.
+                    </p>
                   </div>
                 </div>
               )}
