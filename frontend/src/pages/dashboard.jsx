@@ -21,7 +21,9 @@ import {
   Bell,
   X,
   Edit3,
-  HelpCircle
+  HelpCircle,
+  Lightbulb,
+  Send
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import AppNavigation from '../components/AppNavigation';
@@ -63,6 +65,13 @@ export default function DashboardPage() {
 
   // Help modal state
   const [showHelpModal, setShowHelpModal] = useState(false);
+
+  // Suggestion modal state
+  const [showSuggestionModal, setShowSuggestionModal] = useState(false);
+  const [suggestionTitle, setSuggestionTitle] = useState('');
+  const [suggestionDescription, setSuggestionDescription] = useState('');
+  const [suggestionCategory, setSuggestionCategory] = useState('feature');
+  const [submittingSuggestion, setSubmittingSuggestion] = useState(false);
 
   // Add notification
   const addNotification = useCallback((message, type = 'success') => {
@@ -429,6 +438,42 @@ export default function DashboardPage() {
     }
   };
 
+  // Submit feature suggestion
+  const handleSubmitSuggestion = async () => {
+    if (!suggestionTitle.trim() || !suggestionDescription.trim()) {
+      addNotification('Please fill in all fields', 'error');
+      return;
+    }
+
+    setSubmittingSuggestion(true);
+    try {
+      const { error } = await supabase
+        .from('roadmap_suggestions')
+        .insert({
+          title: suggestionTitle.trim(),
+          description: suggestionDescription.trim(),
+          category: suggestionCategory,
+          user_id: user.id,
+          user_email: user.email,
+          status: 'pending',
+          vote_count: 0
+        });
+
+      if (error) throw error;
+
+      addNotification('Thank you! Your suggestion has been submitted for review.', 'success');
+      setSuggestionTitle('');
+      setSuggestionDescription('');
+      setSuggestionCategory('feature');
+      setShowSuggestionModal(false);
+    } catch (err) {
+      console.error('Suggestion error:', err);
+      addNotification('Failed to submit suggestion. Please try again.', 'error');
+    } finally {
+      setSubmittingSuggestion(false);
+    }
+  };
+
   if (loading || checkingPendingPlan) {
     return (
       <>
@@ -686,6 +731,36 @@ export default function DashboardPage() {
             </div>
           </motion.div>
 
+          {/* Suggest a Feature Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+            className="mb-8"
+          >
+            <div
+              onClick={() => setShowSuggestionModal(true)}
+              className={`glass-panel p-6 cursor-pointer hover:border-yellow-500/50 transition-all group ${isDark ? 'hover:bg-yellow-500/5' : 'hover:bg-yellow-50'}`}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Lightbulb className="w-6 h-6 text-yellow-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Have an idea?
+                  </h3>
+                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Suggest a feature and help shape Karatrack Studio
+                  </p>
+                </div>
+                <div className={`text-sm font-medium ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                  Suggest Feature
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
           {/* Recent Projects */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -838,6 +913,139 @@ export default function DashboardPage() {
         onClose={() => setShowHelpModal(false)} 
         profile={profile}
       />
+
+      {/* Suggestion Modal */}
+      <AnimatePresence>
+        {showSuggestionModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowSuggestionModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={`w-full max-w-lg rounded-2xl p-6 ${isDark ? 'bg-gray-900' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-gray-200'}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                    <Lightbulb className="w-5 h-5 text-yellow-400" />
+                  </div>
+                  <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Suggest a Feature
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowSuggestionModal(false)}
+                  className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <div className="space-y-4">
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Title
+                  </label>
+                  <input
+                    type="text"
+                    value={suggestionTitle}
+                    onChange={(e) => setSuggestionTitle(e.target.value)}
+                    placeholder="Brief title for your idea"
+                    maxLength={100}
+                    className={`w-full px-4 py-3 rounded-lg border ${
+                      isDark 
+                        ? 'bg-white/5 border-white/20 text-white placeholder-gray-500' 
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                    } focus:outline-none focus:border-cyan-500`}
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Description
+                  </label>
+                  <textarea
+                    value={suggestionDescription}
+                    onChange={(e) => setSuggestionDescription(e.target.value)}
+                    placeholder="Describe your feature idea and why it would be useful..."
+                    rows={4}
+                    maxLength={500}
+                    className={`w-full px-4 py-3 rounded-lg border resize-none ${
+                      isDark 
+                        ? 'bg-white/5 border-white/20 text-white placeholder-gray-500' 
+                        : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
+                    } focus:outline-none focus:border-cyan-500`}
+                  />
+                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {suggestionDescription.length}/500 characters
+                  </p>
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Category
+                  </label>
+                  <select
+                    value={suggestionCategory}
+                    onChange={(e) => setSuggestionCategory(e.target.value)}
+                    className={`w-full px-4 py-3 rounded-lg border ${
+                      isDark 
+                        ? 'bg-white/5 border-white/20 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    } focus:outline-none focus:border-cyan-500`}
+                  >
+                    <option value="feature" className={isDark ? 'bg-gray-900' : 'bg-white'}>New Feature</option>
+                    <option value="improvement" className={isDark ? 'bg-gray-900' : 'bg-white'}>Improvement</option>
+                    <option value="ui" className={isDark ? 'bg-gray-900' : 'bg-white'}>UI/UX</option>
+                    <option value="integration" className={isDark ? 'bg-gray-900' : 'bg-white'}>Integration</option>
+                    <option value="other" className={isDark ? 'bg-gray-900' : 'bg-white'}>Other</option>
+                  </select>
+                </div>
+
+                <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/20' : 'bg-cyan-50 border border-cyan-200'}`}>
+                  <p className={`text-sm ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}>
+                    Your suggestion will be reviewed by our team. Approved ideas will appear on the public roadmap for voting!
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={() => setShowSuggestionModal(false)}
+                    className={`flex-1 px-4 py-3 rounded-lg font-medium ${
+                      isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    } transition-colors`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmitSuggestion}
+                    disabled={submittingSuggestion || !suggestionTitle.trim() || !suggestionDescription.trim()}
+                    className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {submittingSuggestion ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" />
+                        Submit
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

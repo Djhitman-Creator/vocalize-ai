@@ -14,7 +14,8 @@ import {
   Upload,
   Settings,
   CreditCard,
-  LayoutDashboard
+  LayoutDashboard,
+  Map
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { createClient } from '@supabase/supabase-js';
@@ -40,6 +41,7 @@ export default function AppNavigation({ profile, showBackToDashboard = false }) 
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/upload', label: 'Upload', icon: Upload },
     { href: '/pricing', label: 'Pricing', icon: CreditCard },
+    { href: '/roadmap', label: 'Roadmap', icon: Map },
     { href: '/settings', label: 'Settings', icon: Settings },
   ];
 
@@ -62,6 +64,9 @@ export default function AppNavigation({ profile, showBackToDashboard = false }) 
           </Link>
           <Link href="/pricing" className={`text-sm transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
             Pricing
+          </Link>
+          <Link href="/roadmap" className={`text-sm transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
+            Roadmap
           </Link>
           <Link href="/settings" className={`text-sm transition-colors ${isDark ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}>
             Settings
