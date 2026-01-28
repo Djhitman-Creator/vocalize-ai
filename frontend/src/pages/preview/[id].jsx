@@ -3296,84 +3296,99 @@ export default function PreviewEditPage() {
                       boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.4)'
                     }}
                   >
-                    {/* Waveform Visualization - Muted Green */}
+                    {/* Waveform Visualization - Solid Filled Wave */}
                     <div className="absolute inset-0 bottom-6 overflow-hidden pointer-events-none" style={{ opacity: vocalsVolume > 0 ? 0.7 : 0.35 }}>
                       {(() => {
                         const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
                         const centerX = containerWidth / 2;
-                        const waveformBars = [];
-                        const barWidth = 2;
-                        const barGap = 1;
-                        const totalBarWidth = barWidth + barGap;
                         const waveformHeight = TIMELINE_HEIGHT - 30;
+                        const centerY = waveformHeight / 2 + 4;
                         
                         // Use real waveform data if available
                         if (waveformData && waveformData.amplitudes) {
                           const samplesPerSecond = waveformData.samples_per_second || 20;
                           const secondsPerSample = 1 / samplesPerSecond;
                           
-                          // Iterate through waveform samples and position them by TIME (like time markers)
-                          // This ensures waveform stays anchored to actual audio time
+                          // Build SVG path points for top and bottom of waveform
+                          const topPoints = [];
+                          const bottomPoints = [];
+                          
                           for (let sampleIndex = 0; sampleIndex < waveformData.amplitudes.length; sampleIndex++) {
                             const sampleTime = sampleIndex * secondsPerSample;
-                            
-                            // Position based on time, same formula as time markers
                             const barX = centerX + (sampleTime - currentTime) * zoom;
                             
-                            // Skip if off-screen
-                            if (barX < -10 || barX > containerWidth + 10) continue;
+                            // Skip if way off-screen (with buffer for smooth edges)
+                            if (barX < -50 || barX > containerWidth + 50) continue;
                             
-                            // Get amplitude (0-1) from waveform data
                             const amplitude = waveformData.amplitudes[sampleIndex];
+                            const heightPercent = 0.08 + amplitude * 0.85;
+                            const halfHeight = (heightPercent * waveformHeight) / 2;
                             
-                            // Scale amplitude for visual display (minimum 5% height for visibility)
-                            const heightPercent = 0.05 + amplitude * 0.9;
-                            const barHeight = heightPercent * waveformHeight;
-                            
-                            waveformBars.push(
-                              <div
-                                key={sampleIndex}
-                                className="absolute rounded-sm"
-                                style={{
-                                  left: barX,
-                                  width: barWidth,
-                                  height: barHeight,
-                                  top: (waveformHeight - barHeight) / 2 + 4,
-                                  backgroundColor: vocalsVolume > 0 ? '#4ade80' : '#3f6f3f',
-                                  opacity: amplitude > 0.1 ? 0.9 : 0.4,
-                                }}
-                              />
-                            );
+                            topPoints.push({ x: barX, y: centerY - halfHeight });
+                            bottomPoints.push({ x: barX, y: centerY + halfHeight });
                           }
+                          
+                          if (topPoints.length < 2) {
+                            return null;
+                          }
+                          
+                          // Create smooth path - top line going right, bottom line going left
+                          let pathD = `M ${topPoints[0].x} ${topPoints[0].y}`;
+                          
+                          // Draw top edge (left to right)
+                          for (let i = 1; i < topPoints.length; i++) {
+                            pathD += ` L ${topPoints[i].x} ${topPoints[i].y}`;
+                          }
+                          
+                          // Connect to bottom and draw bottom edge (right to left)
+                          const lastBottom = bottomPoints[bottomPoints.length - 1];
+                          pathD += ` L ${lastBottom.x} ${lastBottom.y}`;
+                          
+                          for (let i = bottomPoints.length - 2; i >= 0; i--) {
+                            pathD += ` L ${bottomPoints[i].x} ${bottomPoints[i].y}`;
+                          }
+                          
+                          pathD += ' Z'; // Close the path
+                          
+                          return (
+                            <svg 
+                              width={containerWidth} 
+                              height={waveformHeight + 8} 
+                              className="absolute top-0 left-0"
+                              style={{ overflow: 'visible' }}
+                            >
+                              <defs>
+                                <linearGradient id="waveformGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                  <stop offset="0%" stopColor={vocalsVolume > 0 ? '#4ade80' : '#3f6f3f'} stopOpacity="0.9" />
+                                  <stop offset="50%" stopColor={vocalsVolume > 0 ? '#22c55e' : '#2d5a2d'} stopOpacity="0.7" />
+                                  <stop offset="100%" stopColor={vocalsVolume > 0 ? '#4ade80' : '#3f6f3f'} stopOpacity="0.9" />
+                                </linearGradient>
+                              </defs>
+                              <path 
+                                d={pathD} 
+                                fill="url(#waveformGradient)"
+                                stroke={vocalsVolume > 0 ? '#4ade80' : '#3f6f3f'}
+                                strokeWidth="1"
+                                strokeOpacity="0.5"
+                              />
+                            </svg>
+                          );
                         } else {
-                          // Fallback: Show flat line placeholder based on duration
-                          const numBars = Math.ceil(containerWidth / totalBarWidth) + 20;
-                          for (let i = -10; i < numBars; i++) {
-                            const barX = (i * totalBarWidth);
-                            const timeAtBar = currentTime + (barX - centerX) / zoom;
-                            
-                            if (timeAtBar < 0 || timeAtBar > duration) continue;
-                            
-                            // Simple flat line as placeholder
-                            const barHeight = waveformLoading ? 4 : 2;
-                            
-                            waveformBars.push(
-                              <div
-                                key={i}
-                                className="absolute rounded-sm"
-                                style={{
-                                  left: barX,
-                                  width: barWidth,
-                                  height: barHeight,
-                                  top: (waveformHeight - barHeight) / 2 + 4,
-                                  backgroundColor: '#3f6f3f',
-                                  opacity: 0.3,
-                                }}
-                              />
-                            );
-                          }
+                          // Fallback: Show flat line placeholder
+                          return (
+                            <div 
+                              className="absolute rounded-full"
+                              style={{
+                                left: 0,
+                                right: 0,
+                                height: waveformLoading ? 4 : 2,
+                                top: centerY - 1,
+                                backgroundColor: '#3f6f3f',
+                                opacity: 0.3,
+                              }}
+                            />
+                          );
                         }
-                        return waveformBars;
                       })()}
                     </div>
                     
