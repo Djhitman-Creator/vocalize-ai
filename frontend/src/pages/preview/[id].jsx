@@ -298,7 +298,8 @@ const SweepInBar = ({ progress, color }) => {
       style={{
         position: 'absolute',
         right: '100%', // Position to the left of the parent
-        top: '0.1em', // Align with top of text (accounting for line-height)
+        top: '50%', // Center vertically
+        transform: 'translateY(-50%)', // Perfect center alignment
         height: '0.75em', // Match capital letter height (cap height)
         width: `${width}px`,
         // Simple gradient, no box-shadow glow
