@@ -1003,6 +1003,14 @@ export default function PreviewEditPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartTimes, setDragStartTimes] = useState({});
+  
+  // Word resize state - drag handles on word edges
+  const [hoveredWordIndex, setHoveredWordIndex] = useState(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeEdge, setResizeEdge] = useState(null); // 'left' or 'right'
+  const [resizeWordIndex, setResizeWordIndex] = useState(null);
+  const [resizeStartX, setResizeStartX] = useState(0);
+  const [resizeStartTime, setResizeStartTime] = useState(0);
 
   // Word editing state - INLINE EDITING
   const [editingWordIndex, setEditingWordIndex] = useState(null);
@@ -2075,6 +2083,59 @@ export default function PreviewEditPage() {
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging, dragStartX, dragStartTimes, zoom, paintMode]);
+
+  // ============================================================
+  // WORD EDGE RESIZE - Drag handles to adjust word start/end times
+  // ============================================================
+  const handleResizeStart = useCallback((index, edge, e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsResizing(true);
+    setResizeEdge(edge);
+    setResizeWordIndex(index);
+    setResizeStartX(e.clientX);
+    setResizeStartTime(edge === 'left' ? words[index].start : words[index].end);
+  }, [words]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleResizeMove = (e) => {
+      const deltaX = e.clientX - resizeStartX;
+      const deltaTime = deltaX / zoom;
+      
+      setWords(prev => {
+        const updated = [...prev];
+        const word = updated[resizeWordIndex];
+        
+        if (resizeEdge === 'left') {
+          // Moving start time - ensure it doesn't go past end or below 0
+          const newStart = Math.max(0, Math.min(word.end - 0.05, resizeStartTime + deltaTime));
+          updated[resizeWordIndex] = { ...word, start: newStart };
+        } else {
+          // Moving end time - ensure it doesn't go before start
+          const newEnd = Math.max(word.start + 0.05, resizeStartTime + deltaTime);
+          updated[resizeWordIndex] = { ...word, end: newEnd };
+        }
+        
+        return updated;
+      });
+      setHasChanges(true);
+    };
+
+    const handleResizeEnd = () => {
+      setIsResizing(false);
+      setResizeEdge(null);
+      setResizeWordIndex(null);
+    };
+
+    window.addEventListener('mousemove', handleResizeMove);
+    window.addEventListener('mouseup', handleResizeEnd);
+    return () => {
+      window.removeEventListener('mousemove', handleResizeMove);
+      window.removeEventListener('mouseup', handleResizeEnd);
+    };
+  }, [isResizing, resizeStartX, resizeStartTime, resizeEdge, resizeWordIndex, zoom]);
 
   // ============================================================
   // SAVE & RENDER FUNCTIONS
@@ -3321,7 +3382,7 @@ export default function PreviewEditPage() {
                       {selectedWordIndices.size > 1 && (
                         <span className="text-xs text-cyan-400 font-medium">{selectedWordIndices.size} words selected</span>
                       )}
-                      <span className="text-xs text-gray-500 hidden sm:inline">Scroll wheel to navigate | Right-click for duration</span>
+                      <span className="text-xs text-gray-500 hidden sm:inline">Scroll to navigate | Drag edges to resize | Shift+Click range</span>
                     </div>
                   </div>
 
@@ -3609,36 +3670,74 @@ export default function PreviewEditPage() {
                         const singerLabel = wordSinger === SINGER.SINGER_1 ? 'Singer 1' : wordSinger === SINGER.SINGER_2 ? 'Singer 2' : 'Both';
                         const tooltipText = `"${word.word}"\nStart: ${formatTimestamp(word.start)}\nEnd: ${formatTimestamp(word.end)}\nDuration: ${(word.end - word.start).toFixed(3)}s${isDuetMode ? `\nSinger: ${singerLabel}` : ''}${word.confidence ? `\nConfidence: ${(word.confidence * 100).toFixed(0)}%` : ''}`;
 
+                        const isHovered = hoveredWordIndex === index;
+                        const isBeingResized = isResizing && resizeWordIndex === index;
+
                         return (
                           <div
                             key={index}
-                            className="absolute cursor-pointer select-none"
+                            className="absolute cursor-pointer select-none group"
                             style={{
                               left: wordX,
                               width: wordWidth,
                               height: wordHeight,
                               top: wordTop
                             }}
-                            onMouseDown={(e) => handleTimelineWordMouseDown(index, e)}
-                            onMouseEnter={() => handleTimelineWordMouseEnter(index)}
-                            onClick={(e) => { e.stopPropagation(); handleWordClick(index, e); }}
+                            onMouseDown={(e) => {
+                              // Only start drag if not clicking on resize handles
+                              if (!e.target.classList.contains('resize-handle')) {
+                                handleTimelineWordMouseDown(index, e);
+                              }
+                            }}
+                            onMouseEnter={() => {
+                              handleTimelineWordMouseEnter(index);
+                              setHoveredWordIndex(index);
+                            }}
+                            onMouseLeave={() => {
+                              if (!isResizing) setHoveredWordIndex(null);
+                            }}
+                            onClick={(e) => { 
+                              if (!e.target.classList.contains('resize-handle')) {
+                                e.stopPropagation(); 
+                                handleWordClick(index, e); 
+                              }
+                            }}
                             onContextMenu={(e) => handleWordContextMenu(index, e)}
-                            title={tooltipText + '\n\nRight-click for duration options'}
+                            title={tooltipText + '\n\nDrag edges to resize'}
                           >
+                            {/* Left resize handle */}
                             <div
-                              className={`h-full rounded-lg border-2 flex items-center justify-center px-1 overflow-hidden transition-colors ${isSelected
+                              className={`resize-handle absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
+                              onMouseDown={(e) => handleResizeStart(index, 'left', e)}
+                              title="Drag to adjust start time"
+                            >
+                              <div className={`w-1 h-6 rounded-full ${isBeingResized && resizeEdge === 'left' ? 'bg-cyan-400' : 'bg-white/60'}`} />
+                            </div>
+                            
+                            {/* Word content */}
+                            <div
+                              className={`h-full rounded-lg border-2 flex items-center justify-center px-3 overflow-hidden ${isSelected
                                   ? 'border-cyan-400 shadow-lg shadow-cyan-500/30 bg-cyan-500/20'
                                   : isCurrent
                                     ? isDark ? 'border-white/40 bg-white/15' : 'border-gray-400 bg-gray-200/50'
                                     : isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-gray-200 bg-gray-100 hover:bg-gray-200'
                                 }`}
                               style={{ 
-                                backdropFilter: 'blur(4px)',
                                 borderColor: isDuetMode && !isSelected ? (wordSinger === SINGER.SINGER_1 ? duetColors.singer1 + '40' : wordSinger === SINGER.SINGER_2 ? duetColors.singer2 + '40' : duetColors.both + '40') : undefined
                               }}
                             >
                               <span className={`${isDuetMode ? 'text-[10px]' : 'text-xs'} font-medium truncate`} style={{ color: wordColor }}>{word.word}</span>
                             </div>
+                            
+                            {/* Right resize handle */}
+                            <div
+                              className={`resize-handle absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
+                              onMouseDown={(e) => handleResizeStart(index, 'right', e)}
+                              title="Drag to adjust end time"
+                            >
+                              <div className={`w-1 h-6 rounded-full ${isBeingResized && resizeEdge === 'right' ? 'bg-cyan-400' : 'bg-white/60'}`} />
+                            </div>
+                            
                             {word.lineBreak && <div className="absolute -right-0.5 top-0 bottom-0 w-1 bg-cyan-500 rounded-full" title="Line break" />}
                           </div>
                         );
