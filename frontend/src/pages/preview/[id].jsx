@@ -1006,11 +1006,11 @@ export default function PreviewEditPage() {
   
   // Word resize state - drag handles on word edges
   const [hoveredWordIndex, setHoveredWordIndex] = useState(null);
-  const [isResizing, setIsResizing] = useState(false);
-  const [resizeEdge, setResizeEdge] = useState(null); // 'left' or 'right'
-  const [resizeWordIndex, setResizeWordIndex] = useState(null);
-  const [resizeStartX, setResizeStartX] = useState(0);
-  const [resizeStartTime, setResizeStartTime] = useState(0);
+  const [isWordResizing, setIsWordResizing] = useState(false);
+  const [wordResizeEdge, setWordResizeEdge] = useState(null); // 'left' or 'right'
+  const [wordResizeIndex, setWordResizeIndex] = useState(null);
+  const [wordResizeStartX, setWordResizeStartX] = useState(0);
+  const [wordResizeStartTime, setWordResizeStartTime] = useState(0);
 
   // Word editing state - INLINE EDITING
   const [editingWordIndex, setEditingWordIndex] = useState(null);
@@ -2087,35 +2087,35 @@ export default function PreviewEditPage() {
   // ============================================================
   // WORD EDGE RESIZE - Drag handles to adjust word start/end times
   // ============================================================
-  const handleResizeStart = useCallback((index, edge, e) => {
+  const handleWordResizeStart = useCallback((index, edge, e) => {
     e.stopPropagation();
     e.preventDefault();
-    setIsResizing(true);
-    setResizeEdge(edge);
-    setResizeWordIndex(index);
-    setResizeStartX(e.clientX);
-    setResizeStartTime(edge === 'left' ? words[index].start : words[index].end);
+    setIsWordResizing(true);
+    setWordResizeEdge(edge);
+    setWordResizeIndex(index);
+    setWordResizeStartX(e.clientX);
+    setWordResizeStartTime(edge === 'left' ? words[index].start : words[index].end);
   }, [words]);
 
   useEffect(() => {
-    if (!isResizing) return;
+    if (!isWordResizing) return;
 
-    const handleResizeMove = (e) => {
-      const deltaX = e.clientX - resizeStartX;
+    const handleWordResizeMove = (e) => {
+      const deltaX = e.clientX - wordResizeStartX;
       const deltaTime = deltaX / zoom;
       
       setWords(prev => {
         const updated = [...prev];
-        const word = updated[resizeWordIndex];
+        const word = updated[wordResizeIndex];
         
-        if (resizeEdge === 'left') {
+        if (wordResizeEdge === 'left') {
           // Moving start time - ensure it doesn't go past end or below 0
-          const newStart = Math.max(0, Math.min(word.end - 0.05, resizeStartTime + deltaTime));
-          updated[resizeWordIndex] = { ...word, start: newStart };
+          const newStart = Math.max(0, Math.min(word.end - 0.05, wordResizeStartTime + deltaTime));
+          updated[wordResizeIndex] = { ...word, start: newStart };
         } else {
           // Moving end time - ensure it doesn't go before start
-          const newEnd = Math.max(word.start + 0.05, resizeStartTime + deltaTime);
-          updated[resizeWordIndex] = { ...word, end: newEnd };
+          const newEnd = Math.max(word.start + 0.05, wordResizeStartTime + deltaTime);
+          updated[wordResizeIndex] = { ...word, end: newEnd };
         }
         
         return updated;
@@ -2123,19 +2123,19 @@ export default function PreviewEditPage() {
       setHasChanges(true);
     };
 
-    const handleResizeEnd = () => {
-      setIsResizing(false);
-      setResizeEdge(null);
-      setResizeWordIndex(null);
+    const handleWordResizeEnd = () => {
+      setIsWordResizing(false);
+      setWordResizeEdge(null);
+      setWordResizeIndex(null);
     };
 
-    window.addEventListener('mousemove', handleResizeMove);
-    window.addEventListener('mouseup', handleResizeEnd);
+    window.addEventListener('mousemove', handleWordResizeMove);
+    window.addEventListener('mouseup', handleWordResizeEnd);
     return () => {
-      window.removeEventListener('mousemove', handleResizeMove);
-      window.removeEventListener('mouseup', handleResizeEnd);
+      window.removeEventListener('mousemove', handleWordResizeMove);
+      window.removeEventListener('mouseup', handleWordResizeEnd);
     };
-  }, [isResizing, resizeStartX, resizeStartTime, resizeEdge, resizeWordIndex, zoom]);
+  }, [isWordResizing, wordResizeStartX, wordResizeStartTime, wordResizeEdge, wordResizeIndex, zoom]);
 
   // ============================================================
   // SAVE & RENDER FUNCTIONS
@@ -3671,7 +3671,7 @@ export default function PreviewEditPage() {
                         const tooltipText = `"${word.word}"\nStart: ${formatTimestamp(word.start)}\nEnd: ${formatTimestamp(word.end)}\nDuration: ${(word.end - word.start).toFixed(3)}s${isDuetMode ? `\nSinger: ${singerLabel}` : ''}${word.confidence ? `\nConfidence: ${(word.confidence * 100).toFixed(0)}%` : ''}`;
 
                         const isHovered = hoveredWordIndex === index;
-                        const isBeingResized = isResizing && resizeWordIndex === index;
+                        const isBeingResized = isWordResizing && wordResizeIndex === index;
 
                         return (
                           <div
@@ -3694,7 +3694,7 @@ export default function PreviewEditPage() {
                               setHoveredWordIndex(index);
                             }}
                             onMouseLeave={() => {
-                              if (!isResizing) setHoveredWordIndex(null);
+                              if (!isWordResizing) setHoveredWordIndex(null);
                             }}
                             onClick={(e) => { 
                               if (!e.target.classList.contains('resize-handle')) {
@@ -3708,10 +3708,10 @@ export default function PreviewEditPage() {
                             {/* Left resize handle */}
                             <div
                               className={`resize-handle absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
-                              onMouseDown={(e) => handleResizeStart(index, 'left', e)}
+                              onMouseDown={(e) => handleWordResizeStart(index, 'left', e)}
                               title="Drag to adjust start time"
                             >
-                              <div className={`w-1 h-6 rounded-full ${isBeingResized && resizeEdge === 'left' ? 'bg-cyan-400' : 'bg-white/60'}`} />
+                              <div className={`w-1 h-6 rounded-full ${isBeingResized && wordResizeEdge === 'left' ? 'bg-cyan-400' : 'bg-white/60'}`} />
                             </div>
                             
                             {/* Word content */}
@@ -3732,10 +3732,10 @@ export default function PreviewEditPage() {
                             {/* Right resize handle */}
                             <div
                               className={`resize-handle absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
-                              onMouseDown={(e) => handleResizeStart(index, 'right', e)}
+                              onMouseDown={(e) => handleWordResizeStart(index, 'right', e)}
                               title="Drag to adjust end time"
                             >
-                              <div className={`w-1 h-6 rounded-full ${isBeingResized && resizeEdge === 'right' ? 'bg-cyan-400' : 'bg-white/60'}`} />
+                              <div className={`w-1 h-6 rounded-full ${isBeingResized && wordResizeEdge === 'right' ? 'bg-cyan-400' : 'bg-white/60'}`} />
                             </div>
                             
                             {word.lineBreak && <div className="absolute -right-0.5 top-0 bottom-0 w-1 bg-cyan-500 rounded-full" title="Line break" />}
