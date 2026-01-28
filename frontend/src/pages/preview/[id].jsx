@@ -712,6 +712,7 @@ export default function PreviewEditPage() {
     // Start Image
     startImageUrl: null,
     startImageDuration: 3, // 1-5 seconds
+    startImageFit: 'contain', // 'contain', 'cover', 'fill'
     // Outro
     outroText: '',
     outroDuration: 3, // 2-5 seconds
@@ -1581,6 +1582,7 @@ export default function PreviewEditPage() {
           logoOpacity: projectData.logo_opacity ?? 80,
           startImageUrl: projectData.start_image_url || null,
           startImageDuration: projectData.start_image_duration || 3,
+          startImageFit: projectData.start_image_fit || 'contain',
           outroText: projectData.outro_text || '',
           outroDuration: projectData.outro_duration || 3,
           outroFontSize: projectData.outro_font_size || 'medium',
@@ -2344,6 +2346,7 @@ export default function PreviewEditPage() {
           logo_opacity: brandingSettings.logoOpacity,
           start_image_url: brandingSettings.startImageUrl,
           start_image_duration: brandingSettings.startImageDuration,
+          start_image_fit: brandingSettings.startImageFit,
           outro_text: brandingSettings.outroText,
           outro_duration: brandingSettings.outroDuration,
           outro_font_size: brandingSettings.outroFontSize,
@@ -3197,17 +3200,17 @@ export default function PreviewEditPage() {
                     {/* START IMAGE / INTRO OVERLAY - Shows before lyrics start */}
                     {brandingSettings.startImageUrl && currentTime < (brandingSettings.startImageDuration || 3) && (
                       <div 
-                        className="absolute inset-0 flex items-center justify-center z-20 transition-opacity duration-500"
+                        className="absolute inset-0 z-20 transition-opacity duration-500"
                         style={{ 
-                          backgroundColor: 'rgba(0,0,0,0.7)',
                           opacity: currentTime < ((brandingSettings.startImageDuration || 3) - 0.5) ? 1 : Math.max(0, ((brandingSettings.startImageDuration || 3) - currentTime) * 2)
                         }}
                       >
                         <img 
                           src={brandingSettings.startImageUrl} 
                           alt="Intro" 
-                          className="max-w-[80%] max-h-[80%] object-contain"
+                          className="w-full h-full"
                           style={{
+                            objectFit: brandingSettings.startImageFit || 'contain',
                             filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.5))'
                           }}
                         />
@@ -4477,7 +4480,12 @@ export default function PreviewEditPage() {
                         {brandingSettings.startImageUrl ? (
                           <div className="flex items-start gap-3">
                             <div className={`relative w-28 h-16 rounded-lg overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-100'}`} style={{ backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)', backgroundSize: '10px 10px', backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px' }}>
-                              <img src={brandingSettings.startImageUrl} alt="Start" className="w-full h-full object-contain" />
+                              <img 
+                                src={brandingSettings.startImageUrl} 
+                                alt="Start" 
+                                className="w-full h-full"
+                                style={{ objectFit: brandingSettings.startImageFit || 'contain' }}
+                              />
                             </div>
                             <div className="flex-1 space-y-2">
                               <button
@@ -4506,10 +4514,35 @@ export default function PreviewEditPage() {
                                   ))}
                                 </div>
                               </div>
+                              
+                              {/* Fit Mode */}
+                              <div>
+                                <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Fit Mode</label>
+                                <div className="flex gap-1">
+                                  {[
+                                    { value: 'contain', label: 'Fit', title: 'Show full image (may have bars)' },
+                                    { value: 'cover', label: 'Fill', title: 'Fill screen (may crop edges)' },
+                                    { value: 'fill', label: 'Stretch', title: 'Stretch to fit (may distort)' },
+                                  ].map(mode => (
+                                    <button
+                                      key={mode.value}
+                                      onClick={() => updateBrandingSettings({ startImageFit: mode.value })}
+                                      title={mode.title}
+                                      className={`px-2 h-6 rounded text-[10px] font-medium transition-all ${
+                                        brandingSettings.startImageFit === mode.value
+                                          ? 'bg-cyan-500 text-white'
+                                          : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                      }`}
+                                    >
+                                      {mode.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ) : (
-                          <label className={`flex flex-col items-center justify-center h-20 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                          <label className={`flex flex-col items-center justify-center h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
                             startImageUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-purple-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-purple-500 hover:bg-purple-50'
                           }`}>
                             {startImageUploading ? (
@@ -4517,14 +4550,20 @@ export default function PreviewEditPage() {
                             ) : (
                               <>
                                 <Image className="w-6 h-6 text-gray-400 mb-1" />
-                                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Upload Start Image (PNG for transparency)</span>
+                                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Upload Start Image</span>
+                                <span className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                  {layoutSettings.aspectRatio === '16:9' ? 'Recommended: 1920×1080px' : 
+                                   layoutSettings.aspectRatio === '9:16' ? 'Recommended: 1080×1920px' : 
+                                   layoutSettings.aspectRatio === '4:3' ? 'Recommended: 1440×1080px' : 
+                                   'PNG for transparency'}
+                                </span>
                               </>
                             )}
                             <input type="file" accept="image/*" onChange={handleStartImageUpload} disabled={startImageUploading} className="hidden" />
                           </label>
                         )}
-                        <p className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          Displays over the background at the start of the video
+                        <p className={`text-[10px] mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          💡 For best results, use a {layoutSettings.aspectRatio === '16:9' ? '1920×1080' : layoutSettings.aspectRatio === '9:16' ? '1080×1920' : layoutSettings.aspectRatio === '4:3' ? '1440×1080' : '16:9'} image matching your aspect ratio
                         </p>
                       </div>
 

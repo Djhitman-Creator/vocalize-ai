@@ -1424,6 +1424,61 @@ app.post('/api/upload-logo', authMiddleware, upload.single('logo'), async (req, 
   }
 });
 
+// Upload start image / intro overlay for a specific project (Studio tier feature)
+app.post('/api/upload-start-image', authMiddleware, upload.single('startImage'), async (req, res) => {
+  try {
+    const projectId = req.body.projectId;
+    
+    if (!projectId) {
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Check if user is Studio tier
+    const profile = await getUserProfile(req.user.id);
+    if (profile.subscription_tier !== 'studio') {
+      return res.status(403).json({ error: 'Start images are only available for Studio tier subscribers' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No start image file provided' });
+    }
+
+    // Upload start image to R2
+    const imageKey = `start-images/${req.user.id}/${projectId}-start${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
+    const imageUrl = await uploadToR2(req.file.buffer, imageKey, req.file.mimetype);
+    console.log(`Start image uploaded for project ${projectId}: ${imageUrl}`);
+
+    // Save URL to project
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ start_image_url: imageUrl })
+      .eq('id', projectId);
+
+    if (updateError) throw updateError;
+
+    res.json({ 
+      success: true, 
+      startImageUrl: imageUrl,
+      message: 'Start image uploaded successfully' 
+    });
+  } catch (error) {
+    console.error('Start image upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Retry a failed project
 app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
   try {
