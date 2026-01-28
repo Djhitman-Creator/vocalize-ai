@@ -260,19 +260,12 @@ const VIDEO_QUALITY_OPTIONS = [
 
 // V11: Branding - Logo position options
 const LOGO_POSITION_OPTIONS = [
-  { value: 'top-left', label: 'â†–', gridArea: '1 / 1' },
-  { value: 'top-center', label: 'â†‘', gridArea: '1 / 2' },
-  { value: 'top-right', label: 'â†—', gridArea: '1 / 3' },
-  { value: 'bottom-left', label: 'â†™', gridArea: '2 / 1' },
-  { value: 'bottom-center', label: 'â†“', gridArea: '2 / 2' },
-  { value: 'bottom-right', label: 'â†˜', gridArea: '2 / 3' },
-];
-
-// V11: Branding - Size options
-const SIZE_OPTIONS = [
-  { value: 'small', label: 'S', scale: 0.7 },
-  { value: 'medium', label: 'M', scale: 1.0 },
-  { value: 'large', label: 'L', scale: 1.3 },
+  { value: 'top-left', label: 'TL', gridArea: '1 / 1' },
+  { value: 'top-center', label: 'TC', gridArea: '1 / 2' },
+  { value: 'top-right', label: 'TR', gridArea: '1 / 3' },
+  { value: 'bottom-left', label: 'BL', gridArea: '2 / 1' },
+  { value: 'bottom-center', label: 'BC', gridArea: '2 / 2' },
+  { value: 'bottom-right', label: 'BR', gridArea: '2 / 3' },
 ];
 
 // ============================================================
@@ -707,7 +700,7 @@ export default function PreviewEditPage() {
     // Logo/Watermark
     logoUrl: null,
     logoPosition: 'bottom-right', // top-left, top-center, top-right, bottom-left, bottom-center, bottom-right
-    logoSize: 'medium', // small, medium, large
+    logoSize: 50, // 20-150 percentage (50 = 50px base size)
     logoOpacity: 80, // 0-100
     // Start Image
     startImageUrl: null,
@@ -1578,7 +1571,7 @@ export default function PreviewEditPage() {
         setBrandingSettings({
           logoUrl: projectData.logo_url || null,
           logoPosition: projectData.logo_position || 'bottom-right',
-          logoSize: projectData.logo_size || 'medium',
+          logoSize: projectData.logo_size ?? 50, // Default 50px
           logoOpacity: projectData.logo_opacity ?? 80,
           startImageUrl: projectData.start_image_url || null,
           startImageDuration: projectData.start_image_duration || 3,
@@ -3245,16 +3238,16 @@ export default function PreviewEditPage() {
                       <div 
                         className="absolute z-10 pointer-events-none"
                         style={{
-                          // Position based on logoPosition setting
+                          // Position based on logoPosition setting - bottom positions are lower (4px from edge)
                           ...(brandingSettings.logoPosition === 'top-left' && { top: '8px', left: '8px' }),
                           ...(brandingSettings.logoPosition === 'top-right' && { top: '8px', right: '8px' }),
-                          ...(brandingSettings.logoPosition === 'bottom-left' && { bottom: '24px', left: '8px' }),
-                          ...(brandingSettings.logoPosition === 'bottom-right' && { bottom: '24px', right: '8px' }),
+                          ...(brandingSettings.logoPosition === 'bottom-left' && { bottom: '4px', left: '8px' }),
+                          ...(brandingSettings.logoPosition === 'bottom-right' && { bottom: '4px', right: '8px' }),
                           ...(brandingSettings.logoPosition === 'top-center' && { top: '8px', left: '50%', transform: 'translateX(-50%)' }),
-                          ...(brandingSettings.logoPosition === 'bottom-center' && { bottom: '24px', left: '50%', transform: 'translateX(-50%)' }),
-                          // Size based on logoSize setting
-                          width: brandingSettings.logoSize === 'small' ? '40px' : brandingSettings.logoSize === 'large' ? '80px' : '60px',
-                          height: brandingSettings.logoSize === 'small' ? '40px' : brandingSettings.logoSize === 'large' ? '80px' : '60px',
+                          ...(brandingSettings.logoPosition === 'bottom-center' && { bottom: '4px', left: '50%', transform: 'translateX(-50%)' }),
+                          // Size based on logoSize slider value (20-150px range)
+                          width: `${brandingSettings.logoSize || 50}px`,
+                          height: `${brandingSettings.logoSize || 50}px`,
                           opacity: (brandingSettings.logoOpacity || 80) / 100,
                         }}
                       >
@@ -4420,24 +4413,18 @@ export default function PreviewEditPage() {
                                 </div>
                               </div>
 
-                              {/* Size Selector */}
+                              {/* Size Slider */}
                               <div>
-                                <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Size</label>
-                                <div className="flex gap-1">
-                                  {SIZE_OPTIONS.map(size => (
-                                    <button
-                                      key={size.value}
-                                      onClick={() => updateBrandingSettings({ logoSize: size.value })}
-                                      className={`w-8 h-6 rounded text-xs font-medium transition-all ${
-                                        brandingSettings.logoSize === size.value
-                                          ? 'bg-cyan-500 text-white'
-                                          : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                      }`}
-                                    >
-                                      {size.label}
-                                    </button>
-                                  ))}
-                                </div>
+                                <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Size: {brandingSettings.logoSize}px</label>
+                                <input
+                                  type="range"
+                                  min="20"
+                                  max="150"
+                                  value={brandingSettings.logoSize || 50}
+                                  onChange={(e) => updateBrandingSettings({ logoSize: parseInt(e.target.value) })}
+                                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                                  style={{ background: `linear-gradient(to right, #06b6d4 ${((brandingSettings.logoSize || 50) - 20) / 130 * 100}%, ${isDark ? '#374151' : '#d1d5db'} ${((brandingSettings.logoSize || 50) - 20) / 130 * 100}%)` }}
+                                />
                               </div>
 
                               {/* Opacity Slider */}
