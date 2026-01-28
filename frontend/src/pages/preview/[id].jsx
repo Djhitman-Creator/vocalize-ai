@@ -3222,16 +3222,25 @@ export default function PreviewEditPage() {
                     
                     {/* INTRO OVERLAY - Shows for first 4 seconds (matches video render intro duration) */}
                     {(() => {
-                      const isInIntro = currentTime < INTRO_DURATION;
-                      const introFadeStart = INTRO_DURATION - 0.5; // Start fading 0.5s before end
-                      const introOpacity = currentTime < introFadeStart ? 1 : Math.max(0, (INTRO_DURATION - currentTime) * 2);
+                      // Calculate fade: full opacity until 3.5s, then fade to 0 by 4s
+                      const introFadeStart = INTRO_DURATION - 0.5;
+                      let introOpacity = 1;
+                      if (currentTime >= INTRO_DURATION) {
+                        introOpacity = 0;
+                      } else if (currentTime >= introFadeStart) {
+                        // Linear fade from 1 to 0 over 0.5 seconds
+                        introOpacity = (INTRO_DURATION - currentTime) / 0.5;
+                      }
                       
-                      if (!isInIntro) return null;
-                      
+                      // Always render but use opacity and pointer-events to hide
                       return (
                         <div 
-                          className="absolute inset-0 z-20 flex flex-col items-center justify-center transition-opacity duration-300"
-                          style={{ opacity: introOpacity }}
+                          className="absolute inset-0 z-20 flex flex-col items-center justify-center"
+                          style={{ 
+                            opacity: introOpacity,
+                            pointerEvents: introOpacity === 0 ? 'none' : 'auto',
+                            willChange: 'opacity' // Hint to browser for GPU acceleration
+                          }}
                         >
                           {/* Start Image Background (if uploaded) */}
                           {brandingSettings.startImageUrl && (
