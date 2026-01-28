@@ -1964,7 +1964,7 @@ export default function PreviewEditPage() {
 
   // Add word before - opens the existing add word modal
   const handleContextMenuAddBefore = useCallback((index) => {
-    setSelectedWordIndex(index);
+    setSelectedWordIndices(new Set([index])); // This sets selectedWordIndex via computed value
     setAddWordPosition('before');
     setNewWordText('');
     setShowAddWordModal(true);
@@ -1972,7 +1972,7 @@ export default function PreviewEditPage() {
 
   // Add word after - opens the existing add word modal
   const handleContextMenuAddAfter = useCallback((index) => {
-    setSelectedWordIndex(index);
+    setSelectedWordIndices(new Set([index])); // This sets selectedWordIndex via computed value
     setAddWordPosition('after');
     setNewWordText('');
     setShowAddWordModal(true);
@@ -1986,7 +1986,6 @@ export default function PreviewEditPage() {
     }
     setWords(prev => prev.filter((_, i) => i !== index));
     setHasChanges(true);
-    setSelectedWordIndex(null);
     setSelectedWordIndices(new Set());
   }, [words.length]);
 
