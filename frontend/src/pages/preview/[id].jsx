@@ -704,8 +704,9 @@ export default function PreviewEditPage() {
     logoOpacity: 80, // 0-100
     // Start Image
     startImageUrl: null,
-    startImageDuration: 3, // 1-5 seconds
     startImageFit: 'contain', // 'contain', 'cover', 'fill'
+    startImageOpacity: 100, // 0-100
+    startImageShowTitle: true, // Show artist/title over the image
     // Outro
     outroText: '',
     outroDuration: 3, // 2-5 seconds
@@ -1574,8 +1575,9 @@ export default function PreviewEditPage() {
           logoSize: projectData.logo_size ?? 50, // Default 50px
           logoOpacity: projectData.logo_opacity ?? 80,
           startImageUrl: projectData.start_image_url || null,
-          startImageDuration: projectData.start_image_duration || 3,
           startImageFit: projectData.start_image_fit || 'contain',
+          startImageOpacity: projectData.start_image_opacity ?? 100,
+          startImageShowTitle: projectData.start_image_show_title ?? true,
           outroText: projectData.outro_text || '',
           outroDuration: projectData.outro_duration || 3,
           outroFontSize: projectData.outro_font_size || 'medium',
@@ -2338,8 +2340,9 @@ export default function PreviewEditPage() {
           logo_size: brandingSettings.logoSize,
           logo_opacity: brandingSettings.logoOpacity,
           start_image_url: brandingSettings.startImageUrl,
-          start_image_duration: brandingSettings.startImageDuration,
           start_image_fit: brandingSettings.startImageFit,
+          start_image_opacity: brandingSettings.startImageOpacity,
+          start_image_show_title: brandingSettings.startImageShowTitle,
           outro_text: brandingSettings.outroText,
           outro_duration: brandingSettings.outroDuration,
           outro_font_size: brandingSettings.outroFontSize,
@@ -3190,25 +3193,64 @@ export default function PreviewEditPage() {
                       )}
                     </div>
                     
-                    {/* START IMAGE / INTRO OVERLAY - Shows before lyrics start */}
-                    {brandingSettings.startImageUrl && currentTime < (brandingSettings.startImageDuration || 3) && (
-                      <div 
-                        className="absolute inset-0 z-20 transition-opacity duration-500"
-                        style={{ 
-                          opacity: currentTime < ((brandingSettings.startImageDuration || 3) - 0.5) ? 1 : Math.max(0, ((brandingSettings.startImageDuration || 3) - currentTime) * 2)
-                        }}
-                      >
-                        <img 
-                          src={brandingSettings.startImageUrl} 
-                          alt="Intro" 
-                          className="w-full h-full"
-                          style={{
-                            objectFit: brandingSettings.startImageFit || 'contain',
-                            filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.5))'
-                          }}
-                        />
-                      </div>
-                    )}
+                    {/* INTRO OVERLAY - Shows before first lyrics start */}
+                    {(() => {
+                      // Calculate intro end time (when first word starts, or 4 seconds if no words)
+                      const firstWordStart = words.length > 0 ? words[0].start : 4;
+                      const isInIntro = currentTime < firstWordStart;
+                      const introFadeStart = Math.max(0, firstWordStart - 0.5); // Start fading 0.5s before lyrics
+                      const introOpacity = currentTime < introFadeStart ? 1 : Math.max(0, (firstWordStart - currentTime) * 2);
+                      
+                      if (!isInIntro) return null;
+                      
+                      return (
+                        <div 
+                          className="absolute inset-0 z-20 flex flex-col items-center justify-center transition-opacity duration-300"
+                          style={{ opacity: introOpacity }}
+                        >
+                          {/* Start Image Background (if uploaded) */}
+                          {brandingSettings.startImageUrl && (
+                            <img 
+                              src={brandingSettings.startImageUrl} 
+                              alt="Intro" 
+                              className="absolute inset-0 w-full h-full"
+                              style={{
+                                objectFit: brandingSettings.startImageFit || 'contain',
+                                opacity: (brandingSettings.startImageOpacity || 100) / 100,
+                              }}
+                            />
+                          )}
+                          
+                          {/* Artist & Title Overlay (shown by default, or if checkbox enabled) */}
+                          {(brandingSettings.startImageShowTitle ?? true) && (
+                            <div className="relative z-10 text-center px-4">
+                              <h2 
+                                style={{
+                                  fontFamily: previewFontFamily,
+                                  fontSize: `${currentLineFontSize * 1.5}px`,
+                                  color: textColor,
+                                  textShadow: `2px 2px 4px ${outlineColor}, -2px -2px 4px ${outlineColor}, 2px -2px 4px ${outlineColor}, -2px 2px 4px ${outlineColor}`,
+                                  marginBottom: '8px'
+                                }}
+                              >
+                                {project?.song_title || 'Song Title'}
+                              </h2>
+                              <p 
+                                style={{
+                                  fontFamily: previewFontFamily,
+                                  fontSize: `${currentLineFontSize}px`,
+                                  color: textColor,
+                                  textShadow: `1px 1px 3px ${outlineColor}`,
+                                  opacity: 0.9
+                                }}
+                              >
+                                {project?.artist_name || 'Artist'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     
                     {/* OUTRO TEXT OVERLAY - Shows after lyrics end */}
                     {brandingSettings.outroText && duration > 0 && currentTime > (duration - (brandingSettings.outroDuration || 3)) && (
@@ -4461,72 +4503,86 @@ export default function PreviewEditPage() {
 
                       {/* Start Image */}
                       <div>
-                        <label className={`block text-xs font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Start Image / Intro Overlay
-                        </label>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className={`block text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Start Image / Intro Overlay
+                          </label>
+                        </div>
                         {brandingSettings.startImageUrl ? (
-                          <div className="flex items-start gap-3">
-                            <div className={`relative w-28 h-16 rounded-lg overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-100'}`} style={{ backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)', backgroundSize: '10px 10px', backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px' }}>
-                              <img 
-                                src={brandingSettings.startImageUrl} 
-                                alt="Start" 
-                                className="w-full h-full"
-                                style={{ objectFit: brandingSettings.startImageFit || 'contain' }}
+                          <div className="space-y-3">
+                            <div className="flex items-start gap-3">
+                              <div className={`relative w-28 h-16 rounded-lg overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-100'}`} style={{ backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)', backgroundSize: '10px 10px', backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px' }}>
+                                <img 
+                                  src={brandingSettings.startImageUrl} 
+                                  alt="Start" 
+                                  className="w-full h-full"
+                                  style={{ 
+                                    objectFit: brandingSettings.startImageFit || 'contain',
+                                    opacity: (brandingSettings.startImageOpacity || 100) / 100
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 space-y-2">
+                                <button
+                                  onClick={() => updateBrandingSettings({ startImageUrl: null })}
+                                  className="text-xs text-red-400 hover:text-red-300"
+                                >
+                                  Remove
+                                </button>
+                                
+                                {/* Fit Mode */}
+                                <div>
+                                  <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Fit Mode</label>
+                                  <div className="flex gap-1">
+                                    {[
+                                      { value: 'contain', label: 'Fit', title: 'Show full image (may have bars)' },
+                                      { value: 'cover', label: 'Fill', title: 'Fill screen (may crop edges)' },
+                                      { value: 'fill', label: 'Stretch', title: 'Stretch to fit (may distort)' },
+                                    ].map(mode => (
+                                      <button
+                                        key={mode.value}
+                                        onClick={() => updateBrandingSettings({ startImageFit: mode.value })}
+                                        title={mode.title}
+                                        className={`px-2 h-6 rounded text-[10px] font-medium transition-all ${
+                                          brandingSettings.startImageFit === mode.value
+                                            ? 'bg-cyan-500 text-white'
+                                            : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                      >
+                                        {mode.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            {/* Opacity Slider */}
+                            <div>
+                              <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Opacity: {brandingSettings.startImageOpacity || 100}%</label>
+                              <input
+                                type="range"
+                                min="20"
+                                max="100"
+                                value={brandingSettings.startImageOpacity || 100}
+                                onChange={(e) => updateBrandingSettings({ startImageOpacity: parseInt(e.target.value) })}
+                                className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                                style={{ background: `linear-gradient(to right, #06b6d4 ${(brandingSettings.startImageOpacity || 100) - 20}%, ${isDark ? '#374151' : '#d1d5db'} ${(brandingSettings.startImageOpacity || 100) - 20}%)` }}
                               />
                             </div>
-                            <div className="flex-1 space-y-2">
-                              <button
-                                onClick={() => updateBrandingSettings({ startImageUrl: null })}
-                                className="text-xs text-red-400 hover:text-red-300"
-                              >
-                                Remove
-                              </button>
-                              
-                              {/* Duration */}
-                              <div>
-                                <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Duration: {brandingSettings.startImageDuration}s</label>
-                                <div className="flex gap-1">
-                                  {[1, 2, 3, 4, 5].map(sec => (
-                                    <button
-                                      key={sec}
-                                      onClick={() => updateBrandingSettings({ startImageDuration: sec })}
-                                      className={`w-7 h-6 rounded text-xs font-medium transition-all ${
-                                        brandingSettings.startImageDuration === sec
-                                          ? 'bg-cyan-500 text-white'
-                                          : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                      }`}
-                                    >
-                                      {sec}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                              
-                              {/* Fit Mode */}
-                              <div>
-                                <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Fit Mode</label>
-                                <div className="flex gap-1">
-                                  {[
-                                    { value: 'contain', label: 'Fit', title: 'Show full image (may have bars)' },
-                                    { value: 'cover', label: 'Fill', title: 'Fill screen (may crop edges)' },
-                                    { value: 'fill', label: 'Stretch', title: 'Stretch to fit (may distort)' },
-                                  ].map(mode => (
-                                    <button
-                                      key={mode.value}
-                                      onClick={() => updateBrandingSettings({ startImageFit: mode.value })}
-                                      title={mode.title}
-                                      className={`px-2 h-6 rounded text-[10px] font-medium transition-all ${
-                                        brandingSettings.startImageFit === mode.value
-                                          ? 'bg-cyan-500 text-white'
-                                          : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                      }`}
-                                    >
-                                      {mode.label}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
+                            
+                            {/* Show Title Checkbox */}
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={brandingSettings.startImageShowTitle ?? true}
+                                onChange={(e) => updateBrandingSettings({ startImageShowTitle: e.target.checked })}
+                                className="w-4 h-4 rounded border-gray-300 text-cyan-500 focus:ring-cyan-500"
+                              />
+                              <span className={`text-xs ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                                Show Artist & Title over image
+                              </span>
+                            </label>
                           </div>
                         ) : (
                           <label className={`flex flex-col items-center justify-center h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
@@ -4550,7 +4606,7 @@ export default function PreviewEditPage() {
                           </label>
                         )}
                         <p className={`text-[10px] mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          💡 For best results, use a {layoutSettings.aspectRatio === '16:9' ? '1920×1080' : layoutSettings.aspectRatio === '9:16' ? '1080×1920' : layoutSettings.aspectRatio === '4:3' ? '1440×1080' : '16:9'} image matching your aspect ratio
+                          Displays during the intro before lyrics begin
                         </p>
                       </div>
 
