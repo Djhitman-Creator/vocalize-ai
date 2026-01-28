@@ -226,9 +226,15 @@ const SIZE_OPTIONS = [
 // ============================================================
 // SWEEP WORD COMPONENT
 // ============================================================
-const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isActive, isPast, showGlow }) => {
+const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isActive, isPast, showGlow, fadeInProgress = 1 }) => {
   const baseTextShadow = `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 1px 2px ${outlineColor}`;
-  const glowTextShadow = `0 0 10px ${color}, 0 0 20px ${color}, 1px 1px 2px ${outlineColor}`;
+  
+  // Glow effect - rendered BEHIND the text using layered shadows
+  // The glow is a soft blur that sits behind, text outline is on top
+  const glowIntensity = showGlow ? (fadeInProgress * 0.8) : 0;
+  const glowTextShadow = showGlow 
+    ? `0 0 ${8 + glowIntensity * 12}px ${color}${Math.round(glowIntensity * 180).toString(16).padStart(2, '0')}, 0 0 ${16 + glowIntensity * 24}px ${color}${Math.round(glowIntensity * 120).toString(16).padStart(2, '0')}, 0 0 ${24 + glowIntensity * 32}px ${color}${Math.round(glowIntensity * 60).toString(16).padStart(2, '0')}, ${baseTextShadow}`
+    : baseTextShadow;
 
   if (isPast || sweepPercent >= 1) {
     return <span className="mx-1" style={{ color: color, textShadow: baseTextShadow }}>{word}</span>;
@@ -243,13 +249,33 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
 
   return (
     <span className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
-      <span style={{ color: unsungColor, textShadow: baseTextShadow }}>{word}</span>
+      {/* Glow layer - behind everything */}
+      {showGlow && (
+        <span 
+          aria-hidden="true"
+          style={{
+            position: 'absolute', 
+            top: 0, 
+            left: 0,
+            color: 'transparent',
+            textShadow: `0 0 ${20 * glowIntensity}px ${color}, 0 0 ${40 * glowIntensity}px ${color}, 0 0 ${60 * glowIntensity}px ${color}80`,
+            clipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
+            WebkitClipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
+            zIndex: 0,
+            pointerEvents: 'none',
+          }}
+        >{word}</span>
+      )}
+      {/* Base unsung text */}
+      <span style={{ color: unsungColor, textShadow: baseTextShadow, position: 'relative', zIndex: 1 }}>{word}</span>
+      {/* Swept/sung overlay */}
       <span style={{
         position: 'absolute', top: 0, left: 0,
         color: color,
-        textShadow: showGlow ? glowTextShadow : baseTextShadow,
+        textShadow: glowTextShadow,
         clipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
         WebkitClipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
+        zIndex: 2,
       }}>{word}</span>
     </span>
   );
@@ -2448,19 +2474,23 @@ export default function PreviewEditPage() {
     const line = lyricsLines[currentLineIdx];
     const currentLineText = line.map(w => {
       let sweepPercent = 0;
+      let fadeInProgress = 0; // 0-1, used for glow fade-in animation
       const isActive = currentTime >= w.start && currentTime <= w.end;
       const isPast = currentTime > w.end;
 
       if (isPast) {
         sweepPercent = 1;
+        fadeInProgress = 1;
       } else if (isActive) {
         const wordDuration = w.end - w.start;
         if (wordDuration > 0) {
           sweepPercent = (currentTime - w.start) / wordDuration;
+          // Fade in glow quickly at start of word (first 20% of duration)
+          fadeInProgress = Math.min(1, sweepPercent * 5);
         }
       }
 
-      return { word: w.word, index: w.globalIndex, start: w.start, end: w.end, isActive, isPast, sweepPercent };
+      return { word: w.word, index: w.globalIndex, start: w.start, end: w.end, isActive, isPast, sweepPercent, fadeInProgress };
     });
 
     const prevLine = currentLineIdx > 0 ? lyricsLines[currentLineIdx - 1] : null;
@@ -2481,17 +2511,22 @@ export default function PreviewEditPage() {
       
       const lineWords = pageLine.map(w => {
         let sweepPct = 0;
+        let fadeInPct = 0;
         const isWordActive = currentTime >= w.start && currentTime <= w.end;
         const isWordPast = currentTime > w.end;
         
         if (isPastLine || isWordPast) {
           sweepPct = 1;
+          fadeInPct = 1;
         } else if (isCurrentLine && isWordActive) {
           const dur = w.end - w.start;
-          if (dur > 0) sweepPct = (currentTime - w.start) / dur;
+          if (dur > 0) {
+            sweepPct = (currentTime - w.start) / dur;
+            fadeInPct = Math.min(1, sweepPct * 5);
+          }
         }
         
-        return { word: w.word, index: w.globalIndex, start: w.start, end: w.end, isActive: isWordActive, isPast: isWordPast || isPastLine, sweepPercent: sweepPct };
+        return { word: w.word, index: w.globalIndex, start: w.start, end: w.end, isActive: isWordActive, isPast: isWordPast || isPastLine, sweepPercent: sweepPct, fadeInProgress: fadeInPct };
       });
       
       pageLines.push({
@@ -2858,7 +2893,7 @@ export default function PreviewEditPage() {
                                 {currentLyrics.currentLine.map((wordData, i) => {
                                   const highlightColor = getHighlightColor(wordData.index);
                                   return (
-                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} />
+                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
                                   );
                                 })}
                               </p>
@@ -2892,7 +2927,7 @@ export default function PreviewEditPage() {
                                   }
                                   if (lineData.isCurrentLine) {
                                     return (
-                                      <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} />
+                                      <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
                                     );
                                   }
                                   return (
@@ -2941,7 +2976,7 @@ export default function PreviewEditPage() {
                                 {currentLyrics.currentLine.map((wordData, i) => {
                                   const highlightColor = getHighlightColor(wordData.index);
                                   return (
-                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} />
+                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
                                   );
                                 })}
                               </p>
@@ -2970,13 +3005,85 @@ export default function PreviewEditPage() {
                       )}
                     </div>
                     
+                    {/* START IMAGE / INTRO OVERLAY - Shows before lyrics start */}
+                    {brandingSettings.startImageUrl && currentTime < (brandingSettings.startImageDuration || 3) && (
+                      <div 
+                        className="absolute inset-0 flex items-center justify-center z-20 transition-opacity duration-500"
+                        style={{ 
+                          backgroundColor: 'rgba(0,0,0,0.7)',
+                          opacity: currentTime < ((brandingSettings.startImageDuration || 3) - 0.5) ? 1 : Math.max(0, ((brandingSettings.startImageDuration || 3) - currentTime) * 2)
+                        }}
+                      >
+                        <img 
+                          src={brandingSettings.startImageUrl} 
+                          alt="Intro" 
+                          className="max-w-[80%] max-h-[80%] object-contain"
+                          style={{
+                            filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.5))'
+                          }}
+                        />
+                      </div>
+                    )}
+                    
+                    {/* OUTRO TEXT OVERLAY - Shows after lyrics end */}
+                    {brandingSettings.outroText && duration > 0 && currentTime > (duration - (brandingSettings.outroDuration || 3)) && (
+                      <div 
+                        className="absolute inset-0 flex items-center justify-center z-20 transition-opacity duration-500"
+                        style={{ 
+                          backgroundColor: 'rgba(0,0,0,0.7)',
+                          opacity: Math.min(1, (currentTime - (duration - (brandingSettings.outroDuration || 3))) * 2)
+                        }}
+                      >
+                        <p 
+                          className="text-center px-4"
+                          style={{
+                            color: textColor,
+                            fontSize: brandingSettings.outroFontSize === 'small' ? `${baseFontSize * 0.8}px` : brandingSettings.outroFontSize === 'large' ? `${baseFontSize * 1.5}px` : `${baseFontSize * 1.2}px`,
+                            textShadow: `2px 2px 4px ${outlineColor}`,
+                            whiteSpace: 'pre-wrap'
+                          }}
+                        >
+                          {brandingSettings.outroText}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* LOGO WATERMARK OVERLAY */}
+                    {brandingSettings.logoUrl && (
+                      <div 
+                        className="absolute z-10 pointer-events-none"
+                        style={{
+                          // Position based on logoPosition setting
+                          ...(brandingSettings.logoPosition === 'top-left' && { top: '8px', left: '8px' }),
+                          ...(brandingSettings.logoPosition === 'top-right' && { top: '8px', right: '8px' }),
+                          ...(brandingSettings.logoPosition === 'bottom-left' && { bottom: '24px', left: '8px' }),
+                          ...(brandingSettings.logoPosition === 'bottom-right' && { bottom: '24px', right: '8px' }),
+                          ...(brandingSettings.logoPosition === 'top-center' && { top: '8px', left: '50%', transform: 'translateX(-50%)' }),
+                          ...(brandingSettings.logoPosition === 'bottom-center' && { bottom: '24px', left: '50%', transform: 'translateX(-50%)' }),
+                          // Size based on logoSize setting
+                          width: brandingSettings.logoSize === 'small' ? '40px' : brandingSettings.logoSize === 'large' ? '80px' : '60px',
+                          height: brandingSettings.logoSize === 'small' ? '40px' : brandingSettings.logoSize === 'large' ? '80px' : '60px',
+                          opacity: (brandingSettings.logoOpacity || 80) / 100,
+                        }}
+                      >
+                        <img 
+                          src={brandingSettings.logoUrl} 
+                          alt="" 
+                          className="w-full h-full object-contain"
+                          style={{
+                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))'
+                          }}
+                        />
+                      </div>
+                    )}
+                    
                     {/* Timestamp overlay */}
-                    <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] sm:text-xs text-white/80 font-mono">
+                    <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] sm:text-xs text-white/80 font-mono z-30">
                       {formatTime(currentTime)}
                     </div>
                     
                     {/* Resolution indicator - shows current aspect ratio */}
-                    <div className="absolute top-1 left-1 sm:top-2 sm:left-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] text-white/60 font-mono">
+                    <div className="absolute top-1 left-1 sm:top-2 sm:left-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] text-white/60 font-mono z-30">
                       {layoutSettings.aspectRatio}
                     </div>
                   </div>
