@@ -44,7 +44,7 @@ import {
   // V11: Tab icons
   Image, Download, Grid3X3, Palette, Sparkles, Video,
   Monitor, Smartphone, Square, Upload, Lock, Undo2, Redo2,
-  ExternalLink
+  ExternalLink, ScrollText, FileText, Edit3
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
@@ -175,9 +175,9 @@ const PRESET_VIDEO_BACKGROUNDS = [
 
 // V11: Display mode options
 const DISPLAY_MODE_OPTIONS = [
-  { value: 'scroll', label: 'Scroll', description: 'Teleprompter style - lyrics scroll up as you sing', icon: '📜' },
-  { value: 'page', label: 'Page', description: 'Show multiple lines at once, highlight current line', icon: '📄' },
-  { value: 'overwrite', label: 'Overwrite', description: 'Single line display, each line replaces the previous', icon: '✏️' },
+  { value: 'scroll', label: 'Scroll', description: 'Teleprompter style - lyrics scroll up as you sing', Icon: ScrollText },
+  { value: 'page', label: 'Page', description: 'Show multiple lines at once, highlight current line', Icon: FileText },
+  { value: 'overwrite', label: 'Overwrite', description: 'Single line display, each line replaces the previous', Icon: Edit3 },
 ];
 
 // V11: Aspect ratio options
@@ -207,12 +207,12 @@ const VIDEO_QUALITY_OPTIONS = [
 
 // V11: Branding - Logo position options
 const LOGO_POSITION_OPTIONS = [
-  { value: 'top-left', label: 'â†–', gridArea: '1 / 1' },
-  { value: 'top-center', label: 'â†‘', gridArea: '1 / 2' },
-  { value: 'top-right', label: 'â†—', gridArea: '1 / 3' },
-  { value: 'bottom-left', label: 'â†™', gridArea: '2 / 1' },
-  { value: 'bottom-center', label: 'â†“', gridArea: '2 / 2' },
-  { value: 'bottom-right', label: 'â†˜', gridArea: '2 / 3' },
+  { value: 'top-left', label: '↖', gridArea: '1 / 1' },
+  { value: 'top-center', label: '↑', gridArea: '1 / 2' },
+  { value: 'top-right', label: '↗', gridArea: '1 / 3' },
+  { value: 'bottom-left', label: '↙', gridArea: '2 / 1' },
+  { value: 'bottom-center', label: '↓', gridArea: '2 / 2' },
+  { value: 'bottom-right', label: '↘', gridArea: '2 / 3' },
 ];
 
 // V11: Branding - Size options
@@ -3710,8 +3710,8 @@ export default function PreviewEditPage() {
                         {/* Current Font Status */}
                         {project?.custom_font_url && (
                           <div className={`mb-3 p-2 rounded-lg ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
-                            <p className={`text-sm ${isDark ? 'text-green-400' : 'text-green-700'}`}>
-                              âœ“ <span className="font-medium">{project.custom_font_name || 'CustomFont'}</span> is active
+                            <p className={`text-sm flex items-center gap-1 ${isDark ? 'text-green-400' : 'text-green-700'}`}>
+                              <Check className="w-4 h-4" /> <span className="font-medium">{project.custom_font_name || 'CustomFont'}</span> is active
                             </p>
                           </div>
                         )}
@@ -4217,12 +4217,12 @@ export default function PreviewEditPage() {
                           className={`w-full px-3 py-2 rounded-lg text-sm border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                           style={{ colorScheme: isDark ? 'dark' : 'light' }}
                         >
-                          <option value="to bottom">â†“ Top to Bottom</option>
-                          <option value="to top">â†‘ Bottom to Top</option>
-                          <option value="to right">â†’ Left to Right</option>
-                          <option value="to left">â† Right to Left</option>
-                          <option value="to bottom right">â†˜ Diagonal Down</option>
-                          <option value="to top right">â†— Diagonal Up</option>
+                          <option value="to bottom">↓ Top to Bottom</option>
+                          <option value="to top">↑ Bottom to Top</option>
+                          <option value="to right">→ Left to Right</option>
+                          <option value="to left">← Right to Left</option>
+                          <option value="to bottom right">↘ Diagonal Down</option>
+                          <option value="to top right">↗ Diagonal Up</option>
                         </select>
                       </div>
 
@@ -4424,7 +4424,7 @@ export default function PreviewEditPage() {
                               : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                           }`}
                         >
-                          <span className="text-2xl">{mode.icon}</span>
+                          <mode.Icon className={`w-6 h-6 ${layoutSettings.displayMode === mode.value ? 'text-cyan-400' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                           <div className="flex-1">
                             <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{mode.label}</p>
                             <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{mode.description}</p>
