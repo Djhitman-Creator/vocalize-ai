@@ -83,11 +83,11 @@ const DEFAULT_PREVIEW_HEIGHT = 300;
 // V11: TAB DEFINITIONS
 // ============================================================
 const TABS = [
-  { id: 'timing', label: 'Timing', icon: Clock, mobileLabel: 'ðŸŽµ' },
-  { id: 'style', label: 'Style', icon: Type, mobileLabel: 'ðŸŽ¨' },
-  { id: 'background', label: 'Background', icon: Image, mobileLabel: 'ðŸ–¼ï¸' },
-  { id: 'layout', label: 'Layout', icon: Grid3X3, mobileLabel: 'ðŸ“' },
-  { id: 'export', label: 'Export', icon: Download, mobileLabel: 'ðŸ“¤' },
+  { id: 'timing', label: 'Timing', icon: Clock, mobileLabel: '🎵' },
+  { id: 'style', label: 'Style', icon: Type, mobileLabel: '🎨' },
+  { id: 'background', label: 'Background', icon: Image, mobileLabel: '🖼️' },
+  { id: 'layout', label: 'Layout', icon: Grid3X3, mobileLabel: '📐' },
+  { id: 'export', label: 'Export', icon: Download, mobileLabel: '📤' },
 ];
 
 // V11: Font options for Style tab
@@ -175,9 +175,9 @@ const PRESET_VIDEO_BACKGROUNDS = [
 
 // V11: Display mode options
 const DISPLAY_MODE_OPTIONS = [
-  { value: 'scroll', label: 'Scroll', description: 'Teleprompter style - lyrics scroll up as you sing', icon: 'ðŸ“œ' },
-  { value: 'page', label: 'Page', description: 'Show multiple lines at once, highlight current line', icon: 'ðŸ“„' },
-  { value: 'overwrite', label: 'Overwrite', description: 'Single line display, each line replaces the previous', icon: 'âœï¸' },
+  { value: 'scroll', label: 'Scroll', description: 'Teleprompter style - lyrics scroll up as you sing', icon: '📜' },
+  { value: 'page', label: 'Page', description: 'Show multiple lines at once, highlight current line', icon: '📄' },
+  { value: 'overwrite', label: 'Overwrite', description: 'Single line display, each line replaces the previous', icon: '✏️' },
 ];
 
 // V11: Aspect ratio options
@@ -192,17 +192,17 @@ const LINES_PER_PAGE_OPTIONS = [2, 3, 4, 5, 6];
 
 // V11: Audio track options for export
 const AUDIO_TRACK_OPTIONS = [
-  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: 'ðŸŽ¤' },
-  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: 'ðŸŽµ' },
-  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: 'ðŸŽ§' },
+  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: '🎤' },
+  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: '🎵' },
+  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: '🎧' },
 ];
 
 // V11: Video quality options
 const VIDEO_QUALITY_OPTIONS = [
-  { value: '480p', label: '480p', description: 'SD - Fast render', resolution: '854Ã—480', tier: 'free' },
-  { value: '720p', label: '720p', description: 'HD - Good quality', resolution: '1280Ã—720', tier: 'free' },
-  { value: '1080p', label: '1080p', description: 'Full HD - Best for YouTube', resolution: '1920Ã—1080', tier: 'pro' },
-  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840Ã—2160', tier: 'studio' },
+  { value: '480p', label: '480p', description: 'SD - Fast render', resolution: '854×480', tier: 'free' },
+  { value: '720p', label: '720p', description: 'HD - Good quality', resolution: '1280×720', tier: 'free' },
+  { value: '1080p', label: '1080p', description: 'Full HD - Best for YouTube', resolution: '1920×1080', tier: 'pro' },
+  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840×2160', tier: 'studio' },
 ];
 
 // V11: Branding - Logo position options
@@ -461,7 +461,7 @@ const WordDurationContextMenu = ({
             </span>
           </div>
           <div className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-            {word.start.toFixed(2)}s Ã¢â€ â€™ {word.end.toFixed(2)}s
+            {word.start.toFixed(2)}s - {word.end.toFixed(2)}s
           </div>
         </div>
 
@@ -3768,7 +3768,7 @@ export default function PreviewEditPage() {
 
                         {/* Tip */}
                         <p className={`mt-3 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          ðŸ’¡ Download a .ttf or .otf file from DaFont, then upload it here
+                          Tip: Download a .ttf or .otf file from DaFont, then upload it here
                         </p>
                       </div>
                     )}
@@ -4124,7 +4124,7 @@ export default function PreviewEditPage() {
                   {/* Preview Hint */}
                   <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
                     <p className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
-                      ðŸ’¡ Changes are previewed in real-time above. Click Save to keep your changes.
+                      Tip: Changes are previewed in real-time above. Click Save to keep your changes.
                     </p>
                   </div>
                 </div>
@@ -4381,7 +4381,7 @@ export default function PreviewEditPage() {
                       )}
                       
                       <p className={`mt-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                        ðŸ’¡ For best results, use a looping video with 1920x1080 resolution
+                        Tip: For best results, use a looping video with 1920x1080 resolution
                       </p>
                     </div>
                   )}
@@ -4399,7 +4399,7 @@ export default function PreviewEditPage() {
                   {/* Preview Hint */}
                   <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
                     <p className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
-                      ðŸ’¡ Your background is shown in the preview above. Click Save to keep your changes.
+                      Tip: Your background is shown in the preview above. Click Save to keep your changes.
                     </p>
                   </div>
                 </div>
@@ -4553,7 +4553,7 @@ export default function PreviewEditPage() {
                   {/* Preview Hint */}
                   <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
                     <p className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
-                      ðŸ’¡ Display mode changes will be reflected in your rendered video. Click Save to keep changes.
+                      Tip: Display mode changes will be reflected in your rendered video. Click Save to keep changes.
                     </p>
                   </div>
                 </div>
@@ -4686,7 +4686,7 @@ export default function PreviewEditPage() {
                   {/* Tip */}
                   <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
                     <p className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
-                      ðŸ’¡ Make sure to Save your changes before rendering. All your customizations will be applied to the final video.
+                      Tip: Make sure to Save your changes before rendering. All your customizations will be applied to the final video.
                     </p>
                   </div>
                 </div>
