@@ -2906,13 +2906,13 @@ export default function PreviewEditPage() {
                                 {currentLyrics.currentLine.map((wordData, i) => {
                                   const highlightColor = getHighlightColor(wordData.index);
                                   return (
-                                    <React.Fragment key={i}>
+                                    <span key={i} style={{ display: "contents" }}>
                                       {/* Sweep-in bar appears right before first word */}
                                       {i === 0 && currentLyrics.showSweepIn && (
                                         <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
                                       )}
                                       <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                    </React.Fragment>
+                                    </span>
                                   );
                                 })}
                               </p>
@@ -2946,13 +2946,13 @@ export default function PreviewEditPage() {
                                   }
                                   if (lineData.isCurrentLine) {
                                     return (
-                                      <React.Fragment key={wordIdx}>
+                                      <span key={wordIdx} style={{ display: "contents" }}>
                                         {/* Sweep-in bar appears right before first word */}
                                         {wordIdx === 0 && currentLyrics.showSweepIn && (
                                           <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
                                         )}
                                         <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                      </React.Fragment>
+                                      </span>
                                     );
                                   }
                                   return (
@@ -3001,13 +3001,13 @@ export default function PreviewEditPage() {
                                 {currentLyrics.currentLine.map((wordData, i) => {
                                   const highlightColor = getHighlightColor(wordData.index);
                                   return (
-                                    <React.Fragment key={i}>
+                                    <span key={i} style={{ display: "contents" }}>
                                       {/* Sweep-in bar appears right before first word */}
                                       {i === 0 && currentLyrics.showSweepIn && (
                                         <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
                                       )}
                                       <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                    </React.Fragment>
+                                    </span>
                                   );
                                 })}
                               </p>
