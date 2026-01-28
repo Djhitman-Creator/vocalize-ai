@@ -2396,11 +2396,38 @@ export default function PreviewEditPage() {
   // ============================================================
   // UTILITY FUNCTIONS
   // ============================================================
+  // Intro duration constant (matches handler.py)
+  const INTRO_DURATION = 4;
+
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Format time relative to track start (intro shows as negative countdown)
+  const formatTrackTime = (seconds) => {
+    if (isNaN(seconds)) return '-0:04';
+    const trackTime = seconds - INTRO_DURATION; // Offset by intro duration
+    const isNegative = trackTime < 0;
+    const absTime = Math.abs(trackTime);
+    const mins = Math.floor(absTime / 60);
+    const secs = Math.floor(absTime % 60);
+    const prefix = isNegative ? '-' : '';
+    return `${prefix}${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Format time with decimals relative to track start
+  const formatTrackTimeDetailed = (seconds) => {
+    if (isNaN(seconds)) return '-0:04.00';
+    const trackTime = seconds - INTRO_DURATION;
+    const isNegative = trackTime < 0;
+    const absTime = Math.abs(trackTime);
+    const mins = Math.floor(absTime / 60);
+    const secs = (absTime % 60).toFixed(2).padStart(5, '0');
+    const prefix = isNegative ? '-' : '';
+    return `${prefix}${mins}:${secs}`;
   };
 
   const formatTimeShort = (seconds) => {
@@ -3193,13 +3220,11 @@ export default function PreviewEditPage() {
                       )}
                     </div>
                     
-                    {/* INTRO OVERLAY - Shows before first lyrics start */}
+                    {/* INTRO OVERLAY - Shows for first 4 seconds (matches video render intro duration) */}
                     {(() => {
-                      // Calculate intro end time (when first word starts, or 4 seconds if no words)
-                      const firstWordStart = words.length > 0 ? words[0].start : 4;
-                      const isInIntro = currentTime < firstWordStart;
-                      const introFadeStart = Math.max(0, firstWordStart - 0.5); // Start fading 0.5s before lyrics
-                      const introOpacity = currentTime < introFadeStart ? 1 : Math.max(0, (firstWordStart - currentTime) * 2);
+                      const isInIntro = currentTime < INTRO_DURATION;
+                      const introFadeStart = INTRO_DURATION - 0.5; // Start fading 0.5s before end
+                      const introOpacity = currentTime < introFadeStart ? 1 : Math.max(0, (INTRO_DURATION - currentTime) * 2);
                       
                       if (!isInIntro) return null;
                       
@@ -3304,9 +3329,9 @@ export default function PreviewEditPage() {
                       </div>
                     )}
                     
-                    {/* Timestamp overlay */}
-                    <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] sm:text-xs text-white/80 font-mono z-30">
-                      {formatTime(currentTime)}
+                    {/* Timestamp overlay - shows countdown during intro */}
+                    <div className={`absolute bottom-1 right-1 sm:bottom-2 sm:right-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] sm:text-xs font-mono z-30 ${currentTime < INTRO_DURATION ? 'text-yellow-400' : 'text-white/80'}`}>
+                      {formatTrackTime(currentTime)}
                     </div>
                     
                     {/* Resolution indicator - shows current aspect ratio */}
@@ -4110,8 +4135,8 @@ export default function PreviewEditPage() {
                       </div>
 
                       <div className="flex-1 flex items-center gap-2">
-                        <span className="text-xs font-mono text-cyan-400 w-20" title="Current playback time">
-                          {Math.floor(currentTime / 60)}:{(currentTime % 60).toFixed(2).padStart(5, '0')}
+                        <span className={`text-xs font-mono w-24 ${currentTime < INTRO_DURATION ? 'text-yellow-400' : 'text-cyan-400'}`} title="Current playback time (countdown during intro)">
+                          {formatTrackTimeDetailed(currentTime)}
                         </span>
                         <div onClick={handleProgressClick} className={`flex-1 h-2 rounded-full cursor-pointer overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
                           <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all" style={{ width: `${(currentTime / duration) * 100}%` }} />
