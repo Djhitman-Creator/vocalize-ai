@@ -391,21 +391,18 @@ const LineLengthWarning = ({ lineIndex, wordCount, charCount }) => (
 // ============================================================
 // WORD DURATION CONTEXT MENU COMPONENT - NEW in V10.10
 // ============================================================
-const WordDurationContextMenu = ({ 
+const WordContextMenu = ({ 
   isOpen, 
   position, 
   word, 
   wordIndex, 
   onClose, 
-  onExtendEnd, 
-  onShortenEnd, 
-  onExtendStart, 
-  onShortenStart,
-  onSetCustomDuration,
+  onRename,
+  onAddWordBefore,
+  onAddWordAfter,
+  onDeleteWord,
   isDark 
 }) => {
-  const [showCustomInput, setShowCustomInput] = useState(false);
-  const [customDuration, setCustomDuration] = useState('');
   const menuRef = useRef(null);
 
   // Close on click outside
@@ -436,17 +433,6 @@ const WordDurationContextMenu = ({
 
   const currentDuration = (word.end - word.start).toFixed(3);
 
-  const handleCustomSubmit = (e) => {
-    e.preventDefault();
-    const newDuration = parseFloat(customDuration);
-    if (!isNaN(newDuration) && newDuration > 0) {
-      onSetCustomDuration(wordIndex, newDuration);
-      setShowCustomInput(false);
-      setCustomDuration('');
-      onClose();
-    }
-  };
-
   const MenuItem = ({ icon: Icon, label, onClick, danger = false, disabled = false }) => (
     <button
       onClick={() => { onClick(); onClose(); }}
@@ -474,7 +460,7 @@ const WordDurationContextMenu = ({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.1 }}
-        className={`fixed z-50 min-w-[220px] rounded-xl shadow-xl border overflow-hidden
+        className={`fixed z-50 min-w-[200px] rounded-xl shadow-xl border overflow-hidden
           ${isDark 
             ? 'bg-gray-900/95 border-white/10 backdrop-blur-xl' 
             : 'bg-white/95 border-gray-200 backdrop-blur-xl'
@@ -500,85 +486,19 @@ const WordDurationContextMenu = ({
 
         {/* Menu items */}
         <div className="p-1">
-          {/* Extend End Section */}
-          <div className={`px-2 py-1 text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            Extend End (for drawn-out vocals)
-          </div>
-          <MenuItem icon={Plus} label="Extend +0.1s" onClick={() => onExtendEnd(wordIndex, 0.1)} />
-          <MenuItem icon={Plus} label="Extend +0.25s" onClick={() => onExtendEnd(wordIndex, 0.25)} />
-          <MenuItem icon={Plus} label="Extend +0.5s" onClick={() => onExtendEnd(wordIndex, 0.5)} />
-          <MenuItem icon={Plus} label="Extend +1.0s" onClick={() => onExtendEnd(wordIndex, 1.0)} />
+          {/* Edit Section */}
+          <MenuItem icon={Edit3} label="Rename Word" onClick={() => onRename(wordIndex)} />
           
           <div className={`my-1 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`} />
 
-          {/* Shorten End Section */}
-          <div className={`px-2 py-1 text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            Shorten End (for quick syllables)
-          </div>
-          <MenuItem 
-            icon={Minus} 
-            label="Shorten -0.1s" 
-            onClick={() => onShortenEnd(wordIndex, 0.1)} 
-            disabled={word.end - word.start <= 0.15}
-          />
-          <MenuItem 
-            icon={Minus} 
-            label="Shorten -0.25s" 
-            onClick={() => onShortenEnd(wordIndex, 0.25)} 
-            disabled={word.end - word.start <= 0.3}
-          />
+          {/* Add Words Section */}
+          <MenuItem icon={Plus} label="Add Word Before" onClick={() => onAddWordBefore(wordIndex)} />
+          <MenuItem icon={Plus} label="Add Word After" onClick={() => onAddWordAfter(wordIndex)} />
           
           <div className={`my-1 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`} />
 
-          {/* Adjust Start Section */}
-          <div className={`px-2 py-1 text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            Adjust Start Time
-          </div>
-          <MenuItem 
-            icon={Clock} 
-            label="Start earlier -0.1s" 
-            onClick={() => onShortenStart(wordIndex, 0.1)} 
-            disabled={word.start <= 0.1}
-          />
-          <MenuItem icon={Clock} label="Start later +0.1s" onClick={() => onExtendStart(wordIndex, 0.1)} />
-          
-          <div className={`my-1 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`} />
-
-          {/* Custom Duration */}
-          {!showCustomInput ? (
-            <MenuItem 
-              icon={Timer} 
-              label="Set custom duration..." 
-              onClick={(e) => { e?.stopPropagation?.(); setShowCustomInput(true); setCustomDuration(currentDuration); }}
-            />
-          ) : (
-            <form onSubmit={handleCustomSubmit} className="px-3 py-2">
-              <label className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                New duration (seconds):
-              </label>
-              <div className="flex gap-2 mt-1">
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.05"
-                  value={customDuration}
-                  onChange={(e) => setCustomDuration(e.target.value)}
-                  className={`flex-1 px-2 py-1 text-sm rounded border ${isDark 
-                    ? 'bg-white/5 border-white/10 text-white' 
-                    : 'bg-gray-50 border-gray-200 text-gray-900'
-                  }`}
-                  autoFocus
-                  onKeyDown={(e) => e.stopPropagation()}
-                />
-                <button
-                  type="submit"
-                  className="px-2 py-1 bg-cyan-500 text-white text-sm rounded hover:bg-cyan-600"
-                >
-                  Set
-                </button>
-              </div>
-            </form>
-          )}
+          {/* Delete Section */}
+          <MenuItem icon={Trash2} label="Delete Word" onClick={() => onDeleteWord(wordIndex)} danger />
         </div>
       </motion.div>
     </AnimatePresence>
@@ -2012,62 +1932,100 @@ export default function PreviewEditPage() {
   }, []);
 
   // Extend word end time (makes the word last longer)
-  const extendWordEnd = useCallback((index, amount) => {
-    setWords(prev => {
-      const updated = [...prev];
-      const word = updated[index];
-      updated[index] = { ...word, end: word.end + amount };
-      return updated;
-    });
-    setHasChanges(true);
-  }, []);
+  // ============================================================
+  // CONTEXT MENU HANDLERS - Rename, Add Before/After, Delete
+  // ============================================================
+  
+  // Rename word - triggers inline edit mode
+  const handleContextMenuRename = useCallback((index) => {
+    setEditingWordIndex(index);
+    setEditingText(words[index].word);
+    setSelectedWordIndex(index);
+  }, [words]);
 
-  // Shorten word end time (makes the word shorter)
-  const shortenWordEnd = useCallback((index, amount) => {
+  // Add word before the specified index
+  const handleContextMenuAddBefore = useCallback((index) => {
+    const targetWord = words[index];
+    // Calculate timing: use half the gap before, or a small slice at start
+    const prevWord = index > 0 ? words[index - 1] : null;
+    const gapStart = prevWord ? prevWord.end : Math.max(0, targetWord.start - 0.5);
+    const gapEnd = targetWord.start;
+    const gapDuration = gapEnd - gapStart;
+    
+    // New word takes the middle portion of the gap, minimum 0.2s
+    const newWordDuration = Math.max(0.2, Math.min(0.5, gapDuration * 0.5));
+    const newWordStart = gapEnd - newWordDuration;
+    
+    const newWord = {
+      word: '[new]',
+      start: newWordStart,
+      end: gapEnd - 0.01, // Small gap before target
+      singer: targetWord.singer || 0,
+      lineBreak: false
+    };
+    
     setWords(prev => {
       const updated = [...prev];
-      const word = updated[index];
-      const newEnd = Math.max(word.start + 0.05, word.end - amount); // Minimum 0.05s duration
-      updated[index] = { ...word, end: newEnd };
+      updated.splice(index, 0, newWord);
       return updated;
     });
     setHasChanges(true);
-  }, []);
+    
+    // Immediately start editing the new word
+    setTimeout(() => {
+      setEditingWordIndex(index);
+      setEditingText('[new]');
+      setSelectedWordIndex(index);
+    }, 50);
+  }, [words]);
 
-  // Extend word start time (delay when word starts)
-  const extendWordStart = useCallback((index, amount) => {
+  // Add word after the specified index
+  const handleContextMenuAddAfter = useCallback((index) => {
+    const targetWord = words[index];
+    // Calculate timing: use half the gap after, or extend a small slice
+    const nextWord = index < words.length - 1 ? words[index + 1] : null;
+    const gapStart = targetWord.end;
+    const gapEnd = nextWord ? nextWord.start : targetWord.end + 0.5;
+    const gapDuration = gapEnd - gapStart;
+    
+    // New word takes the middle portion of the gap, minimum 0.2s
+    const newWordDuration = Math.max(0.2, Math.min(0.5, gapDuration * 0.5));
+    const newWordEnd = gapStart + newWordDuration;
+    
+    const newWord = {
+      word: '[new]',
+      start: gapStart + 0.01, // Small gap after target
+      end: newWordEnd,
+      singer: targetWord.singer || 0,
+      lineBreak: false
+    };
+    
     setWords(prev => {
       const updated = [...prev];
-      const word = updated[index];
-      const newStart = Math.min(word.end - 0.05, word.start + amount); // Keep minimum duration
-      updated[index] = { ...word, start: newStart };
+      updated.splice(index + 1, 0, newWord);
       return updated;
     });
     setHasChanges(true);
-  }, []);
+    
+    // Immediately start editing the new word
+    setTimeout(() => {
+      setEditingWordIndex(index + 1);
+      setEditingText('[new]');
+      setSelectedWordIndex(index + 1);
+    }, 50);
+  }, [words]);
 
-  // Shorten word start time (start word earlier)
-  const shortenWordStart = useCallback((index, amount) => {
-    setWords(prev => {
-      const updated = [...prev];
-      const word = updated[index];
-      const newStart = Math.max(0, word.start - amount);
-      updated[index] = { ...word, start: newStart };
-      return updated;
-    });
+  // Delete a single word from context menu
+  const handleContextMenuDelete = useCallback((index) => {
+    if (words.length <= 1) {
+      alert('Cannot delete the last word');
+      return;
+    }
+    setWords(prev => prev.filter((_, i) => i !== index));
     setHasChanges(true);
-  }, []);
-
-  // Set custom word duration (keeps start time, adjusts end)
-  const setWordCustomDuration = useCallback((index, newDuration) => {
-    setWords(prev => {
-      const updated = [...prev];
-      const word = updated[index];
-      updated[index] = { ...word, end: word.start + newDuration };
-      return updated;
-    });
-    setHasChanges(true);
-  }, []);
+    setSelectedWordIndex(null);
+    setSelectedWordIndices(new Set());
+  }, [words.length]);
 
   useEffect(() => {
     const handleGlobalMouseUp = () => {
@@ -5057,18 +5015,17 @@ export default function PreviewEditPage() {
         </main>
       </div>
 
-      {/* V10.10: Word Duration Context Menu */}
-      <WordDurationContextMenu
+      {/* Word Context Menu - Right-click options */}
+      <WordContextMenu
         isOpen={contextMenu.isOpen}
         position={contextMenu.position}
         word={contextMenu.wordIndex !== null ? words[contextMenu.wordIndex] : null}
         wordIndex={contextMenu.wordIndex}
         onClose={closeContextMenu}
-        onExtendEnd={extendWordEnd}
-        onShortenEnd={shortenWordEnd}
-        onExtendStart={extendWordStart}
-        onShortenStart={shortenWordStart}
-        onSetCustomDuration={setWordCustomDuration}
+        onRename={handleContextMenuRename}
+        onAddWordBefore={handleContextMenuAddBefore}
+        onAddWordAfter={handleContextMenuAddAfter}
+        onDeleteWord={handleContextMenuDelete}
         isDark={isDark}
       />
     </>
