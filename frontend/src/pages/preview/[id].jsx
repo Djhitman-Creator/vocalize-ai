@@ -991,6 +991,7 @@ export default function PreviewEditPage() {
   // Waveform state for timeline visualization
   const [waveformData, setWaveformData] = useState(null);
   const [waveformLoading, setWaveformLoading] = useState(false);
+  const [waveformThreshold, setWaveformThreshold] = useState(0); // 0-100, hides amplitudes below this %
 
   // Timeline state
   const timelineContainerRef = useRef(null);
@@ -3273,19 +3274,49 @@ export default function PreviewEditPage() {
                       <button onClick={zoomIn} className={`p-2 rounded-lg ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'} transition-colors`}>
                         <ZoomIn className="w-4 h-4" />
                       </button>
+                      
+                      {/* Waveform Threshold Slider */}
+                      {waveformData && (
+                        <div className="flex items-center gap-2 ml-4 pl-4 border-l border-white/10">
+                          <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Threshold:</span>
+                          <input
+                            type="range"
+                            min="0"
+                            max="50"
+                            value={waveformThreshold}
+                            onChange={(e) => setWaveformThreshold(parseInt(e.target.value))}
+                            className="w-20 h-1 accent-green-500 cursor-pointer"
+                            title={`Hide waveform below ${waveformThreshold}% amplitude`}
+                          />
+                          <span className={`text-xs w-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{waveformThreshold}%</span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       {selectedWordIndices.size > 1 && (
                         <span className="text-xs text-cyan-400 font-medium">{selectedWordIndices.size} words selected</span>
                       )}
-                      <span className="text-xs text-gray-500 hidden sm:inline">Right-click word for duration | Shift+Click range | Ctrl+Click toggle</span>
+                      <span className="text-xs text-gray-500 hidden sm:inline">Scroll wheel to navigate | Right-click for duration</span>
                     </div>
                   </div>
 
                   {/* Timeline with Time Markers - LCD Style Background */}
                   <div 
                     ref={timelineContainerRef} 
-                    onClick={handleTimelineClick} 
+                    onClick={handleTimelineClick}
+                    onWheel={(e) => {
+                      // Scroll through timeline with mouse wheel
+                      e.preventDefault();
+                      const scrollAmount = e.deltaY > 0 ? 2 : -2; // Scroll 2 seconds per wheel tick
+                      const newTime = Math.max(0, Math.min(duration, currentTime + scrollAmount));
+                      setCurrentTime(newTime);
+                      if (instrumentalRef.current) {
+                        instrumentalRef.current.currentTime = newTime;
+                      }
+                      if (vocalsRef.current) {
+                        vocalsRef.current.currentTime = newTime;
+                      }
+                    }}
                     className="relative overflow-hidden cursor-crosshair"
                     style={{ 
                       height: TIMELINE_HEIGHT,
@@ -3297,12 +3328,13 @@ export default function PreviewEditPage() {
                     }}
                   >
                     {/* Waveform Visualization - Solid Filled Wave */}
-                    <div className="absolute inset-0 bottom-6 overflow-hidden pointer-events-none" style={{ opacity: vocalsVolume > 0 ? 0.7 : 0.35 }}>
+                    <div className="absolute inset-0 bottom-6 overflow-hidden pointer-events-none" style={{ opacity: vocalsVolume > 0 ? 0.5 : 0.25 }}>
                       {(() => {
                         const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
                         const centerX = containerWidth / 2;
                         const waveformHeight = TIMELINE_HEIGHT - 30;
                         const centerY = waveformHeight / 2 + 4;
+                        const thresholdValue = waveformThreshold / 100; // Convert 0-100 to 0-1
                         
                         // Use real waveform data if available
                         if (waveformData && waveformData.amplitudes) {
@@ -3320,8 +3352,15 @@ export default function PreviewEditPage() {
                             // Skip if way off-screen (with buffer for smooth edges)
                             if (barX < -50 || barX > containerWidth + 50) continue;
                             
-                            const amplitude = waveformData.amplitudes[sampleIndex];
-                            const heightPercent = 0.08 + amplitude * 0.85;
+                            let amplitude = waveformData.amplitudes[sampleIndex];
+                            
+                            // Apply threshold - if amplitude is below threshold, set to 0
+                            if (amplitude < thresholdValue) {
+                              amplitude = 0;
+                            }
+                            
+                            // Scale amplitude for visual display
+                            const heightPercent = amplitude > 0 ? (0.05 + amplitude * 0.9) : 0;
                             const halfHeight = (heightPercent * waveformHeight) / 2;
                             
                             topPoints.push({ x: barX, y: centerY - halfHeight });
@@ -3359,17 +3398,17 @@ export default function PreviewEditPage() {
                             >
                               <defs>
                                 <linearGradient id="waveformGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                  <stop offset="0%" stopColor={vocalsVolume > 0 ? '#4ade80' : '#3f6f3f'} stopOpacity="0.9" />
-                                  <stop offset="50%" stopColor={vocalsVolume > 0 ? '#22c55e' : '#2d5a2d'} stopOpacity="0.7" />
-                                  <stop offset="100%" stopColor={vocalsVolume > 0 ? '#4ade80' : '#3f6f3f'} stopOpacity="0.9" />
+                                  <stop offset="0%" stopColor={vocalsVolume > 0 ? '#22c55e' : '#2d5a2d'} stopOpacity="0.6" />
+                                  <stop offset="50%" stopColor={vocalsVolume > 0 ? '#16a34a' : '#1f4a1f'} stopOpacity="0.4" />
+                                  <stop offset="100%" stopColor={vocalsVolume > 0 ? '#22c55e' : '#2d5a2d'} stopOpacity="0.6" />
                                 </linearGradient>
                               </defs>
                               <path 
                                 d={pathD} 
                                 fill="url(#waveformGradient)"
-                                stroke={vocalsVolume > 0 ? '#4ade80' : '#3f6f3f'}
-                                strokeWidth="1"
-                                strokeOpacity="0.5"
+                                stroke={vocalsVolume > 0 ? '#22c55e' : '#2d5a2d'}
+                                strokeWidth="0.5"
+                                strokeOpacity="0.3"
                               />
                             </svg>
                           );
@@ -3383,7 +3422,7 @@ export default function PreviewEditPage() {
                                 right: 0,
                                 height: waveformLoading ? 4 : 2,
                                 top: centerY - 1,
-                                backgroundColor: '#3f6f3f',
+                                backgroundColor: '#2d5a2d',
                                 opacity: 0.3,
                               }}
                             />
