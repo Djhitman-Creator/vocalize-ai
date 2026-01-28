@@ -817,7 +817,7 @@ export default function DashboardPage() {
                       <div>
                         <h3 className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{project.title}</h3>
                         <p className="text-gray-400 text-sm">
-                          {new Date(project.created_at).toLocaleDateString()} â€¢ {project.artist_name || 'Unknown Artist'}
+                          {new Date(project.created_at).toLocaleDateString()} - {project.artist_name || 'Unknown Artist'}
                         </p>
                       </div>
                     </div>
