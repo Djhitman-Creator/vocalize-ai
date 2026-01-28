@@ -2575,6 +2575,17 @@ export default function PreviewEditPage() {
             }
           }
 
+          // Only show upcoming lyrics if within 2 seconds of first word
+          // This prevents showing lyrics too early during long intro gaps
+          if (timeUntilLine > 2) {
+            return {
+              prevLine: '',
+              currentLine: null, next: '',
+              showSweepIn: false, sweepInProgress: 0,
+              showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
+            };
+          }
+
           return {
             prevLine: i > 0 ? lyricsLines[i - 1].map(w => w.word).join(' ') : '',
             currentLine: null, next: line.map(w => w.word).join(' '),
