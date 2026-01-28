@@ -450,7 +450,7 @@ async function sendCompletionEmail(project, downloadUrl) {
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -578,7 +578,7 @@ async function sendFailureEmail(project, errorMessage) {
               Need help? <a href="mailto:support@karatrack.com" style="color: #00d4ff; text-decoration: none;">Contact Support</a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -690,7 +690,7 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -1365,6 +1365,61 @@ app.post('/api/projects/:id/thumbnail', authMiddleware, upload.single('thumbnail
     res.json(updated);
   } catch (error) {
     console.error('Thumbnail upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload logo/watermark for a specific project (Studio tier feature)
+app.post('/api/upload-logo', authMiddleware, upload.single('logo'), async (req, res) => {
+  try {
+    const projectId = req.body.projectId;
+    
+    if (!projectId) {
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Check if user is Studio tier (optional - you may want to enable for all tiers)
+    const profile = await getUserProfile(req.user.id);
+    if (profile.subscription_tier !== 'studio') {
+      return res.status(403).json({ error: 'Custom logos are only available for Studio tier subscribers' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No logo file provided' });
+    }
+
+    // Upload logo to R2
+    const logoKey = `logos/${req.user.id}/${projectId}-logo${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
+    const logoUrl = await uploadToR2(req.file.buffer, logoKey, req.file.mimetype);
+    console.log(`Logo uploaded for project ${projectId}: ${logoUrl}`);
+
+    // Save URL to project
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ logo_url: logoUrl })
+      .eq('id', projectId);
+
+    if (updateError) throw updateError;
+
+    res.json({ 
+      success: true, 
+      logoUrl: logoUrl,
+      message: 'Logo uploaded successfully' 
+    });
+  } catch (error) {
+    console.error('Logo upload error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2781,7 +2836,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             </p>
           </div>
           <div class="footer">
-            <p>Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
+            <p>Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
             <p>Questions? Reply to this email or visit our support page.</p>
           </div>
         </div>
