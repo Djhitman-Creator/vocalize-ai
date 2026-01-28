@@ -237,18 +237,18 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
     : baseTextShadow;
 
   if (isPast || sweepPercent >= 1) {
-    return <span className="mx-1" style={{ color: color, textShadow: baseTextShadow }}>{word}</span>;
+    return <span className="mx-1" style={{ color: color, textShadow: baseTextShadow, position: 'relative', zIndex: 1 }}>{word}</span>;
   }
 
   if (sweepPercent <= 0 && !isActive) {
-    return <span className="mx-1" style={{ color: unsungColor, textShadow: baseTextShadow }}>{word}</span>;
+    return <span className="mx-1" style={{ color: unsungColor, textShadow: baseTextShadow, position: 'relative', zIndex: 1 }}>{word}</span>;
   }
 
   const clipPercent = Math.max(0, Math.min(100, sweepPercent * 100));
   const softClipPercent = Math.min(100, clipPercent + 2);
 
   return (
-    <span className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
+    <span className="mx-1" style={{ position: 'relative', display: 'inline-block', zIndex: 1 }}>
       {/* Glow layer - behind everything */}
       {showGlow && (
         <span 
@@ -284,22 +284,29 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
 // ============================================================
 // SWEEP-IN BAR COMPONENT
 // ============================================================
-const SweepInBar = ({ progress, color }) => {
+const SweepInBar = ({ progress, color, fontSize = 18 }) => {
   const width = Math.max(0, (1 - progress) * 80);
-  const opacity = 0.3 + (progress * 0.4);
+  const opacity = 0.7 + (progress * 0.25);
 
   if (width < 2) return null;
 
+  // The bar tucks under the first letter by using negative margin
+  // and ensuring words render on top via their own z-index
   return (
-    <div
+    <span
       style={{
+        display: 'inline-block',
         width: `${width}px`,
-        height: '1.2em',
-        background: `linear-gradient(to right, transparent, ${color})`,
+        height: '0.85em', // Slightly shorter than full em to align with text body
+        background: `linear-gradient(to right, transparent 0%, ${color}70 60%, ${color} 100%)`,
         opacity: opacity,
-        borderRadius: '4px',
-        boxShadow: `0 0 15px ${color}40`,
-        transition: 'width 50ms linear, opacity 50ms linear',
+        borderRadius: '3px 0 0 3px', // Only round left side
+        boxShadow: `0 0 ${10 + progress * 12}px ${color}, 0 0 ${18 + progress * 12}px ${color}80`,
+        marginRight: '-12px', // Tuck UNDER the first letter significantly
+        verticalAlign: 'middle',
+        position: 'relative',
+        zIndex: 0, // Lower than text which has zIndex 1-2
+        transform: 'translateY(0.075em)', // Fine-tune vertical alignment
       }}
     />
   );
