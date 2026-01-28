@@ -2882,20 +2882,18 @@ export default function PreviewEditPage() {
                         <div className="flex flex-col items-center justify-center w-full">
                           {currentLyrics.currentLine ? (
                             <div className="text-center w-full">
-                              {/* Sweep-in indicator bar - shows before line starts */}
-                              {currentLyrics.showSweepIn && (
-                                <div className="flex justify-center mb-2">
-                                  <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
-                                </div>
-                              )}
                               <p 
-                                className="font-bold relative inline-flex flex-wrap justify-center" 
+                                className="font-bold relative inline-flex flex-wrap justify-center items-center" 
                                 style={{ 
                                   fontFamily: previewFontFamily,
                                   fontSize: `${currentLineFontSize}px`,
                                   gap: `${wordSpacing}px`
                                 }}
                               >
+                                {/* Sweep-in bar - inline before first word */}
+                                {currentLyrics.showSweepIn && (
+                                  <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                )}
                                 {currentLyrics.currentLine.map((wordData, i) => {
                                   const highlightColor = getHighlightColor(wordData.index);
                                   return (
@@ -2911,14 +2909,8 @@ export default function PreviewEditPage() {
                         <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
                           {currentLyrics.pageLines && currentLyrics.pageLines.map((lineData, lineIdx) => (
                             <div key={lineIdx} className="text-center w-full">
-                              {/* Sweep-in indicator bar - shows on current line before it starts */}
-                              {lineData.isCurrentLine && currentLyrics.showSweepIn && (
-                                <div className="flex justify-center mb-1">
-                                  <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
-                                </div>
-                              )}
                               <p 
-                                className="font-bold relative inline-flex flex-wrap justify-center"
+                                className="font-bold relative inline-flex flex-wrap justify-center items-center"
                                 style={{ 
                                   fontFamily: previewFontFamily,
                                   fontSize: `${baseFontSize}px`,
@@ -2926,6 +2918,10 @@ export default function PreviewEditPage() {
                                   opacity: lineData.isCurrentLine ? 1 : lineData.isPastLine ? 0.8 : 0.6
                                 }}
                               >
+                                {/* Sweep-in bar - inline before first word on current line */}
+                                {lineData.isCurrentLine && currentLyrics.showSweepIn && (
+                                  <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                )}
                                 {lineData.words.map((wordData, wordIdx) => {
                                   const highlightColor = getHighlightColor(wordData.index);
                                   const shadowStyle = `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, ${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`;
@@ -2977,20 +2973,18 @@ export default function PreviewEditPage() {
                           {/* Current Line - with sweep highlighting */}
                           {currentLyrics.currentLine ? (
                             <div className="text-center w-full">
-                              {/* Sweep-in indicator bar - shows before line starts */}
-                              {currentLyrics.showSweepIn && (
-                                <div className="flex justify-center mb-1">
-                                  <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
-                                </div>
-                              )}
                               <p 
-                                className="font-bold relative inline-flex flex-wrap justify-center" 
+                                className="font-bold relative inline-flex flex-wrap justify-center items-center" 
                                 style={{ 
                                   fontFamily: previewFontFamily,
                                   fontSize: `${currentLineFontSize}px`,
                                   gap: `${wordSpacing}px`
                                 }}
                               >
+                                {/* Sweep-in bar - inline before first word */}
+                                {currentLyrics.showSweepIn && (
+                                  <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                )}
                                 {currentLyrics.currentLine.map((wordData, i) => {
                                   const highlightColor = getHighlightColor(wordData.index);
                                   return (
