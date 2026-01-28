@@ -285,33 +285,34 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
 // SWEEP-IN BAR COMPONENT
 // ============================================================
 const SweepInBar = ({ progress, color }) => {
-  // Progress goes from 0 (just started) to 1 (about to finish)
-  // Width shrinks as progress increases
-  const maxWidth = 60;
+  // Progress goes from 0 (sweep just started, bar is long) to 1 (sweep finished, bar gone)
+  // The bar shrinks from left to right, ending at the first letter
+  const maxWidth = 50;
   const width = Math.max(0, (1 - progress) * maxWidth);
-  const opacity = 0.5 + (progress * 0.4);
+  
+  // As progress increases, the bar gets shorter and more intense
+  const opacity = 0.6 + (progress * 0.35);
 
-  if (width < 2) return null;
+  if (width < 1) return null;
 
-  // Use absolute positioning so it doesn't affect text layout
-  // Position it to the left of where the first word starts
+  // The bar is inline-block with negative margin to tuck under the first letter
+  // It only shows the "remaining" portion - no trail/remnants
   return (
     <span
       style={{
-        position: 'absolute',
-        right: '100%', // Position to the left of the text container
-        top: '50%',
-        transform: 'translateY(-50%)',
+        display: 'inline-block',
         width: `${width}px`,
-        height: '0.8em',
-        // Gradient fades from transparent to color - no glow at start
-        background: `linear-gradient(to right, transparent 0%, transparent 20%, ${color}90 80%, ${color} 100%)`,
+        height: '1em', // Match font height exactly
+        // Solid color that fades at left edge only - no remnants visible
+        background: `linear-gradient(to right, ${color}00 0%, ${color}40 15%, ${color}AA 50%, ${color} 85%, ${color} 100%)`,
         opacity: opacity,
-        borderRadius: '3px 0 0 3px',
-        boxShadow: `0 0 ${6 + progress * 8}px ${color}`,
-        marginRight: '2px', // Small gap then overlap handled by gradient
+        borderRadius: '2px 0 0 2px',
+        boxShadow: `0 0 8px ${color}90, 0 0 4px ${color}`,
+        marginRight: '-6px', // Tuck under the first letter
+        marginLeft: '0',
+        verticalAlign: 'text-bottom',
+        position: 'relative',
         zIndex: 0,
-        pointerEvents: 'none',
       }}
     />
   );
@@ -2895,7 +2896,7 @@ export default function PreviewEditPage() {
                           {currentLyrics.currentLine ? (
                             <div className="text-center w-full">
                               <p 
-                                className="font-bold relative inline-flex flex-wrap justify-center items-center" 
+                                className="font-bold relative inline-flex flex-wrap justify-center items-baseline" 
                                 style={{ 
                                   fontFamily: previewFontFamily,
                                   fontSize: `${currentLineFontSize}px`,
@@ -2904,17 +2905,14 @@ export default function PreviewEditPage() {
                               >
                                 {currentLyrics.currentLine.map((wordData, i) => {
                                   const highlightColor = getHighlightColor(wordData.index);
-                                  // First word gets the sweep-in bar attached
-                                  if (i === 0 && currentLyrics.showSweepIn) {
-                                    return (
-                                      <span key={i} style={{ position: 'relative', display: 'inline-block' }}>
-                                        <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
-                                        <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                      </span>
-                                    );
-                                  }
                                   return (
-                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                    <React.Fragment key={i}>
+                                      {/* Sweep-in bar appears right before first word */}
+                                      {i === 0 && currentLyrics.showSweepIn && (
+                                        <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                      )}
+                                      <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                    </React.Fragment>
                                   );
                                 })}
                               </p>
@@ -2927,7 +2925,7 @@ export default function PreviewEditPage() {
                           {currentLyrics.pageLines && currentLyrics.pageLines.map((lineData, lineIdx) => (
                             <div key={lineIdx} className="text-center w-full">
                               <p 
-                                className="font-bold relative inline-flex flex-wrap justify-center items-center"
+                                className="font-bold relative inline-flex flex-wrap justify-center items-baseline"
                                 style={{ 
                                   fontFamily: previewFontFamily,
                                   fontSize: `${baseFontSize}px`,
@@ -2947,17 +2945,14 @@ export default function PreviewEditPage() {
                                     );
                                   }
                                   if (lineData.isCurrentLine) {
-                                    // First word on current line gets the sweep-in bar
-                                    if (wordIdx === 0 && currentLyrics.showSweepIn) {
-                                      return (
-                                        <span key={wordIdx} style={{ position: 'relative', display: 'inline-block' }}>
-                                          <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
-                                          <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                        </span>
-                                      );
-                                    }
                                     return (
-                                      <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                      <React.Fragment key={wordIdx}>
+                                        {/* Sweep-in bar appears right before first word */}
+                                        {wordIdx === 0 && currentLyrics.showSweepIn && (
+                                          <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                        )}
+                                        <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                      </React.Fragment>
                                     );
                                   }
                                   return (
@@ -2996,7 +2991,7 @@ export default function PreviewEditPage() {
                           {currentLyrics.currentLine ? (
                             <div className="text-center w-full">
                               <p 
-                                className="font-bold relative inline-flex flex-wrap justify-center items-center" 
+                                className="font-bold relative inline-flex flex-wrap justify-center items-baseline" 
                                 style={{ 
                                   fontFamily: previewFontFamily,
                                   fontSize: `${currentLineFontSize}px`,
@@ -3005,17 +3000,14 @@ export default function PreviewEditPage() {
                               >
                                 {currentLyrics.currentLine.map((wordData, i) => {
                                   const highlightColor = getHighlightColor(wordData.index);
-                                  // First word gets the sweep-in bar attached
-                                  if (i === 0 && currentLyrics.showSweepIn) {
-                                    return (
-                                      <span key={i} style={{ position: 'relative', display: 'inline-block' }}>
-                                        <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
-                                        <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                      </span>
-                                    );
-                                  }
                                   return (
-                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                    <React.Fragment key={i}>
+                                      {/* Sweep-in bar appears right before first word */}
+                                      {i === 0 && currentLyrics.showSweepIn && (
+                                        <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                      )}
+                                      <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                    </React.Fragment>
                                   );
                                 })}
                               </p>
