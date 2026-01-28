@@ -1014,6 +1014,11 @@ export default function PreviewEditPage() {
   const [isPainting, setIsPainting] = useState(false);
   const [paintedIndices, setPaintedIndices] = useState(new Set());
   
+  // Undo/Redo state for words
+  const [wordsHistory, setWordsHistory] = useState([]);
+  const [wordsHistoryIndex, setWordsHistoryIndex] = useState(-1);
+  const [isUndoRedo, setIsUndoRedo] = useState(false);
+  
   // V10.10: Context menu state for word duration adjustment
   const [contextMenu, setContextMenu] = useState({
     isOpen: false,
@@ -1794,6 +1799,84 @@ export default function PreviewEditPage() {
       paintWord(index);
     }
   }, [isPainting, paintMode, paintedIndices, paintWord]);
+
+  // ============================================================
+  // UNDO/REDO FUNCTIONALITY
+  // ============================================================
+  
+  // Save current state to history when words change (but not during undo/redo)
+  useEffect(() => {
+    if (isUndoRedo) {
+      setIsUndoRedo(false);
+      return;
+    }
+    
+    // Only save if we have words and they're different from the last history entry
+    if (words.length > 0) {
+      const currentState = JSON.stringify(words);
+      const lastState = wordsHistory[wordsHistoryIndex] ? JSON.stringify(wordsHistory[wordsHistoryIndex]) : null;
+      
+      if (currentState !== lastState) {
+        // Remove any future history (if we made changes after undoing)
+        const newHistory = wordsHistory.slice(0, wordsHistoryIndex + 1);
+        // Add current state
+        newHistory.push(JSON.parse(JSON.stringify(words)));
+        // Keep only last 50 states to prevent memory issues
+        if (newHistory.length > 50) {
+          newHistory.shift();
+        }
+        setWordsHistory(newHistory);
+        setWordsHistoryIndex(newHistory.length - 1);
+      }
+    }
+  }, [words]);
+  
+  // Undo function
+  const handleUndo = useCallback(() => {
+    if (wordsHistoryIndex > 0) {
+      setIsUndoRedo(true);
+      const newIndex = wordsHistoryIndex - 1;
+      setWordsHistoryIndex(newIndex);
+      setWords(JSON.parse(JSON.stringify(wordsHistory[newIndex])));
+      setHasChanges(true);
+    }
+  }, [wordsHistoryIndex, wordsHistory]);
+  
+  // Redo function
+  const handleRedo = useCallback(() => {
+    if (wordsHistoryIndex < wordsHistory.length - 1) {
+      setIsUndoRedo(true);
+      const newIndex = wordsHistoryIndex + 1;
+      setWordsHistoryIndex(newIndex);
+      setWords(JSON.parse(JSON.stringify(wordsHistory[newIndex])));
+      setHasChanges(true);
+    }
+  }, [wordsHistoryIndex, wordsHistory]);
+  
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check if we're in an input field
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      // Ctrl/Cmd + Z for undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      
+      // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y for redo
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleUndo, handleRedo]);
 
   // ============================================================
   // V10.10: CONTEXT MENU FOR WORD DURATION ADJUSTMENT
@@ -2810,24 +2893,59 @@ export default function PreviewEditPage() {
             className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}
           >
             {/* Tab Navigation */}
-            <div className={`flex border-b overflow-x-auto scrollbar-hide ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-              {TABS.map(tab => (
+            <div className={`flex border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+              {/* Tabs - scrollable on mobile */}
+              <div className="flex overflow-x-auto scrollbar-hide flex-1">
+                {TABS.map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all whitespace-nowrap
+                      ${activeTab === tab.id 
+                        ? `border-b-2 border-cyan-500 ${isDark ? 'text-cyan-400 bg-white/5' : 'text-cyan-600 bg-cyan-50'}` 
+                        : isDark 
+                          ? 'text-gray-400 hover:text-white hover:bg-white/5' 
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                      }`}
+                  >
+                    <tab.icon className="w-4 h-4" />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.mobileLabel}</span>
+                  </button>
+                ))}
+              </div>
+              
+              {/* Undo/Redo Buttons */}
+              <div className={`flex items-center gap-1 px-2 border-l ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all whitespace-nowrap
-                    ${activeTab === tab.id 
-                      ? `border-b-2 border-cyan-500 ${isDark ? 'text-cyan-400 bg-white/5' : 'text-cyan-600 bg-cyan-50'}` 
-                      : isDark 
-                        ? 'text-gray-400 hover:text-white hover:bg-white/5' 
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                    }`}
+                  onClick={handleUndo}
+                  disabled={wordsHistoryIndex <= 0}
+                  className={`p-2 rounded-lg transition-all ${
+                    wordsHistoryIndex > 0
+                      ? isDark 
+                        ? 'text-gray-300 hover:text-white hover:bg-white/10' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      : 'text-gray-500 opacity-40 cursor-not-allowed'
+                  }`}
+                  title={`Undo (Ctrl+Z)${wordsHistoryIndex > 0 ? ` - ${wordsHistoryIndex} step${wordsHistoryIndex > 1 ? 's' : ''} available` : ''}`}
                 >
-                  <tab.icon className="w-4 h-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.mobileLabel}</span>
+                  <Undo2 className="w-4 h-4" />
                 </button>
-              ))}
+                <button
+                  onClick={handleRedo}
+                  disabled={wordsHistoryIndex >= wordsHistory.length - 1}
+                  className={`p-2 rounded-lg transition-all ${
+                    wordsHistoryIndex < wordsHistory.length - 1
+                      ? isDark 
+                        ? 'text-gray-300 hover:text-white hover:bg-white/10' 
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      : 'text-gray-500 opacity-40 cursor-not-allowed'
+                  }`}
+                  title={`Redo (Ctrl+Shift+Z)${wordsHistoryIndex < wordsHistory.length - 1 ? ` - ${wordsHistory.length - 1 - wordsHistoryIndex} step${wordsHistory.length - 1 - wordsHistoryIndex > 1 ? 's' : ''} available` : ''}`}
+                >
+                  <Redo2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Tab Content Area */}
