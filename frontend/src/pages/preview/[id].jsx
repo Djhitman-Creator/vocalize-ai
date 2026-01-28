@@ -1717,6 +1717,32 @@ export default function PreviewEditPage() {
     setHasChanges(true);
   }, [paintMode]);
 
+  // Assign entire line to a singer (for line-level duet assignment)
+  const assignLineToSinger = useCallback((lineIndex, singerValue) => {
+    const line = lyricsLines[lineIndex];
+    if (!line) return;
+    
+    setWords(prev => {
+      const updated = [...prev];
+      line.forEach(wordData => {
+        updated[wordData.globalIndex] = { ...updated[wordData.globalIndex], singer: singerValue };
+      });
+      return updated;
+    });
+    setHasChanges(true);
+  }, [lyricsLines]);
+
+  // Get the current singer assignment for a line (returns the singer if all words match, or 'mixed' if different)
+  const getLineSingerAssignment = useCallback((lineIndex) => {
+    const line = lyricsLines[lineIndex];
+    if (!line || line.length === 0) return SINGER.BOTH;
+    
+    const firstSinger = words[line[0].globalIndex]?.singer ?? SINGER.BOTH;
+    const allSame = line.every(wordData => (words[wordData.globalIndex]?.singer ?? SINGER.BOTH) === firstSinger);
+    
+    return allSame ? firstSinger : 'mixed';
+  }, [lyricsLines, words]);
+
   const handleTimelineWordMouseDown = useCallback((index, e) => {
     e.stopPropagation();
     if (paintMode !== null) {
@@ -2817,7 +2843,7 @@ export default function PreviewEditPage() {
                         <SplitSquareHorizontal className="w-4 h-4 text-cyan-400" />
                         <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Line & Word Editor (Rhyme Sync)</span>
                       </div>
-                      <span className="text-xs text-gray-500">{lyricsLines.length} lines â€¢ {words.length} words</span>
+                      <span className="text-xs text-gray-500">{lyricsLines.length} lines | {words.length} words</span>
                     </div>
 
             <AnimatePresence>
@@ -2889,8 +2915,76 @@ export default function PreviewEditPage() {
                                   </button>
                                 )}
                                 {lineTooLong && <LineLengthWarning lineIndex={lineIndex} wordCount={line.length} charCount={charCount} />}
+                                
+                                {/* Duet Mode Line Assignment - only show when duet mode is enabled */}
+                                {isDuetMode && (
+                                  <div className="flex items-center gap-1 ml-auto">
+                                    <span className="text-xs text-gray-500 mr-1">Singer:</span>
+                                    <button
+                                      onClick={() => assignLineToSinger(lineIndex, SINGER.SINGER_1)}
+                                      className={`px-2 py-0.5 text-xs rounded transition-all ${
+                                        getLineSingerAssignment(lineIndex) === SINGER.SINGER_1
+                                          ? 'ring-2 ring-offset-1 ring-offset-transparent'
+                                          : 'opacity-70 hover:opacity-100'
+                                      }`}
+                                      style={{ 
+                                        backgroundColor: `${duetColors.singer1}30`,
+                                        color: duetColors.singer1,
+                                        ringColor: duetColors.singer1
+                                      }}
+                                      title="Assign entire line to Singer 1"
+                                    >
+                                      S1
+                                    </button>
+                                    <button
+                                      onClick={() => assignLineToSinger(lineIndex, SINGER.SINGER_2)}
+                                      className={`px-2 py-0.5 text-xs rounded transition-all ${
+                                        getLineSingerAssignment(lineIndex) === SINGER.SINGER_2
+                                          ? 'ring-2 ring-offset-1 ring-offset-transparent'
+                                          : 'opacity-70 hover:opacity-100'
+                                      }`}
+                                      style={{ 
+                                        backgroundColor: `${duetColors.singer2}30`,
+                                        color: duetColors.singer2,
+                                        ringColor: duetColors.singer2
+                                      }}
+                                      title="Assign entire line to Singer 2"
+                                    >
+                                      S2
+                                    </button>
+                                    <button
+                                      onClick={() => assignLineToSinger(lineIndex, SINGER.BOTH)}
+                                      className={`px-2 py-0.5 text-xs rounded transition-all ${
+                                        getLineSingerAssignment(lineIndex) === SINGER.BOTH
+                                          ? 'ring-2 ring-offset-1 ring-offset-transparent'
+                                          : 'opacity-70 hover:opacity-100'
+                                      }`}
+                                      style={{ 
+                                        backgroundColor: `${duetColors.both}30`,
+                                        color: duetColors.both,
+                                        ringColor: duetColors.both
+                                      }}
+                                      title="Assign entire line to Both singers"
+                                    >
+                                      Both
+                                    </button>
+                                    {getLineSingerAssignment(lineIndex) === 'mixed' && (
+                                      <span className="text-xs text-gray-400 italic ml-1">(mixed)</span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
-                              <div className={`flex flex-wrap items-center gap-1 p-2 rounded-lg ${lineTooLong ? 'bg-yellow-500/10 border border-yellow-500/30' : isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                              <div 
+                                className={`flex flex-wrap items-center gap-1 p-2 rounded-lg ${lineTooLong ? 'bg-yellow-500/10 border border-yellow-500/30' : isDark ? 'bg-white/5' : 'bg-gray-100'}`}
+                                style={isDuetMode ? {
+                                  borderLeft: `4px solid ${
+                                    getLineSingerAssignment(lineIndex) === SINGER.SINGER_1 ? duetColors.singer1 :
+                                    getLineSingerAssignment(lineIndex) === SINGER.SINGER_2 ? duetColors.singer2 :
+                                    getLineSingerAssignment(lineIndex) === SINGER.BOTH ? duetColors.both :
+                                    'transparent'
+                                  }`
+                                } : {}}
+                              >
                                 {line.map((wordData, wordIndex) => {
                                   const isSelected = selectedWordIndices.has(wordData.globalIndex);
                                   const isEditing = editingWordIndex === wordData.globalIndex;
