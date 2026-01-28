@@ -3261,8 +3261,93 @@ export default function PreviewEditPage() {
                     </div>
                   </div>
 
-                  {/* Timeline with Time Markers */}
-                  <div ref={timelineContainerRef} onClick={handleTimelineClick} className={`relative overflow-hidden cursor-crosshair border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`} style={{ height: TIMELINE_HEIGHT }}>
+                  {/* Timeline with Time Markers - LCD Style Background */}
+                  <div 
+                    ref={timelineContainerRef} 
+                    onClick={handleTimelineClick} 
+                    className="relative overflow-hidden cursor-crosshair"
+                    style={{ 
+                      height: TIMELINE_HEIGHT,
+                      background: isDark 
+                        ? 'linear-gradient(180deg, #0a0f14 0%, #0d1318 50%, #0a0f14 100%)' 
+                        : 'linear-gradient(180deg, #1a1f24 0%, #1d2228 50%, #1a1f24 100%)',
+                      borderTop: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.1)',
+                      boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.4)'
+                    }}
+                  >
+                    {/* Waveform Visualization - Muted Green */}
+                    <div className="absolute inset-0 bottom-6 overflow-hidden pointer-events-none" style={{ opacity: vocalsVolume > 0 ? 0.6 : 0.25 }}>
+                      {(() => {
+                        const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
+                        const centerX = containerWidth / 2;
+                        const waveformBars = [];
+                        const barWidth = 3;
+                        const barGap = 2;
+                        const totalBarWidth = barWidth + barGap;
+                        const numBars = Math.ceil(containerWidth / totalBarWidth) + 20;
+                        const waveformHeight = TIMELINE_HEIGHT - 30;
+                        
+                        // Generate waveform bars based on time position
+                        for (let i = -10; i < numBars; i++) {
+                          const barX = (i * totalBarWidth);
+                          const timeAtBar = currentTime + (barX - centerX) / zoom;
+                          
+                          // Skip if before song start
+                          if (timeAtBar < 0) continue;
+                          
+                          // Check if there's a word at this time (creates peaks at words)
+                          const wordAtTime = words.find(w => timeAtBar >= w.start && timeAtBar <= w.end);
+                          
+                          // Generate pseudo-random but consistent height based on time
+                          const seed = Math.abs(Math.sin(timeAtBar * 7.3) * 10000);
+                          const baseNoise = (seed % 100) / 100;
+                          
+                          // Height is higher during words, lower between
+                          let heightPercent;
+                          if (wordAtTime) {
+                            // During a word - higher peaks with variation
+                            const wordProgress = (timeAtBar - wordAtTime.start) / (wordAtTime.end - wordAtTime.start);
+                            const envelope = Math.sin(wordProgress * Math.PI); // Fade in/out within word
+                            heightPercent = 0.3 + (baseNoise * 0.5 + envelope * 0.4) * 0.7;
+                          } else {
+                            // Between words - low ambient noise
+                            heightPercent = 0.05 + baseNoise * 0.15;
+                          }
+                          
+                          const barHeight = heightPercent * waveformHeight;
+                          
+                          waveformBars.push(
+                            <div
+                              key={i}
+                              className="absolute rounded-sm"
+                              style={{
+                                left: barX,
+                                width: barWidth,
+                                height: barHeight,
+                                top: (waveformHeight - barHeight) / 2 + 4,
+                                backgroundColor: vocalsVolume > 0 ? '#4ade80' : '#3f6f3f',
+                                opacity: wordAtTime ? 0.8 : 0.4,
+                                transition: 'background-color 0.3s'
+                              }}
+                            />
+                          );
+                        }
+                        return waveformBars;
+                      })()}
+                    </div>
+                    
+                    {/* Subtle grid lines for LCD effect */}
+                    <div 
+                      className="absolute inset-0 pointer-events-none opacity-10"
+                      style={{
+                        backgroundImage: `
+                          linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
+                          linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)
+                        `,
+                        backgroundSize: '20px 20px'
+                      }}
+                    />
+                    
                     {/* Time Markers */}
                     <div className={`absolute bottom-0 left-0 right-0 h-6 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
                       {(() => {
