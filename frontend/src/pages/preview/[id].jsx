@@ -3610,7 +3610,7 @@ export default function PreviewEditPage() {
                         const tooltipText = `"${word.word}"\nStart: ${formatTimestamp(word.start)}\nEnd: ${formatTimestamp(word.end)}\nDuration: ${(word.end - word.start).toFixed(3)}s${isDuetMode ? `\nSinger: ${singerLabel}` : ''}${word.confidence ? `\nConfidence: ${(word.confidence * 100).toFixed(0)}%` : ''}`;
 
                         return (
-                          <motion.div
+                          <div
                             key={index}
                             className="absolute cursor-pointer select-none"
                             style={{
@@ -3624,8 +3624,6 @@ export default function PreviewEditPage() {
                             onClick={(e) => { e.stopPropagation(); handleWordClick(index, e); }}
                             onContextMenu={(e) => handleWordContextMenu(index, e)}
                             title={tooltipText + '\n\nRight-click for duration options'}
-                            layout
-                            transition={{ duration: 0.2 }}
                           >
                             <div
                               className={`h-full rounded-lg border-2 flex items-center justify-center px-1 overflow-hidden transition-colors ${isSelected
@@ -3642,7 +3640,7 @@ export default function PreviewEditPage() {
                               <span className={`${isDuetMode ? 'text-[10px]' : 'text-xs'} font-medium truncate`} style={{ color: wordColor }}>{word.word}</span>
                             </div>
                             {word.lineBreak && <div className="absolute -right-0.5 top-0 bottom-0 w-1 bg-cyan-500 rounded-full" title="Line break" />}
-                          </motion.div>
+                          </div>
                         );
                       });
                     })()}
