@@ -2882,6 +2882,12 @@ export default function PreviewEditPage() {
                         <div className="flex flex-col items-center justify-center w-full">
                           {currentLyrics.currentLine ? (
                             <div className="text-center w-full">
+                              {/* Sweep-in indicator bar - shows before line starts */}
+                              {currentLyrics.showSweepIn && (
+                                <div className="flex justify-center mb-2">
+                                  <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                </div>
+                              )}
                               <p 
                                 className="font-bold relative inline-flex flex-wrap justify-center" 
                                 style={{ 
@@ -2905,6 +2911,12 @@ export default function PreviewEditPage() {
                         <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
                           {currentLyrics.pageLines && currentLyrics.pageLines.map((lineData, lineIdx) => (
                             <div key={lineIdx} className="text-center w-full">
+                              {/* Sweep-in indicator bar - shows on current line before it starts */}
+                              {lineData.isCurrentLine && currentLyrics.showSweepIn && (
+                                <div className="flex justify-center mb-1">
+                                  <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                </div>
+                              )}
                               <p 
                                 className="font-bold relative inline-flex flex-wrap justify-center"
                                 style={{ 
@@ -2965,6 +2977,12 @@ export default function PreviewEditPage() {
                           {/* Current Line - with sweep highlighting */}
                           {currentLyrics.currentLine ? (
                             <div className="text-center w-full">
+                              {/* Sweep-in indicator bar - shows before line starts */}
+                              {currentLyrics.showSweepIn && (
+                                <div className="flex justify-center mb-1">
+                                  <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                </div>
+                              )}
                               <p 
                                 className="font-bold relative inline-flex flex-wrap justify-center" 
                                 style={{ 
