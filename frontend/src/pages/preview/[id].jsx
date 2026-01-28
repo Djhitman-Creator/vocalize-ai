@@ -298,12 +298,12 @@ const SweepInBar = ({ progress, color }) => {
       style={{
         position: 'absolute',
         right: '100%', // Position to the left of the parent
-        top: '0',
-        bottom: '0',
+        top: '0.1em', // Align with top of text (accounting for line-height)
+        height: '0.75em', // Match capital letter height (cap height)
         width: `${width}px`,
         // Simple gradient, no box-shadow glow
         background: `linear-gradient(to right, transparent, ${color})`,
-        marginRight: '-2px', // Slight overlap with first letter
+        marginRight: '-4px', // Overlap into the first letter edge
         pointerEvents: 'none',
       }}
     />
@@ -1834,7 +1834,7 @@ export default function PreviewEditPage() {
     return allSame ? firstSinger : 'mixed';
   }, [lyricsLines, words]);
 
-  const handleTimelineWordMouseDown = useCallback((index, e) => {
+  const handleTimelineWordMouseDown = useCallback((index, e, clientX = null) => {
     e.stopPropagation();
     if (paintMode !== null) {
       setIsPainting(true);
@@ -1842,6 +1842,9 @@ export default function PreviewEditPage() {
       paintWord(index);
       return;
     }
+
+    // Use provided clientX (for touch) or get from mouse event
+    const startX = clientX !== null ? clientX : e.clientX;
 
     // V10.9: Determine which words to drag based on selection
     let indicesToDrag;
@@ -1871,7 +1874,7 @@ export default function PreviewEditPage() {
 
     // Set up drag for all selected words
     setIsDragging(true);
-    setDragStartX(e.clientX);
+    setDragStartX(startX);
     const startTimes = {};
     indicesToDrag.forEach(idx => {
       startTimes[idx] = { start: words[idx].start, end: words[idx].end };
@@ -2077,12 +2080,12 @@ export default function PreviewEditPage() {
   }, [isPainting]);
 
   // ============================================================
-  // TIMELINE DRAGGING
+  // TIMELINE DRAGGING (Mouse + Touch support)
   // ============================================================
   useEffect(() => {
-    const handleMouseMove = (e) => {
+    const handleMove = (clientX) => {
       if (!isDragging || paintMode !== null) return;
-      const deltaX = e.clientX - dragStartX;
+      const deltaX = clientX - dragStartX;
       const deltaTime = deltaX / zoom;
       setWords(prev => {
         const updated = [...prev];
@@ -2100,7 +2103,15 @@ export default function PreviewEditPage() {
       setHasChanges(true);
     };
 
-    const handleMouseUp = () => {
+    const handleMouseMove = (e) => handleMove(e.clientX);
+    const handleTouchMove = (e) => {
+      if (e.touches.length === 1) {
+        e.preventDefault(); // Prevent scrolling while dragging
+        handleMove(e.touches[0].clientX);
+      }
+    };
+
+    const handleEnd = () => {
       if (isDragging) {
         setIsDragging(false);
         setDragStartTimes({});
@@ -2108,31 +2119,38 @@ export default function PreviewEditPage() {
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleEnd);
+    window.addEventListener('touchcancel', handleEnd);
+    
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleEnd);
+      window.removeEventListener('touchcancel', handleEnd);
     };
   }, [isDragging, dragStartX, dragStartTimes, zoom, paintMode]);
 
   // ============================================================
   // WORD EDGE RESIZE - Drag handles to adjust word start/end times
   // ============================================================
-  const handleWordResizeStart = useCallback((index, edge, e) => {
+  const handleWordResizeStart = useCallback((index, edge, e, clientX = null) => {
     e.stopPropagation();
     e.preventDefault();
     setIsWordResizing(true);
     setWordResizeEdge(edge);
     setWordResizeIndex(index);
-    setWordResizeStartX(e.clientX);
+    setWordResizeStartX(clientX !== null ? clientX : e.clientX);
     setWordResizeStartTime(edge === 'left' ? words[index].start : words[index].end);
   }, [words]);
 
   useEffect(() => {
     if (!isWordResizing) return;
 
-    const handleWordResizeMove = (e) => {
-      const deltaX = e.clientX - wordResizeStartX;
+    const handleMove = (clientX) => {
+      const deltaX = clientX - wordResizeStartX;
       const deltaTime = deltaX / zoom;
       
       setWords(prev => {
@@ -2154,6 +2172,14 @@ export default function PreviewEditPage() {
       setHasChanges(true);
     };
 
+    const handleWordResizeMove = (e) => handleMove(e.clientX);
+    const handleWordResizeTouchMove = (e) => {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        handleMove(e.touches[0].clientX);
+      }
+    };
+
     const handleWordResizeEnd = () => {
       setIsWordResizing(false);
       setWordResizeEdge(null);
@@ -2162,9 +2188,16 @@ export default function PreviewEditPage() {
 
     window.addEventListener('mousemove', handleWordResizeMove);
     window.addEventListener('mouseup', handleWordResizeEnd);
+    window.addEventListener('touchmove', handleWordResizeTouchMove, { passive: false });
+    window.addEventListener('touchend', handleWordResizeEnd);
+    window.addEventListener('touchcancel', handleWordResizeEnd);
+    
     return () => {
       window.removeEventListener('mousemove', handleWordResizeMove);
       window.removeEventListener('mouseup', handleWordResizeEnd);
+      window.removeEventListener('touchmove', handleWordResizeTouchMove);
+      window.removeEventListener('touchend', handleWordResizeEnd);
+      window.removeEventListener('touchcancel', handleWordResizeEnd);
     };
   }, [isWordResizing, wordResizeStartX, wordResizeStartTime, wordResizeEdge, wordResizeIndex, zoom]);
 
@@ -3828,6 +3861,13 @@ export default function PreviewEditPage() {
                                 handleTimelineWordMouseDown(index, e);
                               }
                             }}
+                            onTouchStart={(e) => {
+                              // Touch support for mobile dragging
+                              if (e.touches.length === 1 && !e.target.classList.contains('resize-handle')) {
+                                e.preventDefault(); // Prevent scrolling
+                                handleTimelineWordMouseDown(index, e, e.touches[0].clientX);
+                              }
+                            }}
                             onMouseEnter={() => {
                               handleTimelineWordMouseEnter(index);
                               setHoveredWordIndex(index);
@@ -3846,8 +3886,14 @@ export default function PreviewEditPage() {
                           >
                             {/* Left resize handle */}
                             <div
-                              className={`resize-handle absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
+                              className={`resize-handle absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
                               onMouseDown={(e) => handleWordResizeStart(index, 'left', e)}
+                              onTouchStart={(e) => {
+                                if (e.touches.length === 1) {
+                                  e.preventDefault();
+                                  handleWordResizeStart(index, 'left', e, e.touches[0].clientX);
+                                }
+                              }}
                               title="Drag to adjust start time"
                             >
                               <div className={`w-1 h-6 rounded-full ${isBeingResized && wordResizeEdge === 'left' ? 'bg-cyan-400' : 'bg-white/60'}`} />
@@ -3870,8 +3916,14 @@ export default function PreviewEditPage() {
                             
                             {/* Right resize handle */}
                             <div
-                              className={`resize-handle absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
+                              className={`resize-handle absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
                               onMouseDown={(e) => handleWordResizeStart(index, 'right', e)}
+                              onTouchStart={(e) => {
+                                if (e.touches.length === 1) {
+                                  e.preventDefault();
+                                  handleWordResizeStart(index, 'right', e, e.touches[0].clientX);
+                                }
+                              }}
                               title="Drag to adjust end time"
                             >
                               <div className={`w-1 h-6 rounded-full ${isBeingResized && wordResizeEdge === 'right' ? 'bg-cyan-400' : 'bg-white/60'}`} />
