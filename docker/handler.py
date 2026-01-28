@@ -481,6 +481,8 @@ def upload_to_r2(file_path, key):
             content_type = 'audio/wav'
         elif file_path.endswith('.mp3'):
             content_type = 'audio/mpeg'
+        elif file_path.endswith('.json'):
+            content_type = 'application/json'
         else:
             content_type = 'application/octet-stream'
         
@@ -953,6 +955,102 @@ def separate_vocals(audio_path, output_dir):
 
 
 # ============================================
+# WAVEFORM GENERATION FOR TIMELINE EDITOR
+# ============================================
+
+def generate_waveform_data(audio_path, output_dir, samples_per_second=20):
+    """
+    Generate waveform amplitude data from an audio file.
+    
+    This creates a JSON file containing amplitude values at regular intervals,
+    which can be used to display a waveform visualization in the frontend.
+    
+    Args:
+        audio_path: Path to the audio file (vocals.wav)
+        output_dir: Directory to save the waveform JSON
+        samples_per_second: How many amplitude samples per second (default 20 = 50ms intervals)
+    
+    Returns:
+        Path to the generated JSON file
+    """
+    print(" Generating waveform data...")
+    
+    try:
+        # Load the audio file
+        wav, sr = torchaudio.load(audio_path)
+        
+        # Convert to mono if stereo (average both channels)
+        if wav.shape[0] > 1:
+            wav = wav.mean(dim=0, keepdim=True)
+        
+        wav = wav.squeeze().numpy()
+        
+        # Calculate samples per chunk
+        samples_per_chunk = int(sr / samples_per_second)
+        
+        # Total duration in seconds
+        duration = len(wav) / sr
+        
+        # Number of data points
+        num_points = int(duration * samples_per_second)
+        
+        print(f"   Audio duration: {duration:.2f}s")
+        print(f"   Generating {num_points} waveform points ({samples_per_second} per second)")
+        
+        waveform_data = []
+        
+        for i in range(num_points):
+            start_sample = i * samples_per_chunk
+            end_sample = min(start_sample + samples_per_chunk, len(wav))
+            
+            if start_sample >= len(wav):
+                break
+            
+            # Get the chunk of audio
+            chunk = wav[start_sample:end_sample]
+            
+            # Calculate RMS (Root Mean Square) amplitude - better than peak for visualization
+            rms = np.sqrt(np.mean(chunk ** 2))
+            
+            # Also get peak amplitude for dynamics
+            peak = np.abs(chunk).max()
+            
+            # Use a combination of RMS and peak for a nice visual
+            # RMS gives overall energy, peak gives transients
+            amplitude = (rms * 0.7 + peak * 0.3)
+            
+            # Normalize to 0-1 range (will be normalized globally after)
+            waveform_data.append(float(amplitude))
+        
+        # Normalize the entire waveform to 0-1 range
+        if waveform_data:
+            max_amp = max(waveform_data) if max(waveform_data) > 0 else 1
+            waveform_data = [amp / max_amp for amp in waveform_data]
+        
+        # Create the output JSON structure
+        waveform_json = {
+            'version': 1,
+            'samples_per_second': samples_per_second,
+            'duration': duration,
+            'sample_count': len(waveform_data),
+            'amplitudes': waveform_data
+        }
+        
+        # Save to JSON file
+        waveform_path = os.path.join(output_dir, 'waveform.json')
+        with open(waveform_path, 'w') as f:
+            json.dump(waveform_json, f)
+        
+        print(f" Waveform data generated: {len(waveform_data)} samples")
+        
+        return waveform_path
+        
+    except Exception as e:
+        print(f" Warning: Failed to generate waveform data: {e}")
+        return None
+
+
+# ============================================
 # ASSEMBLYAI TRANSCRIPTION - PRECISE TIMING
 # ============================================
 
@@ -1062,7 +1160,7 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
             if i > 0:
                 gap = w['start'] - lyrics[i-1]['end']
                 if gap > 0.5:
-                    gap_info = f" ââââ GAP: {gap:.2f}s"
+                    gap_info = f" Ã¢Ã¢Ã¢Ã¢ GAP: {gap:.2f}s"
             duration = w['end'] - w['start']
             print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s (duration: {duration:.2f}s){gap_info}")
         
@@ -2948,6 +3046,12 @@ def handler(event):
                 # Save isolated vocals for editor reference
                 vocals_key = f"processed/{project_id}/vocals.wav"
                 results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
+                
+                # Generate and upload waveform data for timeline editor
+                waveform_path = generate_waveform_data(vocals_path, work_dir)
+                if waveform_path:
+                    waveform_key = f"processed/{project_id}/waveform.json"
+                    results['waveform_url'] = upload_to_r2(waveform_path, waveform_key)
             
             elif processing_type == 'guide_vocals':
                 # Guide Vocals mode: Mix instrumental (100%) + vocals (30%) for singers who need guidance
@@ -2985,6 +3089,12 @@ def handler(event):
                 # Also save the isolated vocals for potential future use
                 vocals_key = f"processed/{project_id}/vocals.wav"
                 results['vocals_audio_url'] = upload_to_r2(vocals_path, vocals_key)
+                
+                # Generate and upload waveform data for timeline editor
+                waveform_path = generate_waveform_data(vocals_path, work_dir)
+                if waveform_path:
+                    waveform_key = f"processed/{project_id}/waveform.json"
+                    results['waveform_url'] = upload_to_r2(waveform_path, waveform_key)
                 
                 # IMPORTANT: Use guide vocals mix for video generation
                 instrumental_path = guide_path
