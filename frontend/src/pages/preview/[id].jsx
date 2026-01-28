@@ -60,6 +60,7 @@ const SINGER = { BOTH: 0, SINGER_1: 1, SINGER_2: 2 };
 const DEFAULT_DUET_COLORS = { singer1: '#00FFFF', singer2: '#FF69B4', both: '#FFD700' };
 const PIXELS_PER_SECOND_DEFAULT = 100;
 const TIMELINE_HEIGHT = 160;
+const TIMELINE_HEIGHT_DUET = 200; // Taller timeline for 3-row duet mode
 
 // Preset video backgrounds base URL
 const PRESET_BASE_URL = process.env.NEXT_PUBLIC_PRESET_VIDEOS_URL || 'https://pub-71dae0f9e45e4d8e8d1eedd472780341.r2.dev/presets';
@@ -3343,7 +3344,7 @@ export default function PreviewEditPage() {
                     onMouseLeave={() => setTimelineHover({ show: false, x: 0, time: 0 })}
                     className="relative overflow-hidden cursor-crosshair"
                     style={{ 
-                      height: TIMELINE_HEIGHT,
+                      height: isDuetMode ? TIMELINE_HEIGHT_DUET : TIMELINE_HEIGHT,
                       background: isDark 
                         ? 'linear-gradient(180deg, #0a0f14 0%, #0d1318 50%, #0a0f14 100%)' 
                         : 'linear-gradient(180deg, #1a1f24 0%, #1d2228 50%, #1a1f24 100%)',
@@ -3356,7 +3357,8 @@ export default function PreviewEditPage() {
                       {(() => {
                         const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
                         const centerX = containerWidth / 2;
-                        const waveformHeight = TIMELINE_HEIGHT - 30;
+                        const currentTimelineHeight = isDuetMode ? TIMELINE_HEIGHT_DUET : TIMELINE_HEIGHT;
+                        const waveformHeight = currentTimelineHeight - 30;
                         const centerY = waveformHeight / 2 + 4;
                         const thresholdValue = waveformThreshold / 100; // Convert 0-100 to 0-1
                         
@@ -3533,15 +3535,61 @@ export default function PreviewEditPage() {
                       <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-cyan-400" />
                     </div>
 
-                    {/* Words on timeline - Direct pixel positioning like V8 */}
+                    {/* Duet Mode Row Labels */}
+                    {isDuetMode && (
+                      <div className="absolute left-2 top-0 bottom-6 flex flex-col justify-around pointer-events-none z-10" style={{ width: '50px' }}>
+                        <div className="flex items-center gap-1" title="Singer 1">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: duetColors.singer1 }} />
+                          <span className="text-[10px] font-medium" style={{ color: duetColors.singer1 }}>S1</span>
+                        </div>
+                        <div className="flex items-center gap-1" title="Both Singers">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: duetColors.both }} />
+                          <span className="text-[10px] font-medium" style={{ color: duetColors.both }}>Both</span>
+                        </div>
+                        <div className="flex items-center gap-1" title="Singer 2">
+                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: duetColors.singer2 }} />
+                          <span className="text-[10px] font-medium" style={{ color: duetColors.singer2 }}>S2</span>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Duet Mode Row Dividers */}
+                    {isDuetMode && (
+                      <>
+                        <div className="absolute left-0 right-0 border-t border-dashed border-white/10 pointer-events-none" style={{ top: (TIMELINE_HEIGHT_DUET - 24) / 3 }} />
+                        <div className="absolute left-0 right-0 border-t border-dashed border-white/10 pointer-events-none" style={{ top: ((TIMELINE_HEIGHT_DUET - 24) / 3) * 2 }} />
+                      </>
+                    )}
+
+                    {/* Words on timeline - Direct pixel positioning */}
                     {(() => {
                       const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
                       const centerX = containerWidth / 2;
-                      const wordHeight = 44;
+                      const currentTimelineHeight = isDuetMode ? TIMELINE_HEIGHT_DUET : TIMELINE_HEIGHT;
+                      const wordHeight = isDuetMode ? 36 : 44; // Smaller words in duet mode to fit 3 rows
+                      const timelineContentHeight = currentTimelineHeight - 24; // Exclude time markers area
+                      
+                      // Calculate row positions for duet mode
+                      const rowHeight = timelineContentHeight / 3;
+                      const getWordTop = (singer) => {
+                        if (!isDuetMode) {
+                          return (timelineContentHeight - wordHeight) / 2;
+                        }
+                        // Singer 1 = top row, Both = middle row, Singer 2 = bottom row
+                        switch (singer) {
+                          case SINGER.SINGER_1:
+                            return (rowHeight - wordHeight) / 2; // Top row
+                          case SINGER.SINGER_2:
+                            return rowHeight * 2 + (rowHeight - wordHeight) / 2; // Bottom row
+                          case SINGER.BOTH:
+                          default:
+                            return rowHeight + (rowHeight - wordHeight) / 2; // Middle row
+                        }
+                      };
 
                       return words.map((word, index) => {
                         const wordX = centerX + (word.start - currentTime) * zoom;
-                        const wordWidth = Math.max(40, (word.end - word.start) * zoom);
+                        const wordWidth = Math.max(isDuetMode ? 35 : 40, (word.end - word.start) * zoom);
 
                         // Skip if off-screen
                         if (wordX + wordWidth < -100 || wordX > containerWidth + 100) return null;
@@ -3549,6 +3597,8 @@ export default function PreviewEditPage() {
                         const isSelected = selectedWordIndices.has(index);
                         const isCurrent = isWordCurrent(word);
                         const wordColor = getWordColor(word, isSelected, isCurrent);
+                        const wordSinger = word.singer ?? SINGER.BOTH;
+                        const wordTop = getWordTop(wordSinger);
 
                         // Format timestamp for tooltip - shows exact AssemblyAI timing
                         const formatTimestamp = (seconds) => {
@@ -3556,7 +3606,8 @@ export default function PreviewEditPage() {
                           const secs = (seconds % 60).toFixed(3);
                           return `${mins}:${secs.padStart(6, '0')}`;
                         };
-                        const tooltipText = `"${word.word}"\nStart: ${formatTimestamp(word.start)}\nEnd: ${formatTimestamp(word.end)}\nDuration: ${(word.end - word.start).toFixed(3)}s${word.confidence ? `\nConfidence: ${(word.confidence * 100).toFixed(0)}%` : ''}`;
+                        const singerLabel = wordSinger === SINGER.SINGER_1 ? 'Singer 1' : wordSinger === SINGER.SINGER_2 ? 'Singer 2' : 'Both';
+                        const tooltipText = `"${word.word}"\nStart: ${formatTimestamp(word.start)}\nEnd: ${formatTimestamp(word.end)}\nDuration: ${(word.end - word.start).toFixed(3)}s${isDuetMode ? `\nSinger: ${singerLabel}` : ''}${word.confidence ? `\nConfidence: ${(word.confidence * 100).toFixed(0)}%` : ''}`;
 
                         return (
                           <motion.div
@@ -3566,29 +3617,31 @@ export default function PreviewEditPage() {
                               left: wordX,
                               width: wordWidth,
                               height: wordHeight,
-                              top: (TIMELINE_HEIGHT - 24 - wordHeight) / 2
+                              top: wordTop
                             }}
                             onMouseDown={(e) => handleTimelineWordMouseDown(index, e)}
                             onMouseEnter={() => handleTimelineWordMouseEnter(index)}
                             onClick={(e) => { e.stopPropagation(); handleWordClick(index, e); }}
                             onContextMenu={(e) => handleWordContextMenu(index, e)}
                             title={tooltipText + '\n\nRight-click for duration options'}
+                            layout
+                            transition={{ duration: 0.2 }}
                           >
                             <div
-                              className={`h-full rounded-lg border-2 flex items-center justify-center px-2 overflow-hidden transition-colors ${isSelected
+                              className={`h-full rounded-lg border-2 flex items-center justify-center px-1 overflow-hidden transition-colors ${isSelected
                                   ? 'border-cyan-400 shadow-lg shadow-cyan-500/30 bg-cyan-500/20'
                                   : isCurrent
                                     ? isDark ? 'border-white/40 bg-white/15' : 'border-gray-400 bg-gray-200/50'
                                     : isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-gray-200 bg-gray-100 hover:bg-gray-200'
                                 }`}
-                              style={{ backdropFilter: 'blur(4px)' }}
+                              style={{ 
+                                backdropFilter: 'blur(4px)',
+                                borderColor: isDuetMode && !isSelected ? (wordSinger === SINGER.SINGER_1 ? duetColors.singer1 + '40' : wordSinger === SINGER.SINGER_2 ? duetColors.singer2 + '40' : duetColors.both + '40') : undefined
+                              }}
                             >
-                              <span className="text-xs font-medium truncate" style={{ color: wordColor }}>{word.word}</span>
+                              <span className={`${isDuetMode ? 'text-[10px]' : 'text-xs'} font-medium truncate`} style={{ color: wordColor }}>{word.word}</span>
                             </div>
                             {word.lineBreak && <div className="absolute -right-0.5 top-0 bottom-0 w-1 bg-cyan-500 rounded-full" title="Line break" />}
-                            {isDuetMode && word.singer !== undefined && word.singer !== SINGER.BOTH && (
-                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-1 rounded-full" style={{ backgroundColor: word.singer === SINGER.SINGER_1 ? duetColors.singer1 : duetColors.singer2 }} />
-                            )}
                           </motion.div>
                         );
                       });
