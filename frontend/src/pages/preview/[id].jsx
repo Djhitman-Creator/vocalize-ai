@@ -987,6 +987,10 @@ export default function PreviewEditPage() {
   const [vocalsVolume, setVocalsVolume] = useState(0);  // Start at 0 - vocals are for reference only
   const [instrumentalMuted, setInstrumentalMuted] = useState(false);
   const [vocalsMuted, setVocalsMuted] = useState(true);  // Start muted
+  
+  // Waveform state for timeline visualization
+  const [waveformData, setWaveformData] = useState(null);
+  const [waveformLoading, setWaveformLoading] = useState(false);
 
   // Timeline state
   const timelineContainerRef = useRef(null);
@@ -1456,6 +1460,23 @@ export default function PreviewEditPage() {
           outroDuration: projectData.outro_duration || 3,
           outroFontSize: projectData.outro_font_size || 'medium',
         });
+        
+        // Fetch waveform data if available
+        if (projectData.waveform_url) {
+          setWaveformLoading(true);
+          try {
+            const waveformResponse = await fetch(projectData.waveform_url);
+            if (waveformResponse.ok) {
+              const waveformJson = await waveformResponse.json();
+              setWaveformData(waveformJson);
+              console.log('Waveform loaded:', waveformJson.sample_count, 'samples');
+            }
+          } catch (waveformErr) {
+            console.warn('Failed to load waveform data:', waveformErr);
+          } finally {
+            setWaveformLoading(false);
+          }
+        }
       } catch (err) { console.error('Load error:', err); setError('Failed to load project'); }
       finally { setLoading(false); }
     };
@@ -3276,65 +3297,100 @@ export default function PreviewEditPage() {
                     }}
                   >
                     {/* Waveform Visualization - Muted Green */}
-                    <div className="absolute inset-0 bottom-6 overflow-hidden pointer-events-none" style={{ opacity: vocalsVolume > 0 ? 0.6 : 0.25 }}>
+                    <div className="absolute inset-0 bottom-6 overflow-hidden pointer-events-none" style={{ opacity: vocalsVolume > 0 ? 0.7 : 0.35 }}>
                       {(() => {
                         const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
                         const centerX = containerWidth / 2;
                         const waveformBars = [];
-                        const barWidth = 3;
-                        const barGap = 2;
+                        const barWidth = 2;
+                        const barGap = 1;
                         const totalBarWidth = barWidth + barGap;
-                        const numBars = Math.ceil(containerWidth / totalBarWidth) + 20;
                         const waveformHeight = TIMELINE_HEIGHT - 30;
                         
-                        // Generate waveform bars based on time position
-                        for (let i = -10; i < numBars; i++) {
-                          const barX = (i * totalBarWidth);
-                          const timeAtBar = currentTime + (barX - centerX) / zoom;
+                        // Use real waveform data if available
+                        if (waveformData && waveformData.amplitudes) {
+                          const samplesPerSecond = waveformData.samples_per_second || 20;
+                          const secondsPerSample = 1 / samplesPerSecond;
                           
-                          // Skip if before song start
-                          if (timeAtBar < 0) continue;
-                          
-                          // Check if there's a word at this time (creates peaks at words)
-                          const wordAtTime = words.find(w => timeAtBar >= w.start && timeAtBar <= w.end);
-                          
-                          // Generate pseudo-random but consistent height based on time
-                          const seed = Math.abs(Math.sin(timeAtBar * 7.3) * 10000);
-                          const baseNoise = (seed % 100) / 100;
-                          
-                          // Height is higher during words, lower between
-                          let heightPercent;
-                          if (wordAtTime) {
-                            // During a word - higher peaks with variation
-                            const wordProgress = (timeAtBar - wordAtTime.start) / (wordAtTime.end - wordAtTime.start);
-                            const envelope = Math.sin(wordProgress * Math.PI); // Fade in/out within word
-                            heightPercent = 0.3 + (baseNoise * 0.5 + envelope * 0.4) * 0.7;
-                          } else {
-                            // Between words - low ambient noise
-                            heightPercent = 0.05 + baseNoise * 0.15;
+                          // Iterate through waveform samples and position them by TIME (like time markers)
+                          // This ensures waveform stays anchored to actual audio time
+                          for (let sampleIndex = 0; sampleIndex < waveformData.amplitudes.length; sampleIndex++) {
+                            const sampleTime = sampleIndex * secondsPerSample;
+                            
+                            // Position based on time, same formula as time markers
+                            const barX = centerX + (sampleTime - currentTime) * zoom;
+                            
+                            // Skip if off-screen
+                            if (barX < -10 || barX > containerWidth + 10) continue;
+                            
+                            // Get amplitude (0-1) from waveform data
+                            const amplitude = waveformData.amplitudes[sampleIndex];
+                            
+                            // Scale amplitude for visual display (minimum 5% height for visibility)
+                            const heightPercent = 0.05 + amplitude * 0.9;
+                            const barHeight = heightPercent * waveformHeight;
+                            
+                            waveformBars.push(
+                              <div
+                                key={sampleIndex}
+                                className="absolute rounded-sm"
+                                style={{
+                                  left: barX,
+                                  width: barWidth,
+                                  height: barHeight,
+                                  top: (waveformHeight - barHeight) / 2 + 4,
+                                  backgroundColor: vocalsVolume > 0 ? '#4ade80' : '#3f6f3f',
+                                  opacity: amplitude > 0.1 ? 0.9 : 0.4,
+                                }}
+                              />
+                            );
                           }
-                          
-                          const barHeight = heightPercent * waveformHeight;
-                          
-                          waveformBars.push(
-                            <div
-                              key={i}
-                              className="absolute rounded-sm"
-                              style={{
-                                left: barX,
-                                width: barWidth,
-                                height: barHeight,
-                                top: (waveformHeight - barHeight) / 2 + 4,
-                                backgroundColor: vocalsVolume > 0 ? '#4ade80' : '#3f6f3f',
-                                opacity: wordAtTime ? 0.8 : 0.4,
-                                transition: 'background-color 0.3s'
-                              }}
-                            />
-                          );
+                        } else {
+                          // Fallback: Show flat line placeholder based on duration
+                          const numBars = Math.ceil(containerWidth / totalBarWidth) + 20;
+                          for (let i = -10; i < numBars; i++) {
+                            const barX = (i * totalBarWidth);
+                            const timeAtBar = currentTime + (barX - centerX) / zoom;
+                            
+                            if (timeAtBar < 0 || timeAtBar > duration) continue;
+                            
+                            // Simple flat line as placeholder
+                            const barHeight = waveformLoading ? 4 : 2;
+                            
+                            waveformBars.push(
+                              <div
+                                key={i}
+                                className="absolute rounded-sm"
+                                style={{
+                                  left: barX,
+                                  width: barWidth,
+                                  height: barHeight,
+                                  top: (waveformHeight - barHeight) / 2 + 4,
+                                  backgroundColor: '#3f6f3f',
+                                  opacity: 0.3,
+                                }}
+                              />
+                            );
+                          }
                         }
                         return waveformBars;
                       })()}
                     </div>
+                    
+                    {/* Waveform loading indicator */}
+                    {waveformLoading && (
+                      <div className="absolute top-2 right-2 text-xs text-green-500/60 flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        Loading waveform...
+                      </div>
+                    )}
+                    
+                    {/* No waveform data indicator */}
+                    {!waveformData && !waveformLoading && (
+                      <div className="absolute top-2 right-2 text-xs text-gray-500/60">
+                        No waveform data
+                      </div>
+                    )}
                     
                     {/* Subtle grid lines for LCD effect */}
                     <div 
