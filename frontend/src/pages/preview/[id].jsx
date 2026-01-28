@@ -1936,84 +1936,47 @@ export default function PreviewEditPage() {
   // CONTEXT MENU HANDLERS - Rename, Add Before/After, Delete
   // ============================================================
   
-  // Rename word - triggers inline edit mode
+  // State for rename modal
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameWordIndex, setRenameWordIndex] = useState(null);
+  const [renameText, setRenameText] = useState('');
+
+  // Rename word - opens a modal
   const handleContextMenuRename = useCallback((index) => {
-    setEditingWordIndex(index);
-    setEditingText(words[index].word);
-    setSelectedWordIndex(index);
+    setRenameWordIndex(index);
+    setRenameText(words[index].word);
+    setShowRenameModal(true);
   }, [words]);
 
-  // Add word before the specified index
+  // Submit rename
+  const submitRename = useCallback(() => {
+    if (renameWordIndex === null || !renameText.trim()) return;
+    setWords(prev => {
+      const updated = [...prev];
+      updated[renameWordIndex] = { ...updated[renameWordIndex], word: renameText.trim() };
+      return updated;
+    });
+    setHasChanges(true);
+    setShowRenameModal(false);
+    setRenameWordIndex(null);
+    setRenameText('');
+  }, [renameWordIndex, renameText]);
+
+  // Add word before - opens the existing add word modal
   const handleContextMenuAddBefore = useCallback((index) => {
-    const targetWord = words[index];
-    // Calculate timing: use half the gap before, or a small slice at start
-    const prevWord = index > 0 ? words[index - 1] : null;
-    const gapStart = prevWord ? prevWord.end : Math.max(0, targetWord.start - 0.5);
-    const gapEnd = targetWord.start;
-    const gapDuration = gapEnd - gapStart;
-    
-    // New word takes the middle portion of the gap, minimum 0.2s
-    const newWordDuration = Math.max(0.2, Math.min(0.5, gapDuration * 0.5));
-    const newWordStart = gapEnd - newWordDuration;
-    
-    const newWord = {
-      word: '[new]',
-      start: newWordStart,
-      end: gapEnd - 0.01, // Small gap before target
-      singer: targetWord.singer || 0,
-      lineBreak: false
-    };
-    
-    setWords(prev => {
-      const updated = [...prev];
-      updated.splice(index, 0, newWord);
-      return updated;
-    });
-    setHasChanges(true);
-    
-    // Immediately start editing the new word
-    setTimeout(() => {
-      setEditingWordIndex(index);
-      setEditingText('[new]');
-      setSelectedWordIndex(index);
-    }, 50);
-  }, [words]);
+    setSelectedWordIndex(index);
+    setAddWordPosition('before');
+    setNewWordText('');
+    setShowAddWordModal(true);
+  }, []);
 
-  // Add word after the specified index
+  // Add word after - opens the existing add word modal
   const handleContextMenuAddAfter = useCallback((index) => {
-    const targetWord = words[index];
-    // Calculate timing: use half the gap after, or extend a small slice
-    const nextWord = index < words.length - 1 ? words[index + 1] : null;
-    const gapStart = targetWord.end;
-    const gapEnd = nextWord ? nextWord.start : targetWord.end + 0.5;
-    const gapDuration = gapEnd - gapStart;
-    
-    // New word takes the middle portion of the gap, minimum 0.2s
-    const newWordDuration = Math.max(0.2, Math.min(0.5, gapDuration * 0.5));
-    const newWordEnd = gapStart + newWordDuration;
-    
-    const newWord = {
-      word: '[new]',
-      start: gapStart + 0.01, // Small gap after target
-      end: newWordEnd,
-      singer: targetWord.singer || 0,
-      lineBreak: false
-    };
-    
-    setWords(prev => {
-      const updated = [...prev];
-      updated.splice(index + 1, 0, newWord);
-      return updated;
-    });
-    setHasChanges(true);
-    
-    // Immediately start editing the new word
-    setTimeout(() => {
-      setEditingWordIndex(index + 1);
-      setEditingText('[new]');
-      setSelectedWordIndex(index + 1);
-    }, 50);
-  }, [words]);
+    setSelectedWordIndex(index);
+    setAddWordPosition('after');
+    setNewWordText('');
+    setShowAddWordModal(true);
+  }, []);
 
   // Delete a single word from context menu
   const handleContextMenuDelete = useCallback((index) => {
@@ -2723,6 +2686,47 @@ export default function PreviewEditPage() {
               <div className="flex gap-2">
                 <button onClick={() => { setShowAddWordModal(false); setNewWordText(''); }} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}>Cancel</button>
                 <button onClick={addNewWord} disabled={!newWordText.trim()} className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${newWordText.trim() ? 'bg-cyan-500 text-white hover:bg-cyan-600' : 'bg-gray-500 text-gray-300 cursor-not-allowed'}`}>Add Word</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Rename Word Modal */}
+        {showRenameModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }} className={`p-6 rounded-2xl max-w-md w-full mx-4 ${isDark ? 'bg-gray-900 border border-white/10' : 'bg-white border border-gray-200'}`}>
+              <h3 className={`text-lg font-semibold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>Rename Word</h3>
+
+              <div className="mb-4">
+                <label className="block text-sm text-gray-500 mb-2">New Text</label>
+                <input
+                  type="text" 
+                  value={renameText} 
+                  onChange={(e) => setRenameText(e.target.value)}
+                  onKeyDown={(e) => { 
+                    if (e.key === 'Enter') submitRename(); 
+                    if (e.key === 'Escape') { setShowRenameModal(false); setRenameText(''); setRenameWordIndex(null); } 
+                  }}
+                  placeholder="Enter new word text..." 
+                  autoFocus
+                  className={`w-full px-4 py-2 rounded-lg text-sm ${isDark ? 'bg-white/5 border border-white/10 text-white' : 'bg-gray-50 border border-gray-200 text-gray-900'} focus:outline-none focus:ring-2 focus:ring-cyan-500`}
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => { setShowRenameModal(false); setRenameText(''); setRenameWordIndex(null); }} 
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={submitRename} 
+                  disabled={!renameText.trim()} 
+                  className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${renameText.trim() ? 'bg-cyan-500 text-white hover:bg-cyan-600' : 'bg-gray-500 text-gray-300 cursor-not-allowed'}`}
+                >
+                  Rename
+                </button>
               </div>
             </motion.div>
           </motion.div>
