@@ -1569,6 +1569,29 @@ export default function PreviewEditPage() {
 
   const restart = useCallback(() => seekTo(0), [seekTo]);
 
+  // Timeline wheel scroll - needs passive: false to prevent page scrolling
+  useEffect(() => {
+    const timeline = timelineContainerRef.current;
+    if (!timeline) return;
+    
+    const handleWheel = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const scrollAmount = e.deltaY > 0 ? 2 : -2;
+      const newTime = Math.max(0, Math.min(duration, currentTime + scrollAmount));
+      setCurrentTime(newTime);
+      if (instrumentalRef.current) {
+        instrumentalRef.current.currentTime = newTime;
+      }
+      if (vocalsRef.current) {
+        vocalsRef.current.currentTime = newTime;
+      }
+    };
+    
+    timeline.addEventListener('wheel', handleWheel, { passive: false });
+    return () => timeline.removeEventListener('wheel', handleWheel);
+  }, [duration, currentTime]);
+
   // ============================================================
   // WORD EDITING - SAVE/CANCEL (must be defined before handleWordClick)
   // ============================================================
@@ -3305,20 +3328,6 @@ export default function PreviewEditPage() {
                   <div 
                     ref={timelineContainerRef} 
                     onClick={handleTimelineClick}
-                    onWheel={(e) => {
-                      // Prevent page scrolling
-                      e.stopPropagation();
-                      // Scroll through timeline with mouse wheel
-                      const scrollAmount = e.deltaY > 0 ? 2 : -2; // Scroll 2 seconds per wheel tick
-                      const newTime = Math.max(0, Math.min(duration, currentTime + scrollAmount));
-                      setCurrentTime(newTime);
-                      if (instrumentalRef.current) {
-                        instrumentalRef.current.currentTime = newTime;
-                      }
-                      if (vocalsRef.current) {
-                        vocalsRef.current.currentTime = newTime;
-                      }
-                    }}
                     onMouseMove={(e) => {
                       // Calculate time at mouse position for tooltip
                       const rect = e.currentTarget.getBoundingClientRect();
