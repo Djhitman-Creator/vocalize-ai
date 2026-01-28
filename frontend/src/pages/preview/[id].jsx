@@ -3056,7 +3056,15 @@ export default function PreviewEditPage() {
                     )}
                     
                     {/* Lyrics Overlay - with dynamic font scaling */}
-                    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ padding: `${Math.max(8, 16 * scaleFactor)}px` }}>
+                    {/* Hide lyrics during intro period (first 4 seconds) */}
+                    <div 
+                      className="absolute inset-0 flex flex-col items-center justify-center" 
+                      style={{ 
+                        padding: `${Math.max(8, 16 * scaleFactor)}px`,
+                        opacity: currentTime < INTRO_DURATION ? 0 : 1,
+                        pointerEvents: currentTime < INTRO_DURATION ? 'none' : 'auto'
+                      }}
+                    >
                       {currentLyrics.showProgressBar ? (
                         <InstrumentalProgressBar
                           progress={currentLyrics.progressBarPercent}
