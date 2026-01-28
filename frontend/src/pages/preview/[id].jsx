@@ -992,6 +992,7 @@ export default function PreviewEditPage() {
   const [waveformData, setWaveformData] = useState(null);
   const [waveformLoading, setWaveformLoading] = useState(false);
   const [waveformThreshold, setWaveformThreshold] = useState(0); // 0-100, hides amplitudes below this %
+  const [timelineHover, setTimelineHover] = useState({ show: false, x: 0, time: 0 });
 
   // Timeline state
   const timelineContainerRef = useRef(null);
@@ -3305,8 +3306,9 @@ export default function PreviewEditPage() {
                     ref={timelineContainerRef} 
                     onClick={handleTimelineClick}
                     onWheel={(e) => {
+                      // Prevent page scrolling
+                      e.stopPropagation();
                       // Scroll through timeline with mouse wheel
-                      e.preventDefault();
                       const scrollAmount = e.deltaY > 0 ? 2 : -2; // Scroll 2 seconds per wheel tick
                       const newTime = Math.max(0, Math.min(duration, currentTime + scrollAmount));
                       setCurrentTime(newTime);
@@ -3317,6 +3319,19 @@ export default function PreviewEditPage() {
                         vocalsRef.current.currentTime = newTime;
                       }
                     }}
+                    onMouseMove={(e) => {
+                      // Calculate time at mouse position for tooltip
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const mouseX = e.clientX - rect.left;
+                      const centerX = rect.width / 2;
+                      const timeAtMouse = currentTime + (mouseX - centerX) / zoom;
+                      setTimelineHover({ 
+                        show: true, 
+                        x: mouseX, 
+                        time: Math.max(0, Math.min(duration, timeAtMouse))
+                      });
+                    }}
+                    onMouseLeave={() => setTimelineHover({ show: false, x: 0, time: 0 })}
                     className="relative overflow-hidden cursor-crosshair"
                     style={{ 
                       height: TIMELINE_HEIGHT,
@@ -3481,6 +3496,28 @@ export default function PreviewEditPage() {
                         });
                       })()}
                     </div>
+                    
+                    {/* Hover Time Tooltip */}
+                    {timelineHover.show && (
+                      <div 
+                        className="absolute bottom-7 z-40 pointer-events-none transform -translate-x-1/2"
+                        style={{ left: timelineHover.x }}
+                      >
+                        <div className="bg-gray-900 text-cyan-400 text-xs font-mono px-2 py-1 rounded shadow-lg border border-cyan-500/30">
+                          {Math.floor(timelineHover.time / 60)}:{(timelineHover.time % 60).toFixed(2).padStart(5, '0')}
+                        </div>
+                        {/* Small arrow pointing down */}
+                        <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-gray-900 border-r border-b border-cyan-500/30 transform rotate-45" />
+                      </div>
+                    )}
+                    
+                    {/* Hover vertical line */}
+                    {timelineHover.show && (
+                      <div 
+                        className="absolute top-0 bottom-6 w-px bg-cyan-400/30 pointer-events-none z-20"
+                        style={{ left: timelineHover.x }}
+                      />
+                    )}
 
                     {/* Center Playhead */}
                     <div className="absolute top-0 bottom-6 w-0.5 bg-cyan-400 z-30 pointer-events-none" style={{ left: '50%', transform: 'translateX(-50%)', boxShadow: '0 0 15px rgba(0, 212, 255, 0.7)' }}>
