@@ -46,7 +46,9 @@ import {
   Monitor, Smartphone, Square, Upload, Lock, Undo2, Redo2,
   ExternalLink, ScrollText, FileText, Edit3,
   // V12: Preset icons
-  Bookmark, Star, FolderOpen
+  Bookmark, Star, FolderOpen,
+  // Fullscreen
+  Maximize2, Minimize2
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
@@ -723,6 +725,9 @@ export default function PreviewEditPage() {
     discId: 'KT-01'
   });
   const [editingTrackInfo, setEditingTrackInfo] = useState(false);
+  
+  // Fullscreen preview state
+  const [isFullscreenPreview, setIsFullscreenPreview] = useState(false);
 
   // V11: Active tab state
   const [activeTab, setActiveTab] = useState('timing');
@@ -2109,7 +2114,8 @@ export default function PreviewEditPage() {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.code === 'Space' && editingWordIndex === null) { e.preventDefault(); togglePlayback(); }
       if (e.code === 'Escape') {
-        if (contextMenu.isOpen) { setContextMenu(prev => ({ ...prev, isOpen: false })); }
+        if (isFullscreenPreview) { setIsFullscreenPreview(false); }
+        else if (contextMenu.isOpen) { setContextMenu(prev => ({ ...prev, isOpen: false })); }
         else if (paintMode !== null) setPaintMode(null);
         else if (showAddWordModal) { setShowAddWordModal(false); setNewWordText(''); }
         else if (editingWordIndex !== null) { setEditingWordIndex(null); setEditingText(''); }
@@ -2131,7 +2137,7 @@ export default function PreviewEditPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedWordIndices, selectedWordIndex, editingWordIndex, showAddWordModal, paintMode, words, deleteSelectedWords, nudgeSelectedWords, togglePlayback, contextMenu.isOpen]);
+  }, [selectedWordIndices, selectedWordIndex, editingWordIndex, showAddWordModal, paintMode, words, deleteSelectedWords, nudgeSelectedWords, togglePlayback, contextMenu.isOpen, isFullscreenPreview]);
   // ============================================================
   // DUET MODE FUNCTIONS
   // ============================================================
@@ -3237,6 +3243,227 @@ export default function PreviewEditPage() {
         />
       )}
 
+      {/* FULLSCREEN PREVIEW MODAL */}
+      <AnimatePresence>
+        {isFullscreenPreview && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+            onClick={() => setIsFullscreenPreview(false)}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setIsFullscreenPreview(false)}
+              className="absolute top-4 right-4 z-50 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              title="Exit Fullscreen (Esc)"
+            >
+              <Minimize2 className="w-6 h-6" />
+            </button>
+            
+            {/* Fullscreen video preview */}
+            <div 
+              className="relative w-full h-full flex items-center justify-center p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {(() => {
+                // Calculate dimensions to fit screen while maintaining aspect ratio
+                const getAspectRatio = () => {
+                  switch (layoutSettings.aspectRatio) {
+                    case '4:3': return 4/3;
+                    case '9:16': return 9/16;
+                    default: return 16/9;
+                  }
+                };
+                const ratio = getAspectRatio();
+                
+                // Get viewport dimensions (with padding)
+                const maxWidth = typeof window !== 'undefined' ? window.innerWidth - 32 : 1200;
+                const maxHeight = typeof window !== 'undefined' ? window.innerHeight - 32 : 800;
+                
+                // Calculate dimensions that fit within viewport
+                let width, height;
+                if (ratio >= 1) {
+                  // Landscape or square
+                  width = Math.min(maxWidth, maxHeight * ratio);
+                  height = width / ratio;
+                } else {
+                  // Portrait
+                  height = Math.min(maxHeight, maxWidth / ratio);
+                  width = height * ratio;
+                }
+                
+                // Font scaling for fullscreen
+                const scaleFactor = height / 270;
+                const fontSizeMultiplier = FONT_SIZE_OPTIONS.find(opt => opt.value === styleSettings.fontSize)?.scale || 1.0;
+                const isPortrait = layoutSettings.aspectRatio === '9:16';
+                const portraitScale = isPortrait ? 0.7 : 1.0;
+                
+                const baseFontSize = Math.max(16, Math.min(48, 20 * scaleFactor * fontSizeMultiplier * portraitScale));
+                const currentLineFontSize = Math.max(20, Math.min(64, 26 * scaleFactor * fontSizeMultiplier * portraitScale));
+                const lineGap = Math.max(4, Math.min(20, 8 * scaleFactor * (isPortrait ? 0.8 : 1)));
+                const textShadowSize = Math.max(2, Math.min(5, 2.5 * scaleFactor * portraitScale));
+                const wordSpacing = Math.max(4, Math.min(12, 6 * scaleFactor * portraitScale));
+                const contentPadding = isPortrait ? Math.max(8, 16 * scaleFactor) : Math.max(16, 32 * scaleFactor);
+                
+                const previewFontFamily = project?.custom_font_url && styleSettings.selectedFont === 'custom'
+                  ? 'CustomKaraokeFont' 
+                  : FONT_OPTIONS.find(f => f.value === styleSettings.selectedFont)?.family || 'Arial, sans-serif';
+                
+                // Colors
+                const textColor = styleSettings.textColor || '#ffffff';
+                const sungColor = styleSettings.sungColor || '#00d4ff';
+                const outlineColor = styleSettings.outlineColor || '#000000';
+                const unsungColor = textColor;
+                
+                // Background
+                const getFullscreenBackground = () => {
+                  switch (bgSettings.bgType) {
+                    case 'color':
+                      return { backgroundColor: bgSettings.bgColor1 };
+                    case 'gradient':
+                      return { background: `linear-gradient(${bgSettings.gradientDirection}, ${bgSettings.bgColor1}, ${bgSettings.bgColor2})` };
+                    default:
+                      return { backgroundColor: '#1a1a2e' };
+                  }
+                };
+                
+                return (
+                  <div 
+                    className="relative overflow-hidden rounded-lg shadow-2xl"
+                    style={{ width, height, ...getFullscreenBackground() }}
+                  >
+                    {/* Background Image */}
+                    {bgSettings.bgImageUrl && (
+                      <img className="absolute inset-0 w-full h-full object-cover opacity-60" src={bgSettings.bgImageUrl} alt="" />
+                    )}
+                    
+                    {/* Background Video */}
+                    {(bgSettings.bgVideoPreset || bgSettings.bgCustomVideoUrl) && (
+                      <video 
+                        className="absolute inset-0 w-full h-full object-cover opacity-60" 
+                        src={bgSettings.bgCustomVideoUrl || (bgSettings.bgVideoPreset ? `${PRESET_BASE_URL}/${bgSettings.bgVideoPreset.filename}` : '')}
+                        autoPlay loop muted playsInline 
+                      />
+                    )}
+                    
+                    {/* Lyrics Overlay */}
+                    <div 
+                      className="absolute inset-0 flex flex-col items-center justify-center" 
+                      style={{ padding: contentPadding, opacity: currentTime < INTRO_DURATION ? 0 : 1 }}
+                    >
+                      {/* Progress bar during instrumental breaks */}
+                      {currentLyrics.showProgressBar && layoutSettings.showProgressBar && (
+                        <div className="w-full mb-4">
+                          <InstrumentalProgressBar
+                            progress={currentLyrics.progressBarPercent}
+                            nextLyrics=""
+                            color={sungColor}
+                            textColor={textColor}
+                            outlineColor={outlineColor}
+                            isPortrait={isPortrait}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Current lyrics - simplified display */}
+                      <div className="flex flex-col items-center justify-center w-full" style={{ gap: lineGap }}>
+                        {currentLyrics.currentLine && (
+                          <p 
+                            className="font-bold text-center"
+                            style={{ 
+                              fontFamily: previewFontFamily,
+                              fontSize: currentLineFontSize,
+                              color: sungColor,
+                              textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`
+                            }}
+                          >
+                            {currentLyrics.currentLine.map(w => w.word).join(' ')}
+                          </p>
+                        )}
+                        {currentLyrics.upcomingLines?.slice(0, 3).map((line, idx) => (
+                          <p 
+                            key={idx}
+                            className="font-bold text-center"
+                            style={{ 
+                              fontFamily: previewFontFamily,
+                              fontSize: baseFontSize,
+                              color: textColor,
+                              textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                              opacity: 0.6 - (idx * 0.15)
+                            }}
+                          >
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Intro Overlay */}
+                    {currentTime < INTRO_DURATION && brandingSettings.startImageShowTitle !== false && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                        {brandingSettings.startImageUrl && (
+                          <img 
+                            src={brandingSettings.startImageUrl} 
+                            alt="Intro" 
+                            className="absolute inset-0 w-full h-full"
+                            style={{ objectFit: brandingSettings.startImageFit || 'contain', opacity: (brandingSettings.startImageOpacity || 100) / 100 }}
+                          />
+                        )}
+                        <div className="relative z-10 text-center px-4">
+                          <h2 style={{ fontFamily: previewFontFamily, fontSize: currentLineFontSize * 1.5, color: textColor, textShadow: `2px 2px 4px ${outlineColor}` }}>
+                            {trackInfo.songTitle || project?.song_title || 'Song Title'}
+                          </h2>
+                          <p style={{ fontFamily: previewFontFamily, fontSize: currentLineFontSize, color: textColor, textShadow: `1px 1px 3px ${outlineColor}`, opacity: 0.9 }}>
+                            {trackInfo.artistName || project?.artist_name || 'Artist'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Logo Watermark */}
+                    {brandingSettings.logoUrl && (
+                      <div 
+                        className="absolute z-30"
+                        style={{
+                          ...(brandingSettings.logoPosition?.includes('top') ? { top: 8 } : { bottom: 8 }),
+                          ...(brandingSettings.logoPosition?.includes('left') ? { left: 8 } : brandingSettings.logoPosition?.includes('right') ? { right: 8 } : { left: '50%', transform: 'translateX(-50%)' }),
+                          opacity: (brandingSettings.logoOpacity || 80) / 100
+                        }}
+                      >
+                        <img src={brandingSettings.logoUrl} alt="Logo" style={{ height: brandingSettings.logoSize || 50, width: 'auto' }} />
+                      </div>
+                    )}
+                    
+                    {/* Time display */}
+                    <div className={`absolute bottom-2 right-2 px-2 py-1 bg-black/60 rounded text-sm font-mono ${currentTime < INTRO_DURATION ? 'text-yellow-400' : 'text-white/80'}`}>
+                      {formatTrackTime(currentTime)}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            
+            {/* Playback controls */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-3 px-4 py-2 bg-black/60 rounded-full backdrop-blur-sm">
+              <button onClick={restart} className="p-2 rounded-full hover:bg-white/20 transition-colors">
+                <RotateCcw className="w-5 h-5 text-white" />
+              </button>
+              <button onClick={() => seekTo(currentTime - 10)} className="p-2 rounded-full hover:bg-white/20 transition-colors">
+                <SkipBack className="w-5 h-5 text-white" />
+              </button>
+              <button onClick={togglePlayback} className="p-3 rounded-full bg-cyan-500 hover:bg-cyan-400 transition-colors">
+                {isPlaying ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-white ml-0.5" />}
+              </button>
+              <button onClick={() => seekTo(currentTime + 10)} className="p-2 rounded-full hover:bg-white/20 transition-colors">
+                <SkipForward className="w-5 h-5 text-white" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ADD WORD MODAL */}
       <AnimatePresence>
         {showAddWordModal && (
@@ -3435,7 +3662,16 @@ export default function PreviewEditPage() {
                   {layoutSettings.displayMode === 'overwrite' ? 'Overwrite' : layoutSettings.displayMode === 'page' ? 'Page' : 'Scroll'}
                 </span>
               </div>
-              <span className="text-xs text-gray-500">Drag bottom edge to resize</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 hidden sm:inline">Drag bottom edge to resize</span>
+                <button
+                  onClick={() => setIsFullscreenPreview(true)}
+                  className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`}
+                  title="Fullscreen Preview"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             
             {/* Dynamic Aspect Ratio Container - Centered */}
@@ -4111,7 +4347,7 @@ export default function PreviewEditPage() {
             </div>
 
             {/* Tab Content Area */}
-            <div className="min-h-[200px]">
+            <div>
               {/* TIMING TAB */}
               {activeTab === 'timing' && (
                 <>
@@ -4750,9 +4986,9 @@ export default function PreviewEditPage() {
                               }
                             }}
                             onTouchStart={(e) => {
-                              // Touch support for mobile dragging
+                              // Touch support for mobile dragging - only prevent default when actually dragging
                               if (e.touches.length === 1 && !e.target.classList.contains('resize-handle')) {
-                                e.preventDefault(); // Prevent scrolling
+                                // Don't prevent default immediately - let the drag handler decide
                                 handleTimelineWordMouseDown(index, e, e.touches[0].clientX);
                               }
                             }}
@@ -4778,7 +5014,7 @@ export default function PreviewEditPage() {
                               onMouseDown={(e) => handleWordResizeStart(index, 'left', e)}
                               onTouchStart={(e) => {
                                 if (e.touches.length === 1) {
-                                  e.preventDefault();
+                                  e.stopPropagation();
                                   handleWordResizeStart(index, 'left', e, e.touches[0].clientX);
                                 }
                               }}
@@ -4808,7 +5044,7 @@ export default function PreviewEditPage() {
                               onMouseDown={(e) => handleWordResizeStart(index, 'right', e)}
                               onTouchStart={(e) => {
                                 if (e.touches.length === 1) {
-                                  e.preventDefault();
+                                  e.stopPropagation();
                                   handleWordResizeStart(index, 'right', e, e.touches[0].clientX);
                                 }
                               }}
