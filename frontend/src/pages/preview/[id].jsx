@@ -3396,9 +3396,9 @@ export default function PreviewEditPage() {
                         pointerEvents: currentTime < INTRO_DURATION ? 'none' : 'auto'
                       }}
                     >
-                      {currentLyrics.showProgressBar && layoutSettings.displayMode !== 'scroll' ? (
-                        /* PROGRESS BAR - Shows during instrumental breaks (only for page/overwrite modes) */
-                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
+                      {/* Progress bar shown ABOVE lyrics during instrumental breaks */}
+                      {currentLyrics.showProgressBar && layoutSettings.showProgressBar && (
+                        <div className="w-full mb-2">
                           <InstrumentalProgressBar
                             progress={currentLyrics.progressBarPercent}
                             nextLyrics=""
@@ -3406,22 +3406,10 @@ export default function PreviewEditPage() {
                             textColor={textColor}
                             outlineColor={outlineColor}
                           />
-                          {/* Show the next line to sing below the progress bar */}
-                          {currentLyrics.nextLyricsForProgressBar && (
-                            <p 
-                              className="font-bold text-center w-full"
-                              style={{ 
-                                fontFamily: previewFontFamily,
-                                fontSize: `${baseFontSize}px`,
-                                color: textColor,
-                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
-                              }}
-                            >
-                              {currentLyrics.nextLyricsForProgressBar}
-                            </p>
-                          )}
                         </div>
-                      ) : layoutSettings.displayMode === 'overwrite' ? (
+                      )}
+                      
+                      {layoutSettings.displayMode === 'overwrite' ? (
                         /* OVERWRITE MODE - Sliding window of lines, current line at top */
                         (() => {
                           const numLines = layoutSettings.linesPerOverwrite || 4;
@@ -3558,39 +3546,35 @@ export default function PreviewEditPage() {
                           const lineHeight = layoutSettings.emphasizeCurrentLine ? currentLineFontSize * 2.2 : baseFontSize * 2.2;
                           const totalHeight = numLines * lineHeight;
                           const currentIdx = currentLyrics.currentLineIdx ?? -1;
-                          const showProgressBarInScroll = currentLyrics.showProgressBar && layoutSettings.showProgressBar;
                           
-                          // Build array of lines to show: current line + next (numLines-1) lines
+                          // Build array of lines to show
                           const linesToShow = [];
                           
+                          // Use currentLineIdx to determine which lines to show
                           if (currentIdx >= 0 && lyricsLines[currentIdx]) {
-                            // Current line
-                            linesToShow.push({
-                              lineIdx: currentIdx,
-                              position: 0,
-                              isCurrent: true,
-                              words: currentLyrics.currentLine,
-                            });
-                            
-                            // Upcoming lines
-                            for (let i = 1; i < numLines; i++) {
-                              const nextIdx = currentIdx + i;
-                              if (nextIdx < lyricsLines.length) {
+                            // Show lines starting from currentIdx
+                            for (let i = 0; i < numLines; i++) {
+                              const lineIdx = currentIdx + i;
+                              if (lineIdx < lyricsLines.length) {
+                                // First line is "current" only if we have word-level data
+                                const hasWordData = i === 0 && currentLyrics.currentLine && currentLyrics.currentLine.length > 0;
                                 linesToShow.push({
-                                  lineIdx: nextIdx,
+                                  lineIdx: lineIdx,
                                   position: i,
-                                  isCurrent: false,
-                                  text: lyricsLines[nextIdx].map(w => w.word).join(' '),
+                                  isCurrent: hasWordData,
+                                  words: hasWordData ? currentLyrics.currentLine : null,
+                                  text: lyricsLines[lineIdx].map(w => w.word).join(' '),
                                 });
                               }
                             }
                           } else if (currentLyrics.upcomingLines && currentLyrics.upcomingLines.length > 0) {
-                            // No current line but have upcoming - show them
+                            // Fallback: No current line index, show upcoming
                             currentLyrics.upcomingLines.slice(0, numLines).forEach((text, i) => {
                               linesToShow.push({
                                 lineIdx: `upcoming-${i}`,
                                 position: i,
                                 isCurrent: false,
+                                words: null,
                                 text: text,
                               });
                             });
@@ -3598,19 +3582,6 @@ export default function PreviewEditPage() {
                           
                           return (
                             <div className="flex flex-col items-center w-full" style={{ gap: `${lineGap}px` }}>
-                              {/* Progress bar at top during instrumental breaks in scroll mode */}
-                              {showProgressBarInScroll && (
-                                <div className="w-full mb-2">
-                                  <InstrumentalProgressBar
-                                    progress={currentLyrics.progressBarPercent}
-                                    nextLyrics=""
-                                    color={sungColor}
-                                    textColor={textColor}
-                                    outlineColor={outlineColor}
-                                  />
-                                </div>
-                              )}
-                              
                               {/* Scroll lines container */}
                               <div 
                                 className="relative w-full overflow-hidden"
@@ -3620,7 +3591,8 @@ export default function PreviewEditPage() {
                                 {linesToShow.map((lineData) => {
                                   const isCurrent = lineData.isCurrent;
                                   const yPosition = lineData.position * lineHeight;
-                                  const opacityValue = isCurrent ? 1 : Math.max(0.35, 0.7 - (lineData.position * 0.12));
+                                  // First line (position 0) should be full opacity even during progress bar
+                                  const opacityValue = lineData.position === 0 ? 1 : Math.max(0.35, 0.7 - (lineData.position * 0.12));
                                   
                                   return (
                                     <motion.div
