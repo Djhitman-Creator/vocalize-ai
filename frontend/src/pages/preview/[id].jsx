@@ -472,6 +472,26 @@ const LineLengthWarning = ({ lineIndex, charCount, maxChars }) => (
   </div>
 );
 
+// Header warning component - shows count of lines that are too long
+const TooLongLinesWarning = ({ lyricsLines, aspectRatio, fontSize }) => {
+  const maxChars = MAX_CHARS_PER_LINE[aspectRatio || '16:9']?.[fontSize || 'normal'] || 50;
+  
+  const tooLongCount = lyricsLines.filter(line => {
+    if (!line || line.length === 0) return false;
+    const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0) - 1;
+    return charCount > maxChars;
+  }).length;
+  
+  if (tooLongCount === 0) return null;
+  
+  return (
+    <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">
+      <AlertTriangle className="w-3 h-3" />
+      {tooLongCount} {tooLongCount === 1 ? 'line' : 'lines'} too long
+    </span>
+  );
+};
+
 // ============================================================
 // FONT DROPDOWN COMPONENT - Shows each font in its own typeface
 // ============================================================
@@ -4363,18 +4383,7 @@ export default function PreviewEditPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         {/* Warning count for lines that are too long */}
-                        {(() => {
-                          const tooLongCount = lyricsLines.filter(line => isLineTooLong(line)).length;
-                          if (tooLongCount > 0) {
-                            return (
-                              <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">
-                                <AlertTriangle className="w-3 h-3" />
-                                {tooLongCount} {tooLongCount === 1 ? 'line' : 'lines'} too long
-                              </span>
-                            );
-                          }
-                          return null;
-                        })()}
+                        <TooLongLinesWarning lyricsLines={lyricsLines} aspectRatio={layoutSettings.aspectRatio} fontSize={styleSettings.fontSize} />
                         <span className="text-xs text-gray-500">{lyricsLines.length} lines | {words.length} words</span>
                       </div>
                     </div>

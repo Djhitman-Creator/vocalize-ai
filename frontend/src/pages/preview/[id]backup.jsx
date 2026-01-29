@@ -34,7 +34,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Play, Pause, SkipBack, Music2, Save, RotateCcw,
+  ArrowLeft, Play, Pause, SkipBack, SkipForward, Music2, Save, RotateCcw,
   ZoomIn, ZoomOut, Users, Check, X, Loader2, AlertCircle,
   CheckCircle, Plus, Trash2, Paintbrush,
   ArrowDown, ArrowUp, Type, SplitSquareHorizontal,
@@ -44,7 +44,11 @@ import {
   // V11: Tab icons
   Image, Download, Grid3X3, Palette, Sparkles, Video,
   Monitor, Smartphone, Square, Upload, Lock, Undo2, Redo2,
-  ExternalLink, ScrollText, FileText, Edit3
+  ExternalLink, ScrollText, FileText, Edit3,
+  // V12: Preset icons
+  Bookmark, Star, FolderOpen,
+  // Fullscreen
+  Maximize2, Minimize2
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
@@ -68,6 +72,29 @@ const PRESET_BASE_URL = process.env.NEXT_PUBLIC_PRESET_VIDEOS_URL || 'https://pu
 // Line length settings
 const MAX_WORDS_PER_LINE = 10;
 
+// Dynamic character limits per line based on aspect ratio and font size
+// These values were measured from the preview at each setting
+const MAX_CHARS_PER_LINE = {
+  '16:9': {
+    'small': 55,
+    'normal': 55,
+    'large': 53,
+    'extra-large': 49
+  },
+  '4:3': {
+    'small': 45,
+    'normal': 40,
+    'large': 36,
+    'extra-large': 34
+  },
+  '9:16': {
+    'small': 23,
+    'normal': 21,
+    'large': 19,
+    'extra-large': 17
+  }
+};
+
 // Sweep highlighting constants - TIERED SYSTEM
 const SWEEP_IN_LONG_DURATION = 2.0;    // 2 seconds for gaps >= 2s
 const SWEEP_IN_LONG_MIN_GAP = 2.0;     // Minimum gap for long sweep
@@ -84,11 +111,11 @@ const DEFAULT_PREVIEW_HEIGHT = 300;
 // V11: TAB DEFINITIONS
 // ============================================================
 const TABS = [
-  { id: 'timing', label: 'Timing', icon: Clock, mobileLabel: 'ðŸŽµ' },
-  { id: 'style', label: 'Style', icon: Type, mobileLabel: 'ðŸŽ¨' },
-  { id: 'background', label: 'Background', icon: Image, mobileLabel: 'ðŸ–¼ï¸Â' },
-  { id: 'layout', label: 'Layout', icon: Grid3X3, mobileLabel: 'ðŸ“' },
-  { id: 'export', label: 'Export', icon: Download, mobileLabel: 'ðŸ“¤' },
+  { id: 'timing', label: 'Timing', icon: Clock },
+  { id: 'style', label: 'Style', icon: Type },
+  { id: 'background', label: 'Background', icon: Image },
+  { id: 'layout', label: 'Layout', icon: Grid3X3 },
+  { id: 'export', label: 'Export', icon: Download },
 ];
 
 // V11: Font options for Style tab - Custom Font at TOP, then alphabetical Google Fonts
@@ -245,17 +272,23 @@ const LINES_PER_PAGE_OPTIONS = [2, 3, 4, 5, 6];
 
 // V11: Audio track options for export
 const AUDIO_TRACK_OPTIONS = [
-  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: 'ðŸŽ¤' },
-  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: 'ðŸŽµ' },
-  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: 'ðŸŽ§' },
+  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: '🎤' },
+  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: '🎵' },
+  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: '🎧' },
 ];
 
-// V11: Video quality options
+// V12: Video quality options with credit costs per minute
 const VIDEO_QUALITY_OPTIONS = [
-  { value: '480p', label: '480p', description: 'SD - Fast render', resolution: '854Ã—480', tier: 'free' },
-  { value: '720p', label: '720p', description: 'HD - Good quality', resolution: '1280Ã—720', tier: 'free' },
-  { value: '1080p', label: '1080p', description: 'Full HD - Best for YouTube', resolution: '1920Ã—1080', tier: 'pro' },
-  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840Ã—2160', tier: 'studio' },
+  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960×540', creditsPerMin: 1, instantCreditsPerMin: 2 },
+  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280×720', creditsPerMin: 2, instantCreditsPerMin: 4 },
+  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920×1080', creditsPerMin: 3, instantCreditsPerMin: 6 },
+  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840×2160', creditsPerMin: 5, instantCreditsPerMin: 10 },
+];
+
+// V12: Export mode options
+const EXPORT_MODE_OPTIONS = [
+  { value: 'queue', label: 'Queue', description: 'Processed in order. May take longer during high demand.', icon: Clock, multiplier: 1 },
+  { value: 'instant', label: 'Instant', description: 'Skip the queue and start rendering immediately.', icon: Sparkles, multiplier: 2 },
 ];
 
 // V11: Branding - Logo position options
@@ -359,10 +392,13 @@ const SweepInBar = ({ progress, color }) => {
 // ============================================================
 // INSTRUMENTAL PROGRESS BAR COMPONENT
 // ============================================================
-const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outlineColor }) => {
+const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outlineColor, isPortrait }) => {
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="w-64 h-2 bg-white/20 rounded-full overflow-hidden">
+    <div className="flex flex-col items-center gap-2">
+      <div 
+        className="h-2 bg-white/20 rounded-full overflow-hidden"
+        style={{ width: isPortrait ? '80%' : '16rem' }}
+      >
         <div
           className="h-full rounded-full transition-all duration-100"
           style={{
@@ -374,7 +410,7 @@ const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outli
       </div>
       {nextLyrics && (
         <p
-          className="text-lg opacity-40 text-center max-w-md"
+          className={`opacity-40 text-center ${isPortrait ? 'text-sm max-w-[90%]' : 'text-lg max-w-md'}`}
           style={{
             color: textColor,
             textShadow: `1px 1px 2px ${outlineColor}`,
@@ -426,10 +462,13 @@ const VolumeSlider = ({ value, onChange, label, icon: Icon, color, muted, onMute
 // ============================================================
 // LINE LENGTH WARNING COMPONENT
 // ============================================================
-const LineLengthWarning = ({ lineIndex, wordCount, charCount }) => (
-  <div className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded" title={`Line ${lineIndex + 1} may be too long. Consider splitting it.`}>
+const LineLengthWarning = ({ lineIndex, charCount, maxChars }) => (
+  <div 
+    className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded" 
+    title={`Line ${lineIndex + 1} has ${charCount} characters (max ${maxChars}). Consider splitting it.`}
+  >
     <AlertTriangle className="w-3 h-3" />
-    <span>Too long - split this line</span>
+    <span>Too long ({charCount}/{maxChars}) - split this line</span>
   </div>
 );
 
@@ -679,6 +718,17 @@ export default function PreviewEditPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Track info state (editable artist, title, disc ID)
+  const [trackInfo, setTrackInfo] = useState({
+    artistName: '',
+    songTitle: '',
+    discId: 'KT-01'
+  });
+  const [editingTrackInfo, setEditingTrackInfo] = useState(false);
+  
+  // Fullscreen preview state
+  const [isFullscreenPreview, setIsFullscreenPreview] = useState(false);
+
   // V11: Active tab state
   const [activeTab, setActiveTab] = useState('timing');
 
@@ -911,7 +961,10 @@ export default function PreviewEditPage() {
   const [layoutSettings, setLayoutSettings] = useState({
     displayMode: 'scroll', // 'scroll', 'page', 'overwrite'
     aspectRatio: '16:9', // '16:9', '4:3', '9:16'
-    linesPerPage: 4, // 2-6, only for page mode
+    linesPerPage: 4, // For page mode: 4-8
+    linesPerScroll: 4, // For scroll mode: 3-6
+    linesPerOverwrite: 4, // For overwrite mode: 4-8
+    emphasizeCurrentLine: false, // Make current line larger
     showProgressBar: true, // Show progress bar during instrumental breaks
     showCountdown: true, // Show countdown dots before lyrics start
     showLeadInBars: true, // Show lead-in sweep bars before each line
@@ -923,10 +976,11 @@ export default function PreviewEditPage() {
     setHasChanges(true);
   }, []);
 
-  // V11: Export settings state
+  // V12: Export settings state
   const [exportSettings, setExportSettings] = useState({
-    audioTrack: 'instrumental', // 'instrumental', 'backing', 'original'
-    videoQuality: '720p', // '480p', '720p', '1080p', '4k'
+    audioTrack: 'instrumental', // 'instrumental', 'guide', 'original'
+    videoQuality: '720p', // '540p', '720p', '1080p', '4k'
+    exportMode: 'queue', // 'queue', 'instant'
   });
 
   // V11: Update export settings helper
@@ -934,6 +988,197 @@ export default function PreviewEditPage() {
     setExportSettings(prev => ({ ...prev, ...updates }));
     setHasChanges(true);
   }, []);
+
+  // V12: Preset system state
+  const [presets, setPresets] = useState([]);
+  const [presetsLoading, setPresetsLoading] = useState(false);
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [presetName, setPresetName] = useState('');
+  const [savingPreset, setSavingPreset] = useState(false);
+  const [presetError, setPresetError] = useState(null);
+  const [loadingPresetId, setLoadingPresetId] = useState(null);
+
+  // V12: Load user's presets
+  const loadPresets = useCallback(async () => {
+    setPresetsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase
+        .from('user_presets')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPresets(data || []);
+    } catch (err) {
+      console.error('Failed to load presets:', err);
+    } finally {
+      setPresetsLoading(false);
+    }
+  }, []);
+
+  // V12: Save current settings as preset
+  const savePreset = useCallback(async () => {
+    if (!presetName.trim()) {
+      setPresetError('Please enter a preset name');
+      return;
+    }
+
+    setSavingPreset(true);
+    setPresetError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const presetData = {
+        user_id: session.user.id,
+        name: presetName.trim(),
+        // Style settings
+        font: styleSettings.selectedFont,
+        font_size: styleSettings.fontSize,
+        text_color: styleSettings.textColor,
+        sung_color: styleSettings.sungColor,
+        outline_color: styleSettings.outlineColor,
+        // Background settings
+        bg_type: bgSettings.bgType,
+        bg_color_1: bgSettings.bgColor1,
+        bg_color_2: bgSettings.bgColor2,
+        gradient_direction: bgSettings.gradientDirection,
+        bg_image_url: bgSettings.bgImageUrl,
+        bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
+        // Layout settings
+        display_mode: layoutSettings.displayMode,
+        aspect_ratio: layoutSettings.aspectRatio,
+        lines_per_page: layoutSettings.linesPerPage,
+        lines_per_scroll: layoutSettings.linesPerScroll,
+        lines_per_overwrite: layoutSettings.linesPerOverwrite,
+        emphasize_current_line: layoutSettings.emphasizeCurrentLine,
+        show_progress_bar: layoutSettings.showProgressBar,
+        show_countdown: layoutSettings.showCountdown,
+        show_lead_in_bars: layoutSettings.showLeadInBars,
+        // Export settings
+        audio_track: exportSettings.audioTrack,
+        video_quality: exportSettings.videoQuality,
+        // Branding settings
+        logo_url: brandingSettings.logoUrl,
+        logo_position: brandingSettings.logoPosition,
+        logo_size: brandingSettings.logoSize,
+        logo_opacity: brandingSettings.logoOpacity,
+        start_image_url: brandingSettings.startImageUrl,
+        start_image_fit: brandingSettings.startImageFit,
+        start_image_opacity: brandingSettings.startImageOpacity,
+        start_image_show_title: brandingSettings.startImageShowTitle,
+      };
+
+      const { data, error } = await supabase
+        .from('user_presets')
+        .insert(presetData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setPresets(prev => [data, ...prev]);
+      setPresetModalOpen(false);
+      setPresetName('');
+    } catch (err) {
+      console.error('Failed to save preset:', err);
+      setPresetError(err.message || 'Failed to save preset');
+    } finally {
+      setSavingPreset(false);
+    }
+  }, [presetName, styleSettings, bgSettings, layoutSettings, exportSettings, brandingSettings, router]);
+
+  // V12: Load a preset and apply settings
+  const loadPreset = useCallback((preset) => {
+    setLoadingPresetId(preset.id);
+    
+    // Apply style settings
+    setStyleSettings({
+      selectedFont: preset.font || 'arial',
+      fontSize: preset.font_size || 'normal',
+      textColor: preset.text_color || '#ffffff',
+      sungColor: preset.sung_color || '#00d4ff',
+      outlineColor: preset.outline_color || '#000000',
+    });
+
+    // Apply background settings
+    setBgSettings(prev => ({
+      ...prev,
+      bgType: preset.bg_type || 'gradient',
+      bgColor1: preset.bg_color_1 || '#1a1a2e',
+      bgColor2: preset.bg_color_2 || '#16213e',
+      gradientDirection: preset.gradient_direction || 'to bottom',
+      bgImageUrl: preset.bg_image_url || null,
+      bgImagePreview: preset.bg_image_url || null,
+      bgVideoPresetFilename: preset.bg_video_preset_filename || null,
+      bgVideoPreset: preset.bg_video_preset_filename ? 
+        PRESET_VIDEO_BACKGROUNDS.find(v => v.filename === preset.bg_video_preset_filename)?.url || null : null,
+    }));
+
+    // Apply layout settings
+    setLayoutSettings({
+      displayMode: preset.display_mode || 'scroll',
+      aspectRatio: preset.aspect_ratio || '16:9',
+      linesPerPage: preset.lines_per_page || 4,
+      linesPerScroll: preset.lines_per_scroll || 4,
+      linesPerOverwrite: preset.lines_per_overwrite || 4,
+      emphasizeCurrentLine: preset.emphasize_current_line || false,
+      showProgressBar: preset.show_progress_bar !== false,
+      showCountdown: preset.show_countdown !== false,
+      showLeadInBars: preset.show_lead_in_bars !== false,
+    });
+
+    // Apply export settings
+    setExportSettings({
+      audioTrack: preset.audio_track || 'instrumental',
+      videoQuality: preset.video_quality || '720p',
+    });
+
+    // Apply branding settings
+    setBrandingSettings(prev => ({
+      ...prev,
+      logoUrl: preset.logo_url || null,
+      logoPosition: preset.logo_position || 'bottom-right',
+      logoSize: preset.logo_size || 50,
+      logoOpacity: preset.logo_opacity || 80,
+      startImageUrl: preset.start_image_url || null,
+      startImageFit: preset.start_image_fit || 'contain',
+      startImageOpacity: preset.start_image_opacity || 100,
+      startImageShowTitle: preset.start_image_show_title !== false,
+    }));
+
+    setHasChanges(true);
+    
+    setTimeout(() => setLoadingPresetId(null), 500);
+  }, []);
+
+  // V12: Delete a preset
+  const deletePreset = useCallback(async (presetId) => {
+    if (!window.confirm('Are you sure you want to delete this preset?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_presets')
+        .delete()
+        .eq('id', presetId);
+
+      if (error) throw error;
+
+      setPresets(prev => prev.filter(p => p.id !== presetId));
+    } catch (err) {
+      console.error('Failed to delete preset:', err);
+    }
+  }, []);
+
+  // V12: Load presets on mount
+  useEffect(() => {
+    loadPresets();
+  }, [loadPresets]);
 
   // V11: Background category filter state
   const [selectedVideoCategory, setSelectedVideoCategory] = useState('all');
@@ -1315,10 +1560,16 @@ export default function PreviewEditPage() {
   // ============================================================
   const isLineTooLong = useCallback((line) => {
     if (!line || line.length === 0) return false;
-    if (line.length > MAX_WORDS_PER_LINE) return true;
-    const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0);
-    return charCount > 50;
-  }, []);
+    
+    // Get dynamic character limit based on aspect ratio and font size
+    const aspectRatio = layoutSettings.aspectRatio || '16:9';
+    const fontSize = styleSettings.fontSize || 'normal';
+    const maxChars = MAX_CHARS_PER_LINE[aspectRatio]?.[fontSize] || 50;
+    
+    // Check character count
+    const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0) - 1; // -1 to not count trailing space
+    return charCount > maxChars;
+  }, [layoutSettings.aspectRatio, styleSettings.fontSize]);
 
   // ============================================================
   // LINE BREAK FUNCTIONS - ORIGINAL WORKING LOGIC
@@ -1505,6 +1756,14 @@ export default function PreviewEditPage() {
         console.log('Font setting:', projectData.font);
 
         setProject(projectData);
+        
+        // Initialize track info from project data
+        setTrackInfo({
+          artistName: projectData.artist_name || '',
+          songTitle: projectData.song_title || '',
+          discId: projectData.disc_id || 'KT-01'
+        });
+        
         let lyricsData = projectData.lyrics_json || [];
 
         // Auto-add line breaks if none exist
@@ -1557,6 +1816,9 @@ export default function PreviewEditPage() {
           displayMode: projectData.display_mode || 'scroll',
           aspectRatio: projectData.aspect_ratio || '16:9',
           linesPerPage: projectData.lines_per_page || 4,
+          linesPerScroll: projectData.lines_per_scroll || 4,
+          linesPerOverwrite: projectData.lines_per_overwrite || 4,
+          emphasizeCurrentLine: projectData.emphasize_current_line || false,
           showProgressBar: projectData.show_progress_bar !== false, // default true
           showCountdown: projectData.show_countdown !== false, // default true
           showLeadInBars: projectData.show_lead_in_bars !== false, // default true
@@ -1852,7 +2114,8 @@ export default function PreviewEditPage() {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.code === 'Space' && editingWordIndex === null) { e.preventDefault(); togglePlayback(); }
       if (e.code === 'Escape') {
-        if (contextMenu.isOpen) { setContextMenu(prev => ({ ...prev, isOpen: false })); }
+        if (isFullscreenPreview) { setIsFullscreenPreview(false); }
+        else if (contextMenu.isOpen) { setContextMenu(prev => ({ ...prev, isOpen: false })); }
         else if (paintMode !== null) setPaintMode(null);
         else if (showAddWordModal) { setShowAddWordModal(false); setNewWordText(''); }
         else if (editingWordIndex !== null) { setEditingWordIndex(null); setEditingText(''); }
@@ -1874,7 +2137,7 @@ export default function PreviewEditPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedWordIndices, selectedWordIndex, editingWordIndex, showAddWordModal, paintMode, words, deleteSelectedWords, nudgeSelectedWords, togglePlayback, contextMenu.isOpen]);
+  }, [selectedWordIndices, selectedWordIndex, editingWordIndex, showAddWordModal, paintMode, words, deleteSelectedWords, nudgeSelectedWords, togglePlayback, contextMenu.isOpen, isFullscreenPreview]);
   // ============================================================
   // DUET MODE FUNCTIONS
   // ============================================================
@@ -2305,6 +2568,11 @@ export default function PreviewEditPage() {
       const { error } = await supabase
         .from('projects')
         .update({
+          // Track info
+          artist_name: trackInfo.artistName,
+          song_title: trackInfo.songTitle,
+          disc_id: trackInfo.discId,
+          // Lyrics
           lyrics_json: words,
           is_duet_mode: isDuetMode,
           duet_singer1_color: duetColors.singer1,
@@ -2328,6 +2596,9 @@ export default function PreviewEditPage() {
           display_mode: layoutSettings.displayMode,
           aspect_ratio: layoutSettings.aspectRatio,
           lines_per_page: layoutSettings.linesPerPage,
+          lines_per_scroll: layoutSettings.linesPerScroll,
+          lines_per_overwrite: layoutSettings.linesPerOverwrite,
+          emphasize_current_line: layoutSettings.emphasizeCurrentLine,
           show_progress_bar: layoutSettings.showProgressBar,
           show_countdown: layoutSettings.showCountdown,
           show_lead_in_bars: layoutSettings.showLeadInBars,
@@ -2350,17 +2621,27 @@ export default function PreviewEditPage() {
         .eq('id', id);
 
       if (error) throw error;
+      
+      // Update local project state with new track info
+      setProject(prev => ({
+        ...prev,
+        artist_name: trackInfo.artistName,
+        song_title: trackInfo.songTitle,
+        disc_id: trackInfo.discId
+      }));
+      
       setHasChanges(false);
       setOriginalWords(JSON.parse(JSON.stringify(words)));
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch (err) {
       console.error('Save error:', err);
-      setError('Failed to save changes');
+      console.error('Error details:', JSON.stringify(err, null, 2));
+      setError(`Failed to save: ${err.message || err.code || 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
-  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, layoutSettings, exportSettings, brandingSettings, id, router]);
+  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, layoutSettings, exportSettings, brandingSettings, trackInfo, id, router]);
 
   const handleApproveAndRender = useCallback(async () => {
     if (hasChanges) await saveChanges();
@@ -2467,7 +2748,7 @@ export default function PreviewEditPage() {
   // ============================================================
   // Calculate directly during render (not useMemo) to ensure smooth animations
   // useMemo was causing stale values during rapid currentTime updates
-  const LINES_PER_PAGE = 4; // Match handler.py
+  const LINES_PER_PAGE = layoutSettings.linesPerPage || 4; // Use setting from Layout tab
 
   const getCurrentLyricsData = () => {
     if (!lyricsLines.length) return {
@@ -2524,11 +2805,38 @@ export default function PreviewEditPage() {
               isActive: false, isPast: false, sweepPercent: 0
             }));
             const prevLineText = i > 0 ? lyricsLines[i - 1].map(w => w.word).join(' ') : '';
+            
+            // Build upcomingLines
+            const upcomingLines = [];
+            for (let j = i + 1; j < Math.min(i + 7, lyricsLines.length); j++) {
+              upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
+            }
+            
+            // Build pageLines for page/overwrite mode
+            const currentPageIdx = Math.floor(i / LINES_PER_PAGE);
+            const pageStartIdx = currentPageIdx * LINES_PER_PAGE;
+            const pageEndIdx = Math.min(pageStartIdx + LINES_PER_PAGE, lyricsLines.length);
+            const pageLines = [];
+            for (let pi = pageStartIdx; pi < pageEndIdx; pi++) {
+              const pageLine = lyricsLines[pi];
+              pageLines.push({
+                words: pageLine.map(w => ({
+                  word: w.word, index: w.globalIndex, start: w.start, end: w.end,
+                  isActive: false, isPast: pi < i, sweepPercent: pi < i ? 1 : 0, fadeInProgress: pi < i ? 1 : 0
+                })),
+                isCurrentLine: pi === i,
+                isPastLine: pi < i,
+                lineText: pageLine.map(w => w.word).join(' ')
+              });
+            }
 
             return {
               prevLine: prevLineText,
               currentLine: currentLineText,
               next: lyricsLines[i + 1] ? lyricsLines[i + 1].map(w => w.word).join(' ') : '',
+              upcomingLines,
+              pageLines,
+              currentLineIdx: i,
               showSweepIn: true,
               sweepInProgress: sweepProgress,
               showProgressBar: false,
@@ -2544,10 +2852,19 @@ export default function PreviewEditPage() {
             const timeIntoProgressBar = gapDuration - timeUntilLine;
             const progressPercent = Math.min(1, Math.max(0, timeIntoProgressBar / progressBarDuration));
             const prevLineText = i > 0 ? lyricsLines[i - 1].map(w => w.word).join(' ') : '';
+            
+            // Build upcomingLines starting from current line
+            const upcomingLines = [];
+            for (let j = i; j < Math.min(i + 6, lyricsLines.length); j++) {
+              upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
+            }
 
             return {
               prevLine: prevLineText,
               currentLine: null, next: '',
+              upcomingLines,
+              pageLines: [], // Empty during progress bar
+              currentLineIdx: i, // So overwrite mode knows which line is next
               showSweepIn: false, sweepInProgress: 0,
               showProgressBar: true,
               progressBarPercent: progressPercent,
@@ -2565,10 +2882,39 @@ export default function PreviewEditPage() {
                 isActive: false, isPast: true, sweepPercent: 1
               }));
               const prevPrevLineText = i > 1 ? lyricsLines[i - 2].map(w => w.word).join(' ') : '';
+              
+              // Build upcomingLines
+              const upcomingLines = [];
+              for (let j = i; j < Math.min(i + 6, lyricsLines.length); j++) {
+                upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
+              }
+              
+              // Build pageLines - use previous line's page
+              const prevLineIdx = i - 1;
+              const currentPageIdx = Math.floor(prevLineIdx / LINES_PER_PAGE);
+              const pageStartIdx = currentPageIdx * LINES_PER_PAGE;
+              const pageEndIdx = Math.min(pageStartIdx + LINES_PER_PAGE, lyricsLines.length);
+              const pageLines = [];
+              for (let pi = pageStartIdx; pi < pageEndIdx; pi++) {
+                const pageLine = lyricsLines[pi];
+                pageLines.push({
+                  words: pageLine.map(w => ({
+                    word: w.word, index: w.globalIndex, start: w.start, end: w.end,
+                    isActive: false, isPast: pi <= prevLineIdx, sweepPercent: pi <= prevLineIdx ? 1 : 0, fadeInProgress: pi <= prevLineIdx ? 1 : 0
+                  })),
+                  isCurrentLine: pi === prevLineIdx,
+                  isPastLine: pi < prevLineIdx,
+                  lineText: pageLine.map(w => w.word).join(' ')
+                });
+              }
+              
               return {
                 prevLine: prevPrevLineText,
                 currentLine: currentLineText,
                 next: line.map(w => w.word).join(' '),
+                upcomingLines,
+                pageLines,
+                currentLineIdx: prevLineIdx,
                 showSweepIn: false, sweepInProgress: 0,
                 showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
               };
@@ -2581,14 +2927,26 @@ export default function PreviewEditPage() {
             return {
               prevLine: '',
               currentLine: null, next: '',
+              upcomingLines: [],
+              pageLines: [],
+              currentLineIdx: -1,
               showSweepIn: false, sweepInProgress: 0,
               showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
             };
+          }
+          
+          // Build upcomingLines for gap before first visible lyrics
+          const upcomingLines = [];
+          for (let j = i; j < Math.min(i + 6, lyricsLines.length); j++) {
+            upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
           }
 
           return {
             prevLine: i > 0 ? lyricsLines[i - 1].map(w => w.word).join(' ') : '',
             currentLine: null, next: line.map(w => w.word).join(' '),
+            upcomingLines,
+            pageLines: [],
+            currentLineIdx: -1,
             showSweepIn: false, sweepInProgress: 0,
             showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
           };
@@ -2606,14 +2964,37 @@ export default function PreviewEditPage() {
           const lastLine = lyricsLines[lyricsLines.length - 1];
           const lastWordEnd = lastLine[lastLine.length - 1].end;
           if (currentTime - lastWordEnd <= 2) {
+            const lastLineIdx = lyricsLines.length - 1;
             const currentLineText = lastLine.map(w => ({
               word: w.word, index: w.globalIndex, start: w.start, end: w.end,
               isActive: false, isPast: true, sweepPercent: 1
             }));
             const prevLineText = lyricsLines.length > 1 ? lyricsLines[lyricsLines.length - 2].map(w => w.word).join(' ') : '';
+            
+            // Build pageLines for last page
+            const currentPageIdx = Math.floor(lastLineIdx / LINES_PER_PAGE);
+            const pageStartIdx = currentPageIdx * LINES_PER_PAGE;
+            const pageEndIdx = Math.min(pageStartIdx + LINES_PER_PAGE, lyricsLines.length);
+            const pageLines = [];
+            for (let pi = pageStartIdx; pi < pageEndIdx; pi++) {
+              const pageLine = lyricsLines[pi];
+              pageLines.push({
+                words: pageLine.map(w => ({
+                  word: w.word, index: w.globalIndex, start: w.start, end: w.end,
+                  isActive: false, isPast: true, sweepPercent: 1, fadeInProgress: 1
+                })),
+                isCurrentLine: pi === lastLineIdx,
+                isPastLine: pi < lastLineIdx,
+                lineText: pageLine.map(w => w.word).join(' ')
+              });
+            }
+            
             return {
               prevLine: prevLineText,
               currentLine: currentLineText, next: '',
+              upcomingLines: [],
+              pageLines,
+              currentLineIdx: lastLineIdx,
               showSweepIn: false, sweepInProgress: 0,
               showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
             };
@@ -2622,6 +3003,9 @@ export default function PreviewEditPage() {
         return {
           prevLine: '',
           currentLine: null, next: '',
+          upcomingLines: [],
+          pageLines: [],
+          currentLineIdx: -1,
           showSweepIn: false, sweepInProgress: 0,
           showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
         };
@@ -2655,6 +3039,12 @@ export default function PreviewEditPage() {
     const prevText = prevLine ? prevLine.map(w => w.word).join(' ') : '';
     const nextLine = lyricsLines[currentLineIdx + 1];
     const nextText = nextLine ? nextLine.map(w => w.word).join(' ') : '';
+
+    // Build upcomingLines array for scroll mode (multiple upcoming lines)
+    const upcomingLines = [];
+    for (let i = currentLineIdx + 1; i < Math.min(currentLineIdx + 6, lyricsLines.length); i++) {
+      upcomingLines.push(lyricsLines[i].map(w => w.word).join(' '));
+    }
 
     // Build pageLines for page mode (4 lines per page)
     const currentPageIdx = Math.floor(currentLineIdx / LINES_PER_PAGE);
@@ -2699,6 +3089,7 @@ export default function PreviewEditPage() {
       prevLine: prevText,
       currentLine: currentLineText, 
       next: nextText,
+      upcomingLines,
       pageLines,
       currentLineIdx,
       showSweepIn: false, sweepInProgress: 0,
@@ -2852,6 +3243,227 @@ export default function PreviewEditPage() {
         />
       )}
 
+      {/* FULLSCREEN PREVIEW MODAL */}
+      <AnimatePresence>
+        {isFullscreenPreview && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+            onClick={() => setIsFullscreenPreview(false)}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setIsFullscreenPreview(false)}
+              className="absolute top-4 right-4 z-50 p-3 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+              title="Exit Fullscreen (Esc)"
+            >
+              <Minimize2 className="w-6 h-6" />
+            </button>
+            
+            {/* Fullscreen video preview */}
+            <div 
+              className="relative w-full h-full flex items-center justify-center p-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {(() => {
+                // Calculate dimensions to fit screen while maintaining aspect ratio
+                const getAspectRatio = () => {
+                  switch (layoutSettings.aspectRatio) {
+                    case '4:3': return 4/3;
+                    case '9:16': return 9/16;
+                    default: return 16/9;
+                  }
+                };
+                const ratio = getAspectRatio();
+                
+                // Get viewport dimensions (with padding)
+                const maxWidth = typeof window !== 'undefined' ? window.innerWidth - 32 : 1200;
+                const maxHeight = typeof window !== 'undefined' ? window.innerHeight - 32 : 800;
+                
+                // Calculate dimensions that fit within viewport
+                let width, height;
+                if (ratio >= 1) {
+                  // Landscape or square
+                  width = Math.min(maxWidth, maxHeight * ratio);
+                  height = width / ratio;
+                } else {
+                  // Portrait
+                  height = Math.min(maxHeight, maxWidth / ratio);
+                  width = height * ratio;
+                }
+                
+                // Font scaling for fullscreen
+                const scaleFactor = height / 270;
+                const fontSizeMultiplier = FONT_SIZE_OPTIONS.find(opt => opt.value === styleSettings.fontSize)?.scale || 1.0;
+                const isPortrait = layoutSettings.aspectRatio === '9:16';
+                const portraitScale = isPortrait ? 0.7 : 1.0;
+                
+                const baseFontSize = Math.max(16, Math.min(48, 20 * scaleFactor * fontSizeMultiplier * portraitScale));
+                const currentLineFontSize = Math.max(20, Math.min(64, 26 * scaleFactor * fontSizeMultiplier * portraitScale));
+                const lineGap = Math.max(4, Math.min(20, 8 * scaleFactor * (isPortrait ? 0.8 : 1)));
+                const textShadowSize = Math.max(2, Math.min(5, 2.5 * scaleFactor * portraitScale));
+                const wordSpacing = Math.max(4, Math.min(12, 6 * scaleFactor * portraitScale));
+                const contentPadding = isPortrait ? Math.max(8, 16 * scaleFactor) : Math.max(16, 32 * scaleFactor);
+                
+                const previewFontFamily = project?.custom_font_url && styleSettings.selectedFont === 'custom'
+                  ? 'CustomKaraokeFont' 
+                  : FONT_OPTIONS.find(f => f.value === styleSettings.selectedFont)?.family || 'Arial, sans-serif';
+                
+                // Colors
+                const textColor = styleSettings.textColor || '#ffffff';
+                const sungColor = styleSettings.sungColor || '#00d4ff';
+                const outlineColor = styleSettings.outlineColor || '#000000';
+                const unsungColor = textColor;
+                
+                // Background
+                const getFullscreenBackground = () => {
+                  switch (bgSettings.bgType) {
+                    case 'color':
+                      return { backgroundColor: bgSettings.bgColor1 };
+                    case 'gradient':
+                      return { background: `linear-gradient(${bgSettings.gradientDirection}, ${bgSettings.bgColor1}, ${bgSettings.bgColor2})` };
+                    default:
+                      return { backgroundColor: '#1a1a2e' };
+                  }
+                };
+                
+                return (
+                  <div 
+                    className="relative overflow-hidden rounded-lg shadow-2xl"
+                    style={{ width, height, ...getFullscreenBackground() }}
+                  >
+                    {/* Background Image */}
+                    {bgSettings.bgImageUrl && (
+                      <img className="absolute inset-0 w-full h-full object-cover opacity-60" src={bgSettings.bgImageUrl} alt="" />
+                    )}
+                    
+                    {/* Background Video */}
+                    {(bgSettings.bgVideoPreset || bgSettings.bgCustomVideoUrl) && (
+                      <video 
+                        className="absolute inset-0 w-full h-full object-cover opacity-60" 
+                        src={bgSettings.bgCustomVideoUrl || (bgSettings.bgVideoPreset ? `${PRESET_BASE_URL}/${bgSettings.bgVideoPreset.filename}` : '')}
+                        autoPlay loop muted playsInline 
+                      />
+                    )}
+                    
+                    {/* Lyrics Overlay */}
+                    <div 
+                      className="absolute inset-0 flex flex-col items-center justify-center" 
+                      style={{ padding: contentPadding, opacity: currentTime < INTRO_DURATION ? 0 : 1 }}
+                    >
+                      {/* Progress bar during instrumental breaks */}
+                      {currentLyrics.showProgressBar && layoutSettings.showProgressBar && (
+                        <div className="w-full mb-4">
+                          <InstrumentalProgressBar
+                            progress={currentLyrics.progressBarPercent}
+                            nextLyrics=""
+                            color={sungColor}
+                            textColor={textColor}
+                            outlineColor={outlineColor}
+                            isPortrait={isPortrait}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Current lyrics - simplified display */}
+                      <div className="flex flex-col items-center justify-center w-full" style={{ gap: lineGap }}>
+                        {currentLyrics.currentLine && (
+                          <p 
+                            className="font-bold text-center"
+                            style={{ 
+                              fontFamily: previewFontFamily,
+                              fontSize: currentLineFontSize,
+                              color: sungColor,
+                              textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`
+                            }}
+                          >
+                            {currentLyrics.currentLine.map(w => w.word).join(' ')}
+                          </p>
+                        )}
+                        {currentLyrics.upcomingLines?.slice(0, 3).map((line, idx) => (
+                          <p 
+                            key={idx}
+                            className="font-bold text-center"
+                            style={{ 
+                              fontFamily: previewFontFamily,
+                              fontSize: baseFontSize,
+                              color: textColor,
+                              textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                              opacity: 0.6 - (idx * 0.15)
+                            }}
+                          >
+                            {line}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Intro Overlay */}
+                    {currentTime < INTRO_DURATION && brandingSettings.startImageShowTitle !== false && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                        {brandingSettings.startImageUrl && (
+                          <img 
+                            src={brandingSettings.startImageUrl} 
+                            alt="Intro" 
+                            className="absolute inset-0 w-full h-full"
+                            style={{ objectFit: brandingSettings.startImageFit || 'contain', opacity: (brandingSettings.startImageOpacity || 100) / 100 }}
+                          />
+                        )}
+                        <div className="relative z-10 text-center px-4">
+                          <h2 style={{ fontFamily: previewFontFamily, fontSize: currentLineFontSize * 1.5, color: textColor, textShadow: `2px 2px 4px ${outlineColor}` }}>
+                            {trackInfo.songTitle || project?.song_title || 'Song Title'}
+                          </h2>
+                          <p style={{ fontFamily: previewFontFamily, fontSize: currentLineFontSize, color: textColor, textShadow: `1px 1px 3px ${outlineColor}`, opacity: 0.9 }}>
+                            {trackInfo.artistName || project?.artist_name || 'Artist'}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Logo Watermark */}
+                    {brandingSettings.logoUrl && (
+                      <div 
+                        className="absolute z-30"
+                        style={{
+                          ...(brandingSettings.logoPosition?.includes('top') ? { top: 8 } : { bottom: 8 }),
+                          ...(brandingSettings.logoPosition?.includes('left') ? { left: 8 } : brandingSettings.logoPosition?.includes('right') ? { right: 8 } : { left: '50%', transform: 'translateX(-50%)' }),
+                          opacity: (brandingSettings.logoOpacity || 80) / 100
+                        }}
+                      >
+                        <img src={brandingSettings.logoUrl} alt="Logo" style={{ height: brandingSettings.logoSize || 50, width: 'auto' }} />
+                      </div>
+                    )}
+                    
+                    {/* Time display */}
+                    <div className={`absolute bottom-2 right-2 px-2 py-1 bg-black/60 rounded text-sm font-mono ${currentTime < INTRO_DURATION ? 'text-yellow-400' : 'text-white/80'}`}>
+                      {formatTrackTime(currentTime)}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+            
+            {/* Playback controls */}
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-3 px-4 py-2 bg-black/60 rounded-full backdrop-blur-sm">
+              <button onClick={restart} className="p-2 rounded-full hover:bg-white/20 transition-colors">
+                <RotateCcw className="w-5 h-5 text-white" />
+              </button>
+              <button onClick={() => seekTo(currentTime - 10)} className="p-2 rounded-full hover:bg-white/20 transition-colors">
+                <SkipBack className="w-5 h-5 text-white" />
+              </button>
+              <button onClick={togglePlayback} className="p-3 rounded-full bg-cyan-500 hover:bg-cyan-400 transition-colors">
+                {isPlaying ? <Pause className="w-6 h-6 text-white" /> : <Play className="w-6 h-6 text-white ml-0.5" />}
+              </button>
+              <button onClick={() => seekTo(currentTime + 10)} className="p-2 rounded-full hover:bg-white/20 transition-colors">
+                <SkipForward className="w-5 h-5 text-white" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ADD WORD MODAL */}
       <AnimatePresence>
         {showAddWordModal && (
@@ -2945,10 +3557,70 @@ export default function PreviewEditPage() {
               <Link href="/dashboard" className={`p-2 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <div>
-                <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{project.title}</h1>
-                <p className="text-sm text-gray-500">{project.artist_name} - {project.song_title}</p>
-              </div>
+              
+              {/* Editable Track Info */}
+              {editingTrackInfo ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={trackInfo.songTitle}
+                      onChange={(e) => {
+                        setTrackInfo(prev => ({ ...prev, songTitle: e.target.value }));
+                        setHasChanges(true);
+                      }}
+                      placeholder="Song Title"
+                      className={`px-2 py-1 text-lg font-bold rounded-lg border ${isDark ? 'bg-white/5 border-white/20 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:outline-none focus:border-cyan-500`}
+                    />
+                    <button
+                      onClick={() => setEditingTrackInfo(false)}
+                      className="p-1 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white"
+                      title="Done editing"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={trackInfo.artistName}
+                      onChange={(e) => {
+                        setTrackInfo(prev => ({ ...prev, artistName: e.target.value }));
+                        setHasChanges(true);
+                      }}
+                      placeholder="Artist Name"
+                      className={`px-2 py-0.5 text-sm rounded-lg border ${isDark ? 'bg-white/5 border-white/20 text-gray-300' : 'bg-white border-gray-300 text-gray-600'} focus:outline-none focus:border-cyan-500`}
+                    />
+                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>•</span>
+                    <input
+                      type="text"
+                      value={trackInfo.discId}
+                      onChange={(e) => {
+                        setTrackInfo(prev => ({ ...prev, discId: e.target.value }));
+                        setHasChanges(true);
+                      }}
+                      placeholder="Disc ID"
+                      className={`px-2 py-0.5 text-sm rounded-lg border w-24 ${isDark ? 'bg-white/5 border-white/20 text-gray-300' : 'bg-white border-gray-300 text-gray-600'} focus:outline-none focus:border-cyan-500`}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  className="cursor-pointer group"
+                  onClick={() => setEditingTrackInfo(true)}
+                  title="Click to edit track info"
+                >
+                  <div className="flex items-center gap-2">
+                    <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {trackInfo.songTitle || project?.title || 'Untitled'}
+                    </h1>
+                    <Edit3 className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {trackInfo.artistName || 'Unknown Artist'} • {trackInfo.discId || 'KT-01'}
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {project.custom_font_url && (
@@ -2990,7 +3662,16 @@ export default function PreviewEditPage() {
                   {layoutSettings.displayMode === 'overwrite' ? 'Overwrite' : layoutSettings.displayMode === 'page' ? 'Page' : 'Scroll'}
                 </span>
               </div>
-              <span className="text-xs text-gray-500">Drag bottom edge to resize</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500 hidden sm:inline">Drag bottom edge to resize</span>
+                <button
+                  onClick={() => setIsFullscreenPreview(true)}
+                  className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'}`}
+                  title="Fullscreen Preview"
+                >
+                  <Maximize2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
             
             {/* Dynamic Aspect Ratio Container - Centered */}
@@ -3028,11 +3709,20 @@ export default function PreviewEditPage() {
                   ? 'CustomKaraokeFont' 
                   : FONT_OPTIONS.find(f => f.value === styleSettings.selectedFont)?.family || 'Arial, sans-serif';
                 
-                const baseFontSize = Math.max(12, Math.min(32, 14 * scaleFactor * fontSizeMultiplier)); // Clamp between 12-32px
-                const currentLineFontSize = Math.max(14, Math.min(40, 18 * scaleFactor * fontSizeMultiplier));
-                const lineGap = Math.max(2, Math.min(12, 4 * scaleFactor));
-                const textShadowSize = Math.max(1, Math.min(3, 1.5 * scaleFactor));
-                const wordSpacing = Math.max(2, Math.min(8, 3 * scaleFactor));
+                // 9:16 Portrait mode adjustments - narrower width needs smaller fonts
+                const isPortrait = layoutSettings.aspectRatio === '9:16';
+                const portraitScale = isPortrait ? 0.7 : 1.0; // 30% smaller for portrait
+                
+                const baseFontSize = Math.max(10, Math.min(32, 14 * scaleFactor * fontSizeMultiplier * portraitScale));
+                const currentLineFontSize = Math.max(12, Math.min(40, 18 * scaleFactor * fontSizeMultiplier * portraitScale));
+                const lineGap = Math.max(2, Math.min(12, 4 * scaleFactor * (isPortrait ? 0.8 : 1)));
+                const textShadowSize = Math.max(1, Math.min(3, 1.5 * scaleFactor * portraitScale));
+                const wordSpacing = Math.max(1, Math.min(6, 3 * scaleFactor * portraitScale));
+                
+                // Padding adjustments for portrait mode
+                const contentPadding = isPortrait 
+                  ? Math.max(4, 8 * scaleFactor)  // Smaller padding for portrait
+                  : Math.max(8, 16 * scaleFactor); // Normal padding for landscape
                 
                 return (
                   <div 
@@ -3071,78 +3761,160 @@ export default function PreviewEditPage() {
                     <div 
                       className="absolute inset-0 flex flex-col items-center justify-center" 
                       style={{ 
-                        padding: `${Math.max(8, 16 * scaleFactor)}px`,
+                        padding: `${contentPadding}px`,
                         opacity: currentTime < INTRO_DURATION ? 0 : 1,
                         pointerEvents: currentTime < INTRO_DURATION ? 'none' : 'auto'
                       }}
                     >
-                      {currentLyrics.showProgressBar ? (
-                        <InstrumentalProgressBar
-                          progress={currentLyrics.progressBarPercent}
-                          nextLyrics={currentLyrics.nextLyricsForProgressBar}
-                          color={sungColor}
-                          textColor={textColor}
-                          outlineColor={outlineColor}
-                        />
-                      ) : layoutSettings.displayMode === 'overwrite' ? (
-                        /* OVERWRITE MODE - Single line at a time, centered */
-                        <div className="flex flex-col items-center justify-center w-full">
-                          {currentLyrics.currentLine ? (
-                            <div className="text-center w-full">
-                              <p 
-                                className="font-bold relative inline-flex flex-wrap justify-center items-baseline" 
-                                style={{ 
-                                  fontFamily: previewFontFamily,
-                                  fontSize: `${currentLineFontSize}px`,
-                                  gap: `${wordSpacing}px`
-                                }}
-                              >
-                                {currentLyrics.currentLine.map((wordData, i) => {
-                                  const highlightColor = getHighlightColor(wordData.index);
-                                  // First word: wrap in relative span for absolute sweep-in bar
-                                  if (i === 0 && currentLyrics.showSweepIn) {
-                                    return (
-                                      <span key={i} style={{ position: 'relative' }}>
-                                        <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
-                                        <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                      </span>
-                                    );
-                                  }
-                                  return (
-                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                  );
-                                })}
-                              </p>
-                            </div>
-                          ) : null}
+                      {/* Progress bar shown ABOVE lyrics during instrumental breaks */}
+                      {currentLyrics.showProgressBar && layoutSettings.showProgressBar && (
+                        <div className="w-full mb-2">
+                          <InstrumentalProgressBar
+                            progress={currentLyrics.progressBarPercent}
+                            nextLyrics=""
+                            color={sungColor}
+                            textColor={textColor}
+                            outlineColor={outlineColor}
+                            isPortrait={isPortrait}
+                          />
                         </div>
+                      )}
+                      
+                      {layoutSettings.displayMode === 'overwrite' ? (
+                        /* OVERWRITE MODE - Current line cycles through positions 1→2→3→4→1... */
+                        (() => {
+                          const numLines = layoutSettings.linesPerOverwrite || 4;
+                          const currentIdx = currentLyrics.currentLineIdx ?? -1;
+                          
+                          // Overwrite mode behavior:
+                          // - Current line position cycles: 0 → 1 → 2 → 3 → 0 → 1 → ...
+                          // - Each slot shows: current line at its cycling position, 
+                          //   remaining slots show next unsung lines
+                          // - When a line finishes, it's instantly replaced with the next unsung line
+                          
+                          if (currentIdx >= 0 && lyricsLines.length > 0) {
+                            // Calculate which position (0 to numLines-1) the current line is in
+                            const currentPosition = currentIdx % numLines;
+                            
+                            // Build slots array: current line + next unsung lines
+                            // Then reorder so current appears at currentPosition
+                            const lines = [];
+                            
+                            for (let i = 0; i < numLines; i++) {
+                              const lineIdx = currentIdx + i;
+                              if (lineIdx < lyricsLines.length) {
+                                const lineWords = lyricsLines[lineIdx];
+                                lines.push({
+                                  lineIdx,
+                                  isCurrentLine: i === 0, // First one is current
+                                  text: lineWords.map(w => w.word).join(' ')
+                                });
+                              }
+                            }
+                            
+                            // Reorder: current line goes to currentPosition, others wrap around
+                            const displaySlots = new Array(numLines).fill(null);
+                            
+                            for (let i = 0; i < lines.length; i++) {
+                              const targetPosition = (currentPosition + i) % numLines;
+                              displaySlots[targetPosition] = lines[i];
+                            }
+                            
+                            // Filter nulls and render
+                            const finalSlots = displaySlots.filter(s => s !== null);
+                            
+                            return (
+                              <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
+                                {finalSlots.map((lineData) => (
+                                  <div key={`ow-${lineData.lineIdx}`} className="text-center w-full">
+                                    {lineData.isCurrentLine && currentLyrics.currentLine ? (
+                                      <p 
+                                        className="font-bold relative inline-flex flex-wrap justify-center items-baseline"
+                                        style={{ 
+                                          fontFamily: previewFontFamily,
+                                          fontSize: layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
+                                          gap: `${wordSpacing}px`
+                                        }}
+                                      >
+                                        {currentLyrics.currentLine.map((wordData, wordIdx) => {
+                                          const highlightColor = getHighlightColor(wordData.index);
+                                          if (wordIdx === 0 && currentLyrics.showSweepIn) {
+                                            return (
+                                              <span key={wordIdx} style={{ position: 'relative' }}>
+                                                <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                                <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                              </span>
+                                            );
+                                          }
+                                          return <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
+                                        })}
+                                      </p>
+                                    ) : (
+                                      <p 
+                                        className="font-bold"
+                                        style={{ 
+                                          fontFamily: previewFontFamily,
+                                          fontSize: `${baseFontSize}px`,
+                                          color: textColor,
+                                          textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                                          opacity: 0.6
+                                        }}
+                                      >
+                                        {lineData.text}
+                                      </p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          } else if (currentLyrics.upcomingLines && currentLyrics.upcomingLines.length > 0) {
+                            // No current line yet, show upcoming lines
+                            return (
+                              <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
+                                {currentLyrics.upcomingLines.slice(0, numLines).map((text, idx) => (
+                                  <div key={`ow-upcoming-${idx}`} className="text-center w-full">
+                                    <p 
+                                      className="font-bold"
+                                      style={{ 
+                                        fontFamily: previewFontFamily,
+                                        fontSize: `${baseFontSize}px`,
+                                        color: textColor,
+                                        textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                                        opacity: 0.6
+                                      }}
+                                    >
+                                      {text}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          }
+                          
+                          return null;
+                        })()
                       ) : layoutSettings.displayMode === 'page' ? (
-                        /* PAGE MODE - Show 4 lines per page, all visible at once */
+                        /* PAGE MODE - Show all lines on page, highlight from top to bottom */
                         <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
-                          {currentLyrics.pageLines && currentLyrics.pageLines.map((lineData, lineIdx) => (
+                          {currentLyrics.pageLines && currentLyrics.pageLines.slice(0, layoutSettings.linesPerPage || 4).map((lineData, lineIdx) => (
                             <div key={lineIdx} className="text-center w-full">
                               <p 
                                 className="font-bold relative inline-flex flex-wrap justify-center items-baseline"
                                 style={{ 
                                   fontFamily: previewFontFamily,
-                                  fontSize: `${baseFontSize}px`,
+                                  fontSize: lineData.isCurrentLine && layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
                                   gap: `${wordSpacing}px`,
                                   opacity: lineData.isCurrentLine ? 1 : lineData.isPastLine ? 0.8 : 0.6
                                 }}
                               >
                                 {lineData.words.map((wordData, wordIdx) => {
                                   const highlightColor = getHighlightColor(wordData.index);
-                                  const shadowStyle = `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, ${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`;
+                                  const shadowStyle = `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`;
                                   
                                   if (lineData.isPastLine) {
-                                    return (
-                                      <span key={wordIdx} style={{ color: sungColor, textShadow: shadowStyle }}>
-                                        {wordData.word}
-                                      </span>
-                                    );
+                                    return <span key={wordIdx} style={{ color: sungColor, textShadow: shadowStyle }}>{wordData.word}</span>;
                                   }
                                   if (lineData.isCurrentLine) {
-                                    // First word: wrap in relative span for absolute sweep-in bar
                                     if (wordIdx === 0 && currentLyrics.showSweepIn) {
                                       return (
                                         <span key={wordIdx} style={{ position: 'relative' }}>
@@ -3151,91 +3923,128 @@ export default function PreviewEditPage() {
                                         </span>
                                       );
                                     }
-                                    return (
-                                      <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                    );
+                                    return <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
                                   }
-                                  return (
-                                    <span key={wordIdx} style={{ color: textColor, textShadow: shadowStyle }}>
-                                      {wordData.word}
-                                    </span>
-                                  );
+                                  return <span key={wordIdx} style={{ color: textColor, textShadow: shadowStyle }}>{wordData.word}</span>;
                                 })}
                               </p>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        /* SCROLL MODE (default) - 3 lines: previous, current, next */
-                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
-                          {/* Previous Line - fully highlighted (sung) */}
-                          {currentLyrics.prevLine && (
-                            <p 
-                              className="font-bold text-center w-full"
-                              style={{ 
-                                fontFamily: previewFontFamily,
-                                fontSize: `${baseFontSize}px`,
-                                color: sungColor,
-                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
-                                opacity: 0.7,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}
-                            >
-                              {currentLyrics.prevLine}
-                            </p>
-                          )}
+                        /* SCROLL MODE (default) - Smooth scrolling with framer-motion */
+                        (() => {
+                          const numLines = layoutSettings.linesPerScroll || 4;
+                          const lineHeight = layoutSettings.emphasizeCurrentLine ? currentLineFontSize * 2.2 : baseFontSize * 2.2;
+                          const totalHeight = numLines * lineHeight;
+                          const currentIdx = currentLyrics.currentLineIdx ?? -1;
                           
-                          {/* Current Line - with sweep highlighting */}
-                          {currentLyrics.currentLine ? (
-                            <div className="text-center w-full">
-                              <p 
-                                className="font-bold relative inline-flex flex-wrap justify-center items-baseline" 
-                                style={{ 
-                                  fontFamily: previewFontFamily,
-                                  fontSize: `${currentLineFontSize}px`,
-                                  gap: `${wordSpacing}px`
-                                }}
+                          // Build array of lines to show
+                          const linesToShow = [];
+                          
+                          // Use currentLineIdx to determine which lines to show
+                          if (currentIdx >= 0 && lyricsLines[currentIdx]) {
+                            // Show lines starting from currentIdx
+                            for (let i = 0; i < numLines; i++) {
+                              const lineIdx = currentIdx + i;
+                              if (lineIdx < lyricsLines.length) {
+                                // First line is "current" only if we have word-level data
+                                const hasWordData = i === 0 && currentLyrics.currentLine && currentLyrics.currentLine.length > 0;
+                                linesToShow.push({
+                                  lineIdx: lineIdx,
+                                  position: i,
+                                  isCurrent: hasWordData,
+                                  words: hasWordData ? currentLyrics.currentLine : null,
+                                  text: lyricsLines[lineIdx].map(w => w.word).join(' '),
+                                });
+                              }
+                            }
+                          } else if (currentLyrics.upcomingLines && currentLyrics.upcomingLines.length > 0) {
+                            // Fallback: No current line index, show upcoming
+                            currentLyrics.upcomingLines.slice(0, numLines).forEach((text, i) => {
+                              linesToShow.push({
+                                lineIdx: `upcoming-${i}`,
+                                position: i,
+                                isCurrent: false,
+                                words: null,
+                                text: text,
+                              });
+                            });
+                          }
+                          
+                          return (
+                            <div className="flex flex-col items-center w-full" style={{ gap: `${lineGap}px` }}>
+                              {/* Scroll lines container */}
+                              <div 
+                                className="relative w-full overflow-hidden"
+                                style={{ height: `${totalHeight}px` }}
                               >
-                                {currentLyrics.currentLine.map((wordData, i) => {
-                                  const highlightColor = getHighlightColor(wordData.index);
-                                  // First word: wrap in relative span for absolute sweep-in bar
-                                  if (i === 0 && currentLyrics.showSweepIn) {
-                                    return (
-                                      <span key={i} style={{ position: 'relative' }}>
-                                        <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
-                                        <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                      </span>
-                                    );
-                                  }
+                                <AnimatePresence mode="popLayout">
+                                {linesToShow.map((lineData) => {
+                                  const isCurrent = lineData.isCurrent;
+                                  const yPosition = lineData.position * lineHeight;
+                                  // First line (position 0) should be full opacity even during progress bar
+                                  const opacityValue = lineData.position === 0 ? 1 : Math.max(0.35, 0.7 - (lineData.position * 0.12));
+                                  
                                   return (
-                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                    <motion.div
+                                      key={`line-${lineData.lineIdx}`}
+                                      className="absolute left-0 right-0 text-center"
+                                      initial={{ y: yPosition + lineHeight, opacity: 0 }}
+                                      animate={{ 
+                                        y: yPosition, 
+                                        opacity: opacityValue,
+                                      }}
+                                      exit={{ y: yPosition - lineHeight, opacity: 0 }}
+                                      transition={{ 
+                                        type: "tween",
+                                        duration: 0.35,
+                                        ease: "easeOut"
+                                      }}
+                                    >
+                                      {isCurrent && lineData.words ? (
+                                        <p 
+                                          className="font-bold relative inline-flex flex-wrap justify-center items-baseline" 
+                                          style={{ 
+                                            fontFamily: previewFontFamily,
+                                            fontSize: layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
+                                            gap: `${wordSpacing}px`
+                                          }}
+                                        >
+                                          {lineData.words.map((wordData, i) => {
+                                            const highlightColor = getHighlightColor(wordData.index);
+                                            if (i === 0 && currentLyrics.showSweepIn) {
+                                              return (
+                                                <span key={i} style={{ position: 'relative' }}>
+                                                  <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                                  <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                                </span>
+                                              );
+                                            }
+                                            return <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
+                                          })}
+                                        </p>
+                                      ) : (
+                                        <p 
+                                          className="font-bold"
+                                          style={{ 
+                                            fontFamily: previewFontFamily,
+                                            fontSize: `${baseFontSize}px`,
+                                            color: textColor,
+                                            textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                                          }}
+                                        >
+                                          {lineData.text}
+                                        </p>
+                                      )}
+                                    </motion.div>
                                   );
                                 })}
-                              </p>
+                              </AnimatePresence>
+                              </div>
                             </div>
-                          ) : null}
-                          
-                          {/* Next Line - upcoming (dimmed) */}
-                          {currentLyrics.next && (
-                            <p 
-                              className="font-bold text-center w-full"
-                              style={{ 
-                                fontFamily: previewFontFamily,
-                                fontSize: `${baseFontSize}px`,
-                                color: textColor,
-                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
-                                opacity: 0.5,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}
-                            >
-                              {currentLyrics.next}
-                            </p>
-                          )}
-                        </div>
+                          );
+                        })()
                       )}
                     </div>
                     
@@ -3286,7 +4095,7 @@ export default function PreviewEditPage() {
                                   marginBottom: '8px'
                                 }}
                               >
-                                {project?.song_title || 'Song Title'}
+                                {trackInfo.songTitle || project?.song_title || 'Song Title'}
                               </h2>
                               <p 
                                 style={{
@@ -3297,7 +4106,7 @@ export default function PreviewEditPage() {
                                   opacity: 0.9
                                 }}
                               >
-                                {project?.artist_name || 'Artist'}
+                                {trackInfo.artistName || project?.artist_name || 'Artist'}
                               </p>
                             </div>
                           )}
@@ -3366,6 +4175,87 @@ export default function PreviewEditPage() {
                     <div className="absolute top-1 left-1 sm:top-2 sm:left-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] text-white/60 font-mono z-30">
                       {layoutSettings.aspectRatio}
                     </div>
+                    
+                    {/* Playback Controls Overlay - appears on hover */}
+                    <div className="absolute inset-x-0 bottom-0 opacity-0 hover:opacity-100 transition-opacity duration-200 z-40">
+                      {/* Gradient fade for better visibility */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
+                      
+                      {/* Mini progress bar */}
+                      <div 
+                        className={`absolute ${isPortrait ? 'bottom-8 left-1 right-1' : 'bottom-10 left-2 right-2'} h-1 bg-white/20 rounded-full cursor-pointer`}
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const percent = (e.clientX - rect.left) / rect.width;
+                          const newTime = percent * duration;
+                          seekTo(newTime);
+                        }}
+                      >
+                        <div 
+                          className="h-full bg-cyan-400 rounded-full"
+                          style={{ width: `${(currentTime / duration) * 100}%` }}
+                        />
+                      </div>
+                      
+                      {/* Control buttons - smaller for portrait */}
+                      <div className={`relative flex items-center justify-center ${isPortrait ? 'gap-1 py-1' : 'gap-2 py-2'}`}>
+                        {/* Start Over */}
+                        <button
+                          onClick={restart}
+                          className={`${isPortrait ? 'p-1' : 'p-1.5'} rounded-full bg-white/10 hover:bg-white/20 transition-colors`}
+                          title="Start Over"
+                        >
+                          <RotateCcw className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
+                        </button>
+                        
+                        {/* Skip Back 10s */}
+                        <button
+                          onClick={() => seekTo(currentTime - 10)}
+                          className={`${isPortrait ? 'p-1' : 'p-1.5'} rounded-full bg-white/10 hover:bg-white/20 transition-colors`}
+                          title="Back 10 seconds"
+                        >
+                          <SkipBack className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
+                        </button>
+                        
+                        {/* Play/Pause */}
+                        <button
+                          onClick={togglePlayback}
+                          className={`${isPortrait ? 'p-1.5' : 'p-2'} rounded-full bg-cyan-500 hover:bg-cyan-400 transition-colors`}
+                          title={isPlaying ? "Pause" : "Play"}
+                        >
+                          {isPlaying ? (
+                            <Pause className={`${isPortrait ? 'w-4 h-4' : 'w-5 h-5'} text-white`} />
+                          ) : (
+                            <Play className={`${isPortrait ? 'w-4 h-4' : 'w-5 h-5'} text-white ml-0.5`} />
+                          )}
+                        </button>
+                        
+                        {/* Skip Forward 10s */}
+                        <button
+                          onClick={() => seekTo(currentTime + 10)}
+                          className={`${isPortrait ? 'p-1' : 'p-1.5'} rounded-full bg-white/10 hover:bg-white/20 transition-colors`}
+                          title="Forward 10 seconds"
+                        >
+                          <SkipForward className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
+                        </button>
+                        
+                        {/* Mute Toggle */}
+                        <button
+                          onClick={() => {
+                            if (instrumentalRef.current) instrumentalRef.current.muted = !instrumentalRef.current.muted;
+                            if (vocalsRef.current) vocalsRef.current.muted = !vocalsRef.current.muted;
+                          }}
+                          className={`${isPortrait ? 'p-1' : 'p-1.5'} rounded-full bg-white/10 hover:bg-white/20 transition-colors`}
+                          title="Toggle Mute"
+                        >
+                          {instrumentalRef.current?.muted ? (
+                            <VolumeX className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
+                          ) : (
+                            <Volume2 className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 );
               })()}
@@ -3395,7 +4285,7 @@ export default function PreviewEditPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all whitespace-nowrap
+                    className={`flex items-center justify-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-medium transition-all whitespace-nowrap min-w-0
                       ${activeTab === tab.id 
                         ? `border-b-2 border-cyan-500 ${isDark ? 'text-cyan-400 bg-white/5' : 'text-cyan-600 bg-cyan-50'}` 
                         : isDark 
@@ -3403,19 +4293,31 @@ export default function PreviewEditPage() {
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                   >
-                    <tab.icon className="w-4 h-4" />
+                    <tab.icon className="w-4 h-4 flex-shrink-0" />
                     <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.mobileLabel}</span>
                   </button>
                 ))}
               </div>
               
-              {/* Undo/Redo Buttons */}
-              <div className={`flex items-center gap-1 px-2 border-l ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+              {/* Undo/Redo Buttons - more compact on mobile */}
+              <div className={`flex items-center gap-0.5 sm:gap-1 px-1 sm:px-2 border-l ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                {/* V12: Presets Button */}
+                <button
+                  onClick={() => setPresetModalOpen(true)}
+                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${
+                    isDark 
+                      ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10' 
+                      : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                  }`}
+                  title="Save & Load Presets"
+                >
+                  <Bookmark className="w-4 h-4" />
+                </button>
+                <div className={`hidden sm:block w-px h-4 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
                 <button
                   onClick={handleUndo}
                   disabled={wordsHistoryIndex <= 0}
-                  className={`p-2 rounded-lg transition-all ${
+                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${
                     wordsHistoryIndex > 0
                       ? isDark 
                         ? 'text-gray-300 hover:text-white hover:bg-white/10' 
@@ -3429,7 +4331,7 @@ export default function PreviewEditPage() {
                 <button
                   onClick={handleRedo}
                   disabled={wordsHistoryIndex >= wordsHistory.length - 1}
-                  className={`p-2 rounded-lg transition-all ${
+                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${
                     wordsHistoryIndex < wordsHistory.length - 1
                       ? isDark 
                         ? 'text-gray-300 hover:text-white hover:bg-white/10' 
@@ -3444,19 +4346,37 @@ export default function PreviewEditPage() {
             </div>
 
             {/* Tab Content Area */}
-            <div className="min-h-[200px]">
+            <div>
               {/* TIMING TAB */}
               {activeTab === 'timing' && (
                 <>
                   {/* LINE & WORD EDITOR - Collapsible */}
                   <div className={`${isDark ? 'border-b border-white/10' : 'border-b border-gray-200'}`}>
                     <div onClick={() => setLineEditorExpanded(!lineEditorExpanded)} className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}>
-                      <div className="flex items-center gap-2">
-                        {lineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-                        <SplitSquareHorizontal className="w-4 h-4 text-cyan-400" />
-                        <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Line & Word Editor (Rhyme Sync)</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        {lineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                        <SplitSquareHorizontal className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                        <span className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          <span className="hidden sm:inline">Line & Word Editor (Rhyme Sync)</span>
+                          <span className="sm:hidden">Line Editor</span>
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-500">{lyricsLines.length} lines | {words.length} words</span>
+                      <div className="flex items-center gap-2">
+                        {/* Warning count for lines that are too long */}
+                        {(() => {
+                          const tooLongCount = lyricsLines.filter(line => isLineTooLong(line)).length;
+                          if (tooLongCount > 0) {
+                            return (
+                              <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">
+                                <AlertTriangle className="w-3 h-3" />
+                                {tooLongCount} {tooLongCount === 1 ? 'line' : 'lines'} too long
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                        <span className="text-xs text-gray-500">{lyricsLines.length} lines | {words.length} words</span>
+                      </div>
                     </div>
 
             <AnimatePresence>
@@ -3527,7 +4447,13 @@ export default function PreviewEditPage() {
                                     <ArrowUp className="w-3 h-3" />Split Up
                                   </button>
                                 )}
-                                {lineTooLong && <LineLengthWarning lineIndex={lineIndex} wordCount={line.length} charCount={charCount} />}
+                                {lineTooLong && (
+                                  <LineLengthWarning 
+                                    lineIndex={lineIndex} 
+                                    charCount={charCount - 1} 
+                                    maxChars={MAX_CHARS_PER_LINE[layoutSettings.aspectRatio || '16:9']?.[styleSettings.fontSize || 'normal'] || 50} 
+                                  />
+                                )}
                                 
                                 {/* Duet Mode Line Assignment - only show when duet mode is enabled */}
                                 {isDuetMode && (
@@ -3682,11 +4608,13 @@ export default function PreviewEditPage() {
               onClick={() => setTimelineEditorExpanded(!timelineEditorExpanded)}
               className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
             >
-              <div className="flex items-center gap-2">
-                {timelineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-                <Music2 className="w-4 h-4 text-cyan-400" />
-
-                <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Timeline Editor</span>
+              <div className="flex items-center gap-2 min-w-0">
+                {timelineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                <Music2 className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                <span className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <span className="hidden sm:inline">Timeline Editor</span>
+                  <span className="sm:hidden">Timeline</span>
+                </span>
               </div>
               <button
                 onClick={(e) => {
@@ -3695,9 +4623,10 @@ export default function PreviewEditPage() {
                   setHasChanges(true);
                   if (!isDuetMode && !timelineEditorExpanded) setTimelineEditorExpanded(true);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isDuetMode ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0 ${isDuetMode ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}
               >
-                {isDuetMode ? 'Duet Mode On' : 'Duet Mode Off'}
+                <span className="hidden sm:inline">{isDuetMode ? 'Duet Mode On' : 'Duet Mode Off'}</span>
+                <span className="sm:hidden">{isDuetMode ? 'Duet On' : 'Duet Off'}</span>
               </button>
             </div>
 
@@ -4077,9 +5006,9 @@ export default function PreviewEditPage() {
                               }
                             }}
                             onTouchStart={(e) => {
-                              // Touch support for mobile dragging
+                              // Touch support for mobile dragging - only prevent default when actually dragging
                               if (e.touches.length === 1 && !e.target.classList.contains('resize-handle')) {
-                                e.preventDefault(); // Prevent scrolling
+                                // Don't prevent default immediately - let the drag handler decide
                                 handleTimelineWordMouseDown(index, e, e.touches[0].clientX);
                               }
                             }}
@@ -4105,7 +5034,7 @@ export default function PreviewEditPage() {
                               onMouseDown={(e) => handleWordResizeStart(index, 'left', e)}
                               onTouchStart={(e) => {
                                 if (e.touches.length === 1) {
-                                  e.preventDefault();
+                                  e.stopPropagation();
                                   handleWordResizeStart(index, 'left', e, e.touches[0].clientX);
                                 }
                               }}
@@ -4135,7 +5064,7 @@ export default function PreviewEditPage() {
                               onMouseDown={(e) => handleWordResizeStart(index, 'right', e)}
                               onTouchStart={(e) => {
                                 if (e.touches.length === 1) {
-                                  e.preventDefault();
+                                  e.stopPropagation();
                                   handleWordResizeStart(index, 'right', e, e.touches[0].clientX);
                                 }
                               }}
@@ -5027,14 +5956,30 @@ export default function PreviewEditPage() {
                     </div>
                   </div>
 
-                  {/* Lines Per Page - Only show for Page mode */}
-                  {layoutSettings.displayMode === 'page' && (
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                        Lines Per Page
-                      </label>
-                      <div className="flex gap-2">
-                        {LINES_PER_PAGE_OPTIONS.map(num => (
+                  {/* Lines on Screen - Shows for each mode with appropriate options */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Lines on Screen
+                    </label>
+                    <div className="flex gap-2">
+                      {layoutSettings.displayMode === 'scroll' ? (
+                        // Scroll mode: 3-6 lines
+                        [3, 4, 5, 6].map(num => (
+                          <button
+                            key={num}
+                            onClick={() => updateLayoutSettings({ linesPerScroll: num })}
+                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                              layoutSettings.linesPerScroll === num
+                                ? 'bg-cyan-500 text-white'
+                                : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {num}
+                          </button>
+                        ))
+                      ) : layoutSettings.displayMode === 'page' ? (
+                        // Page mode: 4-8 lines
+                        [4, 5, 6, 7, 8].map(num => (
                           <button
                             key={num}
                             onClick={() => updateLayoutSettings({ linesPerPage: num })}
@@ -5046,13 +5991,32 @@ export default function PreviewEditPage() {
                           >
                             {num}
                           </button>
-                        ))}
-                      </div>
-                      <p className={`text-xs mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                        Number of lyric lines visible at once
-                      </p>
+                        ))
+                      ) : (
+                        // Overwrite mode: 4-8 lines
+                        [4, 5, 6, 7, 8].map(num => (
+                          <button
+                            key={num}
+                            onClick={() => updateLayoutSettings({ linesPerOverwrite: num })}
+                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                              layoutSettings.linesPerOverwrite === num
+                                ? 'bg-cyan-500 text-white'
+                                : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                          >
+                            {num}
+                          </button>
+                        ))
+                      )}
                     </div>
-                  )}
+                    <p className={`text-xs mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      {layoutSettings.displayMode === 'scroll' 
+                        ? 'Number of lyric lines visible while scrolling'
+                        : layoutSettings.displayMode === 'page'
+                        ? 'Number of lyric lines per page'
+                        : 'Number of lyric lines visible at once'}
+                    </p>
+                  </div>
 
                   {/* Aspect Ratio */}
                   <div>
@@ -5084,6 +6048,24 @@ export default function PreviewEditPage() {
                       Timing & Animations
                     </label>
                     <div className="space-y-3">
+                      {/* Emphasize Current Line Toggle */}
+                      <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            Emphasize Current Line
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Make the currently singing line larger than others
+                          </p>
+                        </div>
+                        <div 
+                          onClick={() => updateLayoutSettings({ emphasizeCurrentLine: !layoutSettings.emphasizeCurrentLine })}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.emphasizeCurrentLine ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
+                        >
+                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${layoutSettings.emphasizeCurrentLine ? 'translate-x-7' : 'translate-x-1'}`} />
+                        </div>
+                      </label>
+
                       {/* Progress Bar Toggle */}
                       <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
                         <div className="flex-1">
@@ -5149,74 +6131,88 @@ export default function PreviewEditPage() {
                 </div>
               )}
 
-              {/* EXPORT TAB - V11 Implementation */}
+              {/* EXPORT TAB - V12 Credit-Based System */}
               {activeTab === 'export' && (
                 <div className="p-4 space-y-6 max-h-[500px] overflow-y-auto">
-                  {/* Audio Track Selection */}
+                  {/* Video Quality Selection */}
                   <div>
                     <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Audio Track
+                      Video Quality
                     </label>
-                    <div className="space-y-2">
-                      {AUDIO_TRACK_OPTIONS.map(option => (
+                    <div className="grid grid-cols-4 gap-2">
+                      {VIDEO_QUALITY_OPTIONS.map(option => (
                         <button
                           key={option.value}
-                          onClick={() => updateExportSettings({ audioTrack: option.value })}
-                          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
-                            exportSettings.audioTrack === option.value
+                          onClick={() => updateExportSettings({ videoQuality: option.value })}
+                          className={`relative flex flex-col items-center gap-1 p-3 rounded-lg transition-all ${
+                            exportSettings.videoQuality === option.value
                               ? 'bg-cyan-500/20 border-2 border-cyan-500'
                               : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                           }`}
                         >
-                          <span className="text-2xl">{option.icon}</span>
-                          <div className="flex-1">
-                            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</p>
-                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{option.description}</p>
-                          </div>
-                          {exportSettings.audioTrack === option.value && (
-                            <Check className="w-5 h-5 text-cyan-400" />
+                          <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</span>
+                          <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{option.resolution}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                            option.value === '4k' 
+                              ? 'bg-purple-500/20 text-purple-400' 
+                              : 'bg-cyan-500/20 text-cyan-400'
+                          }`}>
+                            {option.creditsPerMin} cr/min
+                          </span>
+                          {exportSettings.videoQuality === option.value && (
+                            <div className="absolute top-1 right-1">
+                              <Check className="w-3 h-3 text-cyan-400" />
+                            </div>
                           )}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Video Quality Selection */}
+                  {/* Export Mode Selection */}
                   <div>
                     <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Video Quality
+                      Export Mode
                     </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {VIDEO_QUALITY_OPTIONS.map(option => {
-                        // Check tier restrictions (simplified - you'd check actual user tier)
-                        const isLocked = option.tier === 'pro' || option.tier === 'studio';
-                        const tierLabel = option.tier === 'pro' ? 'Pro' : option.tier === 'studio' ? 'Studio' : null;
+                    <div className="space-y-2">
+                      {EXPORT_MODE_OPTIONS.map(option => {
+                        const qualityOption = VIDEO_QUALITY_OPTIONS.find(q => q.value === exportSettings.videoQuality);
+                        const creditsPerMin = option.value === 'instant' ? qualityOption?.instantCreditsPerMin : qualityOption?.creditsPerMin;
                         
                         return (
                           <button
                             key={option.value}
-                            onClick={() => !isLocked && updateExportSettings({ videoQuality: option.value })}
-                            disabled={isLocked}
-                            className={`relative flex flex-col items-center gap-1 p-4 rounded-lg transition-all ${
-                              exportSettings.videoQuality === option.value
-                                ? 'bg-cyan-500/20 border-2 border-cyan-500'
-                                : isLocked
-                                  ? isDark ? 'bg-white/5 border-2 border-transparent opacity-50 cursor-not-allowed' : 'bg-gray-50 border-2 border-transparent opacity-50 cursor-not-allowed'
-                                  : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                            onClick={() => updateExportSettings({ exportMode: option.value })}
+                            className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
+                              exportSettings.exportMode === option.value
+                                ? option.value === 'instant' 
+                                  ? 'bg-amber-500/20 border-2 border-amber-500'
+                                  : 'bg-cyan-500/20 border-2 border-cyan-500'
+                                : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                             }`}
                           >
-                            {isLocked && (
-                              <div className="absolute top-2 right-2">
-                                <Lock className="w-4 h-4 text-yellow-500" />
+                            <div className={`p-2 rounded-lg ${
+                              option.value === 'instant'
+                                ? 'bg-amber-500/20'
+                                : isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'
+                            }`}>
+                              <option.icon className={`w-5 h-5 ${option.value === 'instant' ? 'text-amber-400' : 'text-cyan-400'}`} />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</p>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                  option.value === 'instant'
+                                    ? 'bg-amber-500/20 text-amber-400'
+                                    : 'bg-cyan-500/20 text-cyan-400'
+                                }`}>
+                                  {creditsPerMin} CREDITS / MIN
+                                </span>
                               </div>
-                            )}
-                            <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</span>
-                            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{option.resolution}</span>
-                            <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{option.description}</span>
-                            {tierLabel && (
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full ${option.tier === 'studio' ? 'bg-purple-500/20 text-purple-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                                {tierLabel}
-                              </span>
+                              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{option.description}</p>
+                            </div>
+                            {exportSettings.exportMode === option.value && (
+                              <Check className={`w-5 h-5 ${option.value === 'instant' ? 'text-amber-400' : 'text-cyan-400'}`} />
                             )}
                           </button>
                         );
@@ -5224,37 +6220,79 @@ export default function PreviewEditPage() {
                     </div>
                   </div>
 
-                  {/* Credit Cost Info */}
-                  <div className={`p-4 rounded-lg ${isDark ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30' : 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200'}`}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Render Cost</p>
-                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>This will use credits from your balance</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-green-400">1</p>
-                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>credit</p>
-                      </div>
+                  {/* Audio Track Selection */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Audio Track
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {AUDIO_TRACK_OPTIONS.map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => updateExportSettings({ audioTrack: option.value })}
+                          className={`flex flex-col items-center gap-1 p-3 rounded-lg text-left transition-all ${
+                            exportSettings.audioTrack === option.value
+                              ? 'bg-cyan-500/20 border-2 border-cyan-500'
+                              : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                          }`}
+                        >
+                          <span className="text-xl">{option.icon}</span>
+                          <span className={`text-xs font-medium text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Render Info */}
-                  <div className={`space-y-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <p className="flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      Rendering typically takes 2-5 minutes depending on video length
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
-                      You'll receive an email notification when your video is ready
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Download className="w-4 h-4" />
-                      Download your finished video from the Dashboard
-                    </p>
-                  </div>
+                  {/* Credit Cost Calculator */}
+                  {(() => {
+                    const qualityOption = VIDEO_QUALITY_OPTIONS.find(q => q.value === exportSettings.videoQuality);
+                    const creditsPerMin = exportSettings.exportMode === 'instant' 
+                      ? qualityOption?.instantCreditsPerMin || 2 
+                      : qualityOption?.creditsPerMin || 1;
+                    const songMinutes = Math.ceil((duration || 180) / 60); // Default 3 min if no duration
+                    const totalCredits = creditsPerMin * songMinutes;
+                    const userCredits = project?.user_credits || 0; // You'd get this from user profile
+                    const hasEnoughCredits = userCredits >= totalCredits;
+                    
+                    return (
+                      <div className={`p-4 rounded-xl ${
+                        hasEnoughCredits
+                          ? isDark ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30' : 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200'
+                          : isDark ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30' : 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200'
+                      }`}>
+                        <div className="flex items-center gap-4">
+                          <div className={`p-3 rounded-xl ${hasEnoughCredits ? 'bg-green-500/20' : 'bg-amber-500/20'}`}>
+                            <Sparkles className={`w-6 h-6 ${hasEnoughCredits ? 'text-green-400' : 'text-amber-400'}`} />
+                          </div>
+                          <div className="flex-1">
+                            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {exportSettings.videoQuality.toUpperCase()} • {songMinutes} min • {exportSettings.exportMode === 'instant' ? 'Instant' : 'Queue'}
+                            </p>
+                            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              This will cost {totalCredits} credits
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Your balance</p>
+                            <p className={`text-2xl font-bold ${hasEnoughCredits ? 'text-green-400' : 'text-amber-400'}`}>
+                              {userCredits}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {!hasEnoughCredits && (
+                          <div className="mt-3 pt-3 border-t border-amber-500/30">
+                            <Link href="/pricing" className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-colors">
+                              <Plus className="w-4 h-4" />
+                              Get More Credits
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
-                  {/* Render Button - Large prominent button */}
+                  {/* Render Button */}
                   <button
                     onClick={handleApproveAndRender}
                     disabled={saving}
@@ -5267,16 +6305,23 @@ export default function PreviewEditPage() {
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-6 h-6" />
-                        Render Video
+                        <Download className="w-6 h-6" />
+                        Export Video
                       </>
                     )}
                   </button>
 
-                  {/* Tip */}
-                  <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
-                    <p className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
-                      Tip: Make sure to Save your changes before rendering. All your customizations will be applied to the final video.
+                  {/* Render Info */}
+                  <div className={`space-y-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <p className="flex items-center gap-2">
+                      <Clock className="w-3 h-3" />
+                      {exportSettings.exportMode === 'instant' 
+                        ? 'Instant mode typically renders in under 2 minutes'
+                        : 'Queue mode typically takes 5-15 minutes during busy times'}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3" />
+                      You'll receive an email when your video is ready
                     </p>
                   </div>
                 </div>
@@ -5318,6 +6363,165 @@ export default function PreviewEditPage() {
         onDeleteWord={handleContextMenuDelete}
         isDark={isDark}
       />
+
+      {/* V12: Presets Modal */}
+      <AnimatePresence>
+        {presetModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setPresetModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className={`w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl ${
+                isDark ? 'bg-gray-900 border border-white/10' : 'bg-white border border-gray-200'
+              }`}
+            >
+              {/* Modal Header */}
+              <div className={`flex items-center justify-between px-6 py-4 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${isDark ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
+                    <Bookmark className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Style Presets</h2>
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Save and load your favorite settings</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPresetModalOpen(false)}
+                  className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Save New Preset Section */}
+              <div className={`px-6 py-4 border-b ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Save Current Settings as Preset
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    placeholder="Enter preset name..."
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm outline-none transition-all ${
+                      isDark 
+                        ? 'bg-white/10 border border-white/20 text-white placeholder:text-gray-500 focus:border-amber-500' 
+                        : 'bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-amber-500'
+                    }`}
+                    onKeyDown={(e) => e.key === 'Enter' && savePreset()}
+                  />
+                  <button
+                    onClick={savePreset}
+                    disabled={savingPreset || !presetName.trim()}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      savingPreset || !presetName.trim()
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-amber-500 text-white hover:bg-amber-600'
+                    }`}
+                  >
+                    {savingPreset ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    Save
+                  </button>
+                </div>
+                {presetError && (
+                  <p className="text-xs text-red-500 mt-2">{presetError}</p>
+                )}
+              </div>
+
+              {/* Saved Presets List */}
+              <div className="px-6 py-4 max-h-[300px] overflow-y-auto">
+                <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Your Saved Presets ({presets.length})
+                </label>
+                
+                {presetsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                  </div>
+                ) : presets.length === 0 ? (
+                  <div className={`text-center py-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <FolderOpen className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No presets saved yet</p>
+                    <p className="text-xs mt-1">Save your current settings above to create your first preset</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {presets.map(preset => (
+                      <div
+                        key={preset.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
+                          isDark 
+                            ? 'bg-white/5 hover:bg-white/10 border border-white/10' 
+                            : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                        }`}
+                      >
+                        <div className={`p-2 rounded-lg ${isDark ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
+                          <Star className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {preset.name}
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {preset.display_mode} • {preset.aspect_ratio} • {preset.font || 'Default font'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => loadPreset(preset)}
+                            disabled={loadingPresetId === preset.id}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              loadingPresetId === preset.id
+                                ? 'bg-green-500 text-white'
+                                : isDark
+                                  ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30'
+                                  : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
+                            }`}
+                          >
+                            {loadingPresetId === preset.id ? (
+                              <Check className="w-3 h-3" />
+                            ) : (
+                              'Load'
+                            )}
+                          </button>
+                          <button
+                            onClick={() => deletePreset(preset.id)}
+                            className={`p-1.5 rounded-lg transition-all ${
+                              isDark
+                                ? 'text-gray-400 hover:text-red-400 hover:bg-red-500/10'
+                                : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                            }`}
+                            title="Delete preset"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className={`px-6 py-4 border-t ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
+                <p className={`text-xs text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Presets include: Style, Background, Layout, Export settings, and Branding
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
