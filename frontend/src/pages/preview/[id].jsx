@@ -2782,9 +2782,9 @@ export default function PreviewEditPage() {
             const progressPercent = Math.min(1, Math.max(0, timeIntoProgressBar / progressBarDuration));
             const prevLineText = i > 0 ? lyricsLines[i - 1].map(w => w.word).join(' ') : '';
             
-            // Build upcomingLines for display below progress bar
+            // Build upcomingLines - start from i+1 since line i is shown in progress bar
             const upcomingLines = [];
-            for (let j = i; j < Math.min(i + 6, lyricsLines.length); j++) {
+            for (let j = i + 1; j < Math.min(i + 7, lyricsLines.length); j++) {
               upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
             }
 
@@ -2793,6 +2793,7 @@ export default function PreviewEditPage() {
               currentLine: null, next: '',
               upcomingLines,
               pageLines: [], // Empty during progress bar
+              currentLineIdx: i, // Add this so overwrite mode knows which line is next
               showSweepIn: false, sweepInProgress: 0,
               showProgressBar: true,
               progressBarPercent: progressPercent,
