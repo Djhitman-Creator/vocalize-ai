@@ -687,6 +687,14 @@ export default function PreviewEditPage() {
   const [hasChanges, setHasChanges] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Track info state (editable artist, title, disc ID)
+  const [trackInfo, setTrackInfo] = useState({
+    artistName: '',
+    songTitle: '',
+    discId: 'KT-01'
+  });
+  const [editingTrackInfo, setEditingTrackInfo] = useState(false);
+
   // V11: Active tab state
   const [activeTab, setActiveTab] = useState('timing');
 
@@ -1708,6 +1716,14 @@ export default function PreviewEditPage() {
         console.log('Font setting:', projectData.font);
 
         setProject(projectData);
+        
+        // Initialize track info from project data
+        setTrackInfo({
+          artistName: projectData.artist_name || '',
+          songTitle: projectData.song_title || '',
+          discId: projectData.disc_id || 'KT-01'
+        });
+        
         let lyricsData = projectData.lyrics_json || [];
 
         // Auto-add line breaks if none exist
@@ -2511,6 +2527,11 @@ export default function PreviewEditPage() {
       const { error } = await supabase
         .from('projects')
         .update({
+          // Track info
+          artist_name: trackInfo.artistName,
+          song_title: trackInfo.songTitle,
+          disc_id: trackInfo.discId,
+          // Lyrics
           lyrics_json: words,
           is_duet_mode: isDuetMode,
           duet_singer1_color: duetColors.singer1,
@@ -2559,6 +2580,15 @@ export default function PreviewEditPage() {
         .eq('id', id);
 
       if (error) throw error;
+      
+      // Update local project state with new track info
+      setProject(prev => ({
+        ...prev,
+        artist_name: trackInfo.artistName,
+        song_title: trackInfo.songTitle,
+        disc_id: trackInfo.discId
+      }));
+      
       setHasChanges(false);
       setOriginalWords(JSON.parse(JSON.stringify(words)));
       setSaveSuccess(true);
@@ -2570,7 +2600,7 @@ export default function PreviewEditPage() {
     } finally {
       setSaving(false);
     }
-  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, layoutSettings, exportSettings, brandingSettings, id, router]);
+  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, layoutSettings, exportSettings, brandingSettings, trackInfo, id, router]);
 
   const handleApproveAndRender = useCallback(async () => {
     if (hasChanges) await saveChanges();
@@ -3265,10 +3295,70 @@ export default function PreviewEditPage() {
               <Link href="/dashboard" className={`p-2 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <div>
-                <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{project.title}</h1>
-                <p className="text-sm text-gray-500">{project.artist_name} - {project.song_title}</p>
-              </div>
+              
+              {/* Editable Track Info */}
+              {editingTrackInfo ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={trackInfo.songTitle}
+                      onChange={(e) => {
+                        setTrackInfo(prev => ({ ...prev, songTitle: e.target.value }));
+                        setHasChanges(true);
+                      }}
+                      placeholder="Song Title"
+                      className={`px-2 py-1 text-lg font-bold rounded-lg border ${isDark ? 'bg-white/5 border-white/20 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:outline-none focus:border-cyan-500`}
+                    />
+                    <button
+                      onClick={() => setEditingTrackInfo(false)}
+                      className="p-1 rounded-lg bg-cyan-500 hover:bg-cyan-600 text-white"
+                      title="Done editing"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={trackInfo.artistName}
+                      onChange={(e) => {
+                        setTrackInfo(prev => ({ ...prev, artistName: e.target.value }));
+                        setHasChanges(true);
+                      }}
+                      placeholder="Artist Name"
+                      className={`px-2 py-0.5 text-sm rounded-lg border ${isDark ? 'bg-white/5 border-white/20 text-gray-300' : 'bg-white border-gray-300 text-gray-600'} focus:outline-none focus:border-cyan-500`}
+                    />
+                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>•</span>
+                    <input
+                      type="text"
+                      value={trackInfo.discId}
+                      onChange={(e) => {
+                        setTrackInfo(prev => ({ ...prev, discId: e.target.value }));
+                        setHasChanges(true);
+                      }}
+                      placeholder="Disc ID"
+                      className={`px-2 py-0.5 text-sm rounded-lg border w-24 ${isDark ? 'bg-white/5 border-white/20 text-gray-300' : 'bg-white border-gray-300 text-gray-600'} focus:outline-none focus:border-cyan-500`}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  className="cursor-pointer group"
+                  onClick={() => setEditingTrackInfo(true)}
+                  title="Click to edit track info"
+                >
+                  <div className="flex items-center gap-2">
+                    <h1 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {trackInfo.songTitle || project?.title || 'Untitled'}
+                    </h1>
+                    <Edit3 className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    {trackInfo.artistName || 'Unknown Artist'} • {trackInfo.discId || 'KT-01'}
+                  </p>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {project.custom_font_url && (
@@ -3724,7 +3814,7 @@ export default function PreviewEditPage() {
                                   marginBottom: '8px'
                                 }}
                               >
-                                {project?.song_title || 'Song Title'}
+                                {trackInfo.songTitle || project?.song_title || 'Song Title'}
                               </h2>
                               <p 
                                 style={{
@@ -3735,7 +3825,7 @@ export default function PreviewEditPage() {
                                   opacity: 0.9
                                 }}
                               >
-                                {project?.artist_name || 'Artist'}
+                                {trackInfo.artistName || project?.artist_name || 'Artist'}
                               </p>
                             </div>
                           )}
