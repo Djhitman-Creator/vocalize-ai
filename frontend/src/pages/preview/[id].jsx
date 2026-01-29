@@ -111,11 +111,11 @@ const DEFAULT_PREVIEW_HEIGHT = 300;
 // V11: TAB DEFINITIONS
 // ============================================================
 const TABS = [
-  { id: 'timing', label: 'Timing', icon: Clock, mobileLabel: 'ðŸŽµ' },
-  { id: 'style', label: 'Style', icon: Type, mobileLabel: 'ðŸŽ¨' },
-  { id: 'background', label: 'Background', icon: Image, mobileLabel: 'ðŸ–¼ï¸Â' },
-  { id: 'layout', label: 'Layout', icon: Grid3X3, mobileLabel: 'ðŸ“' },
-  { id: 'export', label: 'Export', icon: Download, mobileLabel: 'ðŸ“¤' },
+  { id: 'timing', label: 'Timing', icon: Clock },
+  { id: 'style', label: 'Style', icon: Type },
+  { id: 'background', label: 'Background', icon: Image },
+  { id: 'layout', label: 'Layout', icon: Grid3X3 },
+  { id: 'export', label: 'Export', icon: Download },
 ];
 
 // V11: Font options for Style tab - Custom Font at TOP, then alphabetical Google Fonts
@@ -4285,7 +4285,7 @@ export default function PreviewEditPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all whitespace-nowrap
+                    className={`flex items-center justify-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-medium transition-all whitespace-nowrap min-w-0
                       ${activeTab === tab.id 
                         ? `border-b-2 border-cyan-500 ${isDark ? 'text-cyan-400 bg-white/5' : 'text-cyan-600 bg-cyan-50'}` 
                         : isDark 
@@ -4293,19 +4293,18 @@ export default function PreviewEditPage() {
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                   >
-                    <tab.icon className="w-4 h-4" />
+                    <tab.icon className="w-4 h-4 flex-shrink-0" />
                     <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.mobileLabel}</span>
                   </button>
                 ))}
               </div>
               
-              {/* Undo/Redo Buttons */}
-              <div className={`flex items-center gap-1 px-2 border-l ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+              {/* Undo/Redo Buttons - more compact on mobile */}
+              <div className={`flex items-center gap-0.5 sm:gap-1 px-1 sm:px-2 border-l ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
                 {/* V12: Presets Button */}
                 <button
                   onClick={() => setPresetModalOpen(true)}
-                  className={`p-2 rounded-lg transition-all ${
+                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${
                     isDark 
                       ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10' 
                       : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
@@ -4314,11 +4313,11 @@ export default function PreviewEditPage() {
                 >
                   <Bookmark className="w-4 h-4" />
                 </button>
-                <div className={`w-px h-4 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
+                <div className={`hidden sm:block w-px h-4 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
                 <button
                   onClick={handleUndo}
                   disabled={wordsHistoryIndex <= 0}
-                  className={`p-2 rounded-lg transition-all ${
+                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${
                     wordsHistoryIndex > 0
                       ? isDark 
                         ? 'text-gray-300 hover:text-white hover:bg-white/10' 
@@ -4332,7 +4331,7 @@ export default function PreviewEditPage() {
                 <button
                   onClick={handleRedo}
                   disabled={wordsHistoryIndex >= wordsHistory.length - 1}
-                  className={`p-2 rounded-lg transition-all ${
+                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${
                     wordsHistoryIndex < wordsHistory.length - 1
                       ? isDark 
                         ? 'text-gray-300 hover:text-white hover:bg-white/10' 
@@ -4354,10 +4353,13 @@ export default function PreviewEditPage() {
                   {/* LINE & WORD EDITOR - Collapsible */}
                   <div className={`${isDark ? 'border-b border-white/10' : 'border-b border-gray-200'}`}>
                     <div onClick={() => setLineEditorExpanded(!lineEditorExpanded)} className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}>
-                      <div className="flex items-center gap-2">
-                        {lineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-                        <SplitSquareHorizontal className="w-4 h-4 text-cyan-400" />
-                        <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Line & Word Editor (Rhyme Sync)</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        {lineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                        <SplitSquareHorizontal className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                        <span className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          <span className="hidden sm:inline">Line & Word Editor (Rhyme Sync)</span>
+                          <span className="sm:hidden">Line Editor</span>
+                        </span>
                       </div>
                       <span className="text-xs text-gray-500">{lyricsLines.length} lines | {words.length} words</span>
                     </div>
@@ -4591,11 +4593,13 @@ export default function PreviewEditPage() {
               onClick={() => setTimelineEditorExpanded(!timelineEditorExpanded)}
               className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
             >
-              <div className="flex items-center gap-2">
-                {timelineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-                <Music2 className="w-4 h-4 text-cyan-400" />
-
-                <span className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Timeline Editor</span>
+              <div className="flex items-center gap-2 min-w-0">
+                {timelineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                <Music2 className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                <span className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  <span className="hidden sm:inline">Timeline Editor</span>
+                  <span className="sm:hidden">Timeline</span>
+                </span>
               </div>
               <button
                 onClick={(e) => {
@@ -4604,9 +4608,10 @@ export default function PreviewEditPage() {
                   setHasChanges(true);
                   if (!isDuetMode && !timelineEditorExpanded) setTimelineEditorExpanded(true);
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isDuetMode ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0 ${isDuetMode ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}
               >
-                {isDuetMode ? 'Duet Mode On' : 'Duet Mode Off'}
+                <span className="hidden sm:inline">{isDuetMode ? 'Duet Mode On' : 'Duet Mode Off'}</span>
+                <span className="sm:hidden">{isDuetMode ? 'Duet On' : 'Duet Off'}</span>
               </button>
             </div>
 
