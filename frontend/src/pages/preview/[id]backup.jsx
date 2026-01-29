@@ -911,10 +911,7 @@ export default function PreviewEditPage() {
   const [layoutSettings, setLayoutSettings] = useState({
     displayMode: 'scroll', // 'scroll', 'page', 'overwrite'
     aspectRatio: '16:9', // '16:9', '4:3', '9:16'
-    linesPerPage: 4, // For page mode: 4-8
-    linesPerScroll: 4, // For scroll mode: 3-6
-    linesPerOverwrite: 4, // For overwrite mode: 4-8
-    emphasizeCurrentLine: false, // Make current line larger
+    linesPerPage: 4, // 2-6, only for page mode
     showProgressBar: true, // Show progress bar during instrumental breaks
     showCountdown: true, // Show countdown dots before lyrics start
     showLeadInBars: true, // Show lead-in sweep bars before each line
@@ -1560,9 +1557,6 @@ export default function PreviewEditPage() {
           displayMode: projectData.display_mode || 'scroll',
           aspectRatio: projectData.aspect_ratio || '16:9',
           linesPerPage: projectData.lines_per_page || 4,
-          linesPerScroll: projectData.lines_per_scroll || 4,
-          linesPerOverwrite: projectData.lines_per_overwrite || 4,
-          emphasizeCurrentLine: projectData.emphasize_current_line || false,
           showProgressBar: projectData.show_progress_bar !== false, // default true
           showCountdown: projectData.show_countdown !== false, // default true
           showLeadInBars: projectData.show_lead_in_bars !== false, // default true
@@ -2334,9 +2328,6 @@ export default function PreviewEditPage() {
           display_mode: layoutSettings.displayMode,
           aspect_ratio: layoutSettings.aspectRatio,
           lines_per_page: layoutSettings.linesPerPage,
-          lines_per_scroll: layoutSettings.linesPerScroll,
-          lines_per_overwrite: layoutSettings.linesPerOverwrite,
-          emphasize_current_line: layoutSettings.emphasizeCurrentLine,
           show_progress_bar: layoutSettings.showProgressBar,
           show_countdown: layoutSettings.showCountdown,
           show_lead_in_bars: layoutSettings.showLeadInBars,
@@ -2665,12 +2656,6 @@ export default function PreviewEditPage() {
     const nextLine = lyricsLines[currentLineIdx + 1];
     const nextText = nextLine ? nextLine.map(w => w.word).join(' ') : '';
 
-    // Build upcomingLines array for scroll mode (multiple upcoming lines)
-    const upcomingLines = [];
-    for (let i = currentLineIdx + 1; i < Math.min(currentLineIdx + 6, lyricsLines.length); i++) {
-      upcomingLines.push(lyricsLines[i].map(w => w.word).join(' '));
-    }
-
     // Build pageLines for page mode (4 lines per page)
     const currentPageIdx = Math.floor(currentLineIdx / LINES_PER_PAGE);
     const pageStartIdx = currentPageIdx * LINES_PER_PAGE;
@@ -2714,7 +2699,6 @@ export default function PreviewEditPage() {
       prevLine: prevText,
       currentLine: currentLineText, 
       next: nextText,
-      upcomingLines,
       pageLines,
       currentLineIdx,
       showSweepIn: false, sweepInProgress: 0,
@@ -3182,16 +3166,35 @@ export default function PreviewEditPage() {
                           ))}
                         </div>
                       ) : (
-                        /* SCROLL MODE (default) - Current line at top, scrolls up */
-                        <div className="flex flex-col items-center justify-start w-full h-full" style={{ gap: `${lineGap}px`, paddingTop: `${lineGap * 2}px` }}>
-                          {/* Current Line - at top with sweep highlighting */}
+                        /* SCROLL MODE (default) - 3 lines: previous, current, next */
+                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
+                          {/* Previous Line - fully highlighted (sung) */}
+                          {currentLyrics.prevLine && (
+                            <p 
+                              className="font-bold text-center w-full"
+                              style={{ 
+                                fontFamily: previewFontFamily,
+                                fontSize: `${baseFontSize}px`,
+                                color: sungColor,
+                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                                opacity: 0.7,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {currentLyrics.prevLine}
+                            </p>
+                          )}
+                          
+                          {/* Current Line - with sweep highlighting */}
                           {currentLyrics.currentLine ? (
                             <div className="text-center w-full">
                               <p 
                                 className="font-bold relative inline-flex flex-wrap justify-center items-baseline" 
                                 style={{ 
                                   fontFamily: previewFontFamily,
-                                  fontSize: layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
+                                  fontSize: `${currentLineFontSize}px`,
                                   gap: `${wordSpacing}px`
                                 }}
                               >
@@ -3214,28 +3217,8 @@ export default function PreviewEditPage() {
                             </div>
                           ) : null}
                           
-                          {/* Upcoming Lines - show based on linesPerScroll setting */}
-                          {currentLyrics.upcomingLines && currentLyrics.upcomingLines.slice(0, (layoutSettings.linesPerScroll || 4) - 1).map((line, idx) => (
-                            <p 
-                              key={idx}
-                              className="font-bold text-center w-full"
-                              style={{ 
-                                fontFamily: previewFontFamily,
-                                fontSize: `${baseFontSize}px`,
-                                color: textColor,
-                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
-                                opacity: 0.6 - (idx * 0.1), // Gradually fade upcoming lines
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}
-                            >
-                              {line}
-                            </p>
-                          ))}
-                          
-                          {/* Fallback to old next line if upcomingLines not available */}
-                          {!currentLyrics.upcomingLines && currentLyrics.next && (
+                          {/* Next Line - upcoming (dimmed) */}
+                          {currentLyrics.next && (
                             <p 
                               className="font-bold text-center w-full"
                               style={{ 
@@ -5044,30 +5027,14 @@ export default function PreviewEditPage() {
                     </div>
                   </div>
 
-                  {/* Lines on Screen - Shows for each mode with appropriate options */}
-                  <div>
-                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Lines on Screen
-                    </label>
-                    <div className="flex gap-2">
-                      {layoutSettings.displayMode === 'scroll' ? (
-                        // Scroll mode: 3-6 lines
-                        [3, 4, 5, 6].map(num => (
-                          <button
-                            key={num}
-                            onClick={() => updateLayoutSettings({ linesPerScroll: num })}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                              layoutSettings.linesPerScroll === num
-                                ? 'bg-cyan-500 text-white'
-                                : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            {num}
-                          </button>
-                        ))
-                      ) : layoutSettings.displayMode === 'page' ? (
-                        // Page mode: 4-8 lines
-                        [4, 5, 6, 7, 8].map(num => (
+                  {/* Lines Per Page - Only show for Page mode */}
+                  {layoutSettings.displayMode === 'page' && (
+                    <div>
+                      <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        Lines Per Page
+                      </label>
+                      <div className="flex gap-2">
+                        {LINES_PER_PAGE_OPTIONS.map(num => (
                           <button
                             key={num}
                             onClick={() => updateLayoutSettings({ linesPerPage: num })}
@@ -5079,32 +5046,13 @@ export default function PreviewEditPage() {
                           >
                             {num}
                           </button>
-                        ))
-                      ) : (
-                        // Overwrite mode: 4-8 lines
-                        [4, 5, 6, 7, 8].map(num => (
-                          <button
-                            key={num}
-                            onClick={() => updateLayoutSettings({ linesPerOverwrite: num })}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                              layoutSettings.linesPerOverwrite === num
-                                ? 'bg-cyan-500 text-white'
-                                : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                          >
-                            {num}
-                          </button>
-                        ))
-                      )}
+                        ))}
+                      </div>
+                      <p className={`text-xs mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        Number of lyric lines visible at once
+                      </p>
                     </div>
-                    <p className={`text-xs mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                      {layoutSettings.displayMode === 'scroll' 
-                        ? 'Number of lyric lines visible while scrolling'
-                        : layoutSettings.displayMode === 'page'
-                        ? 'Number of lyric lines per page'
-                        : 'Number of lyric lines visible at once'}
-                    </p>
-                  </div>
+                  )}
 
                   {/* Aspect Ratio */}
                   <div>
@@ -5136,24 +5084,6 @@ export default function PreviewEditPage() {
                       Timing & Animations
                     </label>
                     <div className="space-y-3">
-                      {/* Emphasize Current Line Toggle */}
-                      <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                        <div className="flex-1">
-                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            Emphasize Current Line
-                          </p>
-                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Make the currently singing line larger than others
-                          </p>
-                        </div>
-                        <div 
-                          onClick={() => updateLayoutSettings({ emphasizeCurrentLine: !layoutSettings.emphasizeCurrentLine })}
-                          className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.emphasizeCurrentLine ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
-                        >
-                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${layoutSettings.emphasizeCurrentLine ? 'translate-x-7' : 'translate-x-1'}`} />
-                        </div>
-                      </label>
-
                       {/* Progress Bar Toggle */}
                       <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
                         <div className="flex-1">
