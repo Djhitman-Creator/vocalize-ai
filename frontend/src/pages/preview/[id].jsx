@@ -3084,7 +3084,7 @@ export default function PreviewEditPage() {
                           textColor={textColor}
                           outlineColor={outlineColor}
                         />
-                      ) : project.display_mode === 'overwrite' ? (
+                      ) : layoutSettings.displayMode === 'overwrite' ? (
                         /* OVERWRITE MODE - Single line at a time, centered */
                         <div className="flex flex-col items-center justify-center w-full">
                           {currentLyrics.currentLine ? (
@@ -3116,7 +3116,7 @@ export default function PreviewEditPage() {
                             </div>
                           ) : null}
                         </div>
-                      ) : project.display_mode === 'page' ? (
+                      ) : layoutSettings.displayMode === 'page' ? (
                         /* PAGE MODE - Show 4 lines per page, all visible at once */
                         <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
                           {currentLyrics.pageLines && currentLyrics.pageLines.map((lineData, lineIdx) => (
