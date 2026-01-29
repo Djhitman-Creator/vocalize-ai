@@ -3298,61 +3298,76 @@ export default function PreviewEditPage() {
                           ))}
                         </div>
                       ) : (
-                        /* SCROLL MODE (default) - Smooth scrolling animation */
+                        /* SCROLL MODE (default) - Lines scroll up smoothly */
                         (() => {
                           const numLines = layoutSettings.linesPerScroll || 4;
-                          const lineHeight = layoutSettings.emphasizeCurrentLine ? currentLineFontSize * 1.8 : baseFontSize * 1.8;
+                          const lineHeight = layoutSettings.emphasizeCurrentLine ? currentLineFontSize * 2.2 : baseFontSize * 2.2;
                           const totalHeight = numLines * lineHeight;
+                          const currentIdx = currentLyrics.currentLineIdx ?? -1;
                           
-                          // Build array of all lines to display (current + upcoming)
-                          const allScrollLines = [];
+                          // Build array of lines to show: current line + next (numLines-1) lines
+                          // Use the actual line indices for stable keys
+                          const linesToShow = [];
                           
-                          // Add current line
-                          if (currentLyrics.currentLine) {
-                            allScrollLines.push({
-                              type: 'current',
+                          if (currentIdx >= 0 && lyricsLines[currentIdx]) {
+                            // Current line
+                            linesToShow.push({
+                              lineIdx: currentIdx,
+                              position: 0,
+                              isCurrent: true,
                               words: currentLyrics.currentLine,
-                              text: currentLyrics.currentLine.map(w => w.word).join(' ')
                             });
-                          }
-                          
-                          // Add upcoming lines
-                          if (currentLyrics.upcomingLines) {
-                            currentLyrics.upcomingLines.slice(0, numLines - 1).forEach((line, idx) => {
-                              allScrollLines.push({
-                                type: 'upcoming',
-                                text: line,
-                                index: idx
+                            
+                            // Upcoming lines
+                            for (let i = 1; i < numLines; i++) {
+                              const nextIdx = currentIdx + i;
+                              if (nextIdx < lyricsLines.length) {
+                                linesToShow.push({
+                                  lineIdx: nextIdx,
+                                  position: i,
+                                  isCurrent: false,
+                                  text: lyricsLines[nextIdx].map(w => w.word).join(' '),
+                                });
+                              }
+                            }
+                          } else if (currentLyrics.upcomingLines && currentLyrics.upcomingLines.length > 0) {
+                            // No current line but have upcoming - show them
+                            currentLyrics.upcomingLines.slice(0, numLines).forEach((text, i) => {
+                              linesToShow.push({
+                                lineIdx: `upcoming-${i}`,
+                                position: i,
+                                isCurrent: false,
+                                text: text,
                               });
-                            });
-                          } else if (currentLyrics.next) {
-                            allScrollLines.push({
-                              type: 'upcoming',
-                              text: currentLyrics.next,
-                              index: 0
                             });
                           }
                           
                           return (
                             <div 
-                              className="relative w-full overflow-hidden"
-                              style={{ height: `${totalHeight}px` }}
+                              className="relative w-full"
+                              style={{ 
+                                height: `${totalHeight}px`,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: 'flex-start',
+                                gap: `${lineGap}px`,
+                                paddingTop: `${lineGap}px`
+                              }}
                             >
-                              {allScrollLines.map((lineData, idx) => {
-                                const yPosition = idx * lineHeight;
-                                const isCurrent = lineData.type === 'current';
-                                const upcomingIdx = lineData.index || 0;
+                              {linesToShow.map((lineData) => {
+                                const isCurrent = lineData.isCurrent;
+                                const opacityValue = isCurrent ? 1 : Math.max(0.35, 0.65 - (lineData.position * 0.1));
                                 
                                 return (
                                   <div
-                                    key={`scroll-line-${idx}`}
-                                    className="absolute left-0 right-0 text-center transition-all duration-300 ease-out"
+                                    key={`line-${lineData.lineIdx}`}
+                                    className="text-center w-full"
                                     style={{
-                                      transform: `translateY(${yPosition}px)`,
-                                      opacity: isCurrent ? 1 : Math.max(0.3, 0.7 - (upcomingIdx * 0.15)),
+                                      opacity: opacityValue,
+                                      willChange: 'opacity',
                                     }}
                                   >
-                                    {isCurrent ? (
+                                    {isCurrent && lineData.words ? (
                                       <p 
                                         className="font-bold relative inline-flex flex-wrap justify-center items-baseline" 
                                         style={{ 
