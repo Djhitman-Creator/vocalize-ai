@@ -70,6 +70,29 @@ const PRESET_BASE_URL = process.env.NEXT_PUBLIC_PRESET_VIDEOS_URL || 'https://pu
 // Line length settings
 const MAX_WORDS_PER_LINE = 10;
 
+// Dynamic character limits per line based on aspect ratio and font size
+// These values were measured from the preview at each setting
+const MAX_CHARS_PER_LINE = {
+  '16:9': {
+    'small': 55,
+    'normal': 55,
+    'large': 53,
+    'extra-large': 49
+  },
+  '4:3': {
+    'small': 45,
+    'normal': 40,
+    'large': 36,
+    'extra-large': 34
+  },
+  '9:16': {
+    'small': 23,
+    'normal': 21,
+    'large': 19,
+    'extra-large': 17
+  }
+};
+
 // Sweep highlighting constants - TIERED SYSTEM
 const SWEEP_IN_LONG_DURATION = 2.0;    // 2 seconds for gaps >= 2s
 const SWEEP_IN_LONG_MIN_GAP = 2.0;     // Minimum gap for long sweep
@@ -437,10 +460,13 @@ const VolumeSlider = ({ value, onChange, label, icon: Icon, color, muted, onMute
 // ============================================================
 // LINE LENGTH WARNING COMPONENT
 // ============================================================
-const LineLengthWarning = ({ lineIndex, wordCount, charCount }) => (
-  <div className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded" title={`Line ${lineIndex + 1} may be too long. Consider splitting it.`}>
+const LineLengthWarning = ({ lineIndex, charCount, maxChars }) => (
+  <div 
+    className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded" 
+    title={`Line ${lineIndex + 1} has ${charCount} characters (max ${maxChars}). Consider splitting it.`}
+  >
     <AlertTriangle className="w-3 h-3" />
-    <span>Too long - split this line</span>
+    <span>Too long ({charCount}/{maxChars}) - split this line</span>
   </div>
 );
 
@@ -1529,10 +1555,16 @@ export default function PreviewEditPage() {
   // ============================================================
   const isLineTooLong = useCallback((line) => {
     if (!line || line.length === 0) return false;
-    if (line.length > MAX_WORDS_PER_LINE) return true;
-    const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0);
-    return charCount > 50;
-  }, []);
+    
+    // Get dynamic character limit based on aspect ratio and font size
+    const aspectRatio = layoutSettings.aspectRatio || '16:9';
+    const fontSize = styleSettings.fontSize || 'normal';
+    const maxChars = MAX_CHARS_PER_LINE[aspectRatio]?.[fontSize] || 50;
+    
+    // Check character count
+    const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0) - 1; // -1 to not count trailing space
+    return charCount > maxChars;
+  }, [layoutSettings.aspectRatio, styleSettings.fontSize]);
 
   // ============================================================
   // LINE BREAK FUNCTIONS - ORIGINAL WORKING LOGIC
@@ -4162,7 +4194,13 @@ export default function PreviewEditPage() {
                                     <ArrowUp className="w-3 h-3" />Split Up
                                   </button>
                                 )}
-                                {lineTooLong && <LineLengthWarning lineIndex={lineIndex} wordCount={line.length} charCount={charCount} />}
+                                {lineTooLong && (
+                                  <LineLengthWarning 
+                                    lineIndex={lineIndex} 
+                                    charCount={charCount - 1} 
+                                    maxChars={MAX_CHARS_PER_LINE[layoutSettings.aspectRatio || '16:9']?.[styleSettings.fontSize || 'normal'] || 50} 
+                                  />
+                                )}
                                 
                                 {/* Duet Mode Line Assignment - only show when duet mode is enabled */}
                                 {isDuetMode && (
