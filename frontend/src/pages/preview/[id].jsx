@@ -3398,15 +3398,28 @@ export default function PreviewEditPage() {
                     >
                       {currentLyrics.showProgressBar && layoutSettings.displayMode !== 'scroll' ? (
                         /* PROGRESS BAR - Shows during instrumental breaks (only for page/overwrite modes) */
-                        /* Only shows the progress bar with the next line - no duplicate lines below */
-                        <div className="flex flex-col items-center justify-center w-full">
+                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
                           <InstrumentalProgressBar
                             progress={currentLyrics.progressBarPercent}
-                            nextLyrics={currentLyrics.nextLyricsForProgressBar}
+                            nextLyrics=""
                             color={sungColor}
                             textColor={textColor}
                             outlineColor={outlineColor}
                           />
+                          {/* Show the next line to sing below the progress bar */}
+                          {currentLyrics.nextLyricsForProgressBar && (
+                            <p 
+                              className="font-bold text-center w-full"
+                              style={{ 
+                                fontFamily: previewFontFamily,
+                                fontSize: `${baseFontSize}px`,
+                                color: textColor,
+                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                              }}
+                            >
+                              {currentLyrics.nextLyricsForProgressBar}
+                            </p>
+                          )}
                         </div>
                       ) : layoutSettings.displayMode === 'overwrite' ? (
                         /* OVERWRITE MODE - Sliding window of lines, current line at top */
