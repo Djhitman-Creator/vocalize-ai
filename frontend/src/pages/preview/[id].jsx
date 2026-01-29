@@ -2533,11 +2533,38 @@ export default function PreviewEditPage() {
               isActive: false, isPast: false, sweepPercent: 0
             }));
             const prevLineText = i > 0 ? lyricsLines[i - 1].map(w => w.word).join(' ') : '';
+            
+            // Build upcomingLines
+            const upcomingLines = [];
+            for (let j = i + 1; j < Math.min(i + 7, lyricsLines.length); j++) {
+              upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
+            }
+            
+            // Build pageLines for page/overwrite mode
+            const currentPageIdx = Math.floor(i / LINES_PER_PAGE);
+            const pageStartIdx = currentPageIdx * LINES_PER_PAGE;
+            const pageEndIdx = Math.min(pageStartIdx + LINES_PER_PAGE, lyricsLines.length);
+            const pageLines = [];
+            for (let pi = pageStartIdx; pi < pageEndIdx; pi++) {
+              const pageLine = lyricsLines[pi];
+              pageLines.push({
+                words: pageLine.map(w => ({
+                  word: w.word, index: w.globalIndex, start: w.start, end: w.end,
+                  isActive: false, isPast: pi < i, sweepPercent: pi < i ? 1 : 0, fadeInProgress: pi < i ? 1 : 0
+                })),
+                isCurrentLine: pi === i,
+                isPastLine: pi < i,
+                lineText: pageLine.map(w => w.word).join(' ')
+              });
+            }
 
             return {
               prevLine: prevLineText,
               currentLine: currentLineText,
               next: lyricsLines[i + 1] ? lyricsLines[i + 1].map(w => w.word).join(' ') : '',
+              upcomingLines,
+              pageLines,
+              currentLineIdx: i,
               showSweepIn: true,
               sweepInProgress: sweepProgress,
               showProgressBar: false,
@@ -2553,10 +2580,18 @@ export default function PreviewEditPage() {
             const timeIntoProgressBar = gapDuration - timeUntilLine;
             const progressPercent = Math.min(1, Math.max(0, timeIntoProgressBar / progressBarDuration));
             const prevLineText = i > 0 ? lyricsLines[i - 1].map(w => w.word).join(' ') : '';
+            
+            // Build upcomingLines for display below progress bar
+            const upcomingLines = [];
+            for (let j = i; j < Math.min(i + 6, lyricsLines.length); j++) {
+              upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
+            }
 
             return {
               prevLine: prevLineText,
               currentLine: null, next: '',
+              upcomingLines,
+              pageLines: [], // Empty during progress bar
               showSweepIn: false, sweepInProgress: 0,
               showProgressBar: true,
               progressBarPercent: progressPercent,
@@ -2574,10 +2609,39 @@ export default function PreviewEditPage() {
                 isActive: false, isPast: true, sweepPercent: 1
               }));
               const prevPrevLineText = i > 1 ? lyricsLines[i - 2].map(w => w.word).join(' ') : '';
+              
+              // Build upcomingLines
+              const upcomingLines = [];
+              for (let j = i; j < Math.min(i + 6, lyricsLines.length); j++) {
+                upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
+              }
+              
+              // Build pageLines - use previous line's page
+              const prevLineIdx = i - 1;
+              const currentPageIdx = Math.floor(prevLineIdx / LINES_PER_PAGE);
+              const pageStartIdx = currentPageIdx * LINES_PER_PAGE;
+              const pageEndIdx = Math.min(pageStartIdx + LINES_PER_PAGE, lyricsLines.length);
+              const pageLines = [];
+              for (let pi = pageStartIdx; pi < pageEndIdx; pi++) {
+                const pageLine = lyricsLines[pi];
+                pageLines.push({
+                  words: pageLine.map(w => ({
+                    word: w.word, index: w.globalIndex, start: w.start, end: w.end,
+                    isActive: false, isPast: pi <= prevLineIdx, sweepPercent: pi <= prevLineIdx ? 1 : 0, fadeInProgress: pi <= prevLineIdx ? 1 : 0
+                  })),
+                  isCurrentLine: pi === prevLineIdx,
+                  isPastLine: pi < prevLineIdx,
+                  lineText: pageLine.map(w => w.word).join(' ')
+                });
+              }
+              
               return {
                 prevLine: prevPrevLineText,
                 currentLine: currentLineText,
                 next: line.map(w => w.word).join(' '),
+                upcomingLines,
+                pageLines,
+                currentLineIdx: prevLineIdx,
                 showSweepIn: false, sweepInProgress: 0,
                 showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
               };
@@ -2590,14 +2654,26 @@ export default function PreviewEditPage() {
             return {
               prevLine: '',
               currentLine: null, next: '',
+              upcomingLines: [],
+              pageLines: [],
+              currentLineIdx: -1,
               showSweepIn: false, sweepInProgress: 0,
               showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
             };
+          }
+          
+          // Build upcomingLines for gap before first visible lyrics
+          const upcomingLines = [];
+          for (let j = i; j < Math.min(i + 6, lyricsLines.length); j++) {
+            upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
           }
 
           return {
             prevLine: i > 0 ? lyricsLines[i - 1].map(w => w.word).join(' ') : '',
             currentLine: null, next: line.map(w => w.word).join(' '),
+            upcomingLines,
+            pageLines: [],
+            currentLineIdx: -1,
             showSweepIn: false, sweepInProgress: 0,
             showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
           };
@@ -2615,14 +2691,37 @@ export default function PreviewEditPage() {
           const lastLine = lyricsLines[lyricsLines.length - 1];
           const lastWordEnd = lastLine[lastLine.length - 1].end;
           if (currentTime - lastWordEnd <= 2) {
+            const lastLineIdx = lyricsLines.length - 1;
             const currentLineText = lastLine.map(w => ({
               word: w.word, index: w.globalIndex, start: w.start, end: w.end,
               isActive: false, isPast: true, sweepPercent: 1
             }));
             const prevLineText = lyricsLines.length > 1 ? lyricsLines[lyricsLines.length - 2].map(w => w.word).join(' ') : '';
+            
+            // Build pageLines for last page
+            const currentPageIdx = Math.floor(lastLineIdx / LINES_PER_PAGE);
+            const pageStartIdx = currentPageIdx * LINES_PER_PAGE;
+            const pageEndIdx = Math.min(pageStartIdx + LINES_PER_PAGE, lyricsLines.length);
+            const pageLines = [];
+            for (let pi = pageStartIdx; pi < pageEndIdx; pi++) {
+              const pageLine = lyricsLines[pi];
+              pageLines.push({
+                words: pageLine.map(w => ({
+                  word: w.word, index: w.globalIndex, start: w.start, end: w.end,
+                  isActive: false, isPast: true, sweepPercent: 1, fadeInProgress: 1
+                })),
+                isCurrentLine: pi === lastLineIdx,
+                isPastLine: pi < lastLineIdx,
+                lineText: pageLine.map(w => w.word).join(' ')
+              });
+            }
+            
             return {
               prevLine: prevLineText,
               currentLine: currentLineText, next: '',
+              upcomingLines: [],
+              pageLines,
+              currentLineIdx: lastLineIdx,
               showSweepIn: false, sweepInProgress: 0,
               showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
             };
@@ -2631,6 +2730,9 @@ export default function PreviewEditPage() {
         return {
           prevLine: '',
           currentLine: null, next: '',
+          upcomingLines: [],
+          pageLines: [],
+          currentLineIdx: -1,
           showSweepIn: false, sweepInProgress: 0,
           showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
         };
@@ -3093,72 +3195,54 @@ export default function PreviewEditPage() {
                       }}
                     >
                       {currentLyrics.showProgressBar ? (
-                        <InstrumentalProgressBar
-                          progress={currentLyrics.progressBarPercent}
-                          nextLyrics={currentLyrics.nextLyricsForProgressBar}
-                          color={sungColor}
-                          textColor={textColor}
-                          outlineColor={outlineColor}
-                        />
-                      ) : layoutSettings.displayMode === 'overwrite' ? (
-                        /* OVERWRITE MODE - Single line at a time, centered */
-                        <div className="flex flex-col items-center justify-center w-full">
-                          {currentLyrics.currentLine ? (
-                            <div className="text-center w-full">
-                              <p 
-                                className="font-bold relative inline-flex flex-wrap justify-center items-baseline" 
-                                style={{ 
-                                  fontFamily: previewFontFamily,
-                                  fontSize: `${currentLineFontSize}px`,
-                                  gap: `${wordSpacing}px`
-                                }}
-                              >
-                                {currentLyrics.currentLine.map((wordData, i) => {
-                                  const highlightColor = getHighlightColor(wordData.index);
-                                  // First word: wrap in relative span for absolute sweep-in bar
-                                  if (i === 0 && currentLyrics.showSweepIn) {
-                                    return (
-                                      <span key={i} style={{ position: 'relative' }}>
-                                        <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
-                                        <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                      </span>
-                                    );
-                                  }
-                                  return (
-                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                  );
-                                })}
-                              </p>
-                            </div>
-                          ) : null}
+                        /* PROGRESS BAR - Shows during instrumental breaks */
+                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap * 2}px` }}>
+                          <InstrumentalProgressBar
+                            progress={currentLyrics.progressBarPercent}
+                            nextLyrics={currentLyrics.nextLyricsForProgressBar}
+                            color={sungColor}
+                            textColor={textColor}
+                            outlineColor={outlineColor}
+                          />
+                          {/* Show upcoming lines below progress bar */}
+                          {currentLyrics.upcomingLines && currentLyrics.upcomingLines.slice(0, Math.min(3, (layoutSettings.linesPerScroll || 4) - 1)).map((line, idx) => (
+                            <p 
+                              key={idx}
+                              className="font-bold text-center w-full"
+                              style={{ 
+                                fontFamily: previewFontFamily,
+                                fontSize: `${baseFontSize}px`,
+                                color: textColor,
+                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                                opacity: 0.5 - (idx * 0.1),
+                              }}
+                            >
+                              {line}
+                            </p>
+                          ))}
                         </div>
-                      ) : layoutSettings.displayMode === 'page' ? (
-                        /* PAGE MODE - Show 4 lines per page, all visible at once */
+                      ) : layoutSettings.displayMode === 'overwrite' ? (
+                        /* OVERWRITE MODE - Show multiple lines, highlight current */
                         <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
-                          {currentLyrics.pageLines && currentLyrics.pageLines.map((lineData, lineIdx) => (
+                          {currentLyrics.pageLines && currentLyrics.pageLines.slice(0, layoutSettings.linesPerOverwrite || 4).map((lineData, lineIdx) => (
                             <div key={lineIdx} className="text-center w-full">
                               <p 
                                 className="font-bold relative inline-flex flex-wrap justify-center items-baseline"
                                 style={{ 
                                   fontFamily: previewFontFamily,
-                                  fontSize: `${baseFontSize}px`,
+                                  fontSize: lineData.isCurrentLine && layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
                                   gap: `${wordSpacing}px`,
-                                  opacity: lineData.isCurrentLine ? 1 : lineData.isPastLine ? 0.8 : 0.6
+                                  opacity: lineData.isCurrentLine ? 1 : lineData.isPastLine ? 0.7 : 0.5
                                 }}
                               >
                                 {lineData.words.map((wordData, wordIdx) => {
                                   const highlightColor = getHighlightColor(wordData.index);
-                                  const shadowStyle = `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, ${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`;
+                                  const shadowStyle = `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`;
                                   
                                   if (lineData.isPastLine) {
-                                    return (
-                                      <span key={wordIdx} style={{ color: sungColor, textShadow: shadowStyle }}>
-                                        {wordData.word}
-                                      </span>
-                                    );
+                                    return <span key={wordIdx} style={{ color: sungColor, textShadow: shadowStyle }}>{wordData.word}</span>;
                                   }
                                   if (lineData.isCurrentLine) {
-                                    // First word: wrap in relative span for absolute sweep-in bar
                                     if (wordIdx === 0 && currentLyrics.showSweepIn) {
                                       return (
                                         <span key={wordIdx} style={{ position: 'relative' }}>
@@ -3167,24 +3251,56 @@ export default function PreviewEditPage() {
                                         </span>
                                       );
                                     }
-                                    return (
-                                      <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                    );
+                                    return <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
                                   }
-                                  return (
-                                    <span key={wordIdx} style={{ color: textColor, textShadow: shadowStyle }}>
-                                      {wordData.word}
-                                    </span>
-                                  );
+                                  return <span key={wordIdx} style={{ color: textColor, textShadow: shadowStyle }}>{wordData.word}</span>;
+                                })}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : layoutSettings.displayMode === 'page' ? (
+                        /* PAGE MODE - Show all lines on page, highlight from top to bottom */
+                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
+                          {currentLyrics.pageLines && currentLyrics.pageLines.slice(0, layoutSettings.linesPerPage || 4).map((lineData, lineIdx) => (
+                            <div key={lineIdx} className="text-center w-full">
+                              <p 
+                                className="font-bold relative inline-flex flex-wrap justify-center items-baseline"
+                                style={{ 
+                                  fontFamily: previewFontFamily,
+                                  fontSize: lineData.isCurrentLine && layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
+                                  gap: `${wordSpacing}px`,
+                                  opacity: lineData.isCurrentLine ? 1 : lineData.isPastLine ? 0.8 : 0.6
+                                }}
+                              >
+                                {lineData.words.map((wordData, wordIdx) => {
+                                  const highlightColor = getHighlightColor(wordData.index);
+                                  const shadowStyle = `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`;
+                                  
+                                  if (lineData.isPastLine) {
+                                    return <span key={wordIdx} style={{ color: sungColor, textShadow: shadowStyle }}>{wordData.word}</span>;
+                                  }
+                                  if (lineData.isCurrentLine) {
+                                    if (wordIdx === 0 && currentLyrics.showSweepIn) {
+                                      return (
+                                        <span key={wordIdx} style={{ position: 'relative' }}>
+                                          <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                          <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                        </span>
+                                      );
+                                    }
+                                    return <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
+                                  }
+                                  return <span key={wordIdx} style={{ color: textColor, textShadow: shadowStyle }}>{wordData.word}</span>;
                                 })}
                               </p>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        /* SCROLL MODE (default) - Current line at top, scrolls up */
-                        <div className="flex flex-col items-center justify-start w-full h-full" style={{ gap: `${lineGap}px`, paddingTop: `${lineGap * 2}px` }}>
-                          {/* Current Line - at top with sweep highlighting */}
+                        /* SCROLL MODE (default) - Lines centered, smooth visual flow */
+                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
+                          {/* Current Line - with sweep highlighting */}
                           {currentLyrics.currentLine ? (
                             <div className="text-center w-full">
                               <p 
@@ -3197,7 +3313,6 @@ export default function PreviewEditPage() {
                               >
                                 {currentLyrics.currentLine.map((wordData, i) => {
                                   const highlightColor = getHighlightColor(wordData.index);
-                                  // First word: wrap in relative span for absolute sweep-in bar
                                   if (i === 0 && currentLyrics.showSweepIn) {
                                     return (
                                       <span key={i} style={{ position: 'relative' }}>
@@ -3206,15 +3321,13 @@ export default function PreviewEditPage() {
                                       </span>
                                     );
                                   }
-                                  return (
-                                    <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                  );
+                                  return <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
                                 })}
                               </p>
                             </div>
                           ) : null}
                           
-                          {/* Upcoming Lines - show based on linesPerScroll setting */}
+                          {/* Upcoming Lines - always show based on linesPerScroll setting */}
                           {currentLyrics.upcomingLines && currentLyrics.upcomingLines.slice(0, (layoutSettings.linesPerScroll || 4) - 1).map((line, idx) => (
                             <p 
                               key={idx}
@@ -3224,18 +3337,15 @@ export default function PreviewEditPage() {
                                 fontSize: `${baseFontSize}px`,
                                 color: textColor,
                                 textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
-                                opacity: 0.6 - (idx * 0.1), // Gradually fade upcoming lines
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
+                                opacity: 0.6 - (idx * 0.1),
                               }}
                             >
                               {line}
                             </p>
                           ))}
                           
-                          {/* Fallback to old next line if upcomingLines not available */}
-                          {!currentLyrics.upcomingLines && currentLyrics.next && (
+                          {/* Fallback to next line if upcomingLines empty but next exists */}
+                          {(!currentLyrics.upcomingLines || currentLyrics.upcomingLines.length === 0) && currentLyrics.next && (
                             <p 
                               className="font-bold text-center w-full"
                               style={{ 
@@ -3244,9 +3354,6 @@ export default function PreviewEditPage() {
                                 color: textColor,
                                 textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
                                 opacity: 0.5,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
                               }}
                             >
                               {currentLyrics.next}
