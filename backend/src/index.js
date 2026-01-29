@@ -1479,6 +1479,76 @@ app.post('/api/upload-start-image', authMiddleware, upload.single('startImage'),
   }
 });
 
+// Upload custom font for a specific project
+app.post('/api/upload-font', authMiddleware, upload.single('font'), async (req, res) => {
+  try {
+    const projectId = req.body.projectId;
+    
+    if (!projectId) {
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No font file provided' });
+    }
+
+    // Validate font file type
+    const validExtensions = ['.ttf', '.otf', '.woff', '.woff2'];
+    const ext = req.file.originalname.toLowerCase().substring(req.file.originalname.lastIndexOf('.'));
+    if (!validExtensions.includes(ext)) {
+      return res.status(400).json({ error: 'Invalid font file type. Please upload a .ttf, .otf, .woff, or .woff2 file' });
+    }
+
+    // Determine content type
+    const contentTypes = {
+      '.ttf': 'font/ttf',
+      '.otf': 'font/otf',
+      '.woff': 'font/woff',
+      '.woff2': 'font/woff2'
+    };
+    const contentType = contentTypes[ext] || 'application/octet-stream';
+
+    // Upload font to R2
+    const fontKey = `fonts/${req.user.id}/${projectId}-font${ext}`;
+    const fontUrl = await uploadToR2(req.file.buffer, fontKey, contentType);
+    console.log(`Font uploaded for project ${projectId}: ${fontUrl}`);
+
+    // Save URL to project
+    const fontName = req.file.originalname.replace(/\.[^/.]+$/, '');
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ 
+        custom_font_url: fontUrl,
+        custom_font_name: fontName
+      })
+      .eq('id', projectId);
+
+    if (updateError) throw updateError;
+
+    res.json({ 
+      success: true, 
+      fontUrl: fontUrl,
+      fontName: fontName,
+      message: 'Font uploaded successfully' 
+    });
+  } catch (error) {
+    console.error('Font upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Retry a failed project
 app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
   try {
