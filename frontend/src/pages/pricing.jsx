@@ -7,286 +7,132 @@ import { motion } from 'framer-motion';
 import {
   Music,
   Check,
-  X,
   Zap,
   ArrowLeft,
   Sparkles,
-  Palette,
-  Edit3,
-  MessageCircle,
-  Mail,
-  Headphones,
-  Crown,
-  ChevronDown
+  Clock,
+  Download,
+  Gift,
+  CreditCard,
+  ChevronDown,
+  ChevronUp,
+  Video,
+  Star,
+  Fuel
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import SEO, { getOrganizationSchema } from '../components/SEO';
+import AppNavigation from '../components/AppNavigation';
+import { useTheme } from '../context/ThemeContext';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-// Updated plans with correct features from handover document
-const plans = [
+// Credit packs
+const creditPacks = [
   {
-    tier: 'free',
-    name: 'Free',
-    price: 0,
-    credits: 3,
-    description: 'Try it out',
-    highlights: [
-      { text: '3 credits/month', included: true },
-      { text: '480p video quality', included: true },
-      { text: 'Karatrack watermark', included: true, note: 'Logo + link' },
-      { text: 'Chat support', included: true },
-    ],
-    features: {
-      watermark: 'karatrack',
-      maxQuality: '480p',
-      editLyrics: false,
-      colorCustomization: false,
-      adjustLyricsStyle: false,
-      emailSupport: false,
-      prioritySupport: false,
-    },
-    popular: false,
-  },
-  {
-    tier: 'starter',
+    id: 'starter',
     name: 'Starter',
-    price: 9.99,
-    credits: 25,
-    description: 'For casual creators',
-    highlights: [
-      { text: '25 credits/month', included: true },
-      { text: '1080p video quality', included: true },
-      { text: 'No watermark', included: true },
-      { text: 'Color customization', included: true },
-      { text: 'Email support', included: true },
-    ],
-    features: {
-      watermark: 'none',
-      maxQuality: '1080p',
-      editLyrics: false,
-      colorCustomization: true,
-      adjustLyricsStyle: false,
-      emailSupport: true,
-      prioritySupport: false,
-    },
+    credits: 50,
+    price: 4.99,
+    perCredit: 0.10,
+    savings: null,
+    description: 'Perfect to try it out',
     popular: false,
+    color: 'cyan',
   },
   {
-    tier: 'pro',
+    id: 'standard',
+    name: 'Standard',
+    credits: 150,
+    price: 11.99,
+    perCredit: 0.08,
+    savings: '20%',
+    description: 'Great for casual creators',
+    popular: false,
+    color: 'cyan',
+  },
+  {
+    id: 'pro',
     name: 'Pro',
-    price: 24.99,
-    credits: 75,
-    description: 'For serious creators',
-    highlights: [
-      { text: '75 credits/month', included: true },
-      { text: '1080p video quality', included: true },
-      { text: 'No watermark', included: true },
-      { text: 'Edit lyrics before render', included: true },
-      { text: 'Email support', included: true },
-    ],
-    features: {
-      watermark: 'none',
-      maxQuality: '1080p',
-      editLyrics: true,
-      colorCustomization: true,
-      adjustLyricsStyle: false,
-      emailSupport: true,
-      prioritySupport: false,
-    },
+    credits: 400,
+    price: 27.99,
+    perCredit: 0.07,
+    savings: '30%',
+    description: 'Best for regular use',
     popular: true,
+    color: 'amber',
   },
   {
-    tier: 'studio',
+    id: 'studio',
     name: 'Studio',
-    price: 49.99,
-    credits: 200,
-    description: 'For professionals',
-    highlights: [
-      { text: '200 credits/month', included: true },
-      { text: '4K video quality', included: true },
-      { text: 'Custom logo watermark', included: true },
-      { text: 'Edit lyrics before render', included: true },
-      { text: 'Full style control', included: true },
-      { text: 'Priority support', included: true },
-    ],
-    features: {
-      watermark: 'custom',
-      maxQuality: '4K',
-      editLyrics: true,
-      colorCustomization: true,
-      adjustLyricsStyle: true,
-      emailSupport: true,
-      prioritySupport: true,
-    },
+    credits: 1000,
+    price: 54.99,
+    perCredit: 0.055,
+    savings: '45%',
+    description: 'Maximum value for power users',
     popular: false,
+    color: 'purple',
   },
 ];
 
-// Feature comparison data for the table
-const featureComparison = [
+// Quality tiers with credit costs
+const qualityTiers = [
+  { quality: '540p', resolution: '960×540', queueCredits: 1, instantCredits: 2, description: 'SD - Fast render' },
+  { quality: '720p', resolution: '1280×720', queueCredits: 2, instantCredits: 4, description: 'HD - Great quality' },
+  { quality: '1080p', resolution: '1920×1080', queueCredits: 3, instantCredits: 6, description: 'Full HD - YouTube ready' },
+  { quality: '4K', resolution: '3840×2160', queueCredits: 5, instantCredits: 10, description: 'Ultra HD - Maximum quality' },
+];
+
+// What's included for everyone
+const includedFeatures = [
+  { icon: Music, text: 'AI vocal removal' },
+  { icon: Sparkles, text: 'Auto lyrics sync' },
+  { icon: Video, text: 'All display modes (Scroll, Page, Overwrite)' },
+  { icon: Download, text: 'Up to 4K video export' },
+  { icon: Star, text: 'Custom fonts & colors' },
+  { icon: Gift, text: 'Background images & videos' },
+  { icon: CreditCard, text: 'Logo/branding options' },
+  { icon: Clock, text: 'Presets to save your style' },
+];
+
+// FAQ items
+const faqItems = [
   {
-    category: 'Credits & Quality',
-    features: [
-      {
-        name: 'Monthly credits',
-        free: '3',
-        starter: '25',
-        pro: '75',
-        studio: '200',
-        type: 'text'
-      },
-      {
-        name: 'Max video quality',
-        free: '480p',
-        starter: '1080p',
-        pro: '1080p',
-        studio: '4K',
-        type: 'text'
-      },
-    ]
+    question: 'How do credits work?',
+    answer: 'Credits are used when you export a video. The cost depends on video quality and length. For example, a 4-minute song at 720p quality costs 8 credits (2 credits/min × 4 min). Higher quality = more credits per minute.'
   },
   {
-    category: 'Branding',
-    features: [
-      {
-        name: 'Watermark',
-        free: 'Karatrack logo',
-        starter: 'None',
-        pro: 'None',
-        studio: 'Your logo',
-        type: 'text'
-      },
-    ]
+    question: 'Do credits expire?',
+    answer: 'Purchased credits are valid for 1 year from the date of purchase. Plenty of time to use them!'
   },
   {
-    category: 'Customization',
-    features: [
-      {
-        name: 'Color customization',
-        free: false,
-        starter: true,
-        pro: true,
-        studio: true,
-        type: 'boolean'
-      },
-      {
-        name: 'Adjust lyrics color & outline',
-        free: false,
-        starter: false,
-        pro: false,
-        studio: true,
-        type: 'boolean'
-      },
-      {
-        name: 'Edit lyrics before render',
-        free: false,
-        starter: false,
-        pro: true,
-        studio: true,
-        type: 'boolean'
-      },
-    ]
+    question: 'What\'s the difference between Queue and Instant?',
+    answer: 'Queue mode processes your video in order with other users - it\'s more affordable but may take longer during busy times (5-15 min). Instant mode skips the queue and starts rendering immediately (under 2 min), but costs 2x the credits.'
   },
   {
-    category: 'Support',
-    features: [
-      {
-        name: 'Chat support',
-        free: true,
-        starter: true,
-        pro: true,
-        studio: true,
-        type: 'boolean'
-      },
-      {
-        name: 'Email support',
-        free: false,
-        starter: true,
-        pro: true,
-        studio: true,
-        type: 'boolean'
-      },
-      {
-        name: 'Priority support',
-        free: false,
-        starter: false,
-        pro: false,
-        studio: true,
-        type: 'boolean'
-      },
-    ]
+    question: 'What do I get with a free account?',
+    answer: 'Every new account gets 15 free credits - enough to create your first karaoke video and try all the features. You\'ll see exactly what Karatrack can do before purchasing more credits.'
+  },
+  {
+    question: 'Is there a watermark on free videos?',
+    answer: 'Free account exports include a small "Made with Karatrack.com" watermark. Any purchased credits remove the watermark automatically.'
+  },
+  {
+    question: 'Can I use my own music?',
+    answer: 'Yes! Upload any audio file (MP3, WAV, FLAC, etc.) and Karatrack will remove the vocals, sync the lyrics, and create your karaoke video. We support songs in 50+ languages.'
   },
 ];
 
-// Pricing structured data for SEO
-const getPricingSchema = () => ({
-  "@context": "https://schema.org",
-  "@type": "Product",
-  "name": "Karatrack Studio",
-  "description": "AI-powered karaoke video creation platform with vocal removal and synchronized lyrics",
-  "brand": {
-    "@type": "Brand",
-    "name": "Karatrack"
-  },
-  "offers": plans.filter(p => p.price > 0).map(plan => ({
-    "@type": "Offer",
-    "name": `${plan.name} Plan`,
-    "description": plan.description,
-    "price": plan.price,
-    "priceCurrency": "USD",
-    "priceValidUntil": new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    "availability": "https://schema.org/InStock",
-    "url": "https://studio.karatrack.com/pricing"
-  }))
-});
-
-// Helper component to render feature value in comparison table
-const FeatureValue = ({ value, type }) => {
-  if (type === 'text') {
-    return <span className="text-white font-medium">{value}</span>;
-  }
-
-  if (value === true) {
-    return (
-      <div className="flex justify-center">
-        <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center">
-          <Check className="w-4 h-4 text-green-400" />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex justify-center">
-      <div className="w-6 h-6 rounded-full bg-gray-500/20 flex items-center justify-center">
-        <X className="w-4 h-4 text-gray-500" />
-      </div>
-    </div>
-  );
-};
-
-export default function PricingPage() {
+export default function Pricing() {
   const router = useRouter();
+  const { isDark } = useTheme();
   const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [subscribing, setSubscribing] = useState(null);
-  const [buyingCredits, setBuyingCredits] = useState(null);
-  const [showComparison, setShowComparison] = useState(false);
-  
-  // Confirmation modal state
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [pendingPlan, setPendingPlan] = useState(null);
-  const [isUpgrade, setIsUpgrade] = useState(false);
-  
-  // Credit purchase confirmation modal state
-  const [showCreditConfirmModal, setShowCreditConfirmModal] = useState(false);
-  const [pendingCreditPackage, setPendingCreditPackage] = useState(null);
+  const [expandedFaq, setExpandedFaq] = useState(null);
+  const [selectedPack, setSelectedPack] = useState('pro');
 
   useEffect(() => {
     checkUser();
@@ -294,784 +140,372 @@ export default function PricingPage() {
 
   const checkUser = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-
-      if (user) {
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        setProfile(profileData);
-      }
-    } catch (err) {
-      console.error('Error:', err);
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user || null);
+    } catch (error) {
+      console.error('Auth error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // Helper to get tier level for comparison
-  const getTierLevel = (tier) => {
-    const levels = { 'free': 0, 'starter': 1, 'pro': 2, 'studio': 3 };
-    return levels[tier?.toLowerCase()] ?? 0;
-  };
-
-  // Called when user clicks a plan button - shows confirmation for upgrades
-  const handlePlanClick = (tier) => {
-    // If not logged in, redirect to signup with selected plan
+  const handlePurchase = async (packId) => {
     if (!user) {
-      router.push(`/signup?plan=${tier}`);
+      router.push('/signup?redirect=pricing');
       return;
     }
-
-    // If already on this plan
-    if (profile?.subscription_tier === tier) {
-      return;
-    }
-
-    // Free tier doesn't need Stripe
-    if (tier === 'free') {
-      return;
-    }
-
-    // Find the plan details
-    const planDetails = plans.find(p => p.tier === tier);
-    if (!planDetails) return;
-
-    // Check if this is an upgrade (user has existing paid subscription)
-    const currentTierLevel = getTierLevel(profile?.subscription_tier);
-    const newTierLevel = getTierLevel(tier);
-    const userHasSubscription = profile?.subscription_tier && profile.subscription_tier !== 'free';
-    const isUpgradeAction = userHasSubscription && newTierLevel > currentTierLevel;
-
-    // Show confirmation modal for upgrades (immediate charge)
-    // For new subscriptions, Stripe checkout has its own confirmation
-    if (isUpgradeAction) {
-      setPendingPlan(planDetails);
-      setIsUpgrade(true);
-      setShowConfirmModal(true);
-    } else if (userHasSubscription && newTierLevel < currentTierLevel) {
-      // Downgrade - also show confirmation
-      setPendingPlan(planDetails);
-      setIsUpgrade(false);
-      setShowConfirmModal(true);
-    } else {
-      // New subscription - go straight to Stripe checkout (has its own confirmation)
-      handleSubscribe(tier);
-    }
-  };
-
-  // Actually process the subscription after confirmation
-  const handleSubscribe = async (tier) => {
-    setSubscribing(tier);
-    setShowConfirmModal(false);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      // Get the Stripe price ID for this tier
-      const { data: planData } = await supabase
-        .from('subscription_plans')
-        .select('stripe_price_id')
-        .eq('tier', tier)
-        .single();
-
-      if (!planData?.stripe_price_id) {
-        throw new Error('Plan not found');
-      }
-
-      // Create Stripe checkout session
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/create-checkout`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          price_id: planData.stripe_price_id,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout');
-      }
-
-      // Check if this was an immediate upgrade (no Stripe checkout needed)
-      if (data.success && data.redirect) {
-        // Upgrade was processed immediately - redirect to dashboard
-        window.location.href = data.redirect;
-      } else if (data.url) {
-        // New subscription - redirect to Stripe checkout
-        window.location.href = data.url;
-      } else {
-        throw new Error('Unexpected response from server');
-      }
-
-    } catch (err) {
-      console.error('Subscribe error:', err);
-      alert(err.message);
-    } finally {
-      setSubscribing(null);
-      setPendingPlan(null);
-    }
-  };
-
-  const handleManageSubscription = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/portal`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to open portal');
-      }
-
-      window.location.href = data.url;
-
-    } catch (err) {
-      console.error('Portal error:', err);
-      alert(err.message);
-    }
-  };
-
-  // Credit packages data
-  const creditPackages = [
-    { credits: 10, price: 4.99, perCredit: '0.50' },
-    { credits: 25, price: 9.99, perCredit: '0.40' },
-    { credits: 50, price: 17.99, perCredit: '0.36', popular: true },
-    { credits: 100, price: 29.99, perCredit: '0.30' },
-  ];
-
-  // Called when user clicks buy credits - shows confirmation
-  const handleCreditClick = (pkg) => {
-    // If not logged in, redirect to signup
-    if (!user) {
-      router.push('/signup?plan=free');
-      return;
-    }
-
-    // Show confirmation modal
-    setPendingCreditPackage(pkg);
-    setShowCreditConfirmModal(true);
-  };
-
-  // Handle credit package purchase after confirmation
-  const handleBuyCredits = async (credits) => {
-    setBuyingCredits(credits);
-    setShowCreditConfirmModal(false);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      // Get the credit package by credits amount
-      const { data: packageData } = await supabase
-        .from('credit_packages')
-        .select('id, stripe_price_id')
-        .eq('credits', credits)
-        .eq('is_active', true)
-        .single();
-
-      if (!packageData?.stripe_price_id) {
-        throw new Error('Credit package not found');
-      }
-
-      // Create Stripe checkout session for credit purchase
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/buy-credits`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          package_id: packageData.id,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout');
-      }
-
-      // Redirect to Stripe checkout
-      window.location.href = data.url;
-
-    } catch (err) {
-      console.error('Buy credits error:', err);
-      alert(err.message);
-    } finally {
-      setBuyingCredits(null);
-      setPendingCreditPackage(null);
-    }
+    
+    // TODO: Integrate with Stripe checkout
+    console.log('Purchasing pack:', packId);
+    // router.push(`/checkout?pack=${packId}`);
   };
 
   return (
     <>
       <SEO
-        title="Pricing & Plans"
-        description="Choose the perfect Karatrack Studio plan. From free to Studio tier - get AI vocal removal, synchronized lyrics, and professional karaoke video exports. Plans start at $9.99/month."
-        path="/pricing"
-        structuredData={[getOrganizationSchema(), getPricingSchema()]}
+        title="Pricing - Credit Packs | Karatrack Studio"
+        description="Simple, transparent pricing. Buy credits and use them whenever you want. No subscriptions, no limits. All features included for everyone."
+        canonical="https://studio.karatrack.com/pricing"
+        additionalSchema={[getOrganizationSchema()]}
       />
-      <div className="min-h-screen bg-animated-dark">
-        {/* Navigation */}
-        <nav className="border-b border-white/10 px-6 py-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3">
-              <img src="/logo.png" alt="Karatrack Studio" className="h-10 w-auto" />
-              <span className="font-display font-bold text-xl text-gradient">Karatrack Studio</span>
-            </Link>
 
-            <div className="flex items-center gap-4">
-              {user ? (
-                <>
-                  <div className="credit-badge">
-                    <div className="credit-badge-icon">
-                      <Zap className="w-3 h-3 text-white" />
-                    </div>
-                    <span className="text-sm text-white">{profile?.credits_remaining || 0} Credits</span>
-                  </div>
-                  <Link href="/dashboard">
-                    <button className="glass-button">Dashboard</button>
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link href="/login">
-                    <button className="glass-button">Log In</button>
-                  </Link>
-                  <Link href="/signup">
-                    <button className="glass-button-primary glass-button">Sign Up</button>
-                  </Link>
-                </>
+      <div className={`min-h-screen ${isDark ? 'bg-[#0a0a0f]' : 'bg-gray-50'}`}>
+        <AppNavigation />
+
+        <main className="max-w-6xl mx-auto px-4 py-12">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center mb-12"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 mb-6">
+              <Fuel className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-medium text-amber-400">Simple Credit System</span>
+            </div>
+            
+            <h1 className={`text-4xl md:text-5xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              No subscriptions. No limits.
+              <br />
+              <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                Just credits.
+              </span>
+            </h1>
+            
+            <p className={`text-lg max-w-2xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Buy credits when you need them. All features included for everyone.
+              Start free with 15 credits to try everything.
+            </p>
+          </motion.div>
+
+          {/* Free Account Banner */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className={`mb-12 p-6 rounded-2xl ${
+              isDark 
+                ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30' 
+                : 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200'
+            }`}
+          >
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-green-500/20">
+                  <Gift className="w-8 h-8 text-green-400" />
+                </div>
+                <div>
+                  <h3 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Start Free with 15 Credits
+                  </h3>
+                  <p className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Create your first karaoke video and try all features - no credit card required
+                  </p>
+                </div>
+              </div>
+              {!user && (
+                <Link
+                  href="/signup"
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold hover:opacity-90 transition-opacity whitespace-nowrap"
+                >
+                  Create Free Account
+                </Link>
               )}
             </div>
-          </div>
-        </nav>
+          </motion.div>
 
-        {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-6 py-16">
-          <Link href="/" className="inline-flex items-center gap-2 text-gray-400 hover:text-white mb-8">
-            <ArrowLeft className="w-5 h-5" />
-            Back to Home
-          </Link>
-
+          {/* Credit Packs */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-center mb-16"
+            transition={{ delay: 0.2 }}
+            className="mb-16"
           >
-            <h1 className="font-display text-4xl md:text-5xl font-bold mb-4 text-white">
-              Simple <span className="text-gradient">Pricing</span>
-            </h1>
-            <p className="text-lg text-gray-400 max-w-xl mx-auto">
-              Choose the plan that fits your needs. Upgrade or downgrade anytime.
-            </p>
-
-            {profile?.subscription_tier && profile.subscription_tier !== 'free' && (
-              <div className="mt-6">
-                <p className="text-gray-400 mb-2">
-                  Current plan: <span className="text-cyan-400 font-semibold capitalize">{profile.subscription_tier}</span>
-                </p>
-                <button
-                  onClick={handleManageSubscription}
-                  className="text-sm text-purple-400 hover:text-purple-300 underline"
-                >
-                  Manage Subscription
-                </button>
-              </div>
-            )}
-          </motion.div>
-
-          {/* Pricing Cards */}
-          <div className="grid md:grid-cols-4 gap-6 mb-12">
-            {plans.map((plan, i) => {
-              const isCurrentPlan = profile?.subscription_tier === plan.tier;
-              const isUpgrade = profile && plans.findIndex(p => p.tier === profile.subscription_tier) < i;
-
-              return (
-                <motion.div
-                  key={plan.tier}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className={`feature-card relative ${plan.popular ? 'border-cyan-500/50 shadow-lg shadow-cyan-500/10' : ''} ${isCurrentPlan ? 'ring-2 ring-green-500/50' : ''}`}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                      <span className="bg-gradient-to-r from-cyan-400 to-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
-                        <Sparkles className="w-3 h-3" />
-                        MOST POPULAR
-                      </span>
-                    </div>
-                  )}
-
-                  {isCurrentPlan && (
-                    <div className="absolute -top-3 right-4">
-                      <span className="bg-green-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-                        CURRENT
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Plan Header */}
-                  <div className="mb-6">
-                    <h3 className="font-display text-xl font-semibold mb-1 text-white">{plan.name}</h3>
-                    <p className="text-sm text-gray-400">{plan.description}</p>
-                  </div>
-
-                  {/* Price */}
-                  <div className="mb-6">
-                    <span className="text-4xl font-bold text-white">${plan.price}</span>
-                    <span className="text-gray-400">/month</span>
-                  </div>
-
-                  {/* Credits Badge */}
-                  <div className="mb-6 inline-flex items-center gap-2 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20 rounded-full px-3 py-1.5">
-                    <Zap className="w-4 h-4 text-cyan-400" />
-                    <span className="text-sm font-medium text-white">{plan.credits} credits/month</span>
-                  </div>
-
-                  {/* Features List */}
-                  <ul className="space-y-3 mb-8">
-                    {plan.highlights.map((highlight, j) => (
-                      <li key={j} className="flex items-start gap-2 text-sm">
-                        <Check className="w-4 h-4 text-cyan-500 flex-shrink-0 mt-0.5" />
-                        <span className="text-gray-300">
-                          {highlight.text}
-                          {highlight.note && (
-                            <span className="text-gray-500 ml-1">({highlight.note})</span>
-                          )}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  {/* Subscribe Button */}
-                  <button
-                    onClick={() => handlePlanClick(plan.tier)}
-                    disabled={isCurrentPlan || subscribing === plan.tier || loading}
-                    className={`w-full glass-button py-3 ${plan.popular ? 'glass-button-primary' : ''
-                      } ${isCurrentPlan ? 'opacity-50 cursor-not-allowed' : ''} ${!plan.popular && !isCurrentPlan ? 'text-white hover:bg-white/10' : ''
-                      }`}
-                  >
-                    {subscribing === plan.tier ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        Processing...
-                      </span>
-                    ) : isCurrentPlan ? (
-                      'Current Plan'
-                    ) : plan.tier === 'free' ? (
-                      'Get Started Free'
-                    ) : isUpgrade ? (
-                      'Upgrade Now'
-                    ) : (
-                      'Subscribe'
-                    )}
-                  </button>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          {/* Compare All Features Button */}
-          <div className="text-center mb-8">
-            <button
-              onClick={() => setShowComparison(!showComparison)}
-              className="inline-flex items-center gap-2 text-cyan-400 hover:text-cyan-300 transition-colors"
-            >
-              {showComparison ? 'Hide' : 'Compare all'} features
-              <motion.span
-                animate={{ rotate: showComparison ? 180 : 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <ChevronDown className="w-4 h-4" />
-              </motion.span>
-            </button>
-          </div>
-
-          {/* Feature Comparison Table */}
-          <motion.div
-            initial={false}
-            animate={{
-              height: showComparison ? 'auto' : 0,
-              opacity: showComparison ? 1 : 0
-            }}
-            transition={{ duration: 0.3 }}
-            className="overflow-hidden"
-          >
-            <div className="glass-panel p-6 mb-16 overflow-x-auto">
-              <table className="w-full min-w-[600px]">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="text-left py-4 px-4 text-gray-400 font-medium">Feature</th>
-                    <th className="text-center py-4 px-4 text-white font-semibold">Free</th>
-                    <th className="text-center py-4 px-4 text-white font-semibold">Starter</th>
-                    <th className="text-center py-4 px-4 text-white font-semibold relative">
-                      Pro
-                      <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-xs text-cyan-400">...</span>
-                    </th>
-                    <th className="text-center py-4 px-4 text-white font-semibold">Studio</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {featureComparison.map((category, catIndex) => (
-                    <>
-                      {/* Category Header */}
-                      <tr key={`cat-${catIndex}`} className="bg-white/5">
-                        <td colSpan={5} className="py-3 px-4 text-sm font-semibold text-cyan-400">
-                          {category.category}
-                        </td>
-                      </tr>
-                      {/* Features in Category */}
-                      {category.features.map((feature, featIndex) => (
-                        <tr
-                          key={`feat-${catIndex}-${featIndex}`}
-                          className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                        >
-                          <td className="py-3 px-4 text-gray-300">{feature.name}</td>
-                          <td className="py-3 px-4 text-center">
-                            <FeatureValue value={feature.free} type={feature.type} />
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <FeatureValue value={feature.starter} type={feature.type} />
-                          </td>
-                          <td className="py-3 px-4 text-center bg-cyan-500/5">
-                            <FeatureValue value={feature.pro} type={feature.type} />
-                          </td>
-                          <td className="py-3 px-4 text-center">
-                            <FeatureValue value={feature.studio} type={feature.type} />
-                          </td>
-                        </tr>
-                      ))}
-                    </>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </motion.div>
-
-          {/* Credit Packages */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="mt-20"
-          >
-            <h2 className="font-display text-3xl font-bold text-white text-center mb-4">
-              Need More Credits?
+            <h2 className={`text-2xl font-bold text-center mb-8 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Credit Packs
             </h2>
-            <p className="text-gray-400 text-center mb-4">
-              Purchase additional credits anytime
-            </p>
-            <p className="text-sm text-gray-500 text-center mb-10">
-              Credits cost: 480p = 3 credits • 720p = 5 credits • 1080p = 7 credits • 4K = 9 credits
-            </p>
-
-            <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-              {creditPackages.map((pkg, i) => (
+            
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {creditPacks.map((pack, idx) => (
                 <motion.div
-                  key={pkg.credits}
+                  key={pack.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.6 + i * 0.1 }}
-                  className={`glass-panel p-6 text-center relative ${pkg.popular ? 'border-purple-500/50' : ''}`}
+                  transition={{ delay: 0.1 * idx }}
+                  className={`relative p-6 rounded-2xl transition-all cursor-pointer ${
+                    pack.popular
+                      ? 'ring-2 ring-amber-500 bg-gradient-to-b from-amber-500/10 to-transparent'
+                      : isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:shadow-lg'
+                  } ${isDark ? 'border border-white/10' : 'border border-gray-200'}`}
+                  onClick={() => setSelectedPack(pack.id)}
                 >
-                  {pkg.popular && (
-                    <div className="absolute -top-2 left-1/2 -translate-x-1/2">
-                      <span className="bg-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                        BEST VALUE
-                      </span>
+                  {pack.popular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-amber-500 text-white text-xs font-bold">
+                      BEST VALUE
                     </div>
                   )}
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-400/20 to-purple-500/20 flex items-center justify-center mx-auto mb-4">
-                    <Zap className="w-6 h-6 text-cyan-400" />
+                  
+                  {pack.savings && (
+                    <div className="absolute top-4 right-4 px-2 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-bold">
+                      Save {pack.savings}
+                    </div>
+                  )}
+                  
+                  <h3 className={`text-lg font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {pack.name}
+                  </h3>
+                  <p className={`text-sm mb-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    {pack.description}
+                  </p>
+                  
+                  <div className="mb-4">
+                    <span className={`text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {pack.credits}
+                    </span>
+                    <span className={`text-lg ml-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      credits
+                    </span>
                   </div>
-                  <p className="text-2xl font-bold text-white">{pkg.credits}</p>
-                  <p className="text-gray-400 text-sm mb-2">credits</p>
-                  <p className="text-xs text-gray-500 mb-4">${pkg.perCredit}/credit</p>
-                  <p className="text-xl font-semibold text-gradient mb-4">${pkg.price}</p>
+                  
+                  <div className="flex items-baseline gap-1 mb-4">
+                    <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      ${pack.price}
+                    </span>
+                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      (${pack.perCredit}/credit)
+                    </span>
+                  </div>
+                  
                   <button
-                    onClick={() => handleCreditClick(pkg)}
-                    disabled={buyingCredits === pkg.credits}
-                    className="w-full glass-button py-2 text-sm text-white hover:bg-white/10 disabled:opacity-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePurchase(pack.id);
+                    }}
+                    className={`w-full py-3 rounded-xl font-semibold transition-all ${
+                      pack.popular
+                        ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:opacity-90'
+                        : isDark
+                          ? 'bg-white/10 text-white hover:bg-white/20'
+                          : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                    }`}
                   >
-                    {buyingCredits === pkg.credits ? 'Processing...' : 'Buy Credits'}
+                    Buy Credits
                   </button>
                 </motion.div>
               ))}
             </div>
           </motion.div>
 
-          {/* FAQ Section */}
+          {/* Credit Cost Calculator */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="mt-20"
+            transition={{ delay: 0.3 }}
+            className={`mb-16 p-6 rounded-2xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}
           >
-            <h2 className="font-display text-3xl font-bold text-white text-center mb-10">
+            <h2 className={`text-2xl font-bold text-center mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Credit Cost per Minute
+            </h2>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className={`border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                    <th className={`text-left py-3 px-4 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Quality</th>
+                    <th className={`text-left py-3 px-4 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Resolution</th>
+                    <th className={`text-center py-3 px-4 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <div className="flex items-center justify-center gap-2">
+                        <Clock className="w-4 h-4" />
+                        Queue
+                      </div>
+                    </th>
+                    <th className={`text-center py-3 px-4 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      <div className="flex items-center justify-center gap-2">
+                        <Zap className="w-4 h-4 text-amber-400" />
+                        Instant
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {qualityTiers.map((tier, idx) => (
+                    <tr key={tier.quality} className={`border-b ${isDark ? 'border-white/10' : 'border-gray-100'}`}>
+                      <td className={`py-4 px-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        <span className="font-bold">{tier.quality}</span>
+                        {tier.quality === '4K' && (
+                          <span className="ml-2 px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-400 text-xs font-medium">
+                            Exclusive
+                          </span>
+                        )}
+                      </td>
+                      <td className={`py-4 px-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {tier.resolution}
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className={`px-3 py-1 rounded-full ${isDark ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-100 text-cyan-700'} font-medium`}>
+                          {tier.queueCredits} cr/min
+                        </span>
+                      </td>
+                      <td className="py-4 px-4 text-center">
+                        <span className={`px-3 py-1 rounded-full ${isDark ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-100 text-amber-700'} font-medium`}>
+                          {tier.instantCredits} cr/min
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            <div className={`mt-6 p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+              <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                <strong>Example:</strong> A 4-minute song at 1080p quality using Queue mode = 3 credits/min × 4 min = <strong>12 credits</strong>
+              </p>
+            </div>
+          </motion.div>
+
+          {/* What's Included */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="mb-16"
+          >
+            <h2 className={`text-2xl font-bold text-center mb-8 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Everything Included for Everyone
+            </h2>
+            
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {includedFeatures.map((feature, idx) => (
+                <div
+                  key={idx}
+                  className={`flex items-center gap-3 p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-white border border-gray-200'}`}
+                >
+                  <div className={`p-2 rounded-lg ${isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'}`}>
+                    <feature.icon className="w-5 h-5 text-cyan-500" />
+                  </div>
+                  <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    {feature.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* FAQ */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="mb-16"
+          >
+            <h2 className={`text-2xl font-bold text-center mb-8 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Frequently Asked Questions
             </h2>
+            
+            <div className="max-w-3xl mx-auto space-y-3">
+              {faqItems.map((item, idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-xl overflow-hidden ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}
+                >
+                  <button
+                    onClick={() => setExpandedFaq(expandedFaq === idx ? null : idx)}
+                    className={`w-full flex items-center justify-between p-4 text-left ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+                  >
+                    <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      {item.question}
+                    </span>
+                    {expandedFaq === idx ? (
+                      <ChevronUp className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                    ) : (
+                      <ChevronDown className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                    )}
+                  </button>
+                  
+                  {expandedFaq === idx && (
+                    <div className={`px-4 pb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {item.answer}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </motion.div>
 
-            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              <div className="glass-panel p-6">
-                <h3 className="font-semibold text-white mb-2">How do credits work?</h3>
-                <p className="text-gray-400 text-sm">
-                  Each karaoke track costs credits based on video quality: 480p costs 3 credits,
-                  720p costs 5 credits, 1080p costs 7 credits, and 4K costs 9 credits. Credits
-                  accumulate month to month and expire 90 days after they are granted.
-                </p>
-              </div>
-
-              <div className="glass-panel p-6">
-                <h3 className="font-semibold text-white mb-2">What is "Edit lyrics before render"?</h3>
-                <p className="text-gray-400 text-sm">
-                  Pro and Studio users can review and edit the AI-transcribed lyrics before the final video is created.
-                  This lets you fix any transcription errors for a perfect result.
-                </p>
-              </div>
-
-              <div className="glass-panel p-6">
-                <h3 className="font-semibold text-white mb-2">Can I change plans anytime?</h3>
-                <p className="text-gray-400 text-sm">
-                  Yes! You can upgrade or downgrade your plan at any time. Your existing credits
-                  transfer with you to your new plan.
-                </p>
-              </div>
-
-              <div className="glass-panel p-6">
-                <h3 className="font-semibold text-white mb-2">What's the watermark on Free tier?</h3>
-                <p className="text-gray-400 text-sm">
-                  Free tier videos include a small Karatrack logo and link at the bottom.
-                  Upgrade to Starter or higher to remove it, or go Studio to add your own logo!
-                </p>
-              </div>
+          {/* CTA */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className={`text-center p-8 rounded-2xl ${
+              isDark 
+                ? 'bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30' 
+                : 'bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200'
+            }`}
+          >
+            <h2 className={`text-2xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Ready to create your first karaoke video?
+            </h2>
+            <p className={`mb-6 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              Start free with 15 credits. No credit card required.
+            </p>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              {user ? (
+                <Link
+                  href="/dashboard"
+                  className="px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold hover:opacity-90 transition-opacity"
+                >
+                  Go to Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/signup"
+                    className="px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-semibold hover:opacity-90 transition-opacity"
+                  >
+                    Create Free Account
+                  </Link>
+                  <Link
+                    href="/login"
+                    className={`px-8 py-3 rounded-xl font-semibold ${isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                  >
+                    Sign In
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
         </main>
 
-        {/* Upgrade/Downgrade Confirmation Modal */}
-        {showConfirmModal && pendingPlan && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="w-full max-w-md glass-panel p-6"
-            >
-              {/* Header */}
-              <div className="flex items-center gap-4 mb-6">
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center ${
-                  isUpgrade 
-                    ? 'bg-gradient-to-br from-cyan-400 to-purple-500' 
-                    : 'bg-gradient-to-br from-orange-400 to-red-500'
-                }`}>
-                  {isUpgrade ? (
-                    <Sparkles className="w-7 h-7 text-white" />
-                  ) : (
-                    <ArrowLeft className="w-7 h-7 text-white" />
-                  )}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">
-                    {isUpgrade ? 'Confirm Upgrade' : 'Confirm Downgrade'}
-                  </h3>
-                  <p className="text-gray-400">
-                    {profile?.subscription_tier} to {pendingPlan.name}
-                  </p>
-                </div>
-              </div>
-
-              {/* Plan Details */}
-              <div className="bg-white/5 rounded-xl p-4 mb-6">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-white font-semibold text-lg">{pendingPlan.name} Plan</span>
-                  <span className="text-2xl font-bold text-cyan-400">${pendingPlan.price}<span className="text-sm text-gray-400">/mo</span></span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-300">
-                  <Zap className="w-4 h-4 text-yellow-400" />
-                  <span>{pendingPlan.credits} credits per month</span>
-                </div>
-              </div>
-
-              {/* What happens */}
-              <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-400 mb-3">What happens next:</h4>
-                <ul className="space-y-2">
-                  {isUpgrade ? (
-                    <>
-                      <li className="flex items-start gap-2 text-sm text-gray-300">
-                        <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                        <span>Your card will be charged <strong className="text-white">${pendingPlan.price}</strong> today</span>
-                      </li>
-                      <li className="flex items-start gap-2 text-sm text-gray-300">
-                        <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                        <span>You'll receive <strong className="text-white">{pendingPlan.credits} credits</strong> immediately</span>
-                      </li>
-                      <li className="flex items-start gap-2 text-sm text-gray-300">
-                        <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                        <span>Your existing credits will be kept</span>
-                      </li>
-                      <li className="flex items-start gap-2 text-sm text-gray-300">
-                        <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                        <span>New billing cycle starts today</span>
-                      </li>
-                    </>
-                  ) : (
-                    <>
-                      <li className="flex items-start gap-2 text-sm text-gray-300">
-                        <Check className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                        <span>You'll keep your current plan until the end of your billing period</span>
-                      </li>
-                      <li className="flex items-start gap-2 text-sm text-gray-300">
-                        <Check className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                        <span>After that, you'll be moved to {pendingPlan.name}</span>
-                      </li>
-                      <li className="flex items-start gap-2 text-sm text-gray-300">
-                        <Check className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
-                        <span>Your existing credits remain until they expire</span>
-                      </li>
-                    </>
-                  )}
-                </ul>
-              </div>
-
-              {/* Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowConfirmModal(false);
-                    setPendingPlan(null);
-                  }}
-                  className="flex-1 glass-button py-3 text-white hover:bg-white/10"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleSubscribe(pendingPlan.tier)}
-                  disabled={subscribing}
-                  className="flex-1 glass-button glass-button-primary py-3 flex items-center justify-center gap-2"
-                >
-                  {subscribing ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Processing...
-                    </>
-                  ) : isUpgrade ? (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      Confirm Upgrade
-                    </>
-                  ) : (
-                    'Confirm Downgrade'
-                  )}
-                </button>
-              </div>
-            </motion.div>
+        {/* Footer */}
+        <footer className={`mt-16 py-8 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+          <div className="max-w-6xl mx-auto px-4 text-center">
+            <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+              © {new Date().getFullYear()} Karatrack. All rights reserved.
+            </p>
           </div>
-        )}
-
-        {/* Credit Purchase Confirmation Modal */}
-        {showCreditConfirmModal && pendingCreditPackage && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="w-full max-w-md glass-panel p-6"
-            >
-              {/* Header */}
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-gradient-to-br from-cyan-400 to-purple-500">
-                  <Zap className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white">Confirm Purchase</h3>
-                  <p className="text-gray-400">One-time credit purchase</p>
-                </div>
-              </div>
-
-              {/* Package Details */}
-              <div className="bg-white/5 rounded-xl p-4 mb-6">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-white font-semibold text-lg">{pendingCreditPackage.credits} Credits</span>
-                  <span className="text-2xl font-bold text-cyan-400">${pendingCreditPackage.price}</span>
-                </div>
-                <div className="flex items-center gap-2 text-gray-300 text-sm">
-                  <span>${pendingCreditPackage.perCredit} per credit</span>
-                  {pendingCreditPackage.popular && (
-                    <span className="bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded text-xs">Best Value</span>
-                  )}
-                </div>
-              </div>
-
-              {/* What happens */}
-              <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-400 mb-3">What happens next:</h4>
-                <ul className="space-y-2">
-                  <li className="flex items-start gap-2 text-sm text-gray-300">
-                    <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                    <span>You'll be taken to a secure checkout page</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-sm text-gray-300">
-                    <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                    <span>Your card will be charged <strong className="text-white">${pendingCreditPackage.price}</strong></span>
-                  </li>
-                  <li className="flex items-start gap-2 text-sm text-gray-300">
-                    <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                    <span><strong className="text-white">{pendingCreditPackage.credits} credits</strong> will be added to your account immediately</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-sm text-gray-300">
-                    <Check className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                    <span>Credits expire 90 days after purchase</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowCreditConfirmModal(false);
-                    setPendingCreditPackage(null);
-                  }}
-                  className="flex-1 glass-button py-3 text-white hover:bg-white/10"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleBuyCredits(pendingCreditPackage.credits)}
-                  disabled={buyingCredits}
-                  className="flex-1 glass-button glass-button-primary py-3 flex items-center justify-center gap-2"
-                >
-                  {buyingCredits ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="w-4 h-4" />
-                      Continue to Checkout
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+        </footer>
       </div>
     </>
   );

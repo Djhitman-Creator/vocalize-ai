@@ -247,17 +247,23 @@ const LINES_PER_PAGE_OPTIONS = [2, 3, 4, 5, 6];
 
 // V11: Audio track options for export
 const AUDIO_TRACK_OPTIONS = [
-  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: 'ðŸŽ¤' },
-  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: 'ðŸŽµ' },
-  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: 'ðŸŽ§' },
+  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: '🎤' },
+  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: '🎵' },
+  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: '🎧' },
 ];
 
-// V11: Video quality options
+// V12: Video quality options with credit costs per minute
 const VIDEO_QUALITY_OPTIONS = [
-  { value: '480p', label: '480p', description: 'SD - Fast render', resolution: '854Ã—480', tier: 'free' },
-  { value: '720p', label: '720p', description: 'HD - Good quality', resolution: '1280Ã—720', tier: 'free' },
-  { value: '1080p', label: '1080p', description: 'Full HD - Best for YouTube', resolution: '1920Ã—1080', tier: 'pro' },
-  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840Ã—2160', tier: 'studio' },
+  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960×540', creditsPerMin: 1, instantCreditsPerMin: 2 },
+  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280×720', creditsPerMin: 2, instantCreditsPerMin: 4 },
+  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920×1080', creditsPerMin: 3, instantCreditsPerMin: 6 },
+  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840×2160', creditsPerMin: 5, instantCreditsPerMin: 10 },
+];
+
+// V12: Export mode options
+const EXPORT_MODE_OPTIONS = [
+  { value: 'queue', label: 'Queue', description: 'Processed in order. May take longer during high demand.', icon: Clock, multiplier: 1 },
+  { value: 'instant', label: 'Instant', description: 'Skip the queue and start rendering immediately.', icon: Sparkles, multiplier: 2 },
 ];
 
 // V11: Branding - Logo position options
@@ -928,10 +934,11 @@ export default function PreviewEditPage() {
     setHasChanges(true);
   }, []);
 
-  // V11: Export settings state
+  // V12: Export settings state
   const [exportSettings, setExportSettings] = useState({
-    audioTrack: 'instrumental', // 'instrumental', 'backing', 'original'
-    videoQuality: '720p', // '480p', '720p', '1080p', '4k'
+    audioTrack: 'instrumental', // 'instrumental', 'guide', 'original'
+    videoQuality: '720p', // '540p', '720p', '1080p', '4k'
+    exportMode: 'queue', // 'queue', 'instant'
   });
 
   // V11: Update export settings helper
@@ -5583,74 +5590,88 @@ export default function PreviewEditPage() {
                 </div>
               )}
 
-              {/* EXPORT TAB - V11 Implementation */}
+              {/* EXPORT TAB - V12 Credit-Based System */}
               {activeTab === 'export' && (
                 <div className="p-4 space-y-6 max-h-[500px] overflow-y-auto">
-                  {/* Audio Track Selection */}
+                  {/* Video Quality Selection */}
                   <div>
                     <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Audio Track
+                      Video Quality
                     </label>
-                    <div className="space-y-2">
-                      {AUDIO_TRACK_OPTIONS.map(option => (
+                    <div className="grid grid-cols-4 gap-2">
+                      {VIDEO_QUALITY_OPTIONS.map(option => (
                         <button
                           key={option.value}
-                          onClick={() => updateExportSettings({ audioTrack: option.value })}
-                          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
-                            exportSettings.audioTrack === option.value
+                          onClick={() => updateExportSettings({ videoQuality: option.value })}
+                          className={`relative flex flex-col items-center gap-1 p-3 rounded-lg transition-all ${
+                            exportSettings.videoQuality === option.value
                               ? 'bg-cyan-500/20 border-2 border-cyan-500'
                               : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                           }`}
                         >
-                          <span className="text-2xl">{option.icon}</span>
-                          <div className="flex-1">
-                            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</p>
-                            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{option.description}</p>
-                          </div>
-                          {exportSettings.audioTrack === option.value && (
-                            <Check className="w-5 h-5 text-cyan-400" />
+                          <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</span>
+                          <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{option.resolution}</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                            option.value === '4k' 
+                              ? 'bg-purple-500/20 text-purple-400' 
+                              : 'bg-cyan-500/20 text-cyan-400'
+                          }`}>
+                            {option.creditsPerMin} cr/min
+                          </span>
+                          {exportSettings.videoQuality === option.value && (
+                            <div className="absolute top-1 right-1">
+                              <Check className="w-3 h-3 text-cyan-400" />
+                            </div>
                           )}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Video Quality Selection */}
+                  {/* Export Mode Selection */}
                   <div>
                     <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                      Video Quality
+                      Export Mode
                     </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {VIDEO_QUALITY_OPTIONS.map(option => {
-                        // Check tier restrictions (simplified - you'd check actual user tier)
-                        const isLocked = option.tier === 'pro' || option.tier === 'studio';
-                        const tierLabel = option.tier === 'pro' ? 'Pro' : option.tier === 'studio' ? 'Studio' : null;
+                    <div className="space-y-2">
+                      {EXPORT_MODE_OPTIONS.map(option => {
+                        const qualityOption = VIDEO_QUALITY_OPTIONS.find(q => q.value === exportSettings.videoQuality);
+                        const creditsPerMin = option.value === 'instant' ? qualityOption?.instantCreditsPerMin : qualityOption?.creditsPerMin;
                         
                         return (
                           <button
                             key={option.value}
-                            onClick={() => !isLocked && updateExportSettings({ videoQuality: option.value })}
-                            disabled={isLocked}
-                            className={`relative flex flex-col items-center gap-1 p-4 rounded-lg transition-all ${
-                              exportSettings.videoQuality === option.value
-                                ? 'bg-cyan-500/20 border-2 border-cyan-500'
-                                : isLocked
-                                  ? isDark ? 'bg-white/5 border-2 border-transparent opacity-50 cursor-not-allowed' : 'bg-gray-50 border-2 border-transparent opacity-50 cursor-not-allowed'
-                                  : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                            onClick={() => updateExportSettings({ exportMode: option.value })}
+                            className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
+                              exportSettings.exportMode === option.value
+                                ? option.value === 'instant' 
+                                  ? 'bg-amber-500/20 border-2 border-amber-500'
+                                  : 'bg-cyan-500/20 border-2 border-cyan-500'
+                                : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
                             }`}
                           >
-                            {isLocked && (
-                              <div className="absolute top-2 right-2">
-                                <Lock className="w-4 h-4 text-yellow-500" />
+                            <div className={`p-2 rounded-lg ${
+                              option.value === 'instant'
+                                ? 'bg-amber-500/20'
+                                : isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'
+                            }`}>
+                              <option.icon className={`w-5 h-5 ${option.value === 'instant' ? 'text-amber-400' : 'text-cyan-400'}`} />
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</p>
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                  option.value === 'instant'
+                                    ? 'bg-amber-500/20 text-amber-400'
+                                    : 'bg-cyan-500/20 text-cyan-400'
+                                }`}>
+                                  {creditsPerMin} CREDITS / MIN
+                                </span>
                               </div>
-                            )}
-                            <span className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</span>
-                            <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{option.resolution}</span>
-                            <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{option.description}</span>
-                            {tierLabel && (
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full ${option.tier === 'studio' ? 'bg-purple-500/20 text-purple-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                                {tierLabel}
-                              </span>
+                              <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{option.description}</p>
+                            </div>
+                            {exportSettings.exportMode === option.value && (
+                              <Check className={`w-5 h-5 ${option.value === 'instant' ? 'text-amber-400' : 'text-cyan-400'}`} />
                             )}
                           </button>
                         );
@@ -5658,37 +5679,79 @@ export default function PreviewEditPage() {
                     </div>
                   </div>
 
-                  {/* Credit Cost Info */}
-                  <div className={`p-4 rounded-lg ${isDark ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30' : 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200'}`}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Render Cost</p>
-                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>This will use credits from your balance</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-green-400">1</p>
-                        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>credit</p>
-                      </div>
+                  {/* Audio Track Selection */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Audio Track
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {AUDIO_TRACK_OPTIONS.map(option => (
+                        <button
+                          key={option.value}
+                          onClick={() => updateExportSettings({ audioTrack: option.value })}
+                          className={`flex flex-col items-center gap-1 p-3 rounded-lg text-left transition-all ${
+                            exportSettings.audioTrack === option.value
+                              ? 'bg-cyan-500/20 border-2 border-cyan-500'
+                              : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
+                          }`}
+                        >
+                          <span className="text-xl">{option.icon}</span>
+                          <span className={`text-xs font-medium text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Render Info */}
-                  <div className={`space-y-2 text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    <p className="flex items-center gap-2">
-                      <Clock className="w-4 h-4" />
-                      Rendering typically takes 2-5 minutes depending on video length
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
-                      You'll receive an email notification when your video is ready
-                    </p>
-                    <p className="flex items-center gap-2">
-                      <Download className="w-4 h-4" />
-                      Download your finished video from the Dashboard
-                    </p>
-                  </div>
+                  {/* Credit Cost Calculator */}
+                  {(() => {
+                    const qualityOption = VIDEO_QUALITY_OPTIONS.find(q => q.value === exportSettings.videoQuality);
+                    const creditsPerMin = exportSettings.exportMode === 'instant' 
+                      ? qualityOption?.instantCreditsPerMin || 2 
+                      : qualityOption?.creditsPerMin || 1;
+                    const songMinutes = Math.ceil((duration || 180) / 60); // Default 3 min if no duration
+                    const totalCredits = creditsPerMin * songMinutes;
+                    const userCredits = project?.user_credits || 0; // You'd get this from user profile
+                    const hasEnoughCredits = userCredits >= totalCredits;
+                    
+                    return (
+                      <div className={`p-4 rounded-xl ${
+                        hasEnoughCredits
+                          ? isDark ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30' : 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200'
+                          : isDark ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30' : 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200'
+                      }`}>
+                        <div className="flex items-center gap-4">
+                          <div className={`p-3 rounded-xl ${hasEnoughCredits ? 'bg-green-500/20' : 'bg-amber-500/20'}`}>
+                            <Sparkles className={`w-6 h-6 ${hasEnoughCredits ? 'text-green-400' : 'text-amber-400'}`} />
+                          </div>
+                          <div className="flex-1">
+                            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {exportSettings.videoQuality.toUpperCase()} • {songMinutes} min • {exportSettings.exportMode === 'instant' ? 'Instant' : 'Queue'}
+                            </p>
+                            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              This will cost {totalCredits} credits
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Your balance</p>
+                            <p className={`text-2xl font-bold ${hasEnoughCredits ? 'text-green-400' : 'text-amber-400'}`}>
+                              {userCredits}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {!hasEnoughCredits && (
+                          <div className="mt-3 pt-3 border-t border-amber-500/30">
+                            <Link href="/pricing" className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-colors">
+                              <Plus className="w-4 h-4" />
+                              Get More Credits
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
-                  {/* Render Button - Large prominent button */}
+                  {/* Render Button */}
                   <button
                     onClick={handleApproveAndRender}
                     disabled={saving}
@@ -5701,16 +5764,23 @@ export default function PreviewEditPage() {
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-6 h-6" />
-                        Render Video
+                        <Download className="w-6 h-6" />
+                        Export Video
                       </>
                     )}
                   </button>
 
-                  {/* Tip */}
-                  <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
-                    <p className={`text-xs ${isDark ? 'text-cyan-400' : 'text-cyan-700'}`}>
-                      Tip: Make sure to Save your changes before rendering. All your customizations will be applied to the final video.
+                  {/* Render Info */}
+                  <div className={`space-y-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <p className="flex items-center gap-2">
+                      <Clock className="w-3 h-3" />
+                      {exportSettings.exportMode === 'instant' 
+                        ? 'Instant mode typically renders in under 2 minutes'
+                        : 'Queue mode typically takes 5-15 minutes during busy times'}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <CheckCircle className="w-3 h-3" />
+                      You'll receive an email when your video is ready
                     </p>
                   </div>
                 </div>
