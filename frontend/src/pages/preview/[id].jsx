@@ -4361,7 +4361,22 @@ export default function PreviewEditPage() {
                           <span className="sm:hidden">Line Editor</span>
                         </span>
                       </div>
-                      <span className="text-xs text-gray-500">{lyricsLines.length} lines | {words.length} words</span>
+                      <div className="flex items-center gap-2">
+                        {/* Warning count for lines that are too long */}
+                        {(() => {
+                          const tooLongCount = lyricsLines.filter(line => isLineTooLong(line)).length;
+                          if (tooLongCount > 0) {
+                            return (
+                              <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">
+                                <AlertTriangle className="w-3 h-3" />
+                                {tooLongCount} {tooLongCount === 1 ? 'line' : 'lines'} too long
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                        <span className="text-xs text-gray-500">{lyricsLines.length} lines | {words.length} words</span>
+                      </div>
                     </div>
 
             <AnimatePresence>
