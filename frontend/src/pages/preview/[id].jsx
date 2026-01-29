@@ -4416,8 +4416,10 @@ export default function PreviewEditPage() {
                       </div>
                       <div className="space-y-2">
                         {lyricsLines.map((line, lineIndex) => {
-                          const lineTooLong = isLineTooLong(line);
+                          // Calculate if line is too long inline (not using useCallback)
                           const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0);
+                          const maxCharsForLine = MAX_CHARS_PER_LINE[layoutSettings.aspectRatio || '16:9']?.[styleSettings.fontSize || 'normal'] || 50;
+                          const lineTooLong = (charCount - 1) > maxCharsForLine;
                           
                           // Check if any word in THIS line is selected
                           const lineHasSelectedWord = line.some(w => selectedWordIndices.has(w.globalIndex));
@@ -4460,7 +4462,7 @@ export default function PreviewEditPage() {
                                   <LineLengthWarning 
                                     lineIndex={lineIndex} 
                                     charCount={charCount - 1} 
-                                    maxChars={MAX_CHARS_PER_LINE[layoutSettings.aspectRatio || '16:9']?.[styleSettings.fontSize || 'normal'] || 50} 
+                                    maxChars={maxCharsForLine} 
                                   />
                                 )}
                                 
