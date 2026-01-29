@@ -2476,7 +2476,7 @@ export default function PreviewEditPage() {
   // ============================================================
   // Calculate directly during render (not useMemo) to ensure smooth animations
   // useMemo was causing stale values during rapid currentTime updates
-  const LINES_PER_PAGE = 4; // Match handler.py
+  const LINES_PER_PAGE = layoutSettings.linesPerPage || 4; // Use setting from Layout tab
 
   const getCurrentLyricsData = () => {
     if (!lyricsLines.length) return {
@@ -3298,68 +3298,101 @@ export default function PreviewEditPage() {
                           ))}
                         </div>
                       ) : (
-                        /* SCROLL MODE (default) - Lines centered, smooth visual flow */
-                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
-                          {/* Current Line - with sweep highlighting */}
-                          {currentLyrics.currentLine ? (
-                            <div className="text-center w-full">
-                              <p 
-                                className="font-bold relative inline-flex flex-wrap justify-center items-baseline" 
-                                style={{ 
-                                  fontFamily: previewFontFamily,
-                                  fontSize: layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
-                                  gap: `${wordSpacing}px`
-                                }}
-                              >
-                                {currentLyrics.currentLine.map((wordData, i) => {
-                                  const highlightColor = getHighlightColor(wordData.index);
-                                  if (i === 0 && currentLyrics.showSweepIn) {
-                                    return (
-                                      <span key={i} style={{ position: 'relative' }}>
-                                        <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
-                                        <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                      </span>
-                                    );
-                                  }
-                                  return <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
-                                })}
-                              </p>
+                        /* SCROLL MODE (default) - Smooth scrolling animation */
+                        (() => {
+                          const numLines = layoutSettings.linesPerScroll || 4;
+                          const lineHeight = layoutSettings.emphasizeCurrentLine ? currentLineFontSize * 1.8 : baseFontSize * 1.8;
+                          const totalHeight = numLines * lineHeight;
+                          
+                          // Build array of all lines to display (current + upcoming)
+                          const allScrollLines = [];
+                          
+                          // Add current line
+                          if (currentLyrics.currentLine) {
+                            allScrollLines.push({
+                              type: 'current',
+                              words: currentLyrics.currentLine,
+                              text: currentLyrics.currentLine.map(w => w.word).join(' ')
+                            });
+                          }
+                          
+                          // Add upcoming lines
+                          if (currentLyrics.upcomingLines) {
+                            currentLyrics.upcomingLines.slice(0, numLines - 1).forEach((line, idx) => {
+                              allScrollLines.push({
+                                type: 'upcoming',
+                                text: line,
+                                index: idx
+                              });
+                            });
+                          } else if (currentLyrics.next) {
+                            allScrollLines.push({
+                              type: 'upcoming',
+                              text: currentLyrics.next,
+                              index: 0
+                            });
+                          }
+                          
+                          return (
+                            <div 
+                              className="relative w-full overflow-hidden"
+                              style={{ height: `${totalHeight}px` }}
+                            >
+                              {allScrollLines.map((lineData, idx) => {
+                                const yPosition = idx * lineHeight;
+                                const isCurrent = lineData.type === 'current';
+                                const upcomingIdx = lineData.index || 0;
+                                
+                                return (
+                                  <div
+                                    key={`scroll-line-${idx}`}
+                                    className="absolute left-0 right-0 text-center transition-all duration-300 ease-out"
+                                    style={{
+                                      transform: `translateY(${yPosition}px)`,
+                                      opacity: isCurrent ? 1 : Math.max(0.3, 0.7 - (upcomingIdx * 0.15)),
+                                    }}
+                                  >
+                                    {isCurrent ? (
+                                      <p 
+                                        className="font-bold relative inline-flex flex-wrap justify-center items-baseline" 
+                                        style={{ 
+                                          fontFamily: previewFontFamily,
+                                          fontSize: layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
+                                          gap: `${wordSpacing}px`
+                                        }}
+                                      >
+                                        {lineData.words.map((wordData, i) => {
+                                          const highlightColor = getHighlightColor(wordData.index);
+                                          if (i === 0 && currentLyrics.showSweepIn) {
+                                            return (
+                                              <span key={i} style={{ position: 'relative' }}>
+                                                <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                                <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                              </span>
+                                            );
+                                          }
+                                          return <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
+                                        })}
+                                      </p>
+                                    ) : (
+                                      <p 
+                                        className="font-bold"
+                                        style={{ 
+                                          fontFamily: previewFontFamily,
+                                          fontSize: `${baseFontSize}px`,
+                                          color: textColor,
+                                          textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                                        }}
+                                      >
+                                        {lineData.text}
+                                      </p>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          ) : null}
-                          
-                          {/* Upcoming Lines - always show based on linesPerScroll setting */}
-                          {currentLyrics.upcomingLines && currentLyrics.upcomingLines.slice(0, (layoutSettings.linesPerScroll || 4) - 1).map((line, idx) => (
-                            <p 
-                              key={idx}
-                              className="font-bold text-center w-full"
-                              style={{ 
-                                fontFamily: previewFontFamily,
-                                fontSize: `${baseFontSize}px`,
-                                color: textColor,
-                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
-                                opacity: 0.6 - (idx * 0.1),
-                              }}
-                            >
-                              {line}
-                            </p>
-                          ))}
-                          
-                          {/* Fallback to next line if upcomingLines empty but next exists */}
-                          {(!currentLyrics.upcomingLines || currentLyrics.upcomingLines.length === 0) && currentLyrics.next && (
-                            <p 
-                              className="font-bold text-center w-full"
-                              style={{ 
-                                fontFamily: previewFontFamily,
-                                fontSize: `${baseFontSize}px`,
-                                color: textColor,
-                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
-                                opacity: 0.5,
-                              }}
-                            >
-                              {currentLyrics.next}
-                            </p>
-                          )}
-                        </div>
+                          );
+                        })()
                       )}
                     </div>
                     
