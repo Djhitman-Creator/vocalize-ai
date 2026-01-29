@@ -3421,68 +3421,42 @@ export default function PreviewEditPage() {
                           //   remaining slots show next unsung lines
                           // - When a line finishes, it's instantly replaced with the next unsung line
                           
-                          const slots = [];
-                          
                           if (currentIdx >= 0 && lyricsLines.length > 0) {
                             // Calculate which position (0 to numLines-1) the current line is in
                             const currentPosition = currentIdx % numLines;
                             
-                            // Build the display: we need to show numLines lines
-                            // Current line is at currentPosition
-                            // All other slots show the next unsung lines in order
+                            // Build slots array: current line + next unsung lines
+                            // Then reorder so current appears at currentPosition
+                            const lines = [];
                             
-                            // First, figure out which lines go in which slots
-                            // Slot layout: upcoming lines fill slots before current, then current, then more upcoming after
-                            
-                            let nextLineIdx = currentIdx; // Start with current line
-                            
-                            for (let slot = 0; slot < numLines; slot++) {
-                              if (nextLineIdx < lyricsLines.length) {
-                                const isCurrent = (slot === currentPosition) && (nextLineIdx === currentIdx);
-                                const lineWords = lyricsLines[nextLineIdx];
-                                
-                                slots.push({
-                                  slot,
-                                  lineIdx: nextLineIdx,
-                                  isCurrent,
-                                  words: isCurrent && currentLyrics.currentLine 
-                                    ? currentLyrics.currentLine 
-                                    : lineWords.map(w => ({
-                                        word: w.word, 
-                                        index: w.globalIndex,
-                                        sweepPercent: 0,
-                                        isActive: false,
-                                        isPast: false
-                                      })),
+                            for (let i = 0; i < numLines; i++) {
+                              const lineIdx = currentIdx + i;
+                              if (lineIdx < lyricsLines.length) {
+                                const lineWords = lyricsLines[lineIdx];
+                                lines.push({
+                                  lineIdx,
+                                  isCurrentLine: i === 0, // First one is current
                                   text: lineWords.map(w => w.word).join(' ')
                                 });
-                                
-                                nextLineIdx++;
                               }
                             }
                             
-                            // Now reorder slots so current line appears at its cycling position
-                            // Slots before currentPosition show lines AFTER the current+remaining
-                            const reorderedSlots = new Array(numLines).fill(null);
+                            // Reorder: current line goes to currentPosition, others wrap around
+                            const displaySlots = new Array(numLines).fill(null);
                             
-                            for (let i = 0; i < slots.length; i++) {
-                              // Line i (0=current, 1=next, 2=next+1, etc.) goes to position (currentPosition + i) % numLines
-                              const targetSlot = (currentPosition + i) % numLines;
-                              reorderedSlots[targetSlot] = {
-                                ...slots[i],
-                                displayPosition: targetSlot,
-                                isCurrent: i === 0 // First line in slots array is current
-                              };
+                            for (let i = 0; i < lines.length; i++) {
+                              const targetPosition = (currentPosition + i) % numLines;
+                              displaySlots[targetPosition] = lines[i];
                             }
                             
-                            // Filter out nulls and sort by display position
-                            const finalSlots = reorderedSlots.filter(s => s !== null);
+                            // Filter nulls and render
+                            const finalSlots = displaySlots.filter(s => s !== null);
                             
                             return (
                               <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
                                 {finalSlots.map((lineData) => (
                                   <div key={`ow-${lineData.lineIdx}`} className="text-center w-full">
-                                    {lineData.isCurrent && lineData.words ? (
+                                    {lineData.isCurrentLine && currentLyrics.currentLine ? (
                                       <p 
                                         className="font-bold relative inline-flex flex-wrap justify-center items-baseline"
                                         style={{ 
@@ -3491,7 +3465,7 @@ export default function PreviewEditPage() {
                                           gap: `${wordSpacing}px`
                                         }}
                                       >
-                                        {lineData.words.map((wordData, wordIdx) => {
+                                        {currentLyrics.currentLine.map((wordData, wordIdx) => {
                                           const highlightColor = getHighlightColor(wordData.index);
                                           if (wordIdx === 0 && currentLyrics.showSweepIn) {
                                             return (
