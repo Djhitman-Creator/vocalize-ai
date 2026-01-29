@@ -3395,8 +3395,8 @@ export default function PreviewEditPage() {
                         pointerEvents: currentTime < INTRO_DURATION ? 'none' : 'auto'
                       }}
                     >
-                      {currentLyrics.showProgressBar ? (
-                        /* PROGRESS BAR - Shows during instrumental breaks */
+                      {currentLyrics.showProgressBar && layoutSettings.displayMode !== 'scroll' ? (
+                        /* PROGRESS BAR - Shows during instrumental breaks (only for page/overwrite modes) */
                         <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap * 2}px` }}>
                           <InstrumentalProgressBar
                             progress={currentLyrics.progressBarPercent}
@@ -3405,8 +3405,8 @@ export default function PreviewEditPage() {
                             textColor={textColor}
                             outlineColor={outlineColor}
                           />
-                          {/* Show upcoming lines below progress bar */}
-                          {currentLyrics.upcomingLines && currentLyrics.upcomingLines.slice(0, Math.min(3, (layoutSettings.linesPerScroll || 4) - 1)).map((line, idx) => (
+                          {/* Show upcoming lines below progress bar for page/overwrite modes */}
+                          {currentLyrics.upcomingLines && currentLyrics.upcomingLines.slice(0, Math.min(3, (layoutSettings.linesPerPage || 4) - 1)).map((line, idx) => (
                             <p 
                               key={idx}
                               className="font-bold text-center w-full"
@@ -3505,6 +3505,7 @@ export default function PreviewEditPage() {
                           const lineHeight = layoutSettings.emphasizeCurrentLine ? currentLineFontSize * 2.2 : baseFontSize * 2.2;
                           const totalHeight = numLines * lineHeight;
                           const currentIdx = currentLyrics.currentLineIdx ?? -1;
+                          const showProgressBarInScroll = currentLyrics.showProgressBar && layoutSettings.showProgressBar;
                           
                           // Build array of lines to show: current line + next (numLines-1) lines
                           const linesToShow = [];
@@ -3543,11 +3544,26 @@ export default function PreviewEditPage() {
                           }
                           
                           return (
-                            <div 
-                              className="relative w-full overflow-hidden"
-                              style={{ height: `${totalHeight}px` }}
-                            >
-                              <AnimatePresence mode="popLayout">
+                            <div className="flex flex-col items-center w-full" style={{ gap: `${lineGap}px` }}>
+                              {/* Progress bar at top during instrumental breaks in scroll mode */}
+                              {showProgressBarInScroll && (
+                                <div className="w-full mb-2">
+                                  <InstrumentalProgressBar
+                                    progress={currentLyrics.progressBarPercent}
+                                    nextLyrics=""
+                                    color={sungColor}
+                                    textColor={textColor}
+                                    outlineColor={outlineColor}
+                                  />
+                                </div>
+                              )}
+                              
+                              {/* Scroll lines container */}
+                              <div 
+                                className="relative w-full overflow-hidden"
+                                style={{ height: `${totalHeight}px` }}
+                              >
+                                <AnimatePresence mode="popLayout">
                                 {linesToShow.map((lineData) => {
                                   const isCurrent = lineData.isCurrent;
                                   const yPosition = lineData.position * lineHeight;
@@ -3608,6 +3624,7 @@ export default function PreviewEditPage() {
                                   );
                                 })}
                               </AnimatePresence>
+                              </div>
                             </div>
                           );
                         })()
