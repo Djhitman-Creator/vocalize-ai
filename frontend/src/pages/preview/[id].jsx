@@ -34,7 +34,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Play, Pause, SkipBack, Music2, Save, RotateCcw,
+  ArrowLeft, Play, Pause, SkipBack, SkipForward, Music2, Save, RotateCcw,
   ZoomIn, ZoomOut, Users, Check, X, Loader2, AlertCircle,
   CheckCircle, Plus, Trash2, Paintbrush,
   ArrowDown, ArrowUp, Type, SplitSquareHorizontal,
@@ -3782,6 +3782,103 @@ export default function PreviewEditPage() {
                     {/* Resolution indicator - shows current aspect ratio */}
                     <div className="absolute top-1 left-1 sm:top-2 sm:left-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] text-white/60 font-mono z-30">
                       {layoutSettings.aspectRatio}
+                    </div>
+                    
+                    {/* Playback Controls Overlay - appears on hover */}
+                    <div className="absolute inset-x-0 bottom-0 opacity-0 hover:opacity-100 transition-opacity duration-200 z-40">
+                      {/* Gradient fade for better visibility */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
+                      
+                      {/* Mini progress bar */}
+                      <div 
+                        className="absolute bottom-10 left-2 right-2 h-1 bg-white/20 rounded-full cursor-pointer"
+                        onClick={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const percent = (e.clientX - rect.left) / rect.width;
+                          const newTime = percent * duration;
+                          if (instrumentalRef.current) instrumentalRef.current.currentTime = newTime;
+                          if (vocalsRef.current) vocalsRef.current.currentTime = newTime;
+                          setCurrentTime(newTime);
+                        }}
+                      >
+                        <div 
+                          className="h-full bg-cyan-400 rounded-full"
+                          style={{ width: `${(currentTime / duration) * 100}%` }}
+                        />
+                      </div>
+                      
+                      {/* Control buttons */}
+                      <div className="relative flex items-center justify-center gap-2 py-2">
+                        {/* Start Over */}
+                        <button
+                          onClick={() => {
+                            if (instrumentalRef.current) instrumentalRef.current.currentTime = 0;
+                            if (vocalsRef.current) vocalsRef.current.currentTime = 0;
+                            setCurrentTime(0);
+                          }}
+                          className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                          title="Start Over"
+                        >
+                          <RotateCcw className="w-4 h-4 text-white" />
+                        </button>
+                        
+                        {/* Skip Back 10s */}
+                        <button
+                          onClick={() => {
+                            const newTime = Math.max(0, currentTime - 10);
+                            if (instrumentalRef.current) instrumentalRef.current.currentTime = newTime;
+                            if (vocalsRef.current) vocalsRef.current.currentTime = newTime;
+                            setCurrentTime(newTime);
+                          }}
+                          className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                          title="Back 10 seconds"
+                        >
+                          <SkipBack className="w-4 h-4 text-white" />
+                        </button>
+                        
+                        {/* Play/Pause */}
+                        <button
+                          onClick={() => setIsPlaying(!isPlaying)}
+                          className="p-2 rounded-full bg-cyan-500 hover:bg-cyan-400 transition-colors"
+                          title={isPlaying ? "Pause" : "Play"}
+                        >
+                          {isPlaying ? (
+                            <Pause className="w-5 h-5 text-white" />
+                          ) : (
+                            <Play className="w-5 h-5 text-white ml-0.5" />
+                          )}
+                        </button>
+                        
+                        {/* Skip Forward 10s */}
+                        <button
+                          onClick={() => {
+                            const newTime = Math.min(duration, currentTime + 10);
+                            if (instrumentalRef.current) instrumentalRef.current.currentTime = newTime;
+                            if (vocalsRef.current) vocalsRef.current.currentTime = newTime;
+                            setCurrentTime(newTime);
+                          }}
+                          className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                          title="Forward 10 seconds"
+                        >
+                          <SkipForward className="w-4 h-4 text-white" />
+                        </button>
+                        
+                        {/* Mute Toggle */}
+                        <button
+                          onClick={() => {
+                            if (instrumentalRef.current) instrumentalRef.current.muted = !instrumentalRef.current.muted;
+                            if (vocalsRef.current) vocalsRef.current.muted = !vocalsRef.current.muted;
+                          }}
+                          className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                          title="Toggle Mute"
+                        >
+                          {instrumentalRef.current?.muted ? (
+                            <VolumeX className="w-4 h-4 text-white" />
+                          ) : (
+                            <Volume2 className="w-4 h-4 text-white" />
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
