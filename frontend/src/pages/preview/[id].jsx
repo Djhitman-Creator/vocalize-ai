@@ -3796,9 +3796,7 @@ export default function PreviewEditPage() {
                           const rect = e.currentTarget.getBoundingClientRect();
                           const percent = (e.clientX - rect.left) / rect.width;
                           const newTime = percent * duration;
-                          if (instrumentalRef.current) instrumentalRef.current.currentTime = newTime;
-                          if (vocalsRef.current) vocalsRef.current.currentTime = newTime;
-                          setCurrentTime(newTime);
+                          seekTo(newTime);
                         }}
                       >
                         <div 
@@ -3811,11 +3809,7 @@ export default function PreviewEditPage() {
                       <div className="relative flex items-center justify-center gap-2 py-2">
                         {/* Start Over */}
                         <button
-                          onClick={() => {
-                            if (instrumentalRef.current) instrumentalRef.current.currentTime = 0;
-                            if (vocalsRef.current) vocalsRef.current.currentTime = 0;
-                            setCurrentTime(0);
-                          }}
+                          onClick={restart}
                           className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
                           title="Start Over"
                         >
@@ -3824,12 +3818,7 @@ export default function PreviewEditPage() {
                         
                         {/* Skip Back 10s */}
                         <button
-                          onClick={() => {
-                            const newTime = Math.max(0, currentTime - 10);
-                            if (instrumentalRef.current) instrumentalRef.current.currentTime = newTime;
-                            if (vocalsRef.current) vocalsRef.current.currentTime = newTime;
-                            setCurrentTime(newTime);
-                          }}
+                          onClick={() => seekTo(currentTime - 10)}
                           className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
                           title="Back 10 seconds"
                         >
@@ -3838,7 +3827,7 @@ export default function PreviewEditPage() {
                         
                         {/* Play/Pause */}
                         <button
-                          onClick={() => setIsPlaying(!isPlaying)}
+                          onClick={togglePlayback}
                           className="p-2 rounded-full bg-cyan-500 hover:bg-cyan-400 transition-colors"
                           title={isPlaying ? "Pause" : "Play"}
                         >
@@ -3851,12 +3840,7 @@ export default function PreviewEditPage() {
                         
                         {/* Skip Forward 10s */}
                         <button
-                          onClick={() => {
-                            const newTime = Math.min(duration, currentTime + 10);
-                            if (instrumentalRef.current) instrumentalRef.current.currentTime = newTime;
-                            if (vocalsRef.current) vocalsRef.current.currentTime = newTime;
-                            setCurrentTime(newTime);
-                          }}
+                          onClick={() => seekTo(currentTime + 10)}
                           className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
                           title="Forward 10 seconds"
                         >
