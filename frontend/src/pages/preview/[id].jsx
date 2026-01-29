@@ -44,7 +44,9 @@ import {
   // V11: Tab icons
   Image, Download, Grid3X3, Palette, Sparkles, Video,
   Monitor, Smartphone, Square, Upload, Lock, Undo2, Redo2,
-  ExternalLink, ScrollText, FileText, Edit3
+  ExternalLink, ScrollText, FileText, Edit3,
+  // V12: Preset icons
+  Bookmark, Star, FolderOpen
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
@@ -937,6 +939,197 @@ export default function PreviewEditPage() {
     setExportSettings(prev => ({ ...prev, ...updates }));
     setHasChanges(true);
   }, []);
+
+  // V12: Preset system state
+  const [presets, setPresets] = useState([]);
+  const [presetsLoading, setPresetsLoading] = useState(false);
+  const [presetModalOpen, setPresetModalOpen] = useState(false);
+  const [presetName, setPresetName] = useState('');
+  const [savingPreset, setSavingPreset] = useState(false);
+  const [presetError, setPresetError] = useState(null);
+  const [loadingPresetId, setLoadingPresetId] = useState(null);
+
+  // V12: Load user's presets
+  const loadPresets = useCallback(async () => {
+    setPresetsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data, error } = await supabase
+        .from('user_presets')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPresets(data || []);
+    } catch (err) {
+      console.error('Failed to load presets:', err);
+    } finally {
+      setPresetsLoading(false);
+    }
+  }, []);
+
+  // V12: Save current settings as preset
+  const savePreset = useCallback(async () => {
+    if (!presetName.trim()) {
+      setPresetError('Please enter a preset name');
+      return;
+    }
+
+    setSavingPreset(true);
+    setPresetError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const presetData = {
+        user_id: session.user.id,
+        name: presetName.trim(),
+        // Style settings
+        font: styleSettings.selectedFont,
+        font_size: styleSettings.fontSize,
+        text_color: styleSettings.textColor,
+        sung_color: styleSettings.sungColor,
+        outline_color: styleSettings.outlineColor,
+        // Background settings
+        bg_type: bgSettings.bgType,
+        bg_color_1: bgSettings.bgColor1,
+        bg_color_2: bgSettings.bgColor2,
+        gradient_direction: bgSettings.gradientDirection,
+        bg_image_url: bgSettings.bgImageUrl,
+        bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
+        // Layout settings
+        display_mode: layoutSettings.displayMode,
+        aspect_ratio: layoutSettings.aspectRatio,
+        lines_per_page: layoutSettings.linesPerPage,
+        lines_per_scroll: layoutSettings.linesPerScroll,
+        lines_per_overwrite: layoutSettings.linesPerOverwrite,
+        emphasize_current_line: layoutSettings.emphasizeCurrentLine,
+        show_progress_bar: layoutSettings.showProgressBar,
+        show_countdown: layoutSettings.showCountdown,
+        show_lead_in_bars: layoutSettings.showLeadInBars,
+        // Export settings
+        audio_track: exportSettings.audioTrack,
+        video_quality: exportSettings.videoQuality,
+        // Branding settings
+        logo_url: brandingSettings.logoUrl,
+        logo_position: brandingSettings.logoPosition,
+        logo_size: brandingSettings.logoSize,
+        logo_opacity: brandingSettings.logoOpacity,
+        start_image_url: brandingSettings.startImageUrl,
+        start_image_fit: brandingSettings.startImageFit,
+        start_image_opacity: brandingSettings.startImageOpacity,
+        start_image_show_title: brandingSettings.startImageShowTitle,
+      };
+
+      const { data, error } = await supabase
+        .from('user_presets')
+        .insert(presetData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setPresets(prev => [data, ...prev]);
+      setPresetModalOpen(false);
+      setPresetName('');
+    } catch (err) {
+      console.error('Failed to save preset:', err);
+      setPresetError(err.message || 'Failed to save preset');
+    } finally {
+      setSavingPreset(false);
+    }
+  }, [presetName, styleSettings, bgSettings, layoutSettings, exportSettings, brandingSettings, router]);
+
+  // V12: Load a preset and apply settings
+  const loadPreset = useCallback((preset) => {
+    setLoadingPresetId(preset.id);
+    
+    // Apply style settings
+    setStyleSettings({
+      selectedFont: preset.font || 'arial',
+      fontSize: preset.font_size || 'normal',
+      textColor: preset.text_color || '#ffffff',
+      sungColor: preset.sung_color || '#00d4ff',
+      outlineColor: preset.outline_color || '#000000',
+    });
+
+    // Apply background settings
+    setBgSettings(prev => ({
+      ...prev,
+      bgType: preset.bg_type || 'gradient',
+      bgColor1: preset.bg_color_1 || '#1a1a2e',
+      bgColor2: preset.bg_color_2 || '#16213e',
+      gradientDirection: preset.gradient_direction || 'to bottom',
+      bgImageUrl: preset.bg_image_url || null,
+      bgImagePreview: preset.bg_image_url || null,
+      bgVideoPresetFilename: preset.bg_video_preset_filename || null,
+      bgVideoPreset: preset.bg_video_preset_filename ? 
+        PRESET_VIDEO_BACKGROUNDS.find(v => v.filename === preset.bg_video_preset_filename)?.url || null : null,
+    }));
+
+    // Apply layout settings
+    setLayoutSettings({
+      displayMode: preset.display_mode || 'scroll',
+      aspectRatio: preset.aspect_ratio || '16:9',
+      linesPerPage: preset.lines_per_page || 4,
+      linesPerScroll: preset.lines_per_scroll || 4,
+      linesPerOverwrite: preset.lines_per_overwrite || 4,
+      emphasizeCurrentLine: preset.emphasize_current_line || false,
+      showProgressBar: preset.show_progress_bar !== false,
+      showCountdown: preset.show_countdown !== false,
+      showLeadInBars: preset.show_lead_in_bars !== false,
+    });
+
+    // Apply export settings
+    setExportSettings({
+      audioTrack: preset.audio_track || 'instrumental',
+      videoQuality: preset.video_quality || '720p',
+    });
+
+    // Apply branding settings
+    setBrandingSettings(prev => ({
+      ...prev,
+      logoUrl: preset.logo_url || null,
+      logoPosition: preset.logo_position || 'bottom-right',
+      logoSize: preset.logo_size || 50,
+      logoOpacity: preset.logo_opacity || 80,
+      startImageUrl: preset.start_image_url || null,
+      startImageFit: preset.start_image_fit || 'contain',
+      startImageOpacity: preset.start_image_opacity || 100,
+      startImageShowTitle: preset.start_image_show_title !== false,
+    }));
+
+    setHasChanges(true);
+    
+    setTimeout(() => setLoadingPresetId(null), 500);
+  }, []);
+
+  // V12: Delete a preset
+  const deletePreset = useCallback(async (presetId) => {
+    if (!window.confirm('Are you sure you want to delete this preset?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_presets')
+        .delete()
+        .eq('id', presetId);
+
+      if (error) throw error;
+
+      setPresets(prev => prev.filter(p => p.id !== presetId));
+    } catch (err) {
+      console.error('Failed to delete preset:', err);
+    }
+  }, []);
+
+  // V12: Load presets on mount
+  useEffect(() => {
+    loadPresets();
+  }, [loadPresets]);
 
   // V11: Background category filter state
   const [selectedVideoCategory, setSelectedVideoCategory] = useState('all');
@@ -2365,7 +2558,8 @@ export default function PreviewEditPage() {
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch (err) {
       console.error('Save error:', err);
-      setError('Failed to save changes');
+      console.error('Error details:', JSON.stringify(err, null, 2));
+      setError(`Failed to save: ${err.message || err.code || 'Unknown error'}`);
     } finally {
       setSaving(false);
     }
@@ -3586,6 +3780,19 @@ export default function PreviewEditPage() {
               
               {/* Undo/Redo Buttons */}
               <div className={`flex items-center gap-1 px-2 border-l ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                {/* V12: Presets Button */}
+                <button
+                  onClick={() => setPresetModalOpen(true)}
+                  className={`p-2 rounded-lg transition-all ${
+                    isDark 
+                      ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10' 
+                      : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                  }`}
+                  title="Save & Load Presets"
+                >
+                  <Bookmark className="w-4 h-4" />
+                </button>
+                <div className={`w-px h-4 ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
                 <button
                   onClick={handleUndo}
                   disabled={wordsHistoryIndex <= 0}
@@ -5545,6 +5752,165 @@ export default function PreviewEditPage() {
         onDeleteWord={handleContextMenuDelete}
         isDark={isDark}
       />
+
+      {/* V12: Presets Modal */}
+      <AnimatePresence>
+        {presetModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            onClick={() => setPresetModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className={`w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl ${
+                isDark ? 'bg-gray-900 border border-white/10' : 'bg-white border border-gray-200'
+              }`}
+            >
+              {/* Modal Header */}
+              <div className={`flex items-center justify-between px-6 py-4 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${isDark ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
+                    <Bookmark className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <h2 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Style Presets</h2>
+                    <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Save and load your favorite settings</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setPresetModalOpen(false)}
+                  className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Save New Preset Section */}
+              <div className={`px-6 py-4 border-b ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Save Current Settings as Preset
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={presetName}
+                    onChange={(e) => setPresetName(e.target.value)}
+                    placeholder="Enter preset name..."
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm outline-none transition-all ${
+                      isDark 
+                        ? 'bg-white/10 border border-white/20 text-white placeholder:text-gray-500 focus:border-amber-500' 
+                        : 'bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-amber-500'
+                    }`}
+                    onKeyDown={(e) => e.key === 'Enter' && savePreset()}
+                  />
+                  <button
+                    onClick={savePreset}
+                    disabled={savingPreset || !presetName.trim()}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      savingPreset || !presetName.trim()
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-amber-500 text-white hover:bg-amber-600'
+                    }`}
+                  >
+                    {savingPreset ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    Save
+                  </button>
+                </div>
+                {presetError && (
+                  <p className="text-xs text-red-500 mt-2">{presetError}</p>
+                )}
+              </div>
+
+              {/* Saved Presets List */}
+              <div className="px-6 py-4 max-h-[300px] overflow-y-auto">
+                <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Your Saved Presets ({presets.length})
+                </label>
+                
+                {presetsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
+                  </div>
+                ) : presets.length === 0 ? (
+                  <div className={`text-center py-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <FolderOpen className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">No presets saved yet</p>
+                    <p className="text-xs mt-1">Save your current settings above to create your first preset</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {presets.map(preset => (
+                      <div
+                        key={preset.id}
+                        className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
+                          isDark 
+                            ? 'bg-white/5 hover:bg-white/10 border border-white/10' 
+                            : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                        }`}
+                      >
+                        <div className={`p-2 rounded-lg ${isDark ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
+                          <Star className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            {preset.name}
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {preset.display_mode} • {preset.aspect_ratio} • {preset.font || 'Default font'}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => loadPreset(preset)}
+                            disabled={loadingPresetId === preset.id}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                              loadingPresetId === preset.id
+                                ? 'bg-green-500 text-white'
+                                : isDark
+                                  ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30'
+                                  : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
+                            }`}
+                          >
+                            {loadingPresetId === preset.id ? (
+                              <Check className="w-3 h-3" />
+                            ) : (
+                              'Load'
+                            )}
+                          </button>
+                          <button
+                            onClick={() => deletePreset(preset.id)}
+                            className={`p-1.5 rounded-lg transition-all ${
+                              isDark
+                                ? 'text-gray-400 hover:text-red-400 hover:bg-red-500/10'
+                                : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
+                            }`}
+                            title="Delete preset"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className={`px-6 py-4 border-t ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
+                <p className={`text-xs text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Presets include: Style, Background, Layout, Export settings, and Branding
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
