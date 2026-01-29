@@ -79,19 +79,19 @@ const MAX_CHARS_PER_LINE = {
     'small': 55,
     'normal': 55,
     'large': 53,
-    'extra-large': 49
+    'xlarge': 49
   },
   '4:3': {
     'small': 45,
     'normal': 40,
     'large': 36,
-    'extra-large': 34
+    'xlarge': 34
   },
   '9:16': {
     'small': 23,
     'normal': 21,
     'large': 19,
-    'extra-large': 17
+    'xlarge': 17
   }
 };
 
