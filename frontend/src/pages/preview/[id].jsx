@@ -2782,9 +2782,9 @@ export default function PreviewEditPage() {
             const progressPercent = Math.min(1, Math.max(0, timeIntoProgressBar / progressBarDuration));
             const prevLineText = i > 0 ? lyricsLines[i - 1].map(w => w.word).join(' ') : '';
             
-            // Build upcomingLines - start from i+1 since line i is shown in progress bar
+            // Build upcomingLines starting from current line
             const upcomingLines = [];
-            for (let j = i + 1; j < Math.min(i + 7, lyricsLines.length); j++) {
+            for (let j = i; j < Math.min(i + 6, lyricsLines.length); j++) {
               upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
             }
 
@@ -2793,7 +2793,7 @@ export default function PreviewEditPage() {
               currentLine: null, next: '',
               upcomingLines,
               pageLines: [], // Empty during progress bar
-              currentLineIdx: i, // Add this so overwrite mode knows which line is next
+              currentLineIdx: i, // So overwrite mode knows which line is next
               showSweepIn: false, sweepInProgress: 0,
               showProgressBar: true,
               progressBarPercent: progressPercent,
@@ -3398,7 +3398,8 @@ export default function PreviewEditPage() {
                     >
                       {currentLyrics.showProgressBar && layoutSettings.displayMode !== 'scroll' ? (
                         /* PROGRESS BAR - Shows during instrumental breaks (only for page/overwrite modes) */
-                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap * 2}px` }}>
+                        /* Only shows the progress bar with the next line - no duplicate lines below */
+                        <div className="flex flex-col items-center justify-center w-full">
                           <InstrumentalProgressBar
                             progress={currentLyrics.progressBarPercent}
                             nextLyrics={currentLyrics.nextLyricsForProgressBar}
@@ -3406,22 +3407,6 @@ export default function PreviewEditPage() {
                             textColor={textColor}
                             outlineColor={outlineColor}
                           />
-                          {/* Show upcoming lines below progress bar for page/overwrite modes */}
-                          {currentLyrics.upcomingLines && currentLyrics.upcomingLines.slice(0, Math.min(3, (layoutSettings.linesPerPage || 4) - 1)).map((line, idx) => (
-                            <p 
-                              key={idx}
-                              className="font-bold text-center w-full"
-                              style={{ 
-                                fontFamily: previewFontFamily,
-                                fontSize: `${baseFontSize}px`,
-                                color: textColor,
-                                textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
-                                opacity: 0.5 - (idx * 0.1),
-                              }}
-                            >
-                              {line}
-                            </p>
-                          ))}
                         </div>
                       ) : layoutSettings.displayMode === 'overwrite' ? (
                         /* OVERWRITE MODE - Sliding window of lines, current line at top */
