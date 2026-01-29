@@ -2446,8 +2446,11 @@ export default function PreviewEditPage() {
   // TIMELINE DRAGGING (Mouse + Touch support)
   // ============================================================
   useEffect(() => {
+    // Only add listeners when actively dragging
+    if (!isDragging) return;
+    
     const handleMove = (clientX) => {
-      if (!isDragging || paintMode !== null) return;
+      if (paintMode !== null) return;
       const deltaX = clientX - dragStartX;
       const deltaTime = deltaX / zoom;
       setWords(prev => {
@@ -2475,10 +2478,8 @@ export default function PreviewEditPage() {
     };
 
     const handleEnd = () => {
-      if (isDragging) {
-        setIsDragging(false);
-        setDragStartTimes({});
-      }
+      setIsDragging(false);
+      setDragStartTimes({});
     };
 
     window.addEventListener('mousemove', handleMouseMove);
