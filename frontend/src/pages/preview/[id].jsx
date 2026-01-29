@@ -367,10 +367,13 @@ const SweepInBar = ({ progress, color }) => {
 // ============================================================
 // INSTRUMENTAL PROGRESS BAR COMPONENT
 // ============================================================
-const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outlineColor }) => {
+const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outlineColor, isPortrait }) => {
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="w-64 h-2 bg-white/20 rounded-full overflow-hidden">
+    <div className="flex flex-col items-center gap-2">
+      <div 
+        className="h-2 bg-white/20 rounded-full overflow-hidden"
+        style={{ width: isPortrait ? '80%' : '16rem' }}
+      >
         <div
           className="h-full rounded-full transition-all duration-100"
           style={{
@@ -382,7 +385,7 @@ const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outli
       </div>
       {nextLyrics && (
         <p
-          className="text-lg opacity-40 text-center max-w-md"
+          className={`opacity-40 text-center ${isPortrait ? 'text-sm max-w-[90%]' : 'text-lg max-w-md'}`}
           style={{
             color: textColor,
             textShadow: `1px 1px 2px ${outlineColor}`,
@@ -3438,11 +3441,20 @@ export default function PreviewEditPage() {
                   ? 'CustomKaraokeFont' 
                   : FONT_OPTIONS.find(f => f.value === styleSettings.selectedFont)?.family || 'Arial, sans-serif';
                 
-                const baseFontSize = Math.max(12, Math.min(32, 14 * scaleFactor * fontSizeMultiplier)); // Clamp between 12-32px
-                const currentLineFontSize = Math.max(14, Math.min(40, 18 * scaleFactor * fontSizeMultiplier));
-                const lineGap = Math.max(2, Math.min(12, 4 * scaleFactor));
-                const textShadowSize = Math.max(1, Math.min(3, 1.5 * scaleFactor));
-                const wordSpacing = Math.max(2, Math.min(8, 3 * scaleFactor));
+                // 9:16 Portrait mode adjustments - narrower width needs smaller fonts
+                const isPortrait = layoutSettings.aspectRatio === '9:16';
+                const portraitScale = isPortrait ? 0.7 : 1.0; // 30% smaller for portrait
+                
+                const baseFontSize = Math.max(10, Math.min(32, 14 * scaleFactor * fontSizeMultiplier * portraitScale));
+                const currentLineFontSize = Math.max(12, Math.min(40, 18 * scaleFactor * fontSizeMultiplier * portraitScale));
+                const lineGap = Math.max(2, Math.min(12, 4 * scaleFactor * (isPortrait ? 0.8 : 1)));
+                const textShadowSize = Math.max(1, Math.min(3, 1.5 * scaleFactor * portraitScale));
+                const wordSpacing = Math.max(1, Math.min(6, 3 * scaleFactor * portraitScale));
+                
+                // Padding adjustments for portrait mode
+                const contentPadding = isPortrait 
+                  ? Math.max(4, 8 * scaleFactor)  // Smaller padding for portrait
+                  : Math.max(8, 16 * scaleFactor); // Normal padding for landscape
                 
                 return (
                   <div 
@@ -3481,7 +3493,7 @@ export default function PreviewEditPage() {
                     <div 
                       className="absolute inset-0 flex flex-col items-center justify-center" 
                       style={{ 
-                        padding: `${Math.max(8, 16 * scaleFactor)}px`,
+                        padding: `${contentPadding}px`,
                         opacity: currentTime < INTRO_DURATION ? 0 : 1,
                         pointerEvents: currentTime < INTRO_DURATION ? 'none' : 'auto'
                       }}
@@ -3495,6 +3507,7 @@ export default function PreviewEditPage() {
                             color={sungColor}
                             textColor={textColor}
                             outlineColor={outlineColor}
+                            isPortrait={isPortrait}
                           />
                         </div>
                       )}
@@ -3902,7 +3915,7 @@ export default function PreviewEditPage() {
                       
                       {/* Mini progress bar */}
                       <div 
-                        className="absolute bottom-10 left-2 right-2 h-1 bg-white/20 rounded-full cursor-pointer"
+                        className={`absolute ${isPortrait ? 'bottom-8 left-1 right-1' : 'bottom-10 left-2 right-2'} h-1 bg-white/20 rounded-full cursor-pointer`}
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
                           const percent = (e.clientX - rect.left) / rect.width;
@@ -3916,46 +3929,46 @@ export default function PreviewEditPage() {
                         />
                       </div>
                       
-                      {/* Control buttons */}
-                      <div className="relative flex items-center justify-center gap-2 py-2">
+                      {/* Control buttons - smaller for portrait */}
+                      <div className={`relative flex items-center justify-center ${isPortrait ? 'gap-1 py-1' : 'gap-2 py-2'}`}>
                         {/* Start Over */}
                         <button
                           onClick={restart}
-                          className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                          className={`${isPortrait ? 'p-1' : 'p-1.5'} rounded-full bg-white/10 hover:bg-white/20 transition-colors`}
                           title="Start Over"
                         >
-                          <RotateCcw className="w-4 h-4 text-white" />
+                          <RotateCcw className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
                         </button>
                         
                         {/* Skip Back 10s */}
                         <button
                           onClick={() => seekTo(currentTime - 10)}
-                          className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                          className={`${isPortrait ? 'p-1' : 'p-1.5'} rounded-full bg-white/10 hover:bg-white/20 transition-colors`}
                           title="Back 10 seconds"
                         >
-                          <SkipBack className="w-4 h-4 text-white" />
+                          <SkipBack className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
                         </button>
                         
                         {/* Play/Pause */}
                         <button
                           onClick={togglePlayback}
-                          className="p-2 rounded-full bg-cyan-500 hover:bg-cyan-400 transition-colors"
+                          className={`${isPortrait ? 'p-1.5' : 'p-2'} rounded-full bg-cyan-500 hover:bg-cyan-400 transition-colors`}
                           title={isPlaying ? "Pause" : "Play"}
                         >
                           {isPlaying ? (
-                            <Pause className="w-5 h-5 text-white" />
+                            <Pause className={`${isPortrait ? 'w-4 h-4' : 'w-5 h-5'} text-white`} />
                           ) : (
-                            <Play className="w-5 h-5 text-white ml-0.5" />
+                            <Play className={`${isPortrait ? 'w-4 h-4' : 'w-5 h-5'} text-white ml-0.5`} />
                           )}
                         </button>
                         
                         {/* Skip Forward 10s */}
                         <button
                           onClick={() => seekTo(currentTime + 10)}
-                          className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                          className={`${isPortrait ? 'p-1' : 'p-1.5'} rounded-full bg-white/10 hover:bg-white/20 transition-colors`}
                           title="Forward 10 seconds"
                         >
-                          <SkipForward className="w-4 h-4 text-white" />
+                          <SkipForward className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
                         </button>
                         
                         {/* Mute Toggle */}
@@ -3964,13 +3977,13 @@ export default function PreviewEditPage() {
                             if (instrumentalRef.current) instrumentalRef.current.muted = !instrumentalRef.current.muted;
                             if (vocalsRef.current) vocalsRef.current.muted = !vocalsRef.current.muted;
                           }}
-                          className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                          className={`${isPortrait ? 'p-1' : 'p-1.5'} rounded-full bg-white/10 hover:bg-white/20 transition-colors`}
                           title="Toggle Mute"
                         >
                           {instrumentalRef.current?.muted ? (
-                            <VolumeX className="w-4 h-4 text-white" />
+                            <VolumeX className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
                           ) : (
-                            <Volume2 className="w-4 h-4 text-white" />
+                            <Volume2 className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
                           )}
                         </button>
                       </div>
