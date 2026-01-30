@@ -48,10 +48,13 @@ import {
   // V12: Preset icons
   Bookmark, Star, FolderOpen,
   // Fullscreen
-  Maximize2, Minimize2
+  Maximize2, Minimize2,
+  // V13: QR Sharing
+  QrCode
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
+import ShareModal from '../../components/ShareModal';
 import { createClient } from '@supabase/supabase-js';
 import SEO from '../../components/SEO';
 
@@ -272,17 +275,17 @@ const LINES_PER_PAGE_OPTIONS = [2, 3, 4, 5, 6];
 
 // V11: Audio track options for export
 const AUDIO_TRACK_OPTIONS = [
-  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: '🎤' },
-  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: '🎵' },
-  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: '🎧' },
+  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: 'ðŸŽ¤' },
+  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: 'ðŸŽµ' },
+  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: 'ðŸŽ§' },
 ];
 
 // V12: Video quality options with credit costs per minute
 const VIDEO_QUALITY_OPTIONS = [
-  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960×540', creditsPerMin: 1, instantCreditsPerMin: 2 },
-  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280×720', creditsPerMin: 2, instantCreditsPerMin: 4 },
-  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920×1080', creditsPerMin: 3, instantCreditsPerMin: 6 },
-  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840×2160', creditsPerMin: 5, instantCreditsPerMin: 10 },
+  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960Ã—540', creditsPerMin: 1, instantCreditsPerMin: 2 },
+  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280Ã—720', creditsPerMin: 2, instantCreditsPerMin: 4 },
+  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920Ã—1080', creditsPerMin: 3, instantCreditsPerMin: 6 },
+  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840Ã—2160', creditsPerMin: 5, instantCreditsPerMin: 10 },
 ];
 
 // V12: Export mode options
@@ -748,6 +751,10 @@ export default function PreviewEditPage() {
   
   // Fullscreen preview state
   const [isFullscreenPreview, setIsFullscreenPreview] = useState(false);
+
+  // V13: QR Sharing state
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [isTokenAccess, setIsTokenAccess] = useState(false);
 
   // V11: Active tab state
   const [activeTab, setActiveTab] = useState('timing');
@@ -1755,20 +1762,57 @@ export default function PreviewEditPage() {
   }, [lyricsLines, selectedWordIndex]);
 
   // ============================================================
-  // LOAD PROJECT
+  // LOAD PROJECT (V13: Now supports token-based access for QR sharing)
   // ============================================================
   useEffect(() => {
     if (!id) return;
     const loadProject = async () => {
       try {
         setLoading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) { router.push('/login'); return; }
-
-        const { data: projectData, error: projectError } = await supabase
-          .from('projects').select('*').eq('id', id).eq('user_id', user.id).single();
-
-        if (projectError || !projectData) { setError('Project not found'); return; }
+        
+        // V13: Check for edit token in URL (for accessing from another device via QR code)
+        const urlParams = new URLSearchParams(window.location.search);
+        const editToken = urlParams.get('token');
+        
+        let projectData = null;
+        
+        if (editToken) {
+          // Token-based access (no login required, but must have valid token)
+          const { data, error: tokenError } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('id', id)
+            .eq('edit_token', editToken)
+            .single();
+          
+          if (tokenError || !data) {
+            setError('Invalid or expired edit link. Please request a new one from the project owner.');
+            setLoading(false);
+            return;
+          }
+          
+          projectData = data;
+          setIsTokenAccess(true);
+        } else {
+          // Normal authenticated access
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) { router.push('/login'); return; }
+          
+          const { data, error: projectError } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .single();
+          
+          if (projectError || !data) { 
+            setError('Project not found'); 
+            setLoading(false);
+            return; 
+          }
+          
+          projectData = data;
+        }
 
         // Debug: Log custom font info
         console.log('Custom font URL:', projectData.custom_font_url);
@@ -3245,6 +3289,15 @@ export default function PreviewEditPage() {
   // ============================================================
   return (
     <>
+      {/* V13: Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        project={project}
+        isDark={isDark}
+        onTokensUpdated={(updatedProject) => setProject(updatedProject)}
+      />
+
       <SEO title={`Edit: ${project.title} | Karatrack Studio`} description="Edit lyrics timing and line breaks" />
 
       {/* Audio Elements */}
@@ -3575,9 +3628,16 @@ export default function PreviewEditPage() {
           {/* Header */}
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
-              <Link href="/dashboard" className={`p-2 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
+              {/* V13: Back button - different behavior for token access */}
+              {!isTokenAccess ? (
+                <Link href="/dashboard" className={`p-2 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>
+                  <ArrowLeft className="w-5 h-5" />
+                </Link>
+              ) : (
+                <a href="https://studio.karatrack.com" className={`p-2 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`} title="Back to Karatrack Studio">
+                  <ArrowLeft className="w-5 h-5" />
+                </a>
+              )}
               
               {/* Editable Track Info */}
               {editingTrackInfo ? (
@@ -3612,7 +3672,7 @@ export default function PreviewEditPage() {
                       placeholder="Artist Name"
                       className={`px-2 py-0.5 text-sm rounded-lg border ${isDark ? 'bg-white/5 border-white/20 text-gray-300' : 'bg-white border-gray-300 text-gray-600'} focus:outline-none focus:border-cyan-500`}
                     />
-                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>•</span>
+                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>â€¢</span>
                     <input
                       type="text"
                       value={trackInfo.discId}
@@ -3638,12 +3698,26 @@ export default function PreviewEditPage() {
                     <Edit3 className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                   </div>
                   <p className="text-sm text-gray-500">
-                    {trackInfo.artistName || 'Unknown Artist'} • {trackInfo.discId || 'KT-01'}
+                    {trackInfo.artistName || 'Unknown Artist'} â€¢ {trackInfo.discId || 'KT-01'}
                   </p>
                 </div>
               )}
             </div>
             <div className="flex items-center gap-2">
+              {/* V13: Share Button */}
+              <button
+                onClick={() => setShowShareModal(true)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  isDark 
+                    ? 'bg-white/10 hover:bg-white/20 text-white' 
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+                title="Share Project"
+              >
+                <QrCode className="w-4 h-4" />
+                <span className="hidden sm:inline">Share</span>
+              </button>
+
               {project.custom_font_url && (
                 <span className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/20 text-cyan-400 text-xs rounded-lg">
                   <Type className="w-3 h-3" />{project.custom_font_name || 'Custom Font'}
@@ -3802,13 +3876,13 @@ export default function PreviewEditPage() {
                       )}
                       
                       {layoutSettings.displayMode === 'overwrite' ? (
-                        /* OVERWRITE MODE - Current line cycles through positions 1→2→3→4→1... */
+                        /* OVERWRITE MODE - Current line cycles through positions 1â†’2â†’3â†’4â†’1... */
                         (() => {
                           const numLines = layoutSettings.linesPerOverwrite || 4;
                           const currentIdx = currentLyrics.currentLineIdx ?? -1;
                           
                           // Overwrite mode behavior:
-                          // - Current line position cycles: 0 → 1 → 2 → 3 → 0 → 1 → ...
+                          // - Current line position cycles: 0 â†’ 1 â†’ 2 â†’ 3 â†’ 0 â†’ 1 â†’ ...
                           // - Each slot shows: current line at its cycling position, 
                           //   remaining slots show next unsung lines
                           // - When a line finishes, it's instantly replaced with the next unsung line
@@ -5589,9 +5663,9 @@ export default function PreviewEditPage() {
                                 <Image className="w-6 h-6 text-gray-400 mb-1" />
                                 <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Upload Start Image</span>
                                 <span className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                                  {layoutSettings.aspectRatio === '16:9' ? 'Recommended: 1920×1080px' : 
-                                   layoutSettings.aspectRatio === '9:16' ? 'Recommended: 1080×1920px' : 
-                                   layoutSettings.aspectRatio === '4:3' ? 'Recommended: 1440×1080px' : 
+                                  {layoutSettings.aspectRatio === '16:9' ? 'Recommended: 1920Ã—1080px' : 
+                                   layoutSettings.aspectRatio === '9:16' ? 'Recommended: 1080Ã—1920px' : 
+                                   layoutSettings.aspectRatio === '4:3' ? 'Recommended: 1440Ã—1080px' : 
                                    'PNG for transparency'}
                                 </span>
                               </>
@@ -5748,12 +5822,12 @@ export default function PreviewEditPage() {
                           className={`w-full px-3 py-2 rounded-lg text-sm border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                           style={{ colorScheme: isDark ? 'dark' : 'light' }}
                         >
-                          <option value="to bottom">â†“ Top to Bottom</option>
-                          <option value="to top">â†‘ Bottom to Top</option>
-                          <option value="to right">â†’ Left to Right</option>
-                          <option value="to left">â† Right to Left</option>
-                          <option value="to bottom right">â†˜ Diagonal Down</option>
-                          <option value="to top right">â†— Diagonal Up</option>
+                          <option value="to bottom">Ã¢â€ â€œ Top to Bottom</option>
+                          <option value="to top">Ã¢â€ â€˜ Bottom to Top</option>
+                          <option value="to right">Ã¢â€ â€™ Left to Right</option>
+                          <option value="to left">Ã¢â€ Â Right to Left</option>
+                          <option value="to bottom right">Ã¢â€ Ëœ Diagonal Down</option>
+                          <option value="to top right">Ã¢â€ â€” Diagonal Up</option>
                         </select>
                       </div>
 
@@ -6278,7 +6352,7 @@ export default function PreviewEditPage() {
                           </div>
                           <div className="flex-1">
                             <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              {exportSettings.videoQuality.toUpperCase()} • {songMinutes} min • {exportSettings.exportMode === 'instant' ? 'Instant' : 'Queue'}
+                              {exportSettings.videoQuality.toUpperCase()} â€¢ {songMinutes} min â€¢ {exportSettings.exportMode === 'instant' ? 'Instant' : 'Queue'}
                             </p>
                             <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                               This will cost {totalCredits} credits
@@ -6485,7 +6559,7 @@ export default function PreviewEditPage() {
                             {preset.name}
                           </p>
                           <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            {preset.display_mode} • {preset.aspect_ratio} • {preset.font || 'Default font'}
+                            {preset.display_mode} â€¢ {preset.aspect_ratio} â€¢ {preset.font || 'Default font'}
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
