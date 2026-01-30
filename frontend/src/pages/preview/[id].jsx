@@ -308,54 +308,105 @@ const LOGO_POSITION_OPTIONS = [
 // SWEEP WORD COMPONENT
 // ============================================================
 const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isActive, isPast, showGlow, fadeInProgress = 1 }) => {
-  const baseTextShadow = `1px 1px 2px ${outlineColor}, -1px -1px 2px ${outlineColor}, 1px -1px 2px ${outlineColor}, -1px 1px 2px ${outlineColor}`;
+  // Base outline shadow - 8 offsets for crisp outline
+  const baseTextShadow = `
+    1px 1px 0 ${outlineColor}, 
+    -1px -1px 0 ${outlineColor}, 
+    1px -1px 0 ${outlineColor}, 
+    -1px 1px 0 ${outlineColor},
+    2px 2px 0 ${outlineColor},
+    -2px -2px 0 ${outlineColor},
+    2px -2px 0 ${outlineColor},
+    -2px 2px 0 ${outlineColor}
+  `;
   
-  // Glow effect - rendered BEHIND the text using layered shadows
-  // The glow is a soft blur that sits behind, text outline is on top
-  const glowIntensity = showGlow ? (fadeInProgress * 0.8) : 0;
-  const glowTextShadow = showGlow 
-    ? `0 0 ${8 + glowIntensity * 12}px ${color}${Math.round(glowIntensity * 180).toString(16).padStart(2, '0')}, 0 0 ${16 + glowIntensity * 24}px ${color}${Math.round(glowIntensity * 120).toString(16).padStart(2, '0')}, 0 0 ${24 + glowIntensity * 32}px ${color}${Math.round(glowIntensity * 60).toString(16).padStart(2, '0')}, ${baseTextShadow}`
-    : baseTextShadow;
+  // Glow intensity based on animation progress
+  const glowIntensity = showGlow ? fadeInProgress : 0;
 
+  // Simple case: fully sung word (past)
   if (isPast || sweepPercent >= 1) {
-    return <span className="mx-1" style={{ color: color, textShadow: baseTextShadow, position: 'relative', zIndex: 1 }}>{word}</span>;
+    return (
+      <span className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
+        {/* Glow layer - blurred, behind text */}
+        {showGlow && (
+          <span 
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              color: color,
+              filter: `blur(8px)`,
+              opacity: glowIntensity * 0.7,
+              zIndex: 0,
+              pointerEvents: 'none',
+            }}
+          >{word}</span>
+        )}
+        {/* Main text with outline */}
+        <span style={{ 
+          color: color, 
+          textShadow: baseTextShadow, 
+          position: 'relative', 
+          zIndex: 1 
+        }}>{word}</span>
+      </span>
+    );
   }
 
+  // Simple case: unsung word (not active)
   if (sweepPercent <= 0 && !isActive) {
-    return <span className="mx-1" style={{ color: unsungColor, textShadow: baseTextShadow, position: 'relative', zIndex: 1 }}>{word}</span>;
+    return (
+      <span className="mx-1" style={{ 
+        color: unsungColor, 
+        textShadow: baseTextShadow, 
+        position: 'relative', 
+        zIndex: 1 
+      }}>{word}</span>
+    );
   }
 
+  // Sweeping case: partially sung
   const clipPercent = Math.max(0, Math.min(100, sweepPercent * 100));
-  const softClipPercent = Math.min(100, clipPercent + 2);
 
   return (
-    <span className="mx-1" style={{ position: 'relative', display: 'inline-block', zIndex: 1 }}>
-      {/* Glow layer - behind everything */}
+    <span className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
+      {/* Glow layer - blurred, behind everything, clipped to sung portion */}
       {showGlow && (
         <span 
           aria-hidden="true"
           style={{
-            position: 'absolute', 
-            top: 0, 
+            position: 'absolute',
+            top: 0,
             left: 0,
-            color: 'transparent',
-            textShadow: `0 0 ${20 * glowIntensity}px ${color}, 0 0 ${40 * glowIntensity}px ${color}, 0 0 ${60 * glowIntensity}px ${color}80`,
-            clipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
-            WebkitClipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
+            color: color,
+            filter: `blur(8px)`,
+            opacity: glowIntensity * 0.7,
+            clipPath: `inset(0 ${100 - clipPercent}% 0 0)`,
+            WebkitClipPath: `inset(0 ${100 - clipPercent}% 0 0)`,
             zIndex: 0,
             pointerEvents: 'none',
           }}
         >{word}</span>
       )}
-      {/* Base unsung text */}
-      <span style={{ color: unsungColor, textShadow: baseTextShadow, position: 'relative', zIndex: 1 }}>{word}</span>
-      {/* Swept/sung overlay */}
+      
+      {/* Base unsung text layer */}
+      <span style={{ 
+        color: unsungColor, 
+        textShadow: baseTextShadow, 
+        position: 'relative', 
+        zIndex: 1 
+      }}>{word}</span>
+      
+      {/* Sung overlay - clipped to sweep progress */}
       <span style={{
-        position: 'absolute', top: 0, left: 0,
+        position: 'absolute', 
+        top: 0, 
+        left: 0,
         color: color,
-        textShadow: glowTextShadow,
-        clipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
-        WebkitClipPath: `inset(0 ${100 - softClipPercent}% 0 0)`,
+        textShadow: baseTextShadow,
+        clipPath: `inset(0 ${100 - clipPercent}% 0 0)`,
+        WebkitClipPath: `inset(0 ${100 - clipPercent}% 0 0)`,
         zIndex: 2,
       }}>{word}</span>
     </span>
