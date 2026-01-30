@@ -305,16 +305,13 @@ const LOGO_POSITION_OPTIONS = [
 ];
 
 // ============================================================
-// IMPROVED SWEEP WORD COMPONENT - MORE VISIBLE GLOW
+// SWEEP WORD COMPONENT - V3
 // 
-// Changes from previous fix:
-// 1. Increased blur radius (8px -> 12px)
-// 2. Increased opacity (0.7 -> 1.0)
-// 3. Added multiple glow layers for stronger effect
-// 4. Glow shows for BOTH active AND past (sung) words
+// Glow ONLY shows on the currently active word being sung
+// Past (already sung) words have NO glow
 // 
 // Replace the existing SweepWord component in preview/[id].jsx
-// (around line 304-360)
+// (around line 304)
 // ============================================================
 
 const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isActive, isPast, showGlow, fadeInProgress = 1 }) => {
@@ -329,54 +326,20 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
     2px -2px 0 ${outlineColor},
     -2px 2px 0 ${outlineColor}
   `;
-  
-  // Determine if we should show glow (for active or past sung words)
-  const shouldShowGlow = showGlow || isActive || isPast || sweepPercent > 0;
-  const glowIntensity = shouldShowGlow ? (fadeInProgress || 1) : 0;
 
-  // Simple case: fully sung word (past)
+  // Past words (already sung) - NO glow, just colored text
   if (isPast || sweepPercent >= 1) {
     return (
-      <span className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
-        {/* Glow layers - multiple blurred layers behind text for stronger effect */}
-        <span 
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            color: color,
-            filter: 'blur(16px)',
-            opacity: 0.5,
-            zIndex: 0,
-            pointerEvents: 'none',
-          }}
-        >{word}</span>
-        <span 
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            color: color,
-            filter: 'blur(8px)',
-            opacity: 0.7,
-            zIndex: 0,
-            pointerEvents: 'none',
-          }}
-        >{word}</span>
-        {/* Main text with outline */}
-        <span style={{ 
-          color: color, 
-          textShadow: baseTextShadow, 
-          position: 'relative', 
-          zIndex: 1 
-        }}>{word}</span>
-      </span>
+      <span className="mx-1" style={{ 
+        color: color, 
+        textShadow: baseTextShadow, 
+        position: 'relative', 
+        zIndex: 1 
+      }}>{word}</span>
     );
   }
 
-  // Simple case: unsung word (not active)
+  // Unsung words (not active yet) - dimmed color, no glow
   if (sweepPercent <= 0 && !isActive) {
     return (
       <span className="mx-1" style={{ 
@@ -388,12 +351,12 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
     );
   }
 
-  // Sweeping case: partially sung
+  // Active word being sung - WITH GLOW
   const clipPercent = Math.max(0, Math.min(100, sweepPercent * 100));
 
   return (
     <span className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
-      {/* Outer glow layer - larger blur, clipped to sung portion */}
+      {/* Outer glow layer - larger blur */}
       <span 
         aria-hidden="true"
         style={{
@@ -410,7 +373,7 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
         }}
       >{word}</span>
       
-      {/* Inner glow layer - smaller blur, clipped to sung portion */}
+      {/* Inner glow layer - tighter blur */}
       <span 
         aria-hidden="true"
         style={{
