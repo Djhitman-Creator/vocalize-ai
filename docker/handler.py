@@ -2072,15 +2072,21 @@ def draw_text_with_outline(draw, text, x, y, font, color, outline_color, glow=Fa
     draw.text((x, y), text, font=font, fill=color)
 
 
+# ============================================================
+# FIXED SWEEP-IN BAR FUNCTION
+# Replace the existing draw_sweep_in_bar function in handler.py
+# (around line 2075)
+# ============================================================
+
 def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
     """
     Draw the sweep-in bar that appears before lyrics start.
     
-    The bar should:
-    - Have NO outline/box
-    - Fade from transparent (left) to solid color (right)
-    - Have a soft glow effect
-    - Overlap slightly INTO the first letter (drawn behind text)
+    FIXED VERSION:
+    - NO glow layers (they created ugly black boxes)
+    - Simple horizontal gradient bar
+    - Height matches ~70% of text height (cap height)
+    - Fades smoothly from transparent (left) to solid (right)
     
     Args:
         draw: PIL ImageDraw object
@@ -2089,7 +2095,7 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
         progress: 0-1, where 0 = full bar, 1 = bar disappeared
         color: RGB tuple for the bar color
         width: Frame width for scaling
-        height: Bar height in pixels
+        height: Bar height in pixels (font line height)
         scale: Scale factor based on resolution
     """
     max_bar_width = int(SWEEP_IN_BAR_WIDTH * scale)
@@ -2098,53 +2104,76 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
     if current_width < 2:
         return
     
-    bar_height = int(height * 0.7)  # Slightly shorter than text
-    bar_right = x + int(8 * scale)  # Overlap INTO the first letter by 8px
+    # Bar height should be about 70% of the font height (matches cap height)
+    bar_height = int(height * 0.65)
+    
+    # Position: bar ends at x (touching the first letter), extends left
+    bar_right = x + int(4 * scale)  # Slight overlap into first letter
     bar_left = bar_right - current_width
     bar_top = y - bar_height // 2
     
-    # Draw soft glow ONLY (no box outline) - multiple layers for feathered effect
-    # The glow creates the visual without hard edges
-    glow_layers = 5
-    max_glow_padding = int(10 * scale)
-    
-    for layer in range(glow_layers, 0, -1):
-        layer_padding = int(max_glow_padding * layer / glow_layers)
-        # Exponential falloff - outer layers much dimmer
-        layer_alpha = 0.15 * ((glow_layers - layer + 1) / glow_layers) ** 1.5
-        glow_color = tuple(int(c * layer_alpha) for c in color)
-        
-        # Draw glow layer (no hard rectangle, just soft color)
-        glow_left = bar_left - layer_padding
-        glow_top = bar_top - layer_padding
-        glow_bottom = bar_top + bar_height + layer_padding
-        glow_right = bar_right + layer_padding
-        
-        draw.rectangle(
-            [(glow_left, glow_top), (glow_right, glow_bottom)],
-            fill=glow_color
-        )
-    
-    # Draw the main gradient bar (fades from transparent on left to solid on right)
-    num_segments = min(25, current_width)
-    if num_segments < 1:
-        return
+    # Draw a simple horizontal gradient (no glow boxes!)
+    # More segments = smoother gradient
+    num_segments = max(10, min(50, current_width))
     segment_width = current_width / num_segments
     
     for i in range(num_segments):
         seg_x = bar_left + (i * segment_width)
-        # Gradient: very transparent on left, solid on right
-        # Use exponential curve for smoother fade
-        blend_factor = (i / num_segments) ** 0.7  # Slightly faster fade-in
+        
+        # Gradient: transparent on left, solid on right
+        # Use exponential curve for smooth fade-in
+        blend_factor = (i / num_segments) ** 1.5  # Exponential for smooth fade
+        
+        # Calculate color with alpha baked in (PIL doesn't support true alpha on RGB)
         blended_color = tuple(int(c * blend_factor) for c in color)
         
+        # Draw this segment (1px wide strip for smooth gradient)
         draw.rectangle(
             [(int(seg_x), bar_top), (int(seg_x + segment_width + 1), bar_top + bar_height)],
             fill=blended_color
         )
 
 
-def draw_progress_bar(draw, x, y, progress, color, width, height, scale=1.0):
+# ============================================================
+# ALTERNATIVE: Even simpler version with just a few gradient stops
+# Use this if the above is too slow
+# ============================================================
+
+def draw_sweep_in_bar_simple(draw, x, y, progress, color, width, height, scale=1.0):
+    """
+    Simplified sweep-in bar - just 3-4 gradient stops for performance.
+    """
+    max_bar_width = int(SWEEP_IN_BAR_WIDTH * scale)
+    current_width = int(max_bar_width * (1 - progress))
+    
+    if current_width < 2:
+        return
+    
+    bar_height = int(height * 0.65)
+    bar_right = x + int(4 * scale)
+    bar_left = bar_right - current_width
+    bar_top = y - bar_height // 2
+    
+    # Just 4 segments for a quick gradient
+    segments = [
+        (0.00, 0.05),   # 0-25%: very faint
+        (0.25, 0.20),   # 25-50%: building
+        (0.50, 0.50),   # 50-75%: medium
+        (0.75, 1.00),   # 75-100%: full color
+    ]
+    
+    for i, (start_pct, alpha) in enumerate(segments):
+        end_pct = segments[i + 1][0] if i < len(segments) - 1 else 1.0
+        
+        seg_left = bar_left + int(current_width * start_pct)
+        seg_right = bar_left + int(current_width * end_pct)
+        
+        blended_color = tuple(int(c * alpha) for c in color)
+        
+        draw.rectangle(
+            [(seg_left, bar_top), (seg_right, bar_top + bar_height)],
+            fill=blended_color
+        )
     """
     Draw the progress bar shown during instrumental breaks.
     
