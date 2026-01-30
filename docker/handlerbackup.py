@@ -852,73 +852,49 @@ def apply_watermark(frame, video_width, video_height):
     return watermarked
 
 
-def apply_studio_watermark(frame, video_width, video_height, logo_url, logo_position='bottom-right', logo_size=50, logo_opacity=80):
-    """
-    Apply custom logo watermark to frame with user-defined settings.
+def apply_studio_watermark(frame, video_width, video_height, custom_watermark_url):
+    """Apply custom watermark (logo only, no text) to bottom-right of frame, scaled to video resolution"""
     
-    Args:
-        frame: PIL Image frame
-        video_width: Width of video
-        video_height: Height of video
-        logo_url: URL of the logo image
-        logo_position: Position string ('top-left', 'top-center', 'top-right', 
-                       'bottom-left', 'bottom-center', 'bottom-right')
-        logo_size: Size in pixels (20-150, will be scaled by resolution)
-        logo_opacity: Opacity percentage (0-100)
-    """
-    logo = get_custom_watermark(logo_url)
+    logo = get_custom_watermark(custom_watermark_url)
     if not logo:
         return frame  # Return original if no custom watermark loaded
     
     # Create a copy of the frame to work with
     watermarked = frame.copy()
     
-    # Scale logo based on video resolution AND user's size setting
-    # Base resolution is 720p (1280x720)
-    base_width = 1280
-    resolution_scale = video_width / base_width
+    # Scale watermark based on video resolution
+    # Base size (150x100) was designed for 720p (1280x720)
+    # Scale proportionally for other resolutions
+    base_width = 1280  # 720p width
+    scale_factor = video_width / base_width
     
-    # User's logo_size is in pixels at 720p, scale it for current resolution
-    target_width = int(logo_size * resolution_scale)
-    
-    # Calculate height maintaining aspect ratio
-    aspect_ratio = logo.height / logo.width
-    target_height = int(target_width * aspect_ratio)
+    # Calculate new logo size
+    scaled_width = int(logo.width * scale_factor)
+    scaled_height = int(logo.height * scale_factor)
     
     # Ensure minimum size for visibility
-    min_width = int(40 * resolution_scale)
-    if target_width < min_width:
-        target_width = min_width
-        target_height = int(target_width * aspect_ratio)
+    min_width = 80
+    if scaled_width < min_width:
+        scale_up = min_width / scaled_width
+        scaled_width = min_width
+        scaled_height = int(scaled_height * scale_up)
     
-    # Resize logo
-    scaled_logo = logo.resize((target_width, target_height), Image.Resampling.LANCZOS)
+    # Resize logo if scale factor is different from 1
+    if abs(scale_factor - 1.0) > 0.01:  # Only resize if meaningfully different
+        scaled_logo = logo.resize((scaled_width, scaled_height), Image.Resampling.LANCZOS)
+    else:
+        scaled_logo = logo
     
-    # Calculate position based on logo_position setting
-    padding = int(40 * resolution_scale)
+    # Position in bottom-right corner with padding scaled to resolution
+    padding = int(40 * scale_factor)
     padding = max(20, padding)  # Minimum padding
+    logo_x = video_width - padding - scaled_logo.width
+    logo_y = video_height - padding - scaled_logo.height
     
-    # Horizontal position
-    if 'left' in logo_position:
-        logo_x = padding
-    elif 'right' in logo_position:
-        logo_x = video_width - padding - scaled_logo.width
-    else:  # center
-        logo_x = (video_width - scaled_logo.width) // 2
-    
-    # Vertical position
-    if 'top' in logo_position:
-        logo_y = padding
-    else:  # bottom (default)
-        logo_y = video_height - padding - scaled_logo.height
-    
-    # Apply user's opacity setting (0-100 -> 0.0-1.0)
-    opacity = logo_opacity / 100.0
-    
-    # Create version with user's opacity
+    # Create semi-transparent version
     logo_with_opacity = scaled_logo.copy()
     alpha = logo_with_opacity.split()[3]
-    alpha = alpha.point(lambda p: int(p * opacity))
+    alpha = alpha.point(lambda p: int(p * WATERMARK_OPACITY))
     logo_with_opacity.putalpha(alpha)
     
     # Paste logo onto frame
@@ -1184,7 +1160,7 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
             if i > 0:
                 gap = w['start'] - lyrics[i-1]['end']
                 if gap > 0.5:
-                    gap_info = f" ÃƒÂ¢ÃƒÂ¢ÃƒÂ¢ÃƒÂ¢ GAP: {gap:.2f}s"
+                    gap_info = f" Ã¢Ã¢Ã¢Ã¢ GAP: {gap:.2f}s"
             duration = w['end'] - w['start']
             print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s (duration: {duration:.2f}s){gap_info}")
         
@@ -2044,7 +2020,6 @@ def draw_text_with_outline(draw, text, x, y, font, color, outline_color, glow=Fa
     Draw text with an outline for better visibility.
     
     Glow creates a soft feathered halo BEHIND the text.
-    The glow uses multiple layers with decreasing opacity for a smooth falloff.
     
     Args:
         draw: PIL ImageDraw object
@@ -2058,70 +2033,60 @@ def draw_text_with_outline(draw, text, x, y, font, color, outline_color, glow=Fa
         glow_color: RGB tuple for glow color (defaults to color if None)
         scale: Resolution scale factor (1.0 for 1080p, 2.0 for 4K)
     """
-    # Scale all offsets based on resolution
-    outline_offset = max(1, int(2 * scale))  # Thicker outline for visibility
+    # Scale the offsets based on resolution
+    # Base offsets are for 1080p (scale=1.0)
+    glow_outer = int(4 * scale)
+    glow_outer_diag = int(3 * scale)
+    glow_mid = int(3 * scale)
+    glow_mid_diag = int(2 * scale)
+    glow_inner = int(2 * scale)
+    outline_offset = max(1, int(1 * scale))  # Minimum 1px outline
     
-    # Draw feathered glow FIRST (behind everything) if requested
+    # Draw feathered glow first (behind everything) if requested
     if glow and glow_color:
-        # 5 layers of glow, from outermost (faint) to innermost (brighter)
-        # Each layer uses 8 directional offsets for smooth coverage
-        glow_layers = [
-            # (offset, opacity) - offset in pixels at 1080p, opacity 0-1
-            (12, 0.06),   # Layer 5 - outermost, very faint
-            (9, 0.10),    # Layer 4
-            (6, 0.15),    # Layer 3
-            (4, 0.20),    # Layer 2
-            (2, 0.25),    # Layer 1 - innermost, brightest
-        ]
+        # Layer 3 (outermost) - very faint, largest offset
+        faint_glow = tuple(int(c * 0.15) for c in glow_color)
+        for ox, oy in [(-glow_outer, 0), (glow_outer, 0), (0, -glow_outer), (0, glow_outer), 
+                       (-glow_outer_diag, -glow_outer_diag), (-glow_outer_diag, glow_outer_diag), 
+                       (glow_outer_diag, -glow_outer_diag), (glow_outer_diag, glow_outer_diag)]:
+            draw.text((x + ox, y + oy), text, font=font, fill=faint_glow)
         
-        for base_offset, opacity in glow_layers:
-            offset = int(base_offset * scale)
-            diag_offset = int(offset * 0.7)  # Diagonal is ~70% of cardinal
-            
-            # Calculate glow color with opacity
-            glow_fill = tuple(int(c * opacity) for c in glow_color)
-            
-            # 8 directional offsets: N, S, E, W, NE, NW, SE, SW
-            offsets = [
-                (0, -offset),           # North
-                (0, offset),            # South
-                (-offset, 0),           # West
-                (offset, 0),            # East
-                (-diag_offset, -diag_offset),  # NW
-                (diag_offset, -diag_offset),   # NE
-                (-diag_offset, diag_offset),   # SW
-                (diag_offset, diag_offset),    # SE
-            ]
-            
-            for ox, oy in offsets:
-                draw.text((x + ox, y + oy), text, font=font, fill=glow_fill)
+        # Layer 2 (middle) - medium intensity
+        medium_glow = tuple(int(c * 0.25) for c in glow_color)
+        for ox, oy in [(-glow_mid, 0), (glow_mid, 0), (0, -glow_mid), (0, glow_mid), 
+                       (-glow_mid_diag, -glow_mid_diag), (-glow_mid_diag, glow_mid_diag), 
+                       (glow_mid_diag, -glow_mid_diag), (glow_mid_diag, glow_mid_diag)]:
+            draw.text((x + ox, y + oy), text, font=font, fill=medium_glow)
+        
+        # Layer 1 (innermost) - brightest glow
+        bright_glow = tuple(int(c * 0.4) for c in glow_color)
+        for ox, oy in [(-glow_inner, 0), (glow_inner, 0), (0, -glow_inner), (0, glow_inner)]:
+            draw.text((x + ox, y + oy), text, font=font, fill=bright_glow)
     
-    # Draw outline SECOND (behind text, in front of glow)
-    # Use 8 offsets for thicker, more visible outline
-    outline_offsets = [
-        (-outline_offset, -outline_offset),
-        (-outline_offset, outline_offset),
-        (outline_offset, -outline_offset),
-        (outline_offset, outline_offset),
-        (-outline_offset, 0),
-        (outline_offset, 0),
-        (0, -outline_offset),
-        (0, outline_offset),
-    ]
-    
-    for ox, oy in outline_offsets:
+    # Draw outline (4 diagonal offsets) - scaled for resolution
+    for ox, oy in [(-outline_offset, -outline_offset), (-outline_offset, outline_offset), 
+                   (outline_offset, -outline_offset), (outline_offset, outline_offset)]:
         draw.text((x + ox, y + oy), text, font=font, fill=outline_color)
     
-    # Draw main text LAST (on top of everything)
+    # Draw main text
     draw.text((x, y), text, font=font, fill=color)
 
+
+# ============================================================
+# FIXED SWEEP-IN BAR FUNCTION
+# Replace the existing draw_sweep_in_bar function in handler.py
+# (around line 2075)
+# ============================================================
 
 def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
     """
     Draw the sweep-in bar that appears before lyrics start.
     
-    FIXED: Removed the glow layers that created ugly black boxes.
-    Now just draws a simple gradient bar that fades from transparent to solid.
+    FIXED VERSION:
+    - NO glow layers (they created ugly black boxes)
+    - Simple horizontal gradient bar
+    - Height matches ~70% of text height (cap height)
+    - Fades smoothly from transparent (left) to solid (right)
     
     Args:
         draw: PIL ImageDraw object
@@ -2139,7 +2104,7 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
     if current_width < 2:
         return
     
-    # Bar height should be about 65% of the font height (matches cap height)
+    # Bar height should be about 70% of the font height (matches cap height)
     bar_height = int(height * 0.65)
     
     # Position: bar ends at x (touching the first letter), extends left
@@ -2147,7 +2112,7 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
     bar_left = bar_right - current_width
     bar_top = y - bar_height // 2
     
-    # Draw a simple horizontal gradient (NO glow boxes!)
+    # Draw a simple horizontal gradient (no glow boxes!)
     # More segments = smoother gradient
     num_segments = max(10, min(50, current_width))
     segment_width = current_width / num_segments
@@ -2159,17 +2124,56 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
         # Use exponential curve for smooth fade-in
         blend_factor = (i / num_segments) ** 1.5  # Exponential for smooth fade
         
-        # Calculate color with alpha baked in
+        # Calculate color with alpha baked in (PIL doesn't support true alpha on RGB)
         blended_color = tuple(int(c * blend_factor) for c in color)
         
-        # Draw this segment
+        # Draw this segment (1px wide strip for smooth gradient)
         draw.rectangle(
             [(int(seg_x), bar_top), (int(seg_x + segment_width + 1), bar_top + bar_height)],
             fill=blended_color
         )
 
 
-def draw_progress_bar(draw, x, y, progress, color, width, height, scale=1.0):
+# ============================================================
+# ALTERNATIVE: Even simpler version with just a few gradient stops
+# Use this if the above is too slow
+# ============================================================
+
+def draw_sweep_in_bar_simple(draw, x, y, progress, color, width, height, scale=1.0):
+    """
+    Simplified sweep-in bar - just 3-4 gradient stops for performance.
+    """
+    max_bar_width = int(SWEEP_IN_BAR_WIDTH * scale)
+    current_width = int(max_bar_width * (1 - progress))
+    
+    if current_width < 2:
+        return
+    
+    bar_height = int(height * 0.65)
+    bar_right = x + int(4 * scale)
+    bar_left = bar_right - current_width
+    bar_top = y - bar_height // 2
+    
+    # Just 4 segments for a quick gradient
+    segments = [
+        (0.00, 0.05),   # 0-25%: very faint
+        (0.25, 0.20),   # 25-50%: building
+        (0.50, 0.50),   # 50-75%: medium
+        (0.75, 1.00),   # 75-100%: full color
+    ]
+    
+    for i, (start_pct, alpha) in enumerate(segments):
+        end_pct = segments[i + 1][0] if i < len(segments) - 1 else 1.0
+        
+        seg_left = bar_left + int(current_width * start_pct)
+        seg_right = bar_left + int(current_width * end_pct)
+        
+        blended_color = tuple(int(c * alpha) for c in color)
+        
+        draw.rectangle(
+            [(seg_left, bar_top), (seg_right, bar_top + bar_height)],
+            fill=blended_color
+        )
     """
     Draw the progress bar shown during instrumental breaks.
     
@@ -2596,7 +2600,7 @@ def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, hei
     return lyrics_frame
 
 
-def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None, logo_url=None, logo_position='bottom-right', logo_size=50, logo_opacity=80):
+def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None):
     """Generate video with lyrics and countdown. Supports video/image backgrounds."""
     print(f"Generating video (mode: {display_mode}, background: {bg_type})...")
     print(f"   Subscription tier: {subscription_tier}")
@@ -2857,9 +2861,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         if apply_watermark_to_video:
             frame = apply_watermark(frame, width, height)
         elif apply_custom_watermark:
-            # Use logo_url if available, fall back to custom_watermark_url
-            watermark_url = logo_url or custom_watermark_url
-            frame = apply_studio_watermark(frame, width, height, watermark_url, logo_position, logo_size, logo_opacity)
+            frame = apply_studio_watermark(frame, width, height, custom_watermark_url)
         
         frame_path = os.path.join(frames_dir, f'frame_{frame_num:06d}.jpg')
         frame.save(frame_path, 'JPEG', quality=92)
@@ -2933,12 +2935,6 @@ def handler(event):
         
         # Get custom watermark URL for Studio users
         custom_watermark_url = input_data.get('custom_watermark_url', None)
-        
-        # Logo settings (Studio tier branding)
-        logo_url = input_data.get('logo_url', None)
-        logo_position = input_data.get('logo_position', 'bottom-right')
-        logo_size = input_data.get('logo_size', 50)
-        logo_opacity = input_data.get('logo_opacity', 80)
         
         track_info = {
             'track_number': input_data.get('track_number', 'KT-01'),
@@ -3197,14 +3193,9 @@ def handler(event):
               subscription_tier,  # Pass subscription tier for watermark logic
               custom_watermark_url,  # Pass custom watermark URL for Studio users
               input_data.get('outro_text'),  # Pass outro text for Studio users
-              bg_type,  # Background type
-              bg_video_path,  # Video background path
-              bg_image,  # Image background
-              # Logo settings (Studio branding)
-              logo_url,
-              logo_position,
-              logo_size,
-              logo_opacity
+              bg_type,  # NEW: Background type
+              bg_video_path,  # NEW: Video background path
+              bg_image  # NEW: Image background
           )
         
         video_key = f"processed/{project_id}/video.mp4"
