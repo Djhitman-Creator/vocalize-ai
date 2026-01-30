@@ -833,25 +833,43 @@ export default function DashboardPage() {
                         </span>
                       </div>
 
-                      {/* Download Button - only show for completed projects */}
+                      {/* Download & Edit Buttons - only show for completed projects */}
                       {project.status === 'completed' && (
-                        <button
-                          onClick={() => handleDownload(project)}
-                          disabled={downloadingId === project.id}
-                          className="ml-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
-                        >
-                          {downloadingId === project.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span>Loading...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4" />
-                              <span>Download</span>
-                            </>
-                          )}
-                        </button>
+                        <div className="flex items-center gap-2 ml-2">
+                          {/* Download Button */}
+                          <button
+                            onClick={() => handleDownload(project)}
+                            disabled={downloadingId === project.id}
+                            className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {downloadingId === project.id ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Loading...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4" />
+                                <span>Download</span>
+                              </>
+                            )}
+                          </button>
+                          
+                          {/* Edit/Re-export Button */}
+                          <Link href={`/preview/${project.id}`}>
+                            <button 
+                              className={`px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                                isDark 
+                                  ? 'bg-white/10 hover:bg-white/20 text-white border border-white/10' 
+                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
+                              }`}
+                              title="Edit project or export in different format"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                              <span>Edit</span>
+                            </button>
+                          </Link>
+                        </div>
                       )}
 
                       {/* Review Lyrics Button - for awaiting_review projects */}
