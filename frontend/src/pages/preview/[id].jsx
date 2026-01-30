@@ -305,8 +305,18 @@ const LOGO_POSITION_OPTIONS = [
 ];
 
 // ============================================================
-// SWEEP WORD COMPONENT
+// IMPROVED SWEEP WORD COMPONENT - MORE VISIBLE GLOW
+// 
+// Changes from previous fix:
+// 1. Increased blur radius (8px -> 12px)
+// 2. Increased opacity (0.7 -> 1.0)
+// 3. Added multiple glow layers for stronger effect
+// 4. Glow shows for BOTH active AND past (sung) words
+// 
+// Replace the existing SweepWord component in preview/[id].jsx
+// (around line 304-360)
 // ============================================================
+
 const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isActive, isPast, showGlow, fadeInProgress = 1 }) => {
   // Base outline shadow - 8 offsets for crisp outline
   const baseTextShadow = `
@@ -320,29 +330,41 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
     -2px 2px 0 ${outlineColor}
   `;
   
-  // Glow intensity based on animation progress
-  const glowIntensity = showGlow ? fadeInProgress : 0;
+  // Determine if we should show glow (for active or past sung words)
+  const shouldShowGlow = showGlow || isActive || isPast || sweepPercent > 0;
+  const glowIntensity = shouldShowGlow ? (fadeInProgress || 1) : 0;
 
   // Simple case: fully sung word (past)
   if (isPast || sweepPercent >= 1) {
     return (
       <span className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
-        {/* Glow layer - blurred, behind text */}
-        {showGlow && (
-          <span 
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              color: color,
-              filter: `blur(8px)`,
-              opacity: glowIntensity * 0.7,
-              zIndex: 0,
-              pointerEvents: 'none',
-            }}
-          >{word}</span>
-        )}
+        {/* Glow layers - multiple blurred layers behind text for stronger effect */}
+        <span 
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            color: color,
+            filter: 'blur(16px)',
+            opacity: 0.5,
+            zIndex: 0,
+            pointerEvents: 'none',
+          }}
+        >{word}</span>
+        <span 
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            color: color,
+            filter: 'blur(8px)',
+            opacity: 0.7,
+            zIndex: 0,
+            pointerEvents: 'none',
+          }}
+        >{word}</span>
         {/* Main text with outline */}
         <span style={{ 
           color: color, 
@@ -371,24 +393,39 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
 
   return (
     <span className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
-      {/* Glow layer - blurred, behind everything, clipped to sung portion */}
-      {showGlow && (
-        <span 
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            color: color,
-            filter: `blur(8px)`,
-            opacity: glowIntensity * 0.7,
-            clipPath: `inset(0 ${100 - clipPercent}% 0 0)`,
-            WebkitClipPath: `inset(0 ${100 - clipPercent}% 0 0)`,
-            zIndex: 0,
-            pointerEvents: 'none',
-          }}
-        >{word}</span>
-      )}
+      {/* Outer glow layer - larger blur, clipped to sung portion */}
+      <span 
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          color: color,
+          filter: 'blur(16px)',
+          opacity: 0.5,
+          clipPath: `inset(0 ${100 - clipPercent}% 0 0)`,
+          WebkitClipPath: `inset(0 ${100 - clipPercent}% 0 0)`,
+          zIndex: 0,
+          pointerEvents: 'none',
+        }}
+      >{word}</span>
+      
+      {/* Inner glow layer - smaller blur, clipped to sung portion */}
+      <span 
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          color: color,
+          filter: 'blur(8px)',
+          opacity: 0.7,
+          clipPath: `inset(0 ${100 - clipPercent}% 0 0)`,
+          WebkitClipPath: `inset(0 ${100 - clipPercent}% 0 0)`,
+          zIndex: 0,
+          pointerEvents: 'none',
+        }}
+      >{word}</span>
       
       {/* Base unsung text layer */}
       <span style={{ 
