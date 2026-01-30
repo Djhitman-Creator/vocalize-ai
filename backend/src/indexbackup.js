@@ -450,7 +450,7 @@ async function sendCompletionEmail(project, downloadUrl) {
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -578,7 +578,7 @@ async function sendFailureEmail(project, errorMessage) {
               Need help? <a href="mailto:support@karatrack.com" style="color: #00d4ff; text-decoration: none;">Contact Support</a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -690,7 +690,7 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -1424,6 +1424,63 @@ app.post('/api/upload-logo', authMiddleware, upload.single('logo'), async (req, 
   }
 });
 
+// Upload background image for a specific project
+app.post('/api/upload-background-image', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    const projectId = req.body.projectId;
+    
+    if (!projectId) {
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    // Validate file type
+    if (!req.file.mimetype.startsWith('image/')) {
+      return res.status(400).json({ error: 'File must be an image (JPG, PNG, etc.)' });
+    }
+
+    // Upload image to R2
+    const imageKey = `backgrounds/${req.user.id}/${projectId}-bg-image${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
+    const imageUrl = await uploadToR2(req.file.buffer, imageKey, req.file.mimetype);
+    console.log(`Background image uploaded for project ${projectId}: ${imageUrl}`);
+
+    // Save URL to project
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ 
+        bg_image_url: imageUrl,
+        bg_type: 'image'
+      })
+      .eq('id', projectId);
+
+    if (updateError) throw updateError;
+
+    res.json({ 
+      success: true, 
+      imageUrl: imageUrl,
+      message: 'Background image uploaded successfully' 
+    });
+  } catch (error) {
+    console.error('Background image upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Upload start image / intro overlay for a specific project (Studio tier feature)
 app.post('/api/upload-start-image', authMiddleware, upload.single('startImage'), async (req, res) => {
   try {
@@ -1600,21 +1657,10 @@ app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
       outline_color: project.outline_color,
       sung_color: project.sung_color,
       font: project.font,
-      font_size: project.font_size || 'normal',
       processing_mode: 'full',
       subscription_tier: userProfile.subscription_tier || 'free',
-      // Studio branding - Logo settings
-      logo_url: project.logo_url || null,
-      logo_position: project.logo_position || 'bottom-right',
-      logo_size: project.logo_size || 50,
-      logo_opacity: project.logo_opacity || 80,
-      custom_watermark_url: project.custom_watermark_url || project.logo_url || null,
+      custom_watermark_url: project.custom_watermark_url,
       outro_text: project.outro_text || null,
-      // Video background
-      bg_type: project.bg_type || 'gradient',
-      bg_video_preset: project.bg_video_preset_filename || null,
-      bg_video_url: project.bg_video_url || null,
-      bg_image_url: project.bg_image_url || null,
     });
 
     await supabase
@@ -1730,10 +1776,9 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
     }
 
     // Check if project is in a state where we can render
-    // Allow: awaiting_review, transcribed, AND completed (for re-renders)
-    if (!['awaiting_review', 'transcribed', 'completed'].includes(project.status)) {
+    if (!['awaiting_review', 'transcribed'].includes(project.status)) {
       return res.status(400).json({
-        error: `Cannot render project with status: ${project.status}. Project must be awaiting review or completed.`
+        error: `Cannot render project with status: ${project.status}. Project must be awaiting review.`
       });
     }
 
@@ -1777,24 +1822,19 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       sung_color: project.sung_color || '#F4E409',
       font: project.font || 'arial',
       font_size: project.font_size || 'normal',
-      // Custom font
+      // FIX: Include custom font URL and name (was missing!)
       custom_font_url: project.custom_font_url || null,
       custom_font_name: project.custom_font_name || null,
       // Render-only specific
       processed_audio_url: project.processed_audio_url,
       vocals_audio_url: project.vocals_audio_url,
       edited_lyrics: edited_lyrics,
-      // Subscription tier for watermark logic
+      // NEW: Subscription tier for watermark logic
       subscription_tier: userProfile.subscription_tier || 'free',
-      // Studio branding - Logo settings (with size, position, opacity)
-      logo_url: project.logo_url || null,
-      logo_position: project.logo_position || 'bottom-right',
-      logo_size: project.logo_size || 50,
-      logo_opacity: project.logo_opacity || 80,
-      // Legacy custom watermark (kept for backward compatibility)
-      custom_watermark_url: project.custom_watermark_url || project.logo_url || null,
-      // Outro text
+      // FIX: Include custom watermark URL from PROJECT (not profile) for Studio tier re-renders
+      custom_watermark_url: project.custom_watermark_url || null,
       outro_text: project.outro_text || null,
+      font_size: project.font_size || 'medium',
       // Video background options
       bg_type: project.bg_type || 'gradient',
       bg_video_preset: project.bg_video_preset_filename || null,
@@ -2978,7 +3018,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             </p>
           </div>
           <div class="footer">
-            <p>Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
+            <p>Ã‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
             <p>Questions? Reply to this email or visit our support page.</p>
           </div>
         </div>
