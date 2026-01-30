@@ -1424,6 +1424,63 @@ app.post('/api/upload-logo', authMiddleware, upload.single('logo'), async (req, 
   }
 });
 
+// Upload background image for a specific project
+app.post('/api/upload-background-image', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    const projectId = req.body.projectId;
+    
+    if (!projectId) {
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    // Validate file type
+    if (!req.file.mimetype.startsWith('image/')) {
+      return res.status(400).json({ error: 'File must be an image (JPG, PNG, etc.)' });
+    }
+
+    // Upload image to R2
+    const imageKey = `backgrounds/${req.user.id}/${projectId}-bg-image${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
+    const imageUrl = await uploadToR2(req.file.buffer, imageKey, req.file.mimetype);
+    console.log(`Background image uploaded for project ${projectId}: ${imageUrl}`);
+
+    // Save URL to project
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ 
+        bg_image_url: imageUrl,
+        bg_type: 'image'
+      })
+      .eq('id', projectId);
+
+    if (updateError) throw updateError;
+
+    res.json({ 
+      success: true, 
+      imageUrl: imageUrl,
+      message: 'Background image uploaded successfully' 
+    });
+  } catch (error) {
+    console.error('Background image upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Upload start image / intro overlay for a specific project (Studio tier feature)
 app.post('/api/upload-start-image', authMiddleware, upload.single('startImage'), async (req, res) => {
   try {
