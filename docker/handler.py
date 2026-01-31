@@ -1254,7 +1254,7 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
             if i > 0:
                 gap = w['start'] - lyrics[i-1]['end']
                 if gap > 0.5:
-                    gap_info = f" ÃƒÂ¢ÃƒÂ¢ÃƒÂ¢ÃƒÂ¢ GAP: {gap:.2f}s"
+                    gap_info = f" ÃƒÆ’Ã‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÆ’Ã‚Â¢ GAP: {gap:.2f}s"
             duration = w['end'] - w['start']
             print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s (duration: {duration:.2f}s){gap_info}")
         
@@ -2341,7 +2341,11 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
                 scroll_progress = (current_time - line_start) / (line_end - line_start)
                 scroll_progress = max(0, min(1, scroll_progress))
     
-    visible_lines = 9
+    # V12: Use lines_per_scroll from settings instead of hardcoded value
+    # lines_per_scroll is how many lines the user wants visible
+    # We show extra context lines above and below, so multiply by ~1.5-2
+    lines_per_scroll = colors.get('lines_per_scroll', 5) if colors else 5
+    visible_lines = lines_per_scroll * 2 - 1  # e.g., 5 lines setting = 9 visible with context
     center_y = height // 2
     
     for offset in range(-visible_lines // 2, visible_lines // 2 + 1):
@@ -2733,9 +2737,15 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         'font_size_scale': font_size_scale,
         'font': style_options.get('font', 'arial'),
         'custom_font_path': style_options.get('custom_font_path'),
+        # V12: Layout settings for scroll/page modes
+        'lines_per_scroll': style_options.get('lines_per_scroll', 5),
+        'lines_per_page': style_options.get('lines_per_page', 4),
+        'lines_per_overwrite': style_options.get('lines_per_overwrite', 4),
+        'emphasize_current_line': style_options.get('emphasize_current_line', False),
     }
     
     print(f"    Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}, font={colors['font']}, font_scale={font_size_scale}")
+    print(f"    Layout: lines_per_scroll={colors['lines_per_scroll']}, emphasize={colors['emphasize_current_line']}")
     
     # Get aspect ratio from style_options (default to 16:9)
     aspect_ratio = style_options.get('aspect_ratio', '16:9')
@@ -3065,7 +3075,21 @@ def handler(event):
             'custom_font_name': input_data.get('custom_font_name'),
             # Layout
             'aspect_ratio': input_data.get('aspect_ratio', '16:9'),
+            # V12: Layout settings for lines and emphasis
+            'lines_per_scroll': input_data.get('lines_per_scroll', 5),
+            'lines_per_page': input_data.get('lines_per_page', 4),
+            'lines_per_overwrite': input_data.get('lines_per_overwrite', 4),
+            'emphasize_current_line': input_data.get('emphasize_current_line', False),
+            'show_progress_bar': input_data.get('show_progress_bar', True),
+            'show_countdown': input_data.get('show_countdown', True),
+            'show_lead_in_bars': input_data.get('show_lead_in_bars', True),
         }
+        
+        # V12: Start/Intro image settings
+        start_image_url = input_data.get('start_image_url')
+        start_image_fit = input_data.get('start_image_fit', 'fill')
+        start_image_opacity = input_data.get('start_image_opacity', 100)
+        start_image_show_title = input_data.get('start_image_show_title', True)
         
         # NEW in 5.0: Background type options
         bg_type = input_data.get('bg_type', 'gradient')  # 'color', 'gradient', 'image', 'video'
@@ -3082,6 +3106,8 @@ def handler(event):
         print(f"   Quality: {video_quality}")
         print(f"    Subscription tier: {subscription_tier}")
         print(f"    Style: bg={style_options['bg_color_1']}, text={style_options['text_color']}, sung={style_options['sung_color']}")
+        print(f"    Layout: lines_per_scroll={style_options['lines_per_scroll']}, emphasize={style_options['emphasize_current_line']}")
+        print(f"    Start image: {start_image_url if start_image_url else 'None'}")
         print(f"    Using AssemblyAI for precise timing!")
         print(f"   [4.1] Lyrics comparison uses NORMALIZED matching (ignores punctuation/case)")
         
