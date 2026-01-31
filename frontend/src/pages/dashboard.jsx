@@ -23,7 +23,9 @@ import {
   Edit3,
   HelpCircle,
   Lightbulb,
-  Send
+  Send,
+  History,
+  ChevronDown
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import AppNavigation from '../components/AppNavigation';
@@ -72,6 +74,11 @@ export default function DashboardPage() {
   const [suggestionDescription, setSuggestionDescription] = useState('');
   const [suggestionCategory, setSuggestionCategory] = useState('feature');
   const [submittingSuggestion, setSubmittingSuggestion] = useState(false);
+  
+  // Render history state
+  const [showRenderHistory, setShowRenderHistory] = useState(null);
+  const [renderHistory, setRenderHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Add notification
   const addNotification = useCallback((message, type = 'success') => {
@@ -88,6 +95,31 @@ export default function DashboardPage() {
   // Remove notification
   const removeNotification = (id) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+// Fetch render history for a project
+  const fetchRenderHistory = async (projectId) => {
+    try {
+      setLoadingHistory(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/projects/${projectId}/renders`,
+        {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setRenderHistory(data.renders || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch render history:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   // Fetch projects (used for polling)
@@ -855,6 +887,27 @@ export default function DashboardPage() {
                             )}
                           </button>
                           
+                          {/* Version History Button */}
+                          <button
+                            onClick={() => {
+                              if (showRenderHistory === project.id) {
+                                setShowRenderHistory(null);
+                              } else {
+                                setShowRenderHistory(project.id);
+                                fetchRenderHistory(project.id);
+                              }
+                            }}
+                            className={`px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-1.5 ${
+                              isDark 
+                                ? 'bg-white/10 hover:bg-white/20 text-white border border-white/10' 
+                                : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
+                            } ${showRenderHistory === project.id ? 'ring-2 ring-cyan-500' : ''}`}
+                            title="View all render versions"
+                          >
+                            <History className="w-4 h-4" />
+                            <ChevronDown className={`w-3 h-3 transition-transform ${showRenderHistory === project.id ? 'rotate-180' : ''}`} />
+                          </button>
+                          
                           {/* Edit/Re-export Button */}
                           <Link href={`/preview/${project.id}`}>
                             <button 
@@ -869,6 +922,71 @@ export default function DashboardPage() {
                               <span>Edit</span>
                             </button>
                           </Link>
+                        </div>
+                      )}
+
+                      {/* Render History Dropdown */}
+                      {showRenderHistory === project.id && (
+                        <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
+                          <h4 className={`text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                            Render History
+                          </h4>
+                          
+                          {loadingHistory ? (
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Loading history...
+                            </div>
+                          ) : renderHistory.length === 0 ? (
+                            <p className="text-sm text-gray-400">No render history found</p>
+                          ) : (
+                            <div className="space-y-2 max-h-48 overflow-y-auto">
+                              {renderHistory.map((render, index) => (
+                                <div 
+                                  key={render.id}
+                                  className={`flex items-center justify-between p-2 rounded ${
+                                    isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-gray-100'
+                                  } ${render.is_expired ? 'opacity-50' : ''}`}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <span className={`text-xs px-2 py-0.5 rounded ${
+                                      index === 0 
+                                        ? 'bg-cyan-500/20 text-cyan-400' 
+                                        : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'
+                                    }`}>
+                                      {index === 0 ? 'Latest' : `v${render.render_number}`}
+                                    </span>
+                                    <div>
+                                      <p className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                        {render.video_quality || '720p'} • {new Date(render.created_at).toLocaleDateString()}
+                                      </p>
+                                      <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                        {new Date(render.created_at).toLocaleTimeString()}
+                                        {render.is_expired && ' • Expired'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  
+                                  {!render.is_expired && render.download_url ? (
+                                    
+                                      href={render.download_url}
+                                      download
+                                      className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition-colors"
+                                      title="Download this version"
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </a>
+                                  ) : render.is_expired ? (
+                                    <span className="text-xs text-red-400">Expired</span>
+                                  ) : null}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          <p className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            Renders are available for 30 days
+                          </p>
                         </div>
                       )}
 
