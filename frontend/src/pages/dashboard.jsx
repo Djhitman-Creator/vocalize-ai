@@ -110,7 +110,11 @@ function ProjectActionsDropdown({
   const isProcessing = ['processing', 'transcribing', 'rendering'].includes(project.status);
 
   return (
-    <div className="relative" ref={dropdownRef} style={{ zIndex: isOpen ? 100 : 1 }}>
+    <div 
+      className="relative" 
+      ref={dropdownRef} 
+      style={{ zIndex: isOpen ? 9999 : 1 }}
+    >
       {/* Three-dot menu button */}
       <button
         ref={buttonRef}
@@ -132,7 +136,7 @@ function ProjectActionsDropdown({
         <MoreVertical className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
       </button>
 
-      {/* Dropdown Menu */}
+      {/* Dropdown Menu - Uses fixed positioning to escape parent stacking context */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -150,7 +154,10 @@ function ProjectActionsDropdown({
               }
               shadow-2xl
             `}
-            style={{ zIndex: 9999 }}
+            style={{ 
+              zIndex: 99999,
+              position: 'absolute',
+            }}
           >
             <div className="py-1">
               {/* COMPLETED PROJECT OPTIONS */}
@@ -1200,7 +1207,6 @@ export default function DashboardPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.05 }}
-                    style={{ position: 'relative', zIndex: projects.length - i }}
                   >
                     {/* Main Row */}
                     <div className="flex items-center gap-3 sm:gap-4">
