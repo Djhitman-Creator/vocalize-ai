@@ -1592,6 +1592,9 @@ app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
       lyrics_text: project.lyrics_text,
       display_mode: project.display_mode || 'auto',
       clean_version: project.clean_version || false,
+      // Layout
+      aspect_ratio: project.aspect_ratio || '16:9',
+      // Style
       bg_color_1: project.bg_color_1,
       bg_color_2: project.bg_color_2,
       use_gradient: project.use_gradient,
@@ -1615,6 +1618,7 @@ app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
       bg_video_preset: project.bg_video_preset_filename || null,
       bg_video_url: project.bg_video_url || null,
       bg_image_url: project.bg_image_url || null,
+      bg_image_fit: project.bg_image_fit || 'fill',
     });
 
     await supabase
@@ -1767,6 +1771,8 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       track_number: project.track_number,
       display_mode: project.display_mode || 'auto',
       clean_version: project.clean_version || false,
+      // Layout options
+      aspect_ratio: project.aspect_ratio || '16:9',
       // Style options
       bg_color_1: project.bg_color_1 || '#1a1a2e',
       bg_color_2: project.bg_color_2 || '#16213e',
@@ -1800,6 +1806,7 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       bg_video_preset: project.bg_video_preset_filename || null,
       bg_video_url: project.bg_video_url || null,
       bg_image_url: project.bg_image_url || null,
+      bg_image_fit: project.bg_image_fit || 'fill',
     });
 
     await supabase
