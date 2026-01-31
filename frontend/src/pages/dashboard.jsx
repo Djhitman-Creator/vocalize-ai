@@ -968,7 +968,7 @@ export default function DashboardPage() {
                                   </div>
                                   
                                   {!render.is_expired && render.download_url ? (
-                                    
+                                    <a
                                       href={render.download_url}
                                       download
                                       className="p-2 rounded-lg bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 transition-colors"
