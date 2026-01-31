@@ -297,8 +297,47 @@ def download_image_background(bg_type, bg_image_url, work_dir, target_width, tar
         image_path = os.path.join(work_dir, 'background_image.jpg')
         download_file(bg_image_url, image_path)
         
-        # Load and resize
-        img = Image.open(image_path).convert('RGB')
+        # Load image
+        img = Image.open(image_path)
+        
+        # Fix EXIF orientation (handles rotated phone photos)
+        try:
+            from PIL import ExifTags
+            
+            # Find the orientation tag
+            orientation_key = None
+            for key, val in ExifTags.TAGS.items():
+                if val == 'Orientation':
+                    orientation_key = key
+                    break
+            
+            if orientation_key and hasattr(img, '_getexif') and img._getexif():
+                exif = img._getexif()
+                if exif and orientation_key in exif:
+                    orientation = exif[orientation_key]
+                    
+                    # Apply rotation based on EXIF orientation
+                    if orientation == 2:
+                        img = img.transpose(Image.FLIP_LEFT_RIGHT)
+                    elif orientation == 3:
+                        img = img.rotate(180, expand=True)
+                    elif orientation == 4:
+                        img = img.transpose(Image.FLIP_TOP_BOTTOM)
+                    elif orientation == 5:
+                        img = img.transpose(Image.FLIP_LEFT_RIGHT).rotate(90, expand=True)
+                    elif orientation == 6:
+                        img = img.rotate(270, expand=True)
+                    elif orientation == 7:
+                        img = img.transpose(Image.FLIP_LEFT_RIGHT).rotate(270, expand=True)
+                    elif orientation == 8:
+                        img = img.rotate(90, expand=True)
+                    
+                    print(f"    Applied EXIF orientation fix: {orientation}")
+        except Exception as exif_err:
+            print(f"    Could not read EXIF data: {exif_err}")
+        
+        # Convert to RGB after rotation
+        img = img.convert('RGB')
         
         # Cover resize (same as video)
         img_ratio = img.width / img.height
