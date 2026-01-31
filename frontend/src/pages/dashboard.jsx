@@ -116,10 +116,24 @@ function ProjectActionsDropdown({
       const shouldOpenUpward = spaceBelow < 300;
       setOpenUpward(shouldOpenUpward);
       
-      // Calculate fixed position
+      // Calculate fixed position - align right edge of menu with right edge of button
+      const menuWidth = 200;
+      let leftPos = rect.right - menuWidth;
+      
+      // Make sure menu doesn't go off the left edge of screen
+      if (leftPos < 16) {
+        leftPos = 16;
+      }
+      
+      // Make sure menu doesn't go off the right edge of screen
+      if (rect.right > window.innerWidth - 16) {
+        leftPos = window.innerWidth - menuWidth - 16;
+      }
+      
       setMenuPosition({
-        top: shouldOpenUpward ? rect.top - 8 : rect.bottom + 8,
-        left: rect.right - 200, // 200px is min-width of menu
+        top: shouldOpenUpward ? rect.top : rect.bottom + 8,
+        left: leftPos,
+        buttonRight: rect.right,
       });
     }
     const newIsOpen = !isOpen;
@@ -169,10 +183,11 @@ function ProjectActionsDropdown({
             style={{
               position: 'fixed',
               top: openUpward ? 'auto' : menuPosition.top,
-              bottom: openUpward ? (window.innerHeight - menuPosition.top) : 'auto',
-              left: Math.max(16, menuPosition.left), // Ensure it doesn't go off-screen
+              bottom: openUpward ? (window.innerHeight - menuPosition.top + 8) : 'auto',
+              right: window.innerWidth - menuPosition.buttonRight,
               zIndex: 99999,
               minWidth: '200px',
+              maxWidth: 'calc(100vw - 32px)',
             }}
             className={`
               rounded-xl overflow-hidden
