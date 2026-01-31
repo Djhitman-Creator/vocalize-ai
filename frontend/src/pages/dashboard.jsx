@@ -67,7 +67,9 @@ function ProjectActionsDropdown({
   index  // We need this to calculate z-index
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const dropdownRef = useRef(null);
+  const buttonRef = useRef(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -91,6 +93,17 @@ function ProjectActionsDropdown({
     return () => document.removeEventListener('keydown', handleEscape);
   }, []);
 
+  // Check if dropdown should open upward (when near bottom of screen)
+  const handleToggle = () => {
+    if (!isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      // If less than 300px below, open upward
+      setOpenUpward(spaceBelow < 300);
+    }
+    setIsOpen(!isOpen);
+  };
+
   const isCompleted = project.status === 'completed';
   const isAwaitingReview = project.status === 'awaiting_review';
   const isFailed = project.status === 'failed';
@@ -100,7 +113,8 @@ function ProjectActionsDropdown({
     <div className="relative" ref={dropdownRef} style={{ zIndex: isOpen ? 100 : 1 }}>
       {/* Three-dot menu button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        ref={buttonRef}
+        onClick={handleToggle}
         className={`
           p-2 rounded-lg transition-all duration-200
           ${isDark 
@@ -122,13 +136,14 @@ function ProjectActionsDropdown({
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+            initial={{ opacity: 0, scale: 0.95, y: openUpward ? 10 : -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+            exit={{ opacity: 0, scale: 0.95, y: openUpward ? 10 : -10 }}
             transition={{ duration: 0.15 }}
             className={`
-              absolute right-0 top-full mt-2 min-w-[200px]
+              absolute right-0 min-w-[200px]
               rounded-xl overflow-hidden
+              ${openUpward ? 'bottom-full mb-2' : 'top-full mt-2'}
               ${isDark 
                 ? 'bg-gray-900 border border-white/20' 
                 : 'bg-white border border-gray-200'
