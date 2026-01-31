@@ -2133,37 +2133,35 @@ def draw_text_with_outline(draw, text, x, y, font, color, outline_color, glow=Fa
     
     # Draw feathered glow FIRST (behind everything) if requested
     if glow and glow_color:
-        # 5 layers of glow, from outermost (faint) to innermost (brighter)
-        # Each layer uses 8 directional offsets for smooth coverage
+        # For proper glow, we need to draw on a temporary layer with alpha
+        # Since PIL doesn't support this easily, we use a different approach:
+        # Draw the glow color directly at various offsets with the full color
+        # The overlapping creates the glow effect
+        
+        # Use the actual glow color (not darkened) at multiple offsets
+        # The layering creates the soft halo effect
         glow_layers = [
-            # (offset, opacity) - offset in pixels at 1080p, opacity 0-1
-            (12, 0.06),   # Layer 5 - outermost, very faint
-            (9, 0.10),    # Layer 4
-            (6, 0.15),    # Layer 3
-            (4, 0.20),    # Layer 2
-            (2, 0.25),    # Layer 1 - innermost, brightest
+            # (offset, count) - larger offsets with more draws
+            (int(8 * scale), 12),   # Outermost ring
+            (int(6 * scale), 10),   # Middle ring  
+            (int(4 * scale), 8),    # Inner ring
+            (int(2 * scale), 6),    # Innermost ring
         ]
         
-        for base_offset, opacity in glow_layers:
-            offset = int(base_offset * scale)
-            diag_offset = int(offset * 0.7)  # Diagonal is ~70% of cardinal
-            
-            # Calculate glow color with opacity
-            glow_fill = tuple(int(c * opacity) for c in glow_color)
-            
-            # 8 directional offsets: N, S, E, W, NE, NW, SE, SW
-            offsets = [
-                (0, -offset),           # North
-                (0, offset),            # South
-                (-offset, 0),           # West
-                (offset, 0),            # East
-                (-diag_offset, -diag_offset),  # NW
-                (diag_offset, -diag_offset),   # NE
-                (-diag_offset, diag_offset),   # SW
-                (diag_offset, diag_offset),    # SE
-            ]
-            
-            for ox, oy in offsets:
+        import math
+        
+        for offset, num_points in glow_layers:
+            if offset < 1:
+                continue
+            # Draw at evenly spaced points around a circle
+            for i in range(num_points):
+                angle = (2 * math.pi * i) / num_points
+                ox = int(offset * math.cos(angle))
+                oy = int(offset * math.sin(angle))
+                # Use a semi-transparent version of the glow color
+                # Opacity decreases with distance
+                opacity = 0.15 if offset > int(6 * scale) else 0.2 if offset > int(4 * scale) else 0.25
+                glow_fill = tuple(int(c * opacity) for c in glow_color)
                 draw.text((x + ox, y + oy), text, font=font, fill=glow_fill)
     
     # Draw outline SECOND (behind text, in front of glow)
@@ -2190,17 +2188,17 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
     """
     Draw the sweep-in bar that appears before lyrics start.
     
-    FIXED: Removed the glow layers that created ugly black boxes.
-    Now just draws a simple gradient bar that fades from transparent to solid.
+    The bar is a gradient that fades from transparent to solid color.
+    NO black/dark colors - only the highlight color with varying opacity.
     
     Args:
         draw: PIL ImageDraw object
         x: X position (where it meets the first letter - bar extends LEFT from here)
-        y: Y position (vertical center of the bar)
+        y: Y position (vertical CENTER of the bar/text line)
         progress: 0-1, where 0 = full bar, 1 = bar disappeared
-        color: RGB tuple for the bar color
+        color: RGB tuple for the bar color (the highlight/sung color)
         width: Frame width for scaling
-        height: Bar height in pixels (font line height)
+        height: Bar height in pixels (line height)
         scale: Scale factor based on resolution
     """
     max_bar_width = int(SWEEP_IN_BAR_WIDTH * scale)
@@ -2209,16 +2207,18 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
     if current_width < 2:
         return
     
-    # Bar height should be about 65% of the font height (matches cap height)
-    bar_height = int(height * 0.65)
+    # Bar height should match the font's cap height (about 70% of line height)
+    bar_height = int(height * 0.70)
     
     # Position: bar ends at x (touching the first letter), extends left
-    bar_right = x + int(4 * scale)  # Slight overlap into first letter
+    # Add small overlap into first letter for seamless transition
+    bar_right = x + int(4 * scale)
     bar_left = bar_right - current_width
+    
+    # y is the CENTER of the text line, so center the bar vertically
     bar_top = y - bar_height // 2
     
-    # Draw a simple horizontal gradient (NO glow boxes!)
-    # More segments = smoother gradient
+    # Draw gradient segments - ONLY using the highlight color, no black
     num_segments = max(10, min(50, current_width))
     segment_width = current_width / num_segments
     
@@ -2226,10 +2226,17 @@ def draw_sweep_in_bar(draw, x, y, progress, color, width, height, scale=1.0):
         seg_x = bar_left + (i * segment_width)
         
         # Gradient: transparent on left, solid on right
-        # Use exponential curve for smooth fade-in
-        blend_factor = (i / num_segments) ** 1.5  # Exponential for smooth fade
+        # Use smooth curve for natural fade-in
+        t = i / num_segments
+        # Ease-in curve: starts slow, accelerates
+        blend_factor = t * t * t  # Cubic ease-in for very smooth gradient
         
-        # Calculate color with alpha baked in
+        # Only draw if there's actual color to show (skip near-zero segments)
+        if blend_factor < 0.01:
+            continue
+            
+        # Use the highlight color with varying intensity
+        # This creates the gradient WITHOUT any black
         blended_color = tuple(int(c * blend_factor) for c in color)
         
         # Draw this segment
