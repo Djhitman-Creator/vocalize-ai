@@ -1634,6 +1634,68 @@ app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
   }
 });
 
+// Get render history for a project
+app.get('/api/projects/:id/renders', authMiddleware, async (req, res) => {
+  try {
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('id, user_id, title, artist_name, song_title, track_number')
+      .eq('id', req.params.id)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Get all renders for this project, newest first
+    const { data: renders, error: rendersError } = await supabase
+      .from('project_renders')
+      .select('*')
+      .eq('project_id', req.params.id)
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (rendersError) {
+      console.error('Error fetching renders:', rendersError);
+      return res.status(500).json({ error: 'Failed to fetch render history' });
+    }
+
+    // Generate signed download URLs for each render
+    const baseFilename = `${project.track_number || 'KT-01'} - ${project.artist_name || 'Unknown Artist'} - ${project.song_title || 'Untitled'}`;
+    const sanitizedFilename = baseFilename.replace(/[<>:"/\\|?*]/g, '');
+
+    const rendersWithUrls = await Promise.all(
+      (renders || []).map(async (render) => {
+        let downloadUrl = null;
+        if (render.video_url) {
+          try {
+            downloadUrl = await getSignedDownloadUrl(render.video_url, `${sanitizedFilename} - v${render.render_number}.mp4`);
+          } catch (e) {
+            console.warn(`Could not generate URL for render ${render.id}:`, e.message);
+          }
+        }
+
+        return {
+          ...render,
+          download_url: downloadUrl,
+          is_expired: new Date(render.expires_at) < new Date(),
+        };
+      })
+    );
+
+    res.json({
+      project_id: req.params.id,
+      renders: rendersWithUrls,
+      total: rendersWithUrls.length,
+    });
+
+  } catch (error) {
+    console.error('Render history error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/projects/:id/download', authMiddleware, async (req, res) => {
   try {
     const { data: project, error } = await supabase
@@ -2666,6 +2728,53 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         console.error('Failed to update project status:', updateError);
       } else {
         console.log('Project status updated to completed:', updateData);
+      }
+
+      // Save to render history
+      if (results.video_url && project) {
+        try {
+          // Get next render number
+          const { data: maxRender } = await supabase
+            .from('project_renders')
+            .select('render_number')
+            .eq('project_id', project_id)
+            .order('render_number', { ascending: false })
+            .limit(1)
+            .single();
+
+          const nextRenderNumber = (maxRender?.render_number || 0) + 1;
+
+          // Create settings snapshot
+          const settingsSnapshot = {
+            video_quality: project.video_quality || '720p',
+            font: project.font,
+            font_size: project.font_size,
+            text_color: project.text_color,
+            sung_color: project.sung_color,
+            bg_type: project.bg_type,
+            display_mode: project.display_mode,
+          };
+
+          // Insert render history record
+          const { error: renderError } = await supabase
+            .from('project_renders')
+            .insert({
+              project_id: project_id,
+              user_id: project.user_id,
+              video_url: results.video_url,
+              video_quality: project.video_quality || '720p',
+              settings_snapshot: settingsSnapshot,
+              render_number: nextRenderNumber,
+            });
+
+          if (renderError) {
+            console.error('Failed to save render history:', renderError);
+          } else {
+            console.log(`Render #${nextRenderNumber} saved to history for project ${project_id}`);
+          }
+        } catch (renderHistoryError) {
+          console.error('Render history error:', renderHistoryError);
+        }
       }
 
       // Send completion email if enabled
