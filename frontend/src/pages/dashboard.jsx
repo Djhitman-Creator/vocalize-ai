@@ -1212,14 +1212,17 @@ export default function DashboardPage() {
                 {projects.map((project, i) => (
                   <motion.div
                     key={project.id}
-                    className={`glass-panel p-4 relative ${
+                    className={`glass-panel p-4 ${
                       ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'border border-yellow-500/30' :
                       project.status === 'awaiting_review' ? 'border border-purple-500/30' : ''
                     }`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.05 }}
-                    style={{ zIndex: openDropdownId === project.id || showRenderHistory === project.id ? 9999 : 1 }}
+                    style={{ 
+                      position: 'relative',
+                      zIndex: openDropdownId === project.id || showRenderHistory === project.id ? 9999 : 1 
+                    }}
                   >
                     {/* Main Row */}
                     <div className="flex items-center gap-3 sm:gap-4">
@@ -1352,7 +1355,8 @@ export default function DashboardPage() {
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
-                          className="overflow-hidden"
+                          className="overflow-visible"
+                          style={{ position: 'relative', zIndex: 10 }}
                         >
                           <div className={`mt-4 p-4 rounded-xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
                             <h4 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
