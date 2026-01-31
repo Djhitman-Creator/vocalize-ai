@@ -68,6 +68,7 @@ function ProjectActionsDropdown({
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
 
@@ -95,13 +96,31 @@ function ProjectActionsDropdown({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [onOpenChange]);
 
-  // Check if dropdown should open upward (when near bottom of screen)
+  // Close dropdown on scroll
+  useEffect(() => {
+    if (isOpen) {
+      const handleScroll = () => {
+        setIsOpen(false);
+        onOpenChange?.(null);
+      };
+      window.addEventListener('scroll', handleScroll, true);
+      return () => window.removeEventListener('scroll', handleScroll, true);
+    }
+  }, [isOpen, onOpenChange]);
+
+  // Check if dropdown should open upward and calculate position
   const handleToggle = () => {
     if (!isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       const spaceBelow = window.innerHeight - rect.bottom;
-      // If less than 300px below, open upward
-      setOpenUpward(spaceBelow < 300);
+      const shouldOpenUpward = spaceBelow < 300;
+      setOpenUpward(shouldOpenUpward);
+      
+      // Calculate fixed position
+      setMenuPosition({
+        top: shouldOpenUpward ? rect.top - 8 : rect.bottom + 8,
+        left: rect.right - 200, // 200px is min-width of menu
+      });
     }
     const newIsOpen = !isOpen;
     setIsOpen(newIsOpen);
@@ -139,18 +158,24 @@ function ProjectActionsDropdown({
         <MoreVertical className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
       </button>
 
-      {/* Dropdown Menu - Uses fixed positioning to escape parent stacking context */}
+      {/* Dropdown Menu - Uses FIXED positioning to escape parent stacking context */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: openUpward ? 10 : -10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: openUpward ? 10 : -10 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.15 }}
+            style={{
+              position: 'fixed',
+              top: openUpward ? 'auto' : menuPosition.top,
+              bottom: openUpward ? (window.innerHeight - menuPosition.top) : 'auto',
+              left: Math.max(16, menuPosition.left), // Ensure it doesn't go off-screen
+              zIndex: 99999,
+              minWidth: '200px',
+            }}
             className={`
-              absolute right-0 min-w-[200px]
               rounded-xl overflow-hidden
-              ${openUpward ? 'bottom-full mb-2' : 'top-full mt-2'}
               ${isDark 
                 ? 'bg-gray-900 border border-white/20' 
                 : 'bg-white border border-gray-200'
