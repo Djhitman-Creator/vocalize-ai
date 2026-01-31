@@ -64,7 +64,7 @@ function ProjectActionsDropdown({
   onViewHistory,
   downloadingId,
   isHistoryOpen,
-  index  // We need this to calculate z-index
+  onOpenChange  // Callback to notify parent when dropdown opens/closes
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
@@ -76,22 +76,24 @@ function ProjectActionsDropdown({
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsOpen(false);
+        onOpenChange?.(null);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [onOpenChange]);
 
   // Close dropdown when pressing Escape
   useEffect(() => {
     function handleEscape(event) {
       if (event.key === 'Escape') {
         setIsOpen(false);
+        onOpenChange?.(null);
       }
     }
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, []);
+  }, [onOpenChange]);
 
   // Check if dropdown should open upward (when near bottom of screen)
   const handleToggle = () => {
@@ -101,7 +103,9 @@ function ProjectActionsDropdown({
       // If less than 300px below, open upward
       setOpenUpward(spaceBelow < 300);
     }
-    setIsOpen(!isOpen);
+    const newIsOpen = !isOpen;
+    setIsOpen(newIsOpen);
+    onOpenChange?.(newIsOpen ? project.id : null);
   };
 
   const isCompleted = project.status === 'completed';
@@ -112,8 +116,7 @@ function ProjectActionsDropdown({
   return (
     <div 
       className="relative" 
-      ref={dropdownRef} 
-      style={{ zIndex: isOpen ? 9999 : 1 }}
+      ref={dropdownRef}
     >
       {/* Three-dot menu button */}
       <button
@@ -154,10 +157,6 @@ function ProjectActionsDropdown({
               }
               shadow-2xl
             `}
-            style={{ 
-              zIndex: 99999,
-              position: 'absolute',
-            }}
           >
             <div className="py-1">
               {/* COMPLETED PROJECT OPTIONS */}
@@ -168,6 +167,7 @@ function ProjectActionsDropdown({
                     onClick={() => {
                       onDownload(project);
                       setIsOpen(false);
+                      onOpenChange?.(null);
                     }}
                     disabled={downloadingId === project.id}
                     className={`
@@ -192,7 +192,10 @@ function ProjectActionsDropdown({
                   {/* Edit/Preview */}
                   <Link href={`/preview/${project.id}`}>
                     <button
-                      onClick={() => setIsOpen(false)}
+                      onClick={() => {
+                        setIsOpen(false);
+                        onOpenChange?.(null);
+                      }}
                       className={`
                         w-full px-4 py-3 flex items-center gap-3 transition-colors text-left
                         ${isDark 
@@ -211,6 +214,7 @@ function ProjectActionsDropdown({
                     onClick={() => {
                       onViewHistory(project.id);
                       setIsOpen(false);
+                      onOpenChange?.(null);
                     }}
                     className={`
                       w-full px-4 py-3 flex items-center gap-3 transition-colors text-left
@@ -237,7 +241,10 @@ function ProjectActionsDropdown({
                 <>
                   <Link href={`/preview/${project.id}`}>
                     <button
-                      onClick={() => setIsOpen(false)}
+                      onClick={() => {
+                        setIsOpen(false);
+                        onOpenChange?.(null);
+                      }}
                       className={`
                         w-full px-4 py-3 flex items-center gap-3 transition-colors text-left
                         ${isDark 
@@ -263,6 +270,7 @@ function ProjectActionsDropdown({
                     onClick={() => {
                       onRetry(project);
                       setIsOpen(false);
+                      onOpenChange?.(null);
                     }}
                     className={`
                       w-full px-4 py-3 flex items-center gap-3 transition-colors text-left
@@ -302,6 +310,7 @@ function ProjectActionsDropdown({
                 onClick={() => {
                   onDelete(project);
                   setIsOpen(false);
+                  onOpenChange?.(null);
                 }}
                 className={`
                   w-full px-4 py-3 flex items-center gap-3 transition-colors text-left
@@ -469,6 +478,9 @@ export default function DashboardPage() {
   // Delete confirmation state
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Track which dropdown is open (for z-index management)
+  const [openDropdownId, setOpenDropdownId] = useState(null);
 
   // Add notification
   const addNotification = useCallback((message, type = 'success') => {
@@ -1200,13 +1212,14 @@ export default function DashboardPage() {
                 {projects.map((project, i) => (
                   <motion.div
                     key={project.id}
-                    className={`glass-panel p-4 ${
+                    className={`glass-panel p-4 relative ${
                       ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'border border-yellow-500/30' :
                       project.status === 'awaiting_review' ? 'border border-purple-500/30' : ''
                     }`}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.05 }}
+                    style={{ zIndex: openDropdownId === project.id ? 9999 : 1 }}
                   >
                     {/* Main Row */}
                     <div className="flex items-center gap-3 sm:gap-4">
@@ -1287,7 +1300,7 @@ export default function DashboardPage() {
                         onViewHistory={handleToggleHistory}
                         downloadingId={downloadingId}
                         isHistoryOpen={showRenderHistory === project.id}
-                        index={i}
+                        onOpenChange={setOpenDropdownId}
                       />
                     </div>
 
