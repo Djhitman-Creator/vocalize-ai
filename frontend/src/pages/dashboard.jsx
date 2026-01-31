@@ -1219,7 +1219,7 @@ export default function DashboardPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.05 }}
-                    style={{ zIndex: openDropdownId === project.id ? 9999 : 1 }}
+                    style={{ zIndex: openDropdownId === project.id || showRenderHistory === project.id ? 9999 : 1 }}
                   >
                     {/* Main Row */}
                     <div className="flex items-center gap-3 sm:gap-4">
