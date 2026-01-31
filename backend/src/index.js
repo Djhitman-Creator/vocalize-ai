@@ -22,7 +22,7 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 
 const { createClient } = require('@supabase/supabase-js');
-const { S3Client, PutObjectCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const Stripe = require('stripe');
 const axios = require('axios');
@@ -1104,6 +1104,87 @@ app.get('/api/projects/:id', authMiddleware, async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error('Project fetch error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// DELETE project endpoint
+app.delete('/api/projects/:id', authMiddleware, async (req, res) => {
+  try {
+    const projectId = req.params.id;
+    
+    // First, verify the project exists and belongs to this user
+    const { data: project, error: fetchError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+    
+    if (fetchError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+    
+    // Delete associated render history first (if table exists)
+    try {
+      await supabase
+        .from('project_renders')
+        .delete()
+        .eq('project_id', projectId);
+    } catch (e) {
+      // Table might not exist, ignore error
+      console.log('No render history to delete or table does not exist');
+    }
+    
+    // Delete the project from the database
+    const { error: deleteError } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId)
+      .eq('user_id', req.user.id);
+    
+    if (deleteError) {
+      throw deleteError;
+    }
+    
+    // Optionally: Delete files from R2 storage
+    // Note: This is optional - files will eventually be cleaned up
+    // or you can set up a cleanup job
+    try {
+      const keysToDelete = [];
+      
+      if (project.original_file_url) {
+        const originalKey = `uploads/${projectId}/${project.original_file_url.split('/').pop()}`;
+        keysToDelete.push(originalKey);
+      }
+      
+      // Add processed files
+      keysToDelete.push(`processed/${projectId}/video.mp4`);
+      keysToDelete.push(`processed/${projectId}/instrumental.mp3`);
+      keysToDelete.push(`processed/${projectId}/vocals.mp3`);
+      
+      // Delete from R2 (fire and forget - don't wait)
+      for (const key of keysToDelete) {
+        r2Client.send(new DeleteObjectCommand({
+          Bucket: process.env.R2_BUCKET_NAME,
+          Key: key,
+        })).catch(e => console.log(`Could not delete ${key}:`, e.message));
+      }
+    } catch (e) {
+      console.log('Error cleaning up R2 files:', e.message);
+      // Don't fail the request if file cleanup fails
+    }
+    
+    console.log(`Project ${projectId} deleted by user ${req.user.id}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Project deleted successfully',
+      project_id: projectId
+    });
+    
+  } catch (error) {
+    console.error('Project delete error:', error);
     res.status(500).json({ error: error.message });
   }
 });
