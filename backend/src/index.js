@@ -258,7 +258,7 @@ function calculateCreditsNeeded(options) {
   return credits;
 }
 
-// UPDATED: Added subscription_tier to RunPod payload for watermark logic
+// UPDATED: Added all layout, branding, and display parameters to RunPod payload
 async function sendToRunPod(projectId, audioUrl, options) {
   const response = await axios.post(
     `https://api.runpod.ai/v2/${process.env.RUNPOD_ENDPOINT_ID}/run`,
@@ -280,6 +280,16 @@ async function sendToRunPod(projectId, audioUrl, options) {
         display_mode: options.display_mode || 'auto',
         clean_version: options.clean_version || false,
 
+        // Layout options (V12 - these were missing!)
+        aspect_ratio: options.aspect_ratio || '16:9',
+        lines_per_scroll: options.lines_per_scroll || 5,
+        lines_per_page: options.lines_per_page || 4,
+        lines_per_overwrite: options.lines_per_overwrite || 4,
+        emphasize_current_line: options.emphasize_current_line || false,
+        show_progress_bar: options.show_progress_bar !== false,
+        show_countdown: options.show_countdown !== false,
+        show_lead_in_bars: options.show_lead_in_bars !== false,
+
         // Style customization options
         bg_color_1: options.bg_color_1 || '#1a1a2e',
         bg_color_2: options.bg_color_2 || '#16213e',
@@ -293,22 +303,38 @@ async function sendToRunPod(projectId, audioUrl, options) {
         custom_font_url: options.custom_font_url || null,
         custom_font_name: options.custom_font_name || null,
 
-        // Video background options (NEW)
+        // Video background options
         bg_type: options.bg_type || 'gradient',
         bg_video_preset: options.bg_video_preset || null,
         bg_video_url: options.bg_video_url || null,
         bg_image_url: options.bg_image_url || null,
+        bg_image_fit: options.bg_image_fit || 'fill',
 
         // Processing mode for two-stage flow
         processing_mode: options.processing_mode || 'full',
 
-        // NEW: Subscription tier for watermark logic
+        // Subscription tier for watermark logic
         subscription_tier: options.subscription_tier || 'free',
 
-        // Custom watermark URL for Studio users
+        // Studio branding - Logo settings (V12)
+        logo_url: options.logo_url || null,
+        logo_position: options.logo_position || 'bottom-right',
+        logo_size: options.logo_size || 50,
+        logo_opacity: options.logo_opacity || 80,
+
+        // Legacy custom watermark (kept for backward compatibility)
         custom_watermark_url: options.custom_watermark_url || null,
-        // Outro text for Studio users
+
+        // Intro/Start image settings (V12 - these were missing!)
+        start_image_url: options.start_image_url || null,
+        start_image_fit: options.start_image_fit || 'fill',
+        start_image_opacity: options.start_image_opacity || 100,
+        start_image_show_title: options.start_image_show_title !== false,
+
+        // Outro settings
         outro_text: options.outro_text || null,
+        outro_duration: options.outro_duration || 3,
+        outro_font_size: options.outro_font_size || 'normal',
 
         // For render_only mode
         processed_audio_url: options.processed_audio_url || null,
@@ -450,7 +476,7 @@ async function sendCompletionEmail(project, downloadUrl) {
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -578,7 +604,7 @@ async function sendFailureEmail(project, errorMessage) {
               Need help? <a href="mailto:support@karatrack.com" style="color: #00d4ff; text-decoration: none;">Contact Support</a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -690,7 +716,7 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -1771,8 +1797,17 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       track_number: project.track_number,
       display_mode: project.display_mode || 'auto',
       clean_version: project.clean_version || false,
-      // Layout options
+      
+      // Layout options (V12)
       aspect_ratio: project.aspect_ratio || '16:9',
+      lines_per_scroll: project.lines_per_scroll || 5,
+      lines_per_page: project.lines_per_page || 4,
+      lines_per_overwrite: project.lines_per_overwrite || 4,
+      emphasize_current_line: project.emphasize_current_line || false,
+      show_progress_bar: project.show_progress_bar !== false,
+      show_countdown: project.show_countdown !== false,
+      show_lead_in_bars: project.show_lead_in_bars !== false,
+      
       // Style options
       bg_color_1: project.bg_color_1 || '#1a1a2e',
       bg_color_2: project.bg_color_2 || '#16213e',
@@ -1799,8 +1834,18 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       logo_opacity: project.logo_opacity || 80,
       // Legacy custom watermark (kept for backward compatibility)
       custom_watermark_url: project.custom_watermark_url || project.logo_url || null,
-      // Outro text
+      
+      // Intro/Start image settings (V12)
+      start_image_url: project.start_image_url || null,
+      start_image_fit: project.start_image_fit || 'fill',
+      start_image_opacity: project.start_image_opacity || 100,
+      start_image_show_title: project.start_image_show_title !== false,
+      
+      // Outro settings
       outro_text: project.outro_text || null,
+      outro_duration: project.outro_duration || 3,
+      outro_font_size: project.outro_font_size || 'normal',
+      
       // Video background options
       bg_type: project.bg_type || 'gradient',
       bg_video_preset: project.bg_video_preset_filename || null,
@@ -2985,7 +3030,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             </p>
           </div>
           <div class="footer">
-            <p>Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
+            <p>ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
             <p>Questions? Reply to this email or visit our support page.</p>
           </div>
         </div>
