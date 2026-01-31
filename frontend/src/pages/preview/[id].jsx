@@ -1029,6 +1029,7 @@ export default function PreviewEditPage() {
     gradientDirection: 'to bottom',
     bgImageUrl: null,
     bgImagePreview: null,
+    bgImageFit: 'fill', // 'fill', 'fit', 'stretch'
     bgVideoPreset: null,
     bgVideoPresetFilename: null,
     bgCustomVideoUrl: null,
@@ -1127,6 +1128,8 @@ export default function PreviewEditPage() {
         bg_color_2: bgSettings.bgColor2,
         gradient_direction: bgSettings.gradientDirection,
         bg_image_url: bgSettings.bgImageUrl,
+          bg_image_fit: bgSettings.bgImageFit || 'fill',
+        bg_image_fit: bgSettings.bgImageFit || 'fill',
         bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
         // Layout settings
         display_mode: layoutSettings.displayMode,
@@ -1193,6 +1196,7 @@ export default function PreviewEditPage() {
       gradientDirection: preset.gradient_direction || 'to bottom',
       bgImageUrl: preset.bg_image_url || null,
       bgImagePreview: preset.bg_image_url || null,
+      bgImageFit: preset.bg_image_fit || 'fill',
       bgVideoPresetFilename: preset.bg_video_preset_filename || null,
       bgVideoPreset: preset.bg_video_preset_filename ? 
         PRESET_VIDEO_BACKGROUNDS.find(v => v.filename === preset.bg_video_preset_filename)?.url || null : null,
@@ -1920,6 +1924,7 @@ export default function PreviewEditPage() {
           gradientDirection: projectData.gradient_direction || 'to bottom',
           bgImageUrl: projectData.bg_image_url || null,
           bgImagePreview: projectData.bg_image_url || null,
+          bgImageFit: projectData.bg_image_fit || 'fill',
           bgVideoPreset: bgPreset || null,
           bgVideoPresetFilename: projectData.bg_video_preset_filename || null,
           bgCustomVideoUrl: projectData.bg_video_url || null,
@@ -2706,6 +2711,8 @@ export default function PreviewEditPage() {
           bg_color_2: bgSettings.bgColor2,
           gradient_direction: bgSettings.gradientDirection,
           bg_image_url: bgSettings.bgImageUrl,
+          bg_image_fit: bgSettings.bgImageFit || 'fill',
+        bg_image_fit: bgSettings.bgImageFit || 'fill',
           bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
           bg_video_url: bgSettings.bgCustomVideoUrl,
           // V11: Layout settings
@@ -3884,7 +3891,12 @@ export default function PreviewEditPage() {
                     {/* Background Image */}
                     {backgroundImageUrl && (
                       <img 
-                        className="absolute inset-0 w-full h-full object-cover opacity-60" 
+                        className="absolute inset-0 w-full h-full opacity-60" 
+                        style={{
+                          objectFit: bgSettings.bgImageFit === 'stretch' ? 'fill' : 
+                                     bgSettings.bgImageFit === 'fit' ? 'contain' : 'cover',
+                          backgroundColor: bgSettings.bgImageFit === 'fit' ? bgSettings.bgColor1 : 'transparent'
+                        }}
                         src={backgroundImageUrl} 
                         alt="" 
                       />
@@ -5931,6 +5943,37 @@ export default function PreviewEditPage() {
                           )}
                           <input type="file" accept="image/*" onChange={handleBgImageUpload} disabled={bgImageUploading} className="hidden" />
                         </label>
+                      )}
+                      
+                      {/* Image Fit Mode - only show when image is uploaded */}
+                      {bgSettings.bgImageUrl && (
+                        <div className="mt-3">
+                          <label className={`block text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                            Image Fit Mode
+                          </label>
+                          <div className="flex gap-2">
+                            {[
+                              { value: 'fill', label: 'Fill', desc: 'Fills frame, crops edges' },
+                              { value: 'fit', label: 'Fit', desc: 'Shows entire image' },
+                              { value: 'stretch', label: 'Stretch', desc: 'Stretches to fill' }
+                            ].map(mode => (
+                              <button
+                                key={mode.value}
+                                onClick={() => updateBgSettings({ bgImageFit: mode.value })}
+                                className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                                  bgSettings.bgImageFit === mode.value
+                                    ? 'bg-cyan-500 text-white'
+                                    : isDark
+                                      ? 'bg-white/10 text-gray-300 hover:bg-white/20'
+                                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                                title={mode.desc}
+                              >
+                                {mode.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   )}
