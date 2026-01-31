@@ -275,7 +275,7 @@ def download_video_background(bg_type, bg_video_preset, bg_video_url, work_dir):
     return None
 
 
-def download_image_background(bg_type, bg_image_url, work_dir, target_width, target_height):
+def download_image_background(bg_type, bg_image_url, work_dir, target_width, target_height, fit_mode='fill', bg_color=(10, 10, 20)):
     """
     Download and prepare image background.
     
@@ -285,6 +285,8 @@ def download_image_background(bg_type, bg_image_url, work_dir, target_width, tar
         work_dir: Working directory
         target_width: Video width
         target_height: Video height
+        fit_mode: 'fill' (crop to fill), 'fit' (show all, letterbox), 'stretch' (distort to fill)
+        bg_color: RGB tuple for letterbox color when using 'fit' mode
         
     Returns:
         PIL Image resized to target dimensions, or None
@@ -304,7 +306,6 @@ def download_image_background(bg_type, bg_image_url, work_dir, target_width, tar
         try:
             from PIL import ExifTags
             
-            # Find the orientation tag
             orientation_key = None
             for key, val in ExifTags.TAGS.items():
                 if val == 'Orientation':
@@ -316,7 +317,6 @@ def download_image_background(bg_type, bg_image_url, work_dir, target_width, tar
                 if exif and orientation_key in exif:
                     orientation = exif[orientation_key]
                     
-                    # Apply rotation based on EXIF orientation
                     if orientation == 2:
                         img = img.transpose(Image.FLIP_LEFT_RIGHT)
                     elif orientation == 3:
@@ -339,27 +339,58 @@ def download_image_background(bg_type, bg_image_url, work_dir, target_width, tar
         # Convert to RGB after rotation
         img = img.convert('RGB')
         
-        # Cover resize (same as video)
         img_ratio = img.width / img.height
         target_ratio = target_width / target_height
         
-        if img_ratio > target_ratio:
-            new_height = target_height
-            new_width = int(new_height * img_ratio)
-        else:
-            new_width = target_width
-            new_height = int(new_width / img_ratio)
+        if fit_mode == 'stretch':
+            # STRETCH: Simply resize to target, may distort
+            final_img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+            print(f"    Image background prepared (stretch): {target_width}x{target_height}")
+            
+        elif fit_mode == 'fit':
+            # FIT/CONTAIN: Show entire image, add letterboxing
+            if img_ratio > target_ratio:
+                # Image is wider - fit to width
+                new_width = target_width
+                new_height = int(new_width / img_ratio)
+            else:
+                # Image is taller - fit to height
+                new_height = target_height
+                new_width = int(new_height * img_ratio)
+            
+            img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Create canvas with background color for letterboxing
+            final_img = Image.new('RGB', (target_width, target_height), bg_color)
+            
+            # Center the image
+            paste_x = (target_width - new_width) // 2
+            paste_y = (target_height - new_height) // 2
+            final_img.paste(img_resized, (paste_x, paste_y))
+            print(f"    Image background prepared (fit): {target_width}x{target_height}, image: {new_width}x{new_height}")
+            
+        else:  # 'fill' (default) - COVER mode
+            # FILL/COVER: Fill frame, crop edges
+            if img_ratio > target_ratio:
+                # Image is wider - fit to height, crop sides
+                new_height = target_height
+                new_width = int(new_height * img_ratio)
+            else:
+                # Image is taller - fit to width, crop top/bottom
+                new_width = target_width
+                new_height = int(new_width / img_ratio)
+            
+            img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Center crop
+            left = (new_width - target_width) // 2
+            top = (new_height - target_height) // 2
+            right = left + target_width
+            bottom = top + target_height
+            
+            final_img = img_resized.crop((left, top, right, bottom))
+            print(f"    Image background prepared (fill): {target_width}x{target_height}")
         
-        img_resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        
-        # Center crop
-        left = (new_width - target_width) // 2
-        top = (new_height - target_height) // 2
-        right = left + target_width
-        bottom = top + target_height
-        
-        final_img = img_resized.crop((left, top, right, bottom))
-        print(f"    Image background prepared: {target_width}x{target_height}")
         return final_img
         
     except Exception as e:
@@ -2699,17 +2730,44 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     
     print(f"    Colors: bg={colors['bg_1']}, text={colors['text']}, sung={colors['sung']}, font={colors['font']}, font_scale={font_size_scale}")
     
+    # Get aspect ratio from style_options (default to 16:9)
+    aspect_ratio = style_options.get('aspect_ratio', '16:9')
+    
+    # Determine dimensions based on quality AND aspect ratio
     if video_quality == '4k':
-        width, height = 3840, 2160
-        print(f"    Resolution: 4K (3840x2160), scale=2.0")
+        if aspect_ratio == '4:3':
+            width, height = 2880, 2160  # 4K at 4:3
+        elif aspect_ratio == '9:16':
+            width, height = 2160, 3840  # 4K portrait
+        else:  # 16:9 default
+            width, height = 3840, 2160
+        print(f"    Resolution: 4K ({width}x{height}), aspect={aspect_ratio}, scale=2.0")
         if colors.get('custom_font_path'):
             print(f"    Custom font at 4K: {colors['custom_font_path']}")
     elif video_quality == '1080p':
-        width, height = 1920, 1080
+        if aspect_ratio == '4:3':
+            width, height = 1440, 1080  # 1080p at 4:3
+        elif aspect_ratio == '9:16':
+            width, height = 1080, 1920  # 1080p portrait
+        else:  # 16:9 default
+            width, height = 1920, 1080
+        print(f"    Resolution: 1080p ({width}x{height}), aspect={aspect_ratio}")
     elif video_quality == '480p':
-        width, height = 854, 480
-    else:
-        width, height = 1280, 720  # Default to 720p
+        if aspect_ratio == '4:3':
+            width, height = 640, 480  # 480p at 4:3
+        elif aspect_ratio == '9:16':
+            width, height = 480, 854  # 480p portrait
+        else:  # 16:9 default
+            width, height = 854, 480
+        print(f"    Resolution: 480p ({width}x{height}), aspect={aspect_ratio}")
+    else:  # 720p default
+        if aspect_ratio == '4:3':
+            width, height = 960, 720  # 720p at 4:3
+        elif aspect_ratio == '9:16':
+            width, height = 720, 1280  # 720p portrait
+        else:  # 16:9 default
+            width, height = 1280, 720
+        print(f"    Resolution: 720p ({width}x{height}), aspect={aspect_ratio}")
     
     # Initialize video background reader if applicable
     video_reader = None
@@ -2998,6 +3056,8 @@ def handler(event):
             'font_size': input_data.get('font_size', 'normal'),
             'custom_font_url': input_data.get('custom_font_url'),
             'custom_font_name': input_data.get('custom_font_name'),
+            # Layout
+            'aspect_ratio': input_data.get('aspect_ratio', '16:9'),
         }
         
         # NEW in 5.0: Background type options
@@ -3005,6 +3065,7 @@ def handler(event):
         bg_video_preset = input_data.get('bg_video_preset')  # Preset filename e.g. 'abstract-smoke.mp4'
         bg_video_url = input_data.get('bg_video_url')  # Custom video URL (user uploads)
         bg_image_url = input_data.get('bg_image_url')  # Custom image URL
+        bg_image_fit = input_data.get('bg_image_fit', 'fill')  # 'fill', 'fit', 'stretch'
         
         print(f" Processing project: {project_id}")
         print(f"   Type: {processing_type}")
@@ -3061,7 +3122,14 @@ def handler(event):
             else:
                 img_width, img_height = 1280, 720
             
-            bg_image = download_image_background(bg_type, bg_image_url, work_dir, img_width, img_height)
+            # Get background color for letterboxing (when using 'fit' mode)
+            bg_color_hex = style_options.get('bg_color_1', '#1a1a2e')
+            try:
+                bg_color_rgb = tuple(int(bg_color_hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+            except:
+                bg_color_rgb = (26, 26, 46)  # Default dark color
+            
+            bg_image = download_image_background(bg_type, bg_image_url, work_dir, img_width, img_height, bg_image_fit, bg_color_rgb)
             if not bg_image:
                 print("    Image background not available, falling back to gradient")
                 bg_type = 'gradient'
