@@ -2411,6 +2411,14 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
+    # V12: Emphasize current line - create a larger font (1.3x) for the active line
+    emphasize = colors.get('emphasize_current_line', False) if colors else False
+    if emphasize:
+        emphasis_scale = 1.3
+        font_emphasized = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale * emphasis_scale), font_name, colors.get('custom_font_path') if colors else None)
+    else:
+        font_emphasized = font
+    
     lines = group_lyrics_into_lines(lyrics)
     
     if not lines:
@@ -2447,6 +2455,10 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
         if 0 <= line_idx < len(lines):
             line = lines[line_idx]
             
+            # V12: Use emphasized font for current line if enabled
+            is_current = (line_idx == current_line_idx)
+            line_font = font_emphasized if (emphasize and is_current) else font
+            
             base_y = center_y + (offset * line_height)
             scroll_offset = scroll_progress * line_height
             y = base_y - int(scroll_offset)
@@ -2454,14 +2466,14 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
             if y < -line_height or y > height + line_height:
                 continue
             
-            # Calculate total width for centering
-            total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
+            # Calculate total width for centering (using the appropriate font)
+            total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=line_font)[2] for w in line)
             x_start = (width - total_width) // 2
             x_start = max(padding, x_start)
             x = x_start
             
             # Check for sweep-in bar (before current line starts)
-            if line_idx == current_line_idx and line:
+            if is_current and line:
                 first_word_start = line[0]['start']
                 
                 # Calculate gap from previous line
@@ -2485,18 +2497,18 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
             # Draw each word with sweep effect
             for word_idx, word_data in enumerate(line):
                 word = word_data['word'] + ' '
-                word_bbox = draw.textbbox((0, 0), word, font=font)
+                word_bbox = draw.textbbox((0, 0), word, font=line_font)
                 word_width = word_bbox[2] - word_bbox[0]
                 
                 if line_idx < current_line_idx:
                     # Past line - fully highlighted
                     draw_text_with_outline(draw, word, x, y, font, sung_color, outline_color, scale=scale)
-                elif line_idx == current_line_idx:
-                    # Current line - use sweep highlighting
+                elif is_current:
+                    # Current line - use sweep highlighting with emphasized font
                     sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
                     
                     if x + word_width <= width - padding:
-                        draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color, img, scale=scale)
+                        draw_word_with_sweep(draw, word, x, y, line_font, sweep_percent, highlight_color, unsung_color, outline_color, img, scale=scale)
                 else:
                     # Upcoming line
                     draw_text_with_outline(draw, word, x, y, font, upcoming_color, outline_color, scale=scale)
@@ -2533,6 +2545,14 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
+    # V12: Emphasize current line - create a larger font (1.3x) for the active line
+    emphasize = colors.get('emphasize_current_line', False) if colors else False
+    if emphasize:
+        emphasis_scale = 1.3
+        font_emphasized = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale * emphasis_scale), font_name, colors.get('custom_font_path') if colors else None)
+    else:
+        font_emphasized = font
+    
     lines = group_lyrics_into_lines(lyrics)
     
     # V12: Use lines_per_page from user settings instead of hardcoded constant
@@ -2562,13 +2582,17 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
             y = start_y + (i * line_height)
             line_idx_global = current_page_idx * lines_per_page + i
             
-            total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
+            # V12: Use emphasized font for current line
+            is_current = (line_idx_global == current_line_idx)
+            line_font = font_emphasized if (emphasize and is_current) else font
+            
+            total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=line_font)[2] for w in line)
             x_start = (width - total_width) // 2
             x_start = max(padding, x_start)
             x = x_start
             
             # Check for sweep-in bar (before current line starts)
-            if line_idx_global == current_line_idx and line:
+            if is_current and line:
                 first_word_start = line[0]['start']
                 
                 # Calculate gap from previous line
@@ -2589,16 +2613,16 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
             
             for word_data in line:
                 word = word_data['word'] + ' '
-                word_bbox = draw.textbbox((0, 0), word, font=font)
+                word_bbox = draw.textbbox((0, 0), word, font=line_font)
                 word_width = word_bbox[2] - word_bbox[0]
                 
                 if line_idx_global < current_line_idx:
                     # Past line - fully sung
                     draw_text_with_outline(draw, word, x, y, font, sung_color, outline_color, scale=scale)
-                elif line_idx_global == current_line_idx:
-                    # Current line - use sweep highlighting
+                elif is_current:
+                    # Current line - use sweep highlighting with emphasized font
                     sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
-                    draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color, img, scale=scale)
+                    draw_word_with_sweep(draw, word, x, y, line_font, sweep_percent, highlight_color, unsung_color, outline_color, img, scale=scale)
                 else:
                     # Upcoming line
                     draw_text_with_outline(draw, word, x, y, font, text_color, outline_color, scale=scale)
@@ -2645,6 +2669,14 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
+    # V12: Emphasize current line - create a larger font (1.3x) for the active line
+    emphasize = colors.get('emphasize_current_line', False) if colors else False
+    if emphasize:
+        emphasis_scale = 1.3
+        font_emphasized = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale * emphasis_scale), font_name, colors.get('custom_font_path') if colors else None)
+    else:
+        font_emphasized = font
+    
     # Group lyrics into lines
     lines = group_lyrics_into_lines(lyrics)
     
@@ -2676,18 +2708,22 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
         
         line = lines[line_idx]
         
-        # This line's fixed position (0, 1, or 2)
+        # V12: Use emphasized font for current line
+        is_current = (line_idx == current_line_idx)
+        line_font = font_emphasized if (emphasize and is_current) else font
+        
+        # This line's fixed position
         position = line_idx % NUM_POSITIONS
         y = start_y + (position * line_height)
         
-        # Calculate total width for centering
-        total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
+        # Calculate total width for centering (using the appropriate font)
+        total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=line_font)[2] for w in line)
         x_start = (width - total_width) // 2
         x_start = max(padding, x_start)
         x = x_start
         
         # Check for sweep-in bar (before current line starts)
-        if line_idx == current_line_idx and line:
+        if is_current and line:
             first_word_start = line[0]['start']
             
             # Calculate gap from previous line
@@ -2709,16 +2745,16 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
         # Draw each word in the line
         for word_data in line:
             word = word_data['word'] + ' '
-            word_bbox = draw.textbbox((0, 0), word, font=font)
+            word_bbox = draw.textbbox((0, 0), word, font=line_font)
             word_width = word_bbox[2] - word_bbox[0]
             
             if line_idx < current_line_idx:
                 # Already sung
                 draw_text_with_outline(draw, word, x, y, font, sung_color, outline_color, scale=scale)
-            elif line_idx == current_line_idx:
-                # Current line - use sweep highlighting
+            elif is_current:
+                # Current line - use sweep highlighting with emphasized font
                 sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
-                draw_word_with_sweep(draw, word, x, y, font, sweep_percent, highlight_color, unsung_color, outline_color, img, scale=scale)
+                draw_word_with_sweep(draw, word, x, y, line_font, sweep_percent, highlight_color, unsung_color, outline_color, img, scale=scale)
             else:
                 # Upcoming lines
                 draw_text_with_outline(draw, word, x, y, font, upcoming_color, outline_color, scale=scale)
