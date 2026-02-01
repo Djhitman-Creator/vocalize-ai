@@ -2816,6 +2816,14 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         else:  # 16:9 default
             width, height = 854, 480
         print(f"    Resolution: 480p ({width}x{height}), aspect={aspect_ratio}")
+    elif video_quality == '540p':
+        if aspect_ratio == '4:3':
+            width, height = 720, 540  # 540p at 4:3
+        elif aspect_ratio == '9:16':
+            width, height = 540, 960  # 540p portrait
+        else:  # 16:9 default
+            width, height = 960, 540
+        print(f"    Resolution: 540p ({width}x{height}), aspect={aspect_ratio}")
     else:  # 720p default
         if aspect_ratio == '4:3':
             width, height = 960, 720  # 720p at 4:3
@@ -3194,6 +3202,8 @@ def handler(event):
                 img_width, img_height = 3840, 2160
             elif video_quality == '1080p':
                 img_width, img_height = 1920, 1080
+            elif video_quality == '540p':
+                img_width, img_height = 960, 540
             elif video_quality == '480p':
                 img_width, img_height = 854, 480
             else:
