@@ -2411,6 +2411,11 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
+    # V12: For portrait (9:16), boost line spacing so lines spread across the taller frame
+    if height > width:
+        portrait_line_boost = height / width  # e.g. 1920/1080 = 1.78
+        line_height = int(line_height * portrait_line_boost)
+    
     # V12: Emphasize current line - create a larger font (1.3x) for the active line
     emphasize = colors.get('emphasize_current_line', False) if colors else False
     if emphasize:
@@ -2545,6 +2550,11 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
+    # V12: For portrait (9:16), boost line spacing so lines spread across the taller frame
+    if height > width:
+        portrait_line_boost = height / width
+        line_height = int(line_height * portrait_line_boost)
+    
     # V12: Emphasize current line - create a larger font (1.3x) for the active line
     emphasize = colors.get('emphasize_current_line', False) if colors else False
     if emphasize:
@@ -2668,6 +2678,11 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
     font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name, colors.get('custom_font_path') if colors else None)
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
+    
+    # V12: For portrait (9:16), boost line spacing so lines spread across the taller frame
+    if height > width:
+        portrait_line_boost = height / width
+        line_height = int(line_height * portrait_line_boost)
     
     # V12: Emphasize current line - create a larger font (1.3x) for the active line
     emphasize = colors.get('emphasize_current_line', False) if colors else False
