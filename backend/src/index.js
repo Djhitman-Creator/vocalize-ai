@@ -476,7 +476,7 @@ async function sendCompletionEmail(project, downloadUrl) {
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -604,7 +604,7 @@ async function sendFailureEmail(project, errorMessage) {
               Need help? <a href="mailto:support@karatrack.com" style="color: #00d4ff; text-decoration: none;">Contact Support</a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -716,7 +716,7 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -1652,6 +1652,72 @@ app.post('/api/upload-font', authMiddleware, upload.single('font'), async (req, 
     });
   } catch (error) {
     console.error('Font upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get render history for a project
+app.get('/api/projects/:id/renders', authMiddleware, async (req, res) => {
+  try {
+    const projectId = req.params.id;
+
+    // Verify project belongs to user
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('id')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Fetch all renders for this project, newest first
+    const { data: renders, error: renderError } = await supabase
+      .from('project_renders')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+
+    if (renderError) {
+      console.error('Error fetching renders:', renderError);
+      return res.status(500).json({ error: 'Failed to fetch render history' });
+    }
+
+    // Generate signed download URLs and check expiration for each render
+    const rendersWithUrls = await Promise.all((renders || []).map(async (render) => {
+      const isExpired = new Date(render.expires_at) < new Date();
+      let downloadUrl = null;
+
+      if (!isExpired && render.video_url) {
+        try {
+          downloadUrl = await getSignedDownloadUrl(render.video_url, `render-v${render.render_number}.mp4`);
+        } catch (e) {
+          console.error('Failed to generate signed URL for render:', e);
+        }
+      }
+
+      return {
+        id: render.id,
+        video_url: render.video_url,
+        video_quality: render.video_quality,
+        render_number: render.render_number,
+        created_at: render.created_at,
+        expires_at: render.expires_at,
+        download_url: downloadUrl,
+        is_expired: isExpired,
+      };
+    }));
+
+    res.json({
+      project_id: projectId,
+      renders: rendersWithUrls,
+      total: rendersWithUrls.length,
+    });
+
+  } catch (error) {
+    console.error('Render history error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2801,6 +2867,46 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
         console.log('Project status updated to completed:', updateData);
       }
 
+      // Save this render to project_renders history table
+      if (results.video_url) {
+        try {
+          // Get the next render number for this project
+          const { data: existingRenders } = await supabase
+            .from('project_renders')
+            .select('render_number')
+            .eq('project_id', project_id)
+            .order('render_number', { ascending: false })
+            .limit(1);
+
+          const nextRenderNumber = (existingRenders && existingRenders.length > 0)
+            ? existingRenders[0].render_number + 1
+            : 1;
+
+          await supabase
+            .from('project_renders')
+            .insert({
+              project_id: project_id,
+              user_id: project.user_id,
+              video_url: results.video_url,
+              video_quality: project.video_quality || '720p',
+              render_number: nextRenderNumber,
+              settings_snapshot: {
+                font: project.font,
+                text_color: project.text_color,
+                sung_color: project.sung_color,
+                bg_type: project.bg_type,
+                aspect_ratio: project.aspect_ratio,
+                display_mode: project.display_mode,
+              },
+            });
+
+          console.log(`Saved render v${nextRenderNumber} to project_renders for project ${project_id}`);
+        } catch (renderSaveError) {
+          // Don't fail the webhook if render history save fails
+          console.error('Failed to save render history (table may not exist yet):', renderSaveError.message);
+        }
+      }
+
       // Send completion email if enabled
       if (project && project.notify_on_complete !== false) {
         // Generate download URL for email
@@ -3111,7 +3217,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             </p>
           </div>
           <div class="footer">
-            <p>ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
+            <p>ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
             <p>Questions? Reply to this email or visit our support page.</p>
           </div>
         </div>
