@@ -2309,6 +2309,53 @@ export default function PreviewEditPage() {
   }, [duration, currentTime]);
 
   // ============================================================
+  // TIMELINE TOUCH-DRAG TO SCRUB (mobile finger scrubbing)
+  // ============================================================
+  const [isTimelineScrubbing, setIsTimelineScrubbing] = useState(false);
+  const timelineScrubStartX = useRef(0);
+  const timelineScrubStartTime = useRef(0);
+
+  const handleTimelineTouchStart = useCallback((e) => {
+    // Only start scrub if touching the background, not a word element
+    if (e.target.closest('.timeline-word')) return;
+    const touch = e.touches[0];
+    timelineScrubStartX.current = touch.clientX;
+    timelineScrubStartTime.current = currentTime;
+    setIsTimelineScrubbing(true);
+  }, [currentTime]);
+
+  useEffect(() => {
+    if (!isTimelineScrubbing) return;
+
+    const handleScrubMove = (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      e.preventDefault(); // Prevent page scroll while scrubbing
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - timelineScrubStartX.current;
+      // Dragging left = forward in time, dragging right = backward
+      // (because the timeline moves left as time advances)
+      const timeShift = -deltaX / zoom;
+      const newTime = Math.max(0, Math.min(duration, timelineScrubStartTime.current + timeShift));
+      setCurrentTime(newTime);
+      if (instrumentalRef.current) instrumentalRef.current.currentTime = newTime;
+      if (vocalsRef.current) vocalsRef.current.currentTime = newTime;
+    };
+
+    const handleScrubEnd = () => {
+      setIsTimelineScrubbing(false);
+    };
+
+    window.addEventListener('touchmove', handleScrubMove, { passive: false });
+    window.addEventListener('touchend', handleScrubEnd);
+    window.addEventListener('touchcancel', handleScrubEnd);
+    return () => {
+      window.removeEventListener('touchmove', handleScrubMove);
+      window.removeEventListener('touchend', handleScrubEnd);
+      window.removeEventListener('touchcancel', handleScrubEnd);
+    };
+  }, [isTimelineScrubbing, zoom, duration]);
+
+  // ============================================================
   // WORD EDITING - SAVE/CANCEL (must be defined before handleWordClick)
   // ============================================================
   const saveWordEdit = useCallback(() => {
@@ -3510,14 +3557,14 @@ export default function PreviewEditPage() {
   const currentLyrics = getCurrentLyricsData();
 
   const handleTimelineClick = useCallback((e) => {
-    if (!timelineContainerRef.current || isDragging) return;
+    if (!timelineContainerRef.current || isDragging || isTimelineScrubbing) return;
     const rect = timelineContainerRef.current.getBoundingClientRect();
     const centerX = rect.width / 2;
     const clickX = e.clientX - rect.left;
     const offsetFromCenter = clickX - centerX;
     const timeOffset = offsetFromCenter / zoom;
     seekTo(currentTime + timeOffset);
-  }, [zoom, currentTime, seekTo, isDragging]);
+  }, [zoom, currentTime, seekTo, isDragging, isTimelineScrubbing]);
 
   const handleProgressClick = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -5179,6 +5226,7 @@ export default function PreviewEditPage() {
                         <span className="text-xs text-cyan-400 font-medium">{selectedWordIndices.size} words selected</span>
                       )}
                       <span className="text-xs text-gray-500 hidden sm:inline">Scroll to navigate | Drag edges to resize | Shift+Click range</span>
+                      <span className="text-xs text-gray-500 sm:hidden">Swipe to scrub | Hold word for menu</span>
                     </div>
                   </div>
 
@@ -5186,6 +5234,7 @@ export default function PreviewEditPage() {
                   <div 
                     ref={timelineContainerRef} 
                     onClick={handleTimelineClick}
+                    onTouchStart={handleTimelineTouchStart}
                     onMouseMove={(e) => {
                       // Calculate time at mouse position for tooltip
                       const rect = e.currentTarget.getBoundingClientRect();
@@ -5472,7 +5521,7 @@ export default function PreviewEditPage() {
                         return (
                           <div
                             key={index}
-                            className="absolute cursor-pointer select-none group"
+                            className="timeline-word absolute cursor-pointer select-none group"
                             style={{
                               left: wordX,
                               width: wordWidth,
