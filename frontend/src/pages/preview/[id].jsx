@@ -1461,12 +1461,16 @@ export default function PreviewEditPage() {
     }
   }, [id, router, updateBgSettings]);
 
-  // Section collapse state - Line Editor expanded on desktop, collapsed on mobile
-  const [lineEditorExpanded, setLineEditorExpanded] = useState(() => {
-    if (typeof window !== 'undefined') return window.innerWidth >= 640;
-    return false;
-  });
+  // Section collapse state
+  const [lineEditorExpanded, setLineEditorExpanded] = useState(false);
   const [timelineEditorExpanded, setTimelineEditorExpanded] = useState(false);
+
+  // On mount: expand Line Editor on desktop only (mobile stays collapsed)
+  useEffect(() => {
+    if (window.innerWidth >= 640) {
+      setLineEditorExpanded(true);
+    }
+  }, []);
 
   // Preview resize state
   const [previewHeight, setPreviewHeight] = useState(DEFAULT_PREVIEW_HEIGHT);
@@ -4882,16 +4886,23 @@ export default function PreviewEditPage() {
                 <>
                   {/* LINE & WORD EDITOR - Collapsible */}
                   <div className={`${isDark ? 'border-b border-white/10' : 'border-b border-gray-200'}`}>
-                    <div onClick={() => setLineEditorExpanded(!lineEditorExpanded)} className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}>
+                    <div 
+                      onClick={() => setLineEditorExpanded(!lineEditorExpanded)} 
+                      className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${
+                        !lineEditorExpanded 
+                          ? isDark ? 'bg-cyan-500/5 border-l-2 border-l-cyan-500 hover:bg-cyan-500/10' : 'bg-cyan-50 border-l-2 border-l-cyan-500 hover:bg-cyan-100'
+                          : isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'
+                      }`}
+                    >
                       <div className="flex items-center gap-2 min-w-0">
-                        {lineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                        {lineEditorExpanded ? <ChevronDown className="w-4 h-4 text-cyan-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-cyan-400 flex-shrink-0" />}
                         <SplitSquareHorizontal className="w-4 h-4 text-cyan-400 flex-shrink-0" />
                         <span className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
                           <span className="hidden sm:inline">Line & Word Editor (Rhyme Sync)</span>
                           <span className="sm:hidden">Line Editor</span>
                         </span>
                         {!lineEditorExpanded && (
-                          <span className="sm:hidden text-[10px] text-cyan-400/70 ml-1">tap to edit</span>
+                          <span className="sm:hidden text-[10px] text-cyan-400 font-medium ml-1 animate-pulse">▶ tap to expand</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
