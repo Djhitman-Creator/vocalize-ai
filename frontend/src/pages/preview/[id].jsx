@@ -6008,13 +6008,13 @@ export default function PreviewEditPage() {
                   {/* VIDEO PRESETS */}
                   {bgSettings.bgType === 'video' && (
                     <div className="space-y-4">
-                      {/* Category Filter */}
-                      <div className="flex flex-wrap gap-2">
+                      {/* Category Filter - scrollable row on mobile */}
+                      <div className="flex flex-wrap gap-1.5 sm:gap-2">
                         {VIDEO_CATEGORIES.map(cat => (
                           <button
                             key={cat.id}
                             onClick={() => setSelectedVideoCategory(cat.id)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                            className={`px-3 py-2 sm:py-1.5 rounded-full text-xs font-medium transition-all ${
                               selectedVideoCategory === cat.id
                                 ? 'bg-cyan-500 text-white'
                                 : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -6025,8 +6025,8 @@ export default function PreviewEditPage() {
                         ))}
                       </div>
 
-                      {/* Video Grid */}
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1">
+                      {/* Video Grid - 2 cols on mobile, 3 on sm, 4 on md+ */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-2 max-h-72 sm:max-h-56 overflow-y-auto pr-1 -mr-1">
                         {filteredVideoPresets.map(preset => (
                           <button
                             key={preset.id}
@@ -6036,10 +6036,10 @@ export default function PreviewEditPage() {
                               bgCustomVideoUrl: null,
                               bgCustomVideoPreview: null,
                             })}
-                            className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all ${
+                            className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all min-h-[60px] ${
                               bgSettings.bgVideoPreset?.id === preset.id
                                 ? 'border-cyan-400 ring-2 ring-cyan-400/50'
-                                : 'border-transparent hover:border-white/30'
+                                : isDark ? 'border-white/10 hover:border-white/30' : 'border-gray-200 hover:border-gray-400'
                             }`}
                           >
                             <img
@@ -6049,12 +6049,12 @@ export default function PreviewEditPage() {
                               loading="lazy"
                               onError={(e) => { e.target.style.background = '#333'; }}
                             />
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1">
-                              <p className="text-[10px] text-white truncate">{preset.name}</p>
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1.5 sm:py-1">
+                              <p className="text-[11px] sm:text-[10px] text-white truncate font-medium">{preset.name}</p>
                             </div>
                             {bgSettings.bgVideoPreset?.id === preset.id && (
-                              <div className="absolute top-1 right-1 w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center">
-                                <Check className="w-3 h-3 text-white" />
+                              <div className="absolute top-1.5 right-1.5 sm:top-1 sm:right-1 w-6 h-6 sm:w-5 sm:h-5 bg-cyan-500 rounded-full flex items-center justify-center shadow-lg">
+                                <Check className="w-3.5 h-3.5 sm:w-3 sm:h-3 text-white" />
                               </div>
                             )}
                           </button>
