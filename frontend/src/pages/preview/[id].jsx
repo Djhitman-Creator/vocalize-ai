@@ -1486,62 +1486,128 @@ export default function PreviewEditPage() {
   const selectedWordIndex = selectedWordIndices.size === 1 ? [...selectedWordIndices][0] : null;
 
   // ============================================================
-  // PREVIEW RESIZE HANDLERS
+  // GLOW & GROW RESIZE HANDLES (touch-friendly)
+  // ============================================================
+  // State for which handle is "glowing" (long-pressed / active drag)
+  const [glowingHandle, setGlowingHandle] = useState(null); // 'preview' | 'editor' | null
+  const longPressTimer = useRef(null);
+
+  // ============================================================
+  // PREVIEW RESIZE HANDLERS (mouse + touch with Glow & Grow)
   // ============================================================
   const handleResizeStart = useCallback((e) => {
     e.preventDefault();
     setIsResizing(true);
-    resizeStartY.current = e.clientY;
+    setGlowingHandle('preview');
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    resizeStartY.current = clientY;
     resizeStartHeight.current = previewHeight;
   }, [previewHeight]);
+
+  // Long press to activate glow before dragging
+  const handleResizeTouchStart = useCallback((e) => {
+    const touch = e.touches[0];
+    resizeStartY.current = touch.clientY;
+    resizeStartHeight.current = previewHeight;
+    // Start glow immediately on touch
+    setGlowingHandle('preview');
+    // Start actual resize after a brief moment (150ms) so the glow is visible
+    longPressTimer.current = setTimeout(() => {
+      setIsResizing(true);
+    }, 150);
+  }, [previewHeight]);
+
+  const handleResizeTouchEnd = useCallback(() => {
+    clearTimeout(longPressTimer.current);
+    setIsResizing(false);
+    setGlowingHandle(null);
+  }, []);
 
   useEffect(() => {
     const handleResizeMove = (e) => {
       if (!isResizing) return;
-      const deltaY = e.clientY - resizeStartY.current;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const deltaY = clientY - resizeStartY.current;
       const newHeight = Math.min(MAX_PREVIEW_HEIGHT, Math.max(MIN_PREVIEW_HEIGHT, resizeStartHeight.current + deltaY));
       setPreviewHeight(newHeight);
     };
 
-    const handleResizeEnd = () => setIsResizing(false);
+    const handleResizeEnd = () => {
+      setIsResizing(false);
+      setGlowingHandle(null);
+    };
 
     if (isResizing) {
       window.addEventListener('mousemove', handleResizeMove);
       window.addEventListener('mouseup', handleResizeEnd);
+      window.addEventListener('touchmove', handleResizeMove, { passive: false });
+      window.addEventListener('touchend', handleResizeEnd);
+      window.addEventListener('touchcancel', handleResizeEnd);
     }
     return () => {
       window.removeEventListener('mousemove', handleResizeMove);
       window.removeEventListener('mouseup', handleResizeEnd);
+      window.removeEventListener('touchmove', handleResizeMove);
+      window.removeEventListener('touchend', handleResizeEnd);
+      window.removeEventListener('touchcancel', handleResizeEnd);
     };
   }, [isResizing]);
 
   // ============================================================
-  // EDITOR RESIZE HANDLERS
+  // EDITOR RESIZE HANDLERS (mouse + touch with Glow & Grow)
   // ============================================================
   const handleEditorResizeStart = useCallback((e) => {
     e.preventDefault();
     setIsResizingEditor(true);
-    editorResizeStartY.current = e.clientY;
+    setGlowingHandle('editor');
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    editorResizeStartY.current = clientY;
     editorResizeStartHeight.current = editorHeight;
   }, [editorHeight]);
+
+  const handleEditorResizeTouchStart = useCallback((e) => {
+    const touch = e.touches[0];
+    editorResizeStartY.current = touch.clientY;
+    editorResizeStartHeight.current = editorHeight;
+    setGlowingHandle('editor');
+    longPressTimer.current = setTimeout(() => {
+      setIsResizingEditor(true);
+    }, 150);
+  }, [editorHeight]);
+
+  const handleEditorResizeTouchEnd = useCallback(() => {
+    clearTimeout(longPressTimer.current);
+    setIsResizingEditor(false);
+    setGlowingHandle(null);
+  }, []);
 
   useEffect(() => {
     const handleEditorResizeMove = (e) => {
       if (!isResizingEditor) return;
-      const deltaY = e.clientY - editorResizeStartY.current;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const deltaY = clientY - editorResizeStartY.current;
       const newHeight = Math.min(500, Math.max(150, editorResizeStartHeight.current + deltaY));
       setEditorHeight(newHeight);
     };
 
-    const handleEditorResizeEnd = () => setIsResizingEditor(false);
+    const handleEditorResizeEnd = () => {
+      setIsResizingEditor(false);
+      setGlowingHandle(null);
+    };
 
     if (isResizingEditor) {
       window.addEventListener('mousemove', handleEditorResizeMove);
       window.addEventListener('mouseup', handleEditorResizeEnd);
+      window.addEventListener('touchmove', handleEditorResizeMove, { passive: false });
+      window.addEventListener('touchend', handleEditorResizeEnd);
+      window.addEventListener('touchcancel', handleEditorResizeEnd);
     }
     return () => {
       window.removeEventListener('mousemove', handleEditorResizeMove);
       window.removeEventListener('mouseup', handleEditorResizeEnd);
+      window.removeEventListener('touchmove', handleEditorResizeMove);
+      window.removeEventListener('touchend', handleEditorResizeEnd);
+      window.removeEventListener('touchcancel', handleEditorResizeEnd);
     };
   }, [isResizingEditor]);
 
@@ -4445,12 +4511,25 @@ export default function PreviewEditPage() {
               })()}
             </div>
             
-            {/* Resize Handle */}
+            {/* Resize Handle - Glow & Grow on touch */}
             <div 
-              onMouseDown={handleResizeStart} 
-              className={`h-3 cursor-ns-resize flex items-center justify-center ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}
+              onMouseDown={handleResizeStart}
+              onTouchStart={handleResizeTouchStart}
+              onTouchEnd={handleResizeTouchEnd}
+              onTouchCancel={handleResizeTouchEnd}
+              className={`cursor-ns-resize flex items-center justify-center select-none transition-all duration-200 ${
+                glowingHandle === 'preview'
+                  ? isDark
+                    ? 'h-8 bg-cyan-500/20 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,212,228,0.3)]'
+                    : 'h-8 bg-cyan-100 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,180,200,0.25)]'
+                  : isDark
+                    ? 'h-3 bg-white/5 hover:bg-white/10 sm:hover:h-5'
+                    : 'h-3 bg-gray-100 hover:bg-gray-200 sm:hover:h-5'
+              }`}
             >
-              <GripHorizontal className="w-4 h-4 text-gray-400" />
+              <div className={`flex items-center gap-1 transition-all duration-200 ${glowingHandle === 'preview' ? 'scale-125' : ''}`}>
+                <GripHorizontal className={`w-4 h-4 transition-colors duration-200 ${glowingHandle === 'preview' ? 'text-cyan-400' : 'text-gray-400'}`} />
+              </div>
             </div>
           </motion.div>
 
@@ -4766,12 +4845,25 @@ export default function PreviewEditPage() {
                     </div>
                   </div>
 
-                  {/* Editor Resize Handle */}
+                  {/* Editor Resize Handle - Glow & Grow on touch */}
                   <div
                     onMouseDown={handleEditorResizeStart}
-                    className={`h-3 cursor-ns-resize flex items-center justify-center ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}
+                    onTouchStart={handleEditorResizeTouchStart}
+                    onTouchEnd={handleEditorResizeTouchEnd}
+                    onTouchCancel={handleEditorResizeTouchEnd}
+                    className={`cursor-ns-resize flex items-center justify-center select-none transition-all duration-200 ${
+                      glowingHandle === 'editor'
+                        ? isDark
+                          ? 'h-8 bg-cyan-500/20 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,212,228,0.3)]'
+                          : 'h-8 bg-cyan-100 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,180,200,0.25)]'
+                        : isDark
+                          ? 'h-3 bg-white/5 hover:bg-white/10 sm:hover:h-5'
+                          : 'h-3 bg-gray-100 hover:bg-gray-200 sm:hover:h-5'
+                    }`}
                   >
-                    <GripHorizontal className="w-4 h-4 text-gray-400" />
+                    <div className={`flex items-center gap-1 transition-all duration-200 ${glowingHandle === 'editor' ? 'scale-125' : ''}`}>
+                      <GripHorizontal className={`w-4 h-4 transition-colors duration-200 ${glowingHandle === 'editor' ? 'text-cyan-400' : 'text-gray-400'}`} />
+                    </div>
                   </div>
                 </motion.div>
               )}

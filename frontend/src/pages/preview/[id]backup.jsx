@@ -1050,8 +1050,8 @@ export default function PreviewEditPage() {
     linesPerOverwrite: 4, // For overwrite mode: 4-8
     emphasizeCurrentLine: false, // Make current line larger
     showProgressBar: true, // Show progress bar during instrumental breaks
-    showCountdown: true, // Show countdown dots before lyrics start
     showLeadInBars: true, // Show lead-in sweep bars before each line
+    cleanVersion: false, // Replace profanity with ###
   });
 
   // V11: Update layout settings helper
@@ -1144,8 +1144,8 @@ export default function PreviewEditPage() {
         lines_per_overwrite: layoutSettings.linesPerOverwrite,
         emphasize_current_line: layoutSettings.emphasizeCurrentLine,
         show_progress_bar: layoutSettings.showProgressBar,
-        show_countdown: layoutSettings.showCountdown,
         show_lead_in_bars: layoutSettings.showLeadInBars,
+        clean_version: layoutSettings.cleanVersion,
         // Export settings
         audio_track: exportSettings.audioTrack,
         video_quality: exportSettings.videoQuality,
@@ -1216,8 +1216,8 @@ export default function PreviewEditPage() {
       linesPerOverwrite: preset.lines_per_overwrite || 4,
       emphasizeCurrentLine: preset.emphasize_current_line || false,
       showProgressBar: preset.show_progress_bar !== false,
-      showCountdown: preset.show_countdown !== false,
       showLeadInBars: preset.show_lead_in_bars !== false,
+      cleanVersion: preset.clean_version || false,
     });
 
     // Apply export settings
@@ -1950,8 +1950,8 @@ export default function PreviewEditPage() {
           linesPerOverwrite: projectData.lines_per_overwrite || 4,
           emphasizeCurrentLine: projectData.emphasize_current_line || false,
           showProgressBar: projectData.show_progress_bar !== false, // default true
-          showCountdown: projectData.show_countdown !== false, // default true
           showLeadInBars: projectData.show_lead_in_bars !== false, // default true
+          cleanVersion: projectData.clean_version || false,
         });
         
         // V11: Initialize export settings from project data
@@ -2733,8 +2733,8 @@ export default function PreviewEditPage() {
           lines_per_overwrite: layoutSettings.linesPerOverwrite,
           emphasize_current_line: layoutSettings.emphasizeCurrentLine,
           show_progress_bar: layoutSettings.showProgressBar,
-          show_countdown: layoutSettings.showCountdown,
           show_lead_in_bars: layoutSettings.showLeadInBars,
+          clean_version: layoutSettings.cleanVersion,
           // V11: Export settings
           audio_track: exportSettings.audioTrack,
           video_quality: exportSettings.videoQuality,
@@ -6008,13 +6008,13 @@ export default function PreviewEditPage() {
                   {/* VIDEO PRESETS */}
                   {bgSettings.bgType === 'video' && (
                     <div className="space-y-4">
-                      {/* Category Filter */}
-                      <div className="flex flex-wrap gap-2">
+                      {/* Category Filter - scrollable row on mobile */}
+                      <div className="flex flex-wrap gap-1.5 sm:gap-2">
                         {VIDEO_CATEGORIES.map(cat => (
                           <button
                             key={cat.id}
                             onClick={() => setSelectedVideoCategory(cat.id)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                            className={`px-3 py-2 sm:py-1.5 rounded-full text-xs font-medium transition-all ${
                               selectedVideoCategory === cat.id
                                 ? 'bg-cyan-500 text-white'
                                 : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -6025,8 +6025,8 @@ export default function PreviewEditPage() {
                         ))}
                       </div>
 
-                      {/* Video Grid */}
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-56 overflow-y-auto pr-1">
+                      {/* Video Grid - 2 cols on mobile, 3 on sm, 4 on md+ */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-2 max-h-72 sm:max-h-56 overflow-y-auto pr-1 -mr-1">
                         {filteredVideoPresets.map(preset => (
                           <button
                             key={preset.id}
@@ -6036,10 +6036,10 @@ export default function PreviewEditPage() {
                               bgCustomVideoUrl: null,
                               bgCustomVideoPreview: null,
                             })}
-                            className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all ${
+                            className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all min-h-[60px] ${
                               bgSettings.bgVideoPreset?.id === preset.id
                                 ? 'border-cyan-400 ring-2 ring-cyan-400/50'
-                                : 'border-transparent hover:border-white/30'
+                                : isDark ? 'border-white/10 hover:border-white/30' : 'border-gray-200 hover:border-gray-400'
                             }`}
                           >
                             <img
@@ -6049,12 +6049,12 @@ export default function PreviewEditPage() {
                               loading="lazy"
                               onError={(e) => { e.target.style.background = '#333'; }}
                             />
-                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1">
-                              <p className="text-[10px] text-white truncate">{preset.name}</p>
+                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent px-1.5 py-1.5 sm:py-1">
+                              <p className="text-[11px] sm:text-[10px] text-white truncate font-medium">{preset.name}</p>
                             </div>
                             {bgSettings.bgVideoPreset?.id === preset.id && (
-                              <div className="absolute top-1 right-1 w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center">
-                                <Check className="w-3 h-3 text-white" />
+                              <div className="absolute top-1.5 right-1.5 sm:top-1 sm:right-1 w-6 h-6 sm:w-5 sm:h-5 bg-cyan-500 rounded-full flex items-center justify-center shadow-lg">
+                                <Check className="w-3.5 h-3.5 sm:w-3 sm:h-3 text-white" />
                               </div>
                             )}
                           </button>
@@ -6246,6 +6246,32 @@ export default function PreviewEditPage() {
                           <span className={`text-[10px] text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{ratio.description}</span>
                         </button>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Content Options */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Content Options
+                    </label>
+                    <div className="space-y-3">
+                      {/* Clean Lyrics Toggle */}
+                      <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            Clean Lyrics
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Replace profanity with ### in rendered video
+                          </p>
+                        </div>
+                        <div 
+                          onClick={() => updateLayoutSettings({ cleanVersion: !layoutSettings.cleanVersion })}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.cleanVersion ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
+                        >
+                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${layoutSettings.cleanVersion ? 'translate-x-7' : 'translate-x-1'}`} />
+                        </div>
+                      </label>
                     </div>
                   </div>
 
