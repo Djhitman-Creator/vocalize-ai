@@ -4901,9 +4901,8 @@ export default function PreviewEditPage() {
                       </div>
                     </div>
 
-            <AnimatePresence>
-              {lineEditorExpanded && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            {lineEditorExpanded && (
+                <div className="overflow-hidden">
                   {/* Selected Word Actions */}
                   {selectedWordIndex !== null && editingWordIndex === null && (
                     <div className={`px-4 py-2 border-t ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
@@ -5135,9 +5134,8 @@ export default function PreviewEditPage() {
                       <GripHorizontal className={`w-4 h-4 transition-colors duration-200 ${glowingHandle === 'editor' ? 'text-cyan-400' : 'text-gray-400'}`} />
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
           </div>
 
           {/* TIMELINE EDITOR - Collapsible with Duet Mode Toggle */}
@@ -5168,9 +5166,8 @@ export default function PreviewEditPage() {
               </button>
             </div>
 
-            <AnimatePresence>
-              {timelineEditorExpanded && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            {timelineEditorExpanded && (
+                <div className="overflow-hidden">
 
                   {/* Duet Color Settings */}
                   {isDuetMode && (
@@ -5692,9 +5689,8 @@ export default function PreviewEditPage() {
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
           </div>
                 </>
               )}
