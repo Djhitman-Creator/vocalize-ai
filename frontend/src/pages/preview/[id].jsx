@@ -275,17 +275,17 @@ const LINES_PER_PAGE_OPTIONS = [2, 3, 4, 5, 6];
 
 // V11: Audio track options for export
 const AUDIO_TRACK_OPTIONS = [
-  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: 'ðŸŽ¤' },
-  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: 'ðŸŽµ' },
-  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: 'ðŸŽ§' },
+  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: 'Ã°Å¸Å½Â¤' },
+  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: 'Ã°Å¸Å½Âµ' },
+  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: 'Ã°Å¸Å½Â§' },
 ];
 
 // V12: Video quality options with credit costs per minute
 const VIDEO_QUALITY_OPTIONS = [
-  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960Ã—540', creditsPerMin: 1, instantCreditsPerMin: 2 },
-  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280Ã—720', creditsPerMin: 2, instantCreditsPerMin: 4 },
-  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920Ã—1080', creditsPerMin: 3, instantCreditsPerMin: 6 },
-  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840Ã—2160', creditsPerMin: 5, instantCreditsPerMin: 10 },
+  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960Ãƒâ€”540', creditsPerMin: 1, instantCreditsPerMin: 2 },
+  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280Ãƒâ€”720', creditsPerMin: 2, instantCreditsPerMin: 4 },
+  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920Ãƒâ€”1080', creditsPerMin: 3, instantCreditsPerMin: 6 },
+  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840Ãƒâ€”2160', creditsPerMin: 5, instantCreditsPerMin: 10 },
 ];
 
 // V12: Export mode options
@@ -3555,18 +3555,26 @@ export default function PreviewEditPage() {
                     )}
                     
                     {/* Logo Watermark */}
-                    {brandingSettings.logoUrl && (
+                    {brandingSettings.logoUrl && (() => {
+                      // Scale logo to match handler.py proportions (1280px base)
+                      const fsLogoScale = width / 1280;
+                      const fsScaledLogoSize = (brandingSettings.logoSize || 50) * fsLogoScale;
+                      const fsScaledPadding = Math.max(6, 40 * fsLogoScale);
+                      return (
                       <div 
                         className="absolute z-30"
                         style={{
-                          ...(brandingSettings.logoPosition?.includes('top') ? { top: 8 } : { bottom: 8 }),
-                          ...(brandingSettings.logoPosition?.includes('left') ? { left: 8 } : brandingSettings.logoPosition?.includes('right') ? { right: 8 } : { left: '50%', transform: 'translateX(-50%)' }),
-                          opacity: (brandingSettings.logoOpacity || 80) / 100
+                          ...(brandingSettings.logoPosition?.includes('top') ? { top: fsScaledPadding } : { bottom: fsScaledPadding }),
+                          ...(brandingSettings.logoPosition?.includes('left') ? { left: fsScaledPadding } : brandingSettings.logoPosition?.includes('right') ? { right: fsScaledPadding } : { left: '50%', transform: 'translateX(-50%)' }),
+                          opacity: (brandingSettings.logoOpacity || 80) / 100,
+                          width: fsScaledLogoSize,
+                          height: fsScaledLogoSize,
                         }}
                       >
-                        <img src={brandingSettings.logoUrl} alt="Logo" style={{ height: brandingSettings.logoSize || 50, width: 'auto' }} />
+                        <img src={brandingSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
                       </div>
-                    )}
+                      );
+                    })()}
                     
                     {/* Time display */}
                     <div className={`absolute bottom-2 right-2 px-2 py-1 bg-black/60 rounded text-sm font-mono ${currentTime < INTRO_DURATION ? 'text-yellow-400' : 'text-white/80'}`}>
@@ -3730,7 +3738,7 @@ export default function PreviewEditPage() {
                       placeholder="Artist Name"
                       className={`px-2 py-0.5 text-sm rounded-lg border ${isDark ? 'bg-white/5 border-white/20 text-gray-300' : 'bg-white border-gray-300 text-gray-600'} focus:outline-none focus:border-cyan-500`}
                     />
-                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>â€¢</span>
+                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Ã¢â‚¬Â¢</span>
                     <input
                       type="text"
                       value={trackInfo.discId}
@@ -3756,7 +3764,7 @@ export default function PreviewEditPage() {
                     <Edit3 className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                   </div>
                   <p className="text-sm text-gray-500">
-                    {trackInfo.artistName || 'Unknown Artist'} â€¢ {trackInfo.discId || 'KT-01'}
+                    {trackInfo.artistName || 'Unknown Artist'} Ã¢â‚¬Â¢ {trackInfo.discId || 'KT-01'}
                   </p>
                 </div>
               )}
@@ -3939,13 +3947,13 @@ export default function PreviewEditPage() {
                       )}
                       
                       {layoutSettings.displayMode === 'overwrite' ? (
-                        /* OVERWRITE MODE - Current line cycles through positions 1â†’2â†’3â†’4â†’1... */
+                        /* OVERWRITE MODE - Current line cycles through positions 1Ã¢â€ â€™2Ã¢â€ â€™3Ã¢â€ â€™4Ã¢â€ â€™1... */
                         (() => {
                           const numLines = layoutSettings.linesPerOverwrite || 4;
                           const currentIdx = currentLyrics.currentLineIdx ?? -1;
                           
                           // Overwrite mode behavior:
-                          // - Current line position cycles: 0 â†’ 1 â†’ 2 â†’ 3 â†’ 0 â†’ 1 â†’ ...
+                          // - Current line position cycles: 0 Ã¢â€ â€™ 1 Ã¢â€ â€™ 2 Ã¢â€ â€™ 3 Ã¢â€ â€™ 0 Ã¢â€ â€™ 1 Ã¢â€ â€™ ...
                           // - Each slot shows: current line at its cycling position, 
                           //   remaining slots show next unsung lines
                           // - When a line finishes, it's instantly replaced with the next unsung line
@@ -4296,20 +4304,27 @@ export default function PreviewEditPage() {
                     )}
                     
                     {/* LOGO WATERMARK OVERLAY */}
-                    {brandingSettings.logoUrl && (
+                    {brandingSettings.logoUrl && (() => {
+                      // Scale logo size to match handler.py proportions
+                      // Handler uses 1280px (720p) as base width: target_width = logo_size * (video_width / 1280)
+                      // Preview needs the same ratio: preview_logo = logo_size * (boxWidth / 1280)
+                      const logoScale = boxWidth / 1280;
+                      const scaledLogoSize = (brandingSettings.logoSize || 50) * logoScale;
+                      const scaledPadding = Math.max(3, 40 * logoScale); // Handler uses 40px padding at 720p
+                      return (
                       <div 
                         className="absolute z-10 pointer-events-none"
                         style={{
-                          // Position based on logoPosition setting - bottom positions are lower (4px from edge)
-                          ...(brandingSettings.logoPosition === 'top-left' && { top: '8px', left: '8px' }),
-                          ...(brandingSettings.logoPosition === 'top-right' && { top: '8px', right: '8px' }),
-                          ...(brandingSettings.logoPosition === 'bottom-left' && { bottom: '4px', left: '8px' }),
-                          ...(brandingSettings.logoPosition === 'bottom-right' && { bottom: '4px', right: '8px' }),
-                          ...(brandingSettings.logoPosition === 'top-center' && { top: '8px', left: '50%', transform: 'translateX(-50%)' }),
-                          ...(brandingSettings.logoPosition === 'bottom-center' && { bottom: '4px', left: '50%', transform: 'translateX(-50%)' }),
-                          // Size based on logoSize slider value (20-150px range)
-                          width: `${brandingSettings.logoSize || 50}px`,
-                          height: `${brandingSettings.logoSize || 50}px`,
+                          // Position based on logoPosition setting - use scaled padding to match handler
+                          ...(brandingSettings.logoPosition === 'top-left' && { top: `${scaledPadding}px`, left: `${scaledPadding}px` }),
+                          ...(brandingSettings.logoPosition === 'top-right' && { top: `${scaledPadding}px`, right: `${scaledPadding}px` }),
+                          ...(brandingSettings.logoPosition === 'bottom-left' && { bottom: `${scaledPadding}px`, left: `${scaledPadding}px` }),
+                          ...(brandingSettings.logoPosition === 'bottom-right' && { bottom: `${scaledPadding}px`, right: `${scaledPadding}px` }),
+                          ...(brandingSettings.logoPosition === 'top-center' && { top: `${scaledPadding}px`, left: '50%', transform: 'translateX(-50%)' }),
+                          ...(brandingSettings.logoPosition === 'bottom-center' && { bottom: `${scaledPadding}px`, left: '50%', transform: 'translateX(-50%)' }),
+                          // Size scaled to match handler output proportions
+                          width: `${scaledLogoSize}px`,
+                          height: `${scaledLogoSize}px`,
                           opacity: (brandingSettings.logoOpacity || 80) / 100,
                         }}
                       >
@@ -4322,7 +4337,8 @@ export default function PreviewEditPage() {
                           }}
                         />
                       </div>
-                    )}
+                      );
+                    })()}
                     
                     {/* Timestamp overlay - shows countdown during intro */}
                     <div className={`absolute bottom-1 right-1 sm:bottom-2 sm:right-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] sm:text-xs font-mono z-30 ${currentTime < INTRO_DURATION ? 'text-yellow-400' : 'text-white/80'}`}>
@@ -5726,9 +5742,9 @@ export default function PreviewEditPage() {
                                 <Image className="w-6 h-6 text-gray-400 mb-1" />
                                 <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Upload Start Image</span>
                                 <span className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                                  {layoutSettings.aspectRatio === '16:9' ? 'Recommended: 1920Ã—1080px' : 
-                                   layoutSettings.aspectRatio === '9:16' ? 'Recommended: 1080Ã—1920px' : 
-                                   layoutSettings.aspectRatio === '4:3' ? 'Recommended: 1440Ã—1080px' : 
+                                  {layoutSettings.aspectRatio === '16:9' ? 'Recommended: 1920Ãƒâ€”1080px' : 
+                                   layoutSettings.aspectRatio === '9:16' ? 'Recommended: 1080Ãƒâ€”1920px' : 
+                                   layoutSettings.aspectRatio === '4:3' ? 'Recommended: 1440Ãƒâ€”1080px' : 
                                    'PNG for transparency'}
                                 </span>
                               </>
@@ -5885,12 +5901,12 @@ export default function PreviewEditPage() {
                           className={`w-full px-3 py-2 rounded-lg text-sm border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                           style={{ colorScheme: isDark ? 'dark' : 'light' }}
                         >
-                          <option value="to bottom">Ã¢â€ â€œ Top to Bottom</option>
-                          <option value="to top">Ã¢â€ â€˜ Bottom to Top</option>
-                          <option value="to right">Ã¢â€ â€™ Left to Right</option>
-                          <option value="to left">Ã¢â€ Â Right to Left</option>
-                          <option value="to bottom right">Ã¢â€ Ëœ Diagonal Down</option>
-                          <option value="to top right">Ã¢â€ â€” Diagonal Up</option>
+                          <option value="to bottom">ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬Å“ Top to Bottom</option>
+                          <option value="to top">ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬Ëœ Bottom to Top</option>
+                          <option value="to right">ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Left to Right</option>
+                          <option value="to left">ÃƒÂ¢Ã¢â‚¬Â Ã‚Â Right to Left</option>
+                          <option value="to bottom right">ÃƒÂ¢Ã¢â‚¬Â Ã‹Å“ Diagonal Down</option>
+                          <option value="to top right">ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â€ Diagonal Up</option>
                         </select>
                       </div>
 
@@ -6446,7 +6462,7 @@ export default function PreviewEditPage() {
                           </div>
                           <div className="flex-1">
                             <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              {exportSettings.videoQuality.toUpperCase()} â€¢ {songMinutes} min â€¢ {exportSettings.exportMode === 'instant' ? 'Instant' : 'Queue'}
+                              {exportSettings.videoQuality.toUpperCase()} Ã¢â‚¬Â¢ {songMinutes} min Ã¢â‚¬Â¢ {exportSettings.exportMode === 'instant' ? 'Instant' : 'Queue'}
                             </p>
                             <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                               This will cost {totalCredits} credits
@@ -6653,7 +6669,7 @@ export default function PreviewEditPage() {
                             {preset.name}
                           </p>
                           <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            {preset.display_mode} â€¢ {preset.aspect_ratio} â€¢ {preset.font || 'Default font'}
+                            {preset.display_mode} Ã¢â‚¬Â¢ {preset.aspect_ratio} Ã¢â‚¬Â¢ {preset.font || 'Default font'}
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
