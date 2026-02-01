@@ -678,7 +678,7 @@ const WordContextMenu = ({
 }) => {
   const menuRef = useRef(null);
 
-  // Close on click outside
+  // Close on click/tap outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -687,8 +687,12 @@ const WordContextMenu = ({
     };
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [isOpen, onClose]);
 
   // Close on Escape key
@@ -709,18 +713,19 @@ const WordContextMenu = ({
   const MenuItem = ({ icon: Icon, label, onClick, danger = false, disabled = false }) => (
     <button
       onClick={() => { onClick(); onClose(); }}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(); onClose(); }}
       disabled={disabled}
-      className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-lg
+      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-lg
         ${disabled 
           ? 'opacity-50 cursor-not-allowed' 
           : danger 
-            ? 'hover:bg-red-500/20 text-red-400' 
+            ? 'hover:bg-red-500/20 text-red-400 active:bg-red-500/30' 
             : isDark 
-              ? 'hover:bg-white/10 text-white' 
-              : 'hover:bg-gray-100 text-gray-700'
+              ? 'hover:bg-white/10 text-white active:bg-white/20' 
+              : 'hover:bg-gray-100 text-gray-700 active:bg-gray-200'
         }`}
     >
-      <Icon className="w-4 h-4" />
+      <Icon className="w-5 h-5 flex-shrink-0" />
       <span>{label}</span>
     </button>
   );
@@ -1481,6 +1486,11 @@ export default function PreviewEditPage() {
     position: { x: 0, y: 0 },
     wordIndex: null
   });
+
+  // Long-press context menu for mobile (500ms hold = context menu)
+  const wordLongPressTimer = useRef(null);
+  const wordLongPressTriggered = useRef(false);
+  const wordTouchStartPos = useRef({ x: 0, y: 0 });
   
   // For backwards compatibility - compute single selected index (must be after all useState)
   const selectedWordIndex = selectedWordIndices.size === 1 ? [...selectedWordIndices][0] : null;
@@ -2547,6 +2557,78 @@ export default function PreviewEditPage() {
 
   const closeContextMenu = useCallback(() => {
     setContextMenu(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
+  // Long-press handlers for mobile context menu on timeline words
+  const handleWordTouchStart = useCallback((index, e) => {
+    const touch = e.touches[0];
+    wordTouchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    wordLongPressTriggered.current = false;
+
+    // Start a 500ms timer — if finger doesn't move much, open context menu
+    wordLongPressTimer.current = setTimeout(() => {
+      wordLongPressTriggered.current = true;
+
+      // Cancel any active drag so the word doesn't move
+      setIsDragging(false);
+
+      // Vibrate for haptic feedback if supported
+      if (navigator.vibrate) navigator.vibrate(30);
+
+      // Close any editing modes
+      if (editingWordIndex !== null) {
+        setEditingWordIndex(null);
+        setEditingText('');
+      }
+
+      // Select the word
+      setSelectedWordIndices(new Set([index]));
+
+      // Position menu near the touch point but above the finger
+      const menuWidth = 240;
+      const menuHeight = 300;
+      const padding = 10;
+      let x = touch.clientX - menuWidth / 2; // Center on finger
+      let y = touch.clientY - menuHeight - 20; // Above finger
+
+      // If not enough room above, put it below
+      if (y < padding) {
+        y = touch.clientY + 30;
+      }
+      // Keep within screen horizontally
+      if (x + menuWidth > window.innerWidth - padding) {
+        x = window.innerWidth - menuWidth - padding;
+      }
+      if (x < padding) x = padding;
+      // Keep within screen vertically
+      if (y + menuHeight > window.innerHeight - padding) {
+        y = window.innerHeight - menuHeight - padding;
+      }
+
+      setContextMenu({
+        isOpen: true,
+        position: { x, y },
+        wordIndex: index
+      });
+    }, 500);
+  }, [editingWordIndex]);
+
+  const handleWordTouchMove = useCallback((e) => {
+    // If finger moves more than 10px, cancel the long press (user is dragging)
+    if (wordLongPressTimer.current) {
+      const touch = e.touches[0];
+      const dx = touch.clientX - wordTouchStartPos.current.x;
+      const dy = touch.clientY - wordTouchStartPos.current.y;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        clearTimeout(wordLongPressTimer.current);
+        wordLongPressTimer.current = null;
+      }
+    }
+  }, []);
+
+  const handleWordTouchEnd = useCallback(() => {
+    clearTimeout(wordLongPressTimer.current);
+    wordLongPressTimer.current = null;
   }, []);
 
   // Extend word end time (makes the word last longer)
@@ -5274,11 +5356,22 @@ export default function PreviewEditPage() {
                               }
                             }}
                             onTouchStart={(e) => {
-                              // Touch support for mobile dragging - only prevent default when actually dragging
+                              // Touch support: start both drag AND long-press timer
                               if (e.touches.length === 1 && !e.target.classList.contains('resize-handle')) {
-                                // Don't prevent default immediately - let the drag handler decide
                                 handleTimelineWordMouseDown(index, e, e.touches[0].clientX);
+                                handleWordTouchStart(index, e);
                               }
+                            }}
+                            onTouchMove={(e) => {
+                              // Cancel long-press if finger moves (user is dragging)
+                              handleWordTouchMove(e);
+                            }}
+                            onTouchEnd={() => {
+                              // Clean up long-press timer
+                              handleWordTouchEnd();
+                            }}
+                            onTouchCancel={() => {
+                              handleWordTouchEnd();
                             }}
                             onMouseEnter={() => {
                               handleTimelineWordMouseEnter(index);
