@@ -1685,73 +1685,19 @@ export default function PreviewEditPage() {
   }, [isResizingEditor]);
 
   // ============================================================
-  // VOLUME HANDLERS - Web Audio API for iOS compatibility
+  // VOLUME HANDLERS - Direct .volume control
   // ============================================================
-  // iOS Safari ignores audio.volume — we must use Web Audio GainNode
-  const audioContextRef = useRef(null);
-  const instrumentalGainRef = useRef(null);
-  const vocalsGainRef = useRef(null);
-  const instrumentalSourceRef = useRef(null);
-  const vocalsSourceRef = useRef(null);
-
-  // Initialize Web Audio context and connect gain nodes
-  const ensureAudioContext = useCallback(() => {
-    if (audioContextRef.current) return audioContextRef.current;
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      const ctx = new AudioContext();
-      audioContextRef.current = ctx;
-
-      // Create gain nodes
-      instrumentalGainRef.current = ctx.createGain();
-      instrumentalGainRef.current.connect(ctx.destination);
-      vocalsGainRef.current = ctx.createGain();
-      vocalsGainRef.current.connect(ctx.destination);
-
-      return ctx;
-    } catch (err) {
-      console.warn('Web Audio API not available, falling back to .volume:', err);
-      return null;
-    }
-  }, []);
-
-  // Connect an audio element to its gain node (only once per element)
-  const connectAudioToGain = useCallback((audioEl, sourceRef, gainNode) => {
-    if (!audioEl || !gainNode || sourceRef.current) return;
-    try {
-      const ctx = audioContextRef.current;
-      if (!ctx) return;
-      const source = ctx.createMediaElementSource(audioEl);
-      source.connect(gainNode);
-      sourceRef.current = source;
-    } catch (err) {
-      // May throw if already connected — that's fine
-      console.warn('Audio source connect:', err.message);
-    }
-  }, []);
-
-  // Update instrumental volume via GainNode + fallback
+  // Update instrumental volume when state changes
   useEffect(() => {
-    const vol = instrumentalMuted ? 0 : instrumentalVolume / 100;
-    // Web Audio API path (works on iOS)
-    if (instrumentalGainRef.current) {
-      instrumentalGainRef.current.gain.value = vol;
-    }
-    // Fallback for desktop / non-WebAudio
     if (instrumentalRef.current) {
-      instrumentalRef.current.volume = vol;
+      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
     }
   }, [instrumentalVolume, instrumentalMuted]);
 
-  // Update vocals volume via GainNode + fallback
+  // Update vocals volume when state changes
   useEffect(() => {
-    const vol = vocalsMuted ? 0 : vocalsVolume / 100;
-    if (vocalsGainRef.current) {
-      vocalsGainRef.current.gain.value = vol;
-    }
     if (vocalsRef.current) {
-      vocalsRef.current.volume = vol;
-      vocalsRef.current.muted = false;
+      vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
     }
   }, [vocalsVolume, vocalsMuted]);
 
@@ -2243,53 +2189,34 @@ export default function PreviewEditPage() {
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) {
       setDuration(instrumentalRef.current.duration);
-      // Set initial volume (fallback for desktop — iOS uses GainNode after first play)
-      try { instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100; } catch(e) {}
+      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
     }
   }, [instrumentalVolume, instrumentalMuted]);
 
   const handleVocalsLoaded = useCallback(() => {
     if (vocalsRef.current) {
-      // Set initial volume (fallback for desktop — iOS uses GainNode after first play)
-      try { vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100; } catch(e) {}
+      vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
     }
   }, [vocalsVolume, vocalsMuted]);
 
   const togglePlayback = useCallback(() => {
     if (!instrumentalRef.current) return;
 
-    // Initialize Web Audio on first user-triggered play (iOS requirement)
-    const ctx = ensureAudioContext();
-    if (ctx) {
-      // Resume context if suspended (iOS suspends until user gesture)
-      if (ctx.state === 'suspended') ctx.resume();
-      // Connect audio elements to gain nodes
-      connectAudioToGain(instrumentalRef.current, instrumentalSourceRef, instrumentalGainRef.current);
-      if (vocalsRef.current) {
-        connectAudioToGain(vocalsRef.current, vocalsSourceRef, vocalsGainRef.current);
-      }
-      // Apply current volume levels immediately
-      if (instrumentalGainRef.current) {
-        instrumentalGainRef.current.gain.value = instrumentalMuted ? 0 : instrumentalVolume / 100;
-      }
-      if (vocalsGainRef.current) {
-        vocalsGainRef.current.gain.value = vocalsMuted ? 0 : vocalsVolume / 100;
-      }
-    }
-
     if (isPlaying) {
       instrumentalRef.current.pause();
       if (vocalsRef.current) vocalsRef.current.pause();
     } else {
-      // Sync time before playing
+      // Apply volume before playing
+      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
       if (vocalsRef.current) {
+        vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
         vocalsRef.current.currentTime = instrumentalRef.current.currentTime;
       }
       instrumentalRef.current.play();
       if (vocalsRef.current) vocalsRef.current.play();
     }
     setIsPlaying(!isPlaying);
-  }, [isPlaying, ensureAudioContext, connectAudioToGain, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted]);
+  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted]);
 
   const seekTo = useCallback((time) => {
     const clampedTime = Math.max(0, Math.min(time, duration));
