@@ -72,6 +72,8 @@ export default function UploadPage() {
 
   // Form state
   const [audioFile, setAudioFile] = useState(null);
+  const [trackNumber, setTrackNumber] = useState('KT-01');
+  const [artistName, setArtistName] = useState('');
   const [title, setTitle] = useState('');
   const [lyrics, setLyrics] = useState('');
   const [rightsConfirmed, setRightsConfirmed] = useState(false);
@@ -201,7 +203,9 @@ export default function UploadPage() {
       const formData = new FormData();
       formData.append('audio', audioFile);
       formData.append('title', title);
+      formData.append('artist_name', artistName);
       formData.append('song_title', title);
+      formData.append('track_number', trackNumber);
       formData.append('lyrics_text', lyrics);
       formData.append('notify_on_complete', notifyOnComplete.toString());
       formData.append('include_lyrics', 'true');
@@ -305,7 +309,7 @@ export default function UploadPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
 
             {/* ──────────────────────────────────────────────
-                SECTION 1: Song Title
+                SECTION 1: Track Info
             ────────────────────────────────────────────── */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -313,21 +317,66 @@ export default function UploadPage() {
               transition={{ delay: 0.05 }}
               className="glass-panel p-6"
             >
-              <label
-                htmlFor="song-title"
-                className={`block text-sm font-semibold mb-3 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}
-              >
+              <h2 className={`text-sm font-semibold mb-4 flex items-center gap-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 <Music className="w-5 h-5 text-cyan-400" />
-                Song Title
-              </label>
-              <input
-                id="song-title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Enter the song title..."
-                className="glass-input w-full px-4 py-3 rounded-xl text-base"
-              />
+                Track Info
+              </h2>
+
+              <div className="grid grid-cols-4 gap-3">
+                {/* Track ID - smaller, 1 column */}
+                <div className="col-span-1">
+                  <label
+                    htmlFor="track-id"
+                    className={`block text-xs font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
+                  >
+                    Track ID
+                  </label>
+                  <input
+                    id="track-id"
+                    type="text"
+                    value={trackNumber}
+                    onChange={(e) => setTrackNumber(e.target.value)}
+                    placeholder="KT-01"
+                    className="glass-input w-full px-3 py-3 rounded-xl text-sm"
+                  />
+                </div>
+
+                {/* Artist - 3 columns */}
+                <div className="col-span-3">
+                  <label
+                    htmlFor="artist-name"
+                    className={`block text-xs font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
+                  >
+                    Artist
+                  </label>
+                  <input
+                    id="artist-name"
+                    type="text"
+                    value={artistName}
+                    onChange={(e) => setArtistName(e.target.value)}
+                    placeholder="Artist name"
+                    className="glass-input w-full px-3 py-3 rounded-xl text-sm"
+                  />
+                </div>
+
+                {/* Song Title - full width */}
+                <div className="col-span-4">
+                  <label
+                    htmlFor="song-title"
+                    className={`block text-xs font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
+                  >
+                    Song Title *
+                  </label>
+                  <input
+                    id="song-title"
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Enter the song title..."
+                    className="glass-input w-full px-3 py-3 rounded-xl text-sm"
+                  />
+                </div>
+              </div>
             </motion.div>
 
             {/* ──────────────────────────────────────────────
@@ -573,7 +622,7 @@ export default function UploadPage() {
                   ) : (
                     <>
                       <Send className="w-5 h-5" />
-                      <span>Create Karaoke Track</span>
+                      <span>Process Track for Customization</span>
                     </>
                   )}
                 </button>
