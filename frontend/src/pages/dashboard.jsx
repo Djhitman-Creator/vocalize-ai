@@ -8,14 +8,10 @@ import {
   Music,
   Upload,
   Zap,
-  Settings,
-  LogOut,
   FileVideo,
   Clock,
   CheckCircle,
   AlertCircle,
-  Sun,
-  Moon,
   Download,
   Loader2,
   Bell,
@@ -26,10 +22,13 @@ import {
   Send,
   History,
   ChevronDown,
-  MoreVertical,
+  ChevronUp,
   Trash2,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  ExternalLink,
+  RotateCcw,
+  Calendar
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import AppNavigation from '../components/AppNavigation';
@@ -51,399 +50,535 @@ if (typeof window !== 'undefined') {
 }
 
 // ============================================
-// PROJECT ACTIONS DROPDOWN COMPONENT
+// STATUS HELPERS
 // ============================================
-// This dropdown appears when clicking the three-dot menu (⋮)
-// It contains all actions for a project in one clean menu
-function ProjectActionsDropdown({ 
-  project, 
-  isDark, 
-  onDownload, 
-  onDelete, 
+const STATUS_CONFIG = {
+  completed: {
+    label: 'Ready',
+    color: 'green',
+    bgClass: 'bg-emerald-500/15',
+    textClass: 'text-emerald-400',
+    borderClass: 'border-emerald-500/30',
+    dotClass: 'bg-emerald-400',
+    lightTextClass: 'text-emerald-600',
+    lightBgClass: 'bg-emerald-50',
+    lightBorderClass: 'border-emerald-200',
+    lightDotClass: 'bg-emerald-500',
+  },
+  processing: {
+    label: 'Processing',
+    color: 'amber',
+    bgClass: 'bg-amber-500/15',
+    textClass: 'text-amber-400',
+    borderClass: 'border-amber-500/30',
+    dotClass: 'bg-amber-400',
+    lightTextClass: 'text-amber-600',
+    lightBgClass: 'bg-amber-50',
+    lightBorderClass: 'border-amber-200',
+    lightDotClass: 'bg-amber-500',
+    animated: true,
+  },
+  transcribing: {
+    label: 'Transcribing',
+    color: 'amber',
+    bgClass: 'bg-amber-500/15',
+    textClass: 'text-amber-400',
+    borderClass: 'border-amber-500/30',
+    dotClass: 'bg-amber-400',
+    lightTextClass: 'text-amber-600',
+    lightBgClass: 'bg-amber-50',
+    lightBorderClass: 'border-amber-200',
+    lightDotClass: 'bg-amber-500',
+    animated: true,
+  },
+  rendering: {
+    label: 'Rendering',
+    color: 'amber',
+    bgClass: 'bg-amber-500/15',
+    textClass: 'text-amber-400',
+    borderClass: 'border-amber-500/30',
+    dotClass: 'bg-amber-400',
+    lightTextClass: 'text-amber-600',
+    lightBgClass: 'bg-amber-50',
+    lightBorderClass: 'border-amber-200',
+    lightDotClass: 'bg-amber-500',
+    animated: true,
+  },
+  awaiting_review: {
+    label: 'Review Lyrics',
+    color: 'purple',
+    bgClass: 'bg-purple-500/15',
+    textClass: 'text-purple-400',
+    borderClass: 'border-purple-500/30',
+    dotClass: 'bg-purple-400',
+    lightTextClass: 'text-purple-600',
+    lightBgClass: 'bg-purple-50',
+    lightBorderClass: 'border-purple-200',
+    lightDotClass: 'bg-purple-500',
+  },
+  failed: {
+    label: 'Failed',
+    color: 'red',
+    bgClass: 'bg-red-500/15',
+    textClass: 'text-red-400',
+    borderClass: 'border-red-500/30',
+    dotClass: 'bg-red-400',
+    lightTextClass: 'text-red-600',
+    lightBgClass: 'bg-red-50',
+    lightBorderClass: 'border-red-200',
+    lightDotClass: 'bg-red-500',
+  },
+};
+
+const getStatusConfig = (status) => STATUS_CONFIG[status] || {
+  label: status,
+  color: 'gray',
+  bgClass: 'bg-gray-500/15',
+  textClass: 'text-gray-400',
+  borderClass: 'border-gray-500/30',
+  dotClass: 'bg-gray-400',
+  lightTextClass: 'text-gray-600',
+  lightBgClass: 'bg-gray-50',
+  lightBorderClass: 'border-gray-200',
+  lightDotClass: 'bg-gray-500',
+};
+
+
+// ============================================
+// STATUS BADGE COMPONENT
+// ============================================
+function StatusBadge({ status, isDark }) {
+  const config = getStatusConfig(status);
+
+  return (
+    <span className={`
+      inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold tracking-wide
+      ${isDark
+        ? `${config.bgClass} ${config.textClass}`
+        : `${config.lightBgClass} ${config.lightTextClass} border ${config.lightBorderClass}`
+      }
+    `}>
+      {/* Status dot - animates for processing states */}
+      <span className={`
+        w-1.5 h-1.5 rounded-full flex-shrink-0
+        ${isDark ? config.dotClass : config.lightDotClass}
+        ${config.animated ? 'animate-pulse' : ''}
+      `} />
+      {config.label}
+    </span>
+  );
+}
+
+
+// ============================================
+// PROJECT CARD COMPONENT
+// ============================================
+// Each project is a card that expands when clicked to show all actions.
+// No more three-dot menus or fragile dropdowns.
+function ProjectCard({
+  project,
+  isDark,
+  isExpanded,
+  onToggle,
+  onDownload,
+  onDelete,
   onRetry,
-  onViewHistory,
   downloadingId,
-  isHistoryOpen,
-  onOpenChange  // Callback to notify parent when dropdown opens/closes
+  renderHistory,
+  loadingHistory,
+  onToggleHistory,
+  showHistory,
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [openUpward, setOpenUpward] = useState(false);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
-  const dropdownRef = useRef(null);
-  const buttonRef = useRef(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setIsOpen(false);
-        onOpenChange?.(null);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onOpenChange]);
-
-  // Close dropdown when pressing Escape
-  useEffect(() => {
-    function handleEscape(event) {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-        onOpenChange?.(null);
-      }
-    }
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onOpenChange]);
-
-  // Close dropdown on scroll
-  useEffect(() => {
-    if (isOpen) {
-      const handleScroll = () => {
-        setIsOpen(false);
-        onOpenChange?.(null);
-      };
-      window.addEventListener('scroll', handleScroll, true);
-      return () => window.removeEventListener('scroll', handleScroll, true);
-    }
-  }, [isOpen, onOpenChange]);
-
-  // Check if dropdown should open upward and calculate position
-  const handleToggle = () => {
-    if (!isOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const shouldOpenUpward = spaceBelow < 300;
-      setOpenUpward(shouldOpenUpward);
-      
-      // Calculate fixed position - align right edge of menu with right edge of button
-      const menuWidth = 200;
-      let leftPos = rect.right - menuWidth;
-      
-      // Make sure menu doesn't go off the left edge of screen
-      if (leftPos < 16) {
-        leftPos = 16;
-      }
-      
-      // Make sure menu doesn't go off the right edge of screen
-      if (rect.right > window.innerWidth - 16) {
-        leftPos = window.innerWidth - menuWidth - 16;
-      }
-      
-      setMenuPosition({
-        top: shouldOpenUpward ? rect.top : rect.bottom + 8,
-        left: leftPos,
-        buttonRight: rect.right,
-      });
-    }
-    const newIsOpen = !isOpen;
-    setIsOpen(newIsOpen);
-    onOpenChange?.(newIsOpen ? project.id : null);
-  };
-
+  const config = getStatusConfig(project.status);
   const isCompleted = project.status === 'completed';
   const isAwaitingReview = project.status === 'awaiting_review';
   const isFailed = project.status === 'failed';
   const isProcessing = ['processing', 'transcribing', 'rendering'].includes(project.status);
 
   return (
-    <div 
-      className="relative" 
-      ref={dropdownRef}
+    <motion.div
+      layout
+      className={`
+        rounded-2xl overflow-hidden transition-all duration-300
+        ${isDark
+          ? `bg-white/[0.04] border ${isExpanded ? 'border-white/20 shadow-lg shadow-cyan-500/5' : 'border-white/[0.08] hover:border-white/15'}`
+          : `bg-white/70 border ${isExpanded ? 'border-gray-300 shadow-lg shadow-gray-200' : 'border-gray-200/80 hover:border-gray-300'}`
+        }
+        backdrop-blur-xl
+      `}
     >
-      {/* Three-dot menu button */}
+      {/* ---- MAIN ROW (always visible) ---- */}
+      {/* Clicking this row expands/collapses the card */}
       <button
-        ref={buttonRef}
-        onClick={handleToggle}
+        onClick={onToggle}
         className={`
-          p-2 rounded-lg transition-all duration-200
-          ${isDark 
-            ? 'hover:bg-white/10 active:bg-white/20' 
-            : 'hover:bg-gray-200 active:bg-gray-300'
-          }
-          ${isOpen 
-            ? isDark ? 'bg-white/10' : 'bg-gray-200' 
-            : ''
-          }
+          w-full text-left p-4 sm:p-5 flex items-center gap-3 sm:gap-4
+          transition-colors duration-200
+          ${isDark ? 'hover:bg-white/[0.03]' : 'hover:bg-gray-50/50'}
         `}
-        aria-label="Project actions"
-        aria-expanded={isOpen}
       >
-        <MoreVertical className={`w-5 h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+        {/* Project icon */}
+        <div className={`
+          w-11 h-11 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0
+          ${isDark ? config.bgClass : config.lightBgClass}
+        `}>
+          {isProcessing ? (
+            <Loader2 className={`w-5 h-5 sm:w-6 sm:h-6 animate-spin ${isDark ? config.textClass : config.lightTextClass}`} />
+          ) : (
+            <Music className={`w-5 h-5 sm:w-6 sm:h-6 ${isDark ? config.textClass : config.lightTextClass}`} />
+          )}
+        </div>
+
+        {/* Title + meta */}
+        <div className="flex-1 min-w-0">
+          <h3 className={`font-semibold truncate text-[15px] ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {project.title}
+          </h3>
+          <p className={`text-xs mt-0.5 truncate ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+            {project.artist_name || 'Unknown Artist'}
+            <span className="mx-1.5">&#183;</span>
+            {new Date(project.created_at).toLocaleDateString('en-US', {
+              month: 'short', day: 'numeric', year: 'numeric'
+            })}
+          </p>
+        </div>
+
+        {/* Status badge */}
+        <StatusBadge status={project.status} isDark={isDark} />
+
+        {/* Expand/collapse chevron */}
+        <div className={`
+          flex-shrink-0 transition-transform duration-300
+          ${isExpanded ? 'rotate-180' : ''}
+          ${isDark ? 'text-gray-500' : 'text-gray-400'}
+        `}>
+          <ChevronDown className="w-5 h-5" />
+        </div>
       </button>
 
-      {/* Dropdown Menu - Uses FIXED positioning to escape parent stacking context */}
-      <AnimatePresence>
-        {isOpen && (
+      {/* ---- EXPANDED CONTENT (actions + history) ---- */}
+      <AnimatePresence initial={false}>
+        {isExpanded && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.15 }}
-            style={{
-              position: 'fixed',
-              top: openUpward ? 'auto' : menuPosition.top,
-              bottom: openUpward ? (window.innerHeight - menuPosition.top + 8) : 'auto',
-              right: window.innerWidth - menuPosition.buttonRight,
-              zIndex: 99999,
-              minWidth: '200px',
-              maxWidth: 'calc(100vw - 32px)',
-            }}
-            className={`
-              rounded-xl overflow-hidden
-              ${isDark 
-                ? 'bg-gray-900 border border-white/20' 
-                : 'bg-white border border-gray-200'
-              }
-              shadow-2xl
-            `}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="overflow-hidden"
           >
-            <div className="py-1">
-              {/* COMPLETED PROJECT OPTIONS */}
-              {isCompleted && (
-                <>
-                  {/* Download */}
-                  <button
-                    onClick={() => {
-                      onDownload(project);
-                      setIsOpen(false);
-                      onOpenChange?.(null);
-                    }}
-                    disabled={downloadingId === project.id}
-                    className={`
-                      w-full px-4 py-3 flex items-center gap-3 transition-colors text-left
-                      ${isDark 
-                        ? 'hover:bg-white/10 text-white' 
-                        : 'hover:bg-gray-100 text-gray-900'
-                      }
-                      disabled:opacity-50
-                    `}
-                  >
-                    {downloadingId === project.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                    ) : (
-                      <Download className="w-4 h-4 text-cyan-400" />
-                    )}
-                    <span className="font-medium">
+            {/* Separator line */}
+            <div className={`mx-4 sm:mx-5 border-t ${isDark ? 'border-white/[0.08]' : 'border-gray-200'}`} />
+
+            {/* Action buttons row */}
+            <div className="p-4 sm:p-5 space-y-3">
+              {/* Primary actions row */}
+              <div className="flex flex-wrap gap-2">
+                {/* COMPLETED: Download + Edit + History */}
+                {isCompleted && (
+                  <>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDownload(project); }}
+                      disabled={downloadingId === project.id}
+                      className={`
+                        flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                        transition-all duration-200
+                        bg-gradient-to-r from-cyan-500 to-blue-500 text-white
+                        hover:shadow-lg hover:shadow-cyan-500/25 hover:scale-[1.02]
+                        active:scale-[0.98]
+                        disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none
+                      `}
+                    >
+                      {downloadingId === project.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
                       {downloadingId === project.id ? 'Downloading...' : 'Download'}
-                    </span>
-                  </button>
+                    </button>
 
-                  {/* Edit/Preview */}
-                  <Link href={`/preview/${project.id}`}>
-                    <button
-                      onClick={() => {
-                        setIsOpen(false);
-                        onOpenChange?.(null);
-                      }}
-                      className={`
-                        w-full px-4 py-3 flex items-center gap-3 transition-colors text-left
-                        ${isDark 
-                          ? 'hover:bg-white/10 text-white' 
-                          : 'hover:bg-gray-100 text-gray-900'
+                    <Link href={`/preview/${project.id}`}>
+                      <button className={`
+                        flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                        transition-all duration-200
+                        ${isDark
+                          ? 'bg-white/10 text-white hover:bg-white/15'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }
+                        hover:scale-[1.02] active:scale-[0.98]
+                      `}>
+                        <Edit3 className="w-4 h-4" />
+                        Edit / Re-export
+                      </button>
+                    </Link>
+
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onToggleHistory(project.id); }}
+                      className={`
+                        flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                        transition-all duration-200
+                        ${showHistory
+                          ? isDark
+                            ? 'bg-cyan-500/20 text-cyan-400'
+                            : 'bg-cyan-50 text-cyan-700 border border-cyan-200'
+                          : isDark
+                            ? 'bg-white/10 text-white hover:bg-white/15'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }
+                        hover:scale-[1.02] active:scale-[0.98]
                       `}
                     >
-                      <Edit3 className="w-4 h-4 text-purple-400" />
-                      <span className="font-medium">Edit / Re-export</span>
+                      <History className="w-4 h-4" />
+                      History
+                      {showHistory ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>
-                  </Link>
+                  </>
+                )}
 
-                  {/* View Render History */}
-                  <button
-                    onClick={() => {
-                      onViewHistory(project.id);
-                      setIsOpen(false);
-                      onOpenChange?.(null);
-                    }}
-                    className={`
-                      w-full px-4 py-3 flex items-center gap-3 transition-colors text-left
-                      ${isDark 
-                        ? 'hover:bg-white/10 text-white' 
-                        : 'hover:bg-gray-100 text-gray-900'
-                      }
-                    `}
-                  >
-                    <History className="w-4 h-4 text-blue-400" />
-                    <span className="font-medium">Render History</span>
-                    {isHistoryOpen && (
-                      <CheckCircle className="w-3 h-3 text-cyan-400 ml-auto" />
-                    )}
-                  </button>
-
-                  {/* Divider */}
-                  <div className={`my-1 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`} />
-                </>
-              )}
-
-              {/* AWAITING REVIEW OPTIONS */}
-              {isAwaitingReview && (
-                <>
+                {/* AWAITING REVIEW: Review button */}
+                {isAwaitingReview && (
                   <Link href={`/preview/${project.id}`}>
-                    <button
-                      onClick={() => {
-                        setIsOpen(false);
-                        onOpenChange?.(null);
-                      }}
-                      className={`
-                        w-full px-4 py-3 flex items-center gap-3 transition-colors text-left
-                        ${isDark 
-                          ? 'hover:bg-white/10 text-white' 
-                          : 'hover:bg-gray-100 text-gray-900'
-                        }
-                      `}
-                    >
-                      <Edit3 className="w-4 h-4 text-purple-400" />
-                      <span className="font-medium">Review Lyrics</span>
+                    <button className={`
+                      flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                      transition-all duration-200
+                      bg-gradient-to-r from-purple-500 to-pink-500 text-white
+                      hover:shadow-lg hover:shadow-purple-500/25 hover:scale-[1.02]
+                      active:scale-[0.98]
+                    `}>
+                      <Edit3 className="w-4 h-4" />
+                      Review Lyrics
                     </button>
                   </Link>
+                )}
 
-                  {/* Divider */}
-                  <div className={`my-1 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`} />
-                </>
-              )}
-
-              {/* FAILED PROJECT OPTIONS */}
-              {isFailed && (
-                <>
+                {/* FAILED: Retry button */}
+                {isFailed && (
                   <button
-                    onClick={() => {
-                      onRetry(project);
-                      setIsOpen(false);
-                      onOpenChange?.(null);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); onRetry(project); }}
                     className={`
-                      w-full px-4 py-3 flex items-center gap-3 transition-colors text-left
-                      ${isDark 
-                        ? 'hover:bg-white/10 text-white' 
-                        : 'hover:bg-gray-100 text-gray-900'
+                      flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+                      transition-all duration-200
+                      ${isDark
+                        ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/25'
+                        : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
                       }
+                      hover:scale-[1.02] active:scale-[0.98]
                     `}
                   >
-                    <RefreshCw className="w-4 h-4 text-orange-400" />
-                    <span className="font-medium">Retry Processing</span>
+                    <RotateCcw className="w-4 h-4" />
+                    Retry Processing
                   </button>
+                )}
 
-                  {/* Divider */}
-                  <div className={`my-1 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`} />
-                </>
-              )}
-
-              {/* PROCESSING - just show status, no actions */}
-              {isProcessing && (
-                <>
+                {/* PROCESSING: Status info */}
+                {isProcessing && (
                   <div className={`
-                    px-4 py-3 flex items-center gap-3
-                    ${isDark ? 'text-gray-400' : 'text-gray-500'}
+                    flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm
+                    ${isDark ? 'bg-amber-500/10 text-amber-400/80' : 'bg-amber-50 text-amber-600'}
                   `}>
-                    <Loader2 className="w-4 h-4 animate-spin text-yellow-400" />
-                    <span className="text-sm">Processing in progress...</span>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Your track is being {project.status === 'rendering' ? 'rendered' : project.status === 'transcribing' ? 'transcribed' : 'processed'}. This may take a few minutes.
                   </div>
+                )}
 
-                  {/* Divider */}
-                  <div className={`my-1 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`} />
-                </>
-              )}
+                {/* Spacer to push delete to end */}
+                <div className="flex-1" />
 
-              {/* DELETE - always available */}
-              <button
-                onClick={() => {
-                  onDelete(project);
-                  setIsOpen(false);
-                  onOpenChange?.(null);
-                }}
-                className={`
-                  w-full px-4 py-3 flex items-center gap-3 transition-colors text-left
-                  ${isDark 
-                    ? 'hover:bg-red-500/20 text-red-400' 
-                    : 'hover:bg-red-50 text-red-600'
-                  }
-                `}
-              >
-                <Trash2 className="w-4 h-4" />
-                <span className="font-medium">Delete Project</span>
-              </button>
+                {/* DELETE: Always available */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(project); }}
+                  className={`
+                    flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium
+                    transition-all duration-200
+                    ${isDark
+                      ? 'text-gray-500 hover:bg-red-500/15 hover:text-red-400'
+                      : 'text-gray-400 hover:bg-red-50 hover:text-red-600'
+                    }
+                  `}
+                  title="Delete Project"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Delete</span>
+                </button>
+              </div>
+
+              {/* ---- RENDER HISTORY PANEL ---- */}
+              <AnimatePresence>
+                {showHistory && isCompleted && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className={`
+                      rounded-xl p-4
+                      ${isDark ? 'bg-white/[0.03] border border-white/[0.08]' : 'bg-gray-50 border border-gray-200'}
+                    `}>
+                      <h4 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <History className="w-4 h-4" />
+                        Render History
+                      </h4>
+
+                      {loadingHistory ? (
+                        <div className="flex items-center justify-center gap-2 text-sm py-6">
+                          <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                          <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Loading history...</span>
+                        </div>
+                      ) : renderHistory.length === 0 ? (
+                        <div className={`text-sm text-center py-6 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          No render history found
+                        </div>
+                      ) : (
+                        <div className="space-y-2 max-h-56 overflow-y-auto">
+                          {renderHistory.map((render, index) => (
+                            <div
+                              key={render.id}
+                              className={`
+                                flex items-center justify-between p-3 rounded-lg transition-colors
+                                ${isDark
+                                  ? 'bg-white/[0.03] hover:bg-white/[0.06]'
+                                  : 'bg-white hover:bg-gray-100'
+                                }
+                                ${render.is_expired ? 'opacity-50' : ''}
+                              `}
+                            >
+                              <div className="flex items-center gap-3">
+                                <span className={`
+                                  text-xs px-2 py-0.5 rounded-md font-semibold
+                                  ${index === 0
+                                    ? isDark
+                                      ? 'bg-cyan-500/20 text-cyan-400'
+                                      : 'bg-cyan-50 text-cyan-700'
+                                    : isDark
+                                      ? 'bg-white/10 text-gray-500'
+                                      : 'bg-gray-100 text-gray-500'
+                                  }
+                                `}>
+                                  {index === 0 ? 'Latest' : `v${render.render_number}`}
+                                </span>
+                                <div>
+                                  <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                                    {render.video_quality || '720p'}
+                                    <span className={`ml-2 font-normal ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                      {new Date(render.created_at).toLocaleDateString('en-US', {
+                                        month: 'short', day: 'numeric'
+                                      })}
+                                    </span>
+                                  </p>
+                                  {render.is_expired && (
+                                    <p className="text-xs text-red-400 mt-0.5">Expired</p>
+                                  )}
+                                </div>
+                              </div>
+
+                              {!render.is_expired && render.download_url ? (
+                                <a
+                                  href={render.download_url}
+                                  download
+                                  onClick={(e) => e.stopPropagation()}
+                                  className={`
+                                    p-2 rounded-lg transition-all
+                                    ${isDark
+                                      ? 'bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25'
+                                      : 'bg-cyan-50 text-cyan-600 hover:bg-cyan-100'
+                                    }
+                                  `}
+                                  title="Download this version"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </a>
+                              ) : render.is_expired ? (
+                                <span className="text-xs text-red-400/70 px-2">Expired</span>
+                              ) : null}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <p className={`text-xs mt-3 text-center ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                        Renders are available for 30 days
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   );
 }
+
 
 // ============================================
 // DELETE CONFIRMATION MODAL
 // ============================================
-// This modal appears when user clicks "Delete Project"
 function DeleteConfirmationModal({ project, isDark, onConfirm, onCancel, isDeleting }) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
       onClick={onCancel}
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.95, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        exit={{ opacity: 0, scale: 0.95, y: 10 }}
         className={`
-          w-full max-w-md rounded-2xl p-6 
-          ${isDark 
-            ? 'bg-gray-900 border border-white/20' 
+          w-full max-w-md rounded-2xl p-6
+          ${isDark
+            ? 'bg-gray-900/95 border border-white/15'
             : 'bg-white border border-gray-200'
           }
-          shadow-2xl
+          backdrop-blur-xl shadow-2xl
         `}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Warning Icon */}
         <div className="flex justify-center mb-4">
           <div className={`
-            w-16 h-16 rounded-full flex items-center justify-center
-            ${isDark ? 'bg-red-500/20' : 'bg-red-100'}
+            w-14 h-14 rounded-full flex items-center justify-center
+            ${isDark ? 'bg-red-500/15' : 'bg-red-50'}
           `}>
-            <AlertTriangle className="w-8 h-8 text-red-500" />
+            <AlertTriangle className={`w-7 h-7 ${isDark ? 'text-red-400' : 'text-red-500'}`} />
           </div>
         </div>
 
-        {/* Title */}
-        <h3 className={`text-xl font-bold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        <h3 className={`text-lg font-bold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
           Delete Project?
         </h3>
 
-        {/* Project Name */}
-        <p className={`text-center mb-2 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+        <p className={`text-center text-sm mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
           You are about to delete:
         </p>
         <p className={`
-          text-center font-semibold mb-4 px-4 py-2 rounded-xl
+          text-center font-semibold mb-4 px-4 py-2 rounded-xl text-sm
           ${isDark ? 'bg-white/5 text-white' : 'bg-gray-100 text-gray-900'}
         `}>
-          "{project?.title}"
+          &ldquo;{project?.title}&rdquo;
         </p>
 
-        {/* Warning Message */}
         <div className={`
-          p-4 rounded-xl mb-6
-          ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}
+          p-3 rounded-xl mb-5
+          ${isDark ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'}
         `}>
           <p className={`text-sm text-center ${isDark ? 'text-red-300' : 'text-red-700'}`}>
-            <strong>Warning:</strong> This action cannot be undone. All project data, 
-            renders, and associated files will be permanently deleted.
+            This action cannot be undone. All project data, renders, and associated files will be permanently deleted.
           </p>
         </div>
 
-        {/* Buttons */}
         <div className="flex gap-3">
           <button
             onClick={onCancel}
             disabled={isDeleting}
             className={`
-              flex-1 px-4 py-3 rounded-xl font-medium transition-all
-              ${isDark 
-                ? 'bg-white/10 text-white hover:bg-white/20' 
+              flex-1 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all
+              ${isDark
+                ? 'bg-white/10 text-white hover:bg-white/15'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }
               disabled:opacity-50
@@ -454,11 +589,7 @@ function DeleteConfirmationModal({ project, isDark, onConfirm, onCancel, isDelet
           <button
             onClick={onConfirm}
             disabled={isDeleting}
-            className={`
-              flex-1 px-4 py-3 rounded-xl font-medium transition-all
-              bg-red-500 text-white hover:bg-red-600
-              disabled:opacity-50 flex items-center justify-center gap-2
-            `}
+            className="flex-1 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             {isDeleting ? (
               <>
@@ -468,7 +599,7 @@ function DeleteConfirmationModal({ project, isDark, onConfirm, onCancel, isDelet
             ) : (
               <>
                 <Trash2 className="w-4 h-4" />
-                Delete Forever
+                Delete
               </>
             )}
           </button>
@@ -477,6 +608,7 @@ function DeleteConfirmationModal({ project, isDark, onConfirm, onCancel, isDelet
     </motion.div>
   );
 }
+
 
 // ============================================
 // MAIN DASHBOARD COMPONENT
@@ -509,7 +641,10 @@ export default function DashboardPage() {
   const [suggestionDescription, setSuggestionDescription] = useState('');
   const [suggestionCategory, setSuggestionCategory] = useState('feature');
   const [submittingSuggestion, setSubmittingSuggestion] = useState(false);
-  
+
+  // Project expansion state - which project card is currently expanded
+  const [expandedProjectId, setExpandedProjectId] = useState(null);
+
   // Render history state
   const [showRenderHistory, setShowRenderHistory] = useState(null);
   const [renderHistory, setRenderHistory] = useState([]);
@@ -519,10 +654,8 @@ export default function DashboardPage() {
   const [projectToDelete, setProjectToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Track which dropdown is open (for z-index management)
-  const [openDropdownId, setOpenDropdownId] = useState(null);
 
-  // Add notification
+  // ---- NOTIFICATIONS ----
   const addNotification = useCallback((message, type = 'success') => {
     const id = Date.now();
     setNotifications(prev => [...prev, { id, message, type }]);
@@ -533,12 +666,12 @@ export default function DashboardPage() {
     }, duration);
   }, []);
 
-  // Remove notification
   const removeNotification = (id) => {
     setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  // Fetch render history for a project
+
+  // ---- DATA FETCHING ----
   const fetchRenderHistory = async (projectId) => {
     try {
       setLoadingHistory(true);
@@ -563,7 +696,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Fetch projects (used for polling)
   const fetchProjects = useCallback(async (userId, isPolling = false) => {
     try {
       const { data: projectsData } = await supabase
@@ -574,14 +706,12 @@ export default function DashboardPage() {
         .limit(10);
 
       if (projectsData) {
-        // Check for newly completed projects (only when polling)
         if (isPolling) {
           projectsData.forEach(project => {
             if (project.status === 'completed' && !completedIds.has(project.id)) {
               const oldProject = projects.find(p => p.id === project.id);
               if (oldProject && ['processing', 'rendering'].includes(oldProject.status)) {
                 addNotification(`"${project.title}" is ready for download!`, 'success');
-
                 try {
                   const audio = new Audio('/notification.mp3');
                   audio.volume = 0.5;
@@ -608,7 +738,6 @@ export default function DashboardPage() {
             }
           });
         }
-
         setProjects(projectsData);
       }
     } catch (err) {
@@ -616,7 +745,8 @@ export default function DashboardPage() {
     }
   }, [projects, completedIds, addNotification]);
 
-  // Initial load
+
+  // ---- INITIAL LOAD ----
   useEffect(() => {
     const checkUser = async () => {
       try {
@@ -629,7 +759,6 @@ export default function DashboardPage() {
 
         setUser(user);
 
-        // Fetch profile
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
@@ -637,11 +766,8 @@ export default function DashboardPage() {
           .single();
 
         setProfile(profileData);
-
-        // Initial fetch of projects
         await fetchProjects(user.id, false);
 
-        // Initialize completedIds with already-completed projects
         const { data: projectsData } = await supabase
           .from('projects')
           .select('id, status')
@@ -651,7 +777,6 @@ export default function DashboardPage() {
         if (projectsData) {
           setCompletedIds(new Set(projectsData.map(p => p.id)));
         }
-
       } catch (err) {
         console.error('Error:', err);
       } finally {
@@ -662,51 +787,50 @@ export default function DashboardPage() {
     checkUser();
   }, [router]);
 
-  // Check for pending subscription plan after email verification
+
+  // ---- PENDING PLAN CHECKOUT ----
   useEffect(() => {
     const checkPendingPlan = async () => {
       if (!user || !profile) return;
-      
+
       const pendingPlan = localStorage.getItem('karatrack_pending_plan');
       const metadataPlan = user.user_metadata?.pending_plan;
       const planToActivate = pendingPlan || metadataPlan;
-      
+
       if (!planToActivate || planToActivate === 'free') return;
-      
+
       if (profile.subscription_tier && profile.subscription_tier !== 'free') {
         localStorage.removeItem('karatrack_pending_plan');
         return;
       }
-      
-      console.log('Pending plan detected:', planToActivate);
+
       setCheckingPendingPlan(true);
-      
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (!session) {
           addNotification('Session not ready. Please click your plan again on the pricing page.', 'error');
           setCheckingPendingPlan(false);
           return;
         }
-        
+
         const { data: planData, error: planError } = await supabase
           .from('subscription_plans')
           .select('stripe_price_id')
           .eq('tier', planToActivate)
           .single();
-        
+
         if (planError || !planData?.stripe_price_id) {
           addNotification(`Could not find plan "${planToActivate}". Please select from pricing page.`, 'error');
           localStorage.removeItem('karatrack_pending_plan');
           setCheckingPendingPlan(false);
           return;
         }
-        
+
         localStorage.removeItem('karatrack_pending_plan');
-        
+
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/create-checkout`, {
           method: 'POST',
           headers: {
@@ -715,23 +839,23 @@ export default function DashboardPage() {
           },
           body: JSON.stringify({ price_id: planData.stripe_price_id }),
         });
-        
+
         const data = await response.json();
-        
+
         if (!response.ok) throw new Error(data.error || 'Failed to create checkout');
-        
+
         window.location.href = data.url;
-        
       } catch (err) {
         addNotification(`Failed to start checkout: ${err.message}. Please try from the pricing page.`, 'error');
         setCheckingPendingPlan(false);
       }
     };
-    
+
     checkPendingPlan();
   }, [user, profile, addNotification]);
 
-  // Show notification if redirected from upload with review mode
+
+  // ---- QUERY PARAM NOTIFICATIONS ----
   useEffect(() => {
     if (router.query.awaiting_review === 'true') {
       addNotification('Your track is being transcribed. Click "Review Lyrics" when it\'s ready!', 'info');
@@ -739,7 +863,6 @@ export default function DashboardPage() {
     }
   }, [router.query.awaiting_review, addNotification, router]);
 
-  // Show notification for successful upgrade
   useEffect(() => {
     if (router.query.upgraded === 'true') {
       addNotification('Upgrade successful! Your new plan is now active.', 'success');
@@ -747,7 +870,6 @@ export default function DashboardPage() {
     }
   }, [router.query.upgraded, addNotification, router]);
 
-  // Show notification for scheduled downgrade
   useEffect(() => {
     if (router.query.downgrade_scheduled === 'true' && profile?.scheduled_tier_date) {
       const effectiveDate = new Date(profile.scheduled_tier_date).toLocaleDateString('en-US', {
@@ -764,7 +886,6 @@ export default function DashboardPage() {
     }
   }, [router.query.downgrade_scheduled, profile?.scheduled_tier, profile?.scheduled_tier_date, addNotification, router]);
 
-  // Show notification for credit purchase
   useEffect(() => {
     if (router.query.credits_purchased === 'true') {
       addNotification('Credits purchased successfully!', 'success');
@@ -772,7 +893,8 @@ export default function DashboardPage() {
     }
   }, [router.query.credits_purchased, addNotification, router]);
 
-  // Polling effect
+
+  // ---- POLLING ----
   useEffect(() => {
     if (!user) return;
 
@@ -789,7 +911,8 @@ export default function DashboardPage() {
     return () => clearInterval(pollInterval);
   }, [user, projects, fetchProjects]);
 
-  // Handle download
+
+  // ---- HANDLERS ----
   const handleDownload = async (project) => {
     try {
       setDownloadingId(project.id);
@@ -813,10 +936,10 @@ export default function DashboardPage() {
       if (urls.video || urls.processed_audio) {
         const downloadUrl = urls.video || urls.processed_audio;
         const filename = `${project.song_title || project.title} - ${project.artist_name || 'Karaoke'}.mp4`;
-        
+
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
         const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-        
+
         if (isIOS || isSafari) {
           window.location.href = downloadUrl;
         } else {
@@ -839,7 +962,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Handle retry failed project
   const handleRetryProject = async (project) => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -865,7 +987,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Handle delete project
   const handleDeleteProject = async () => {
     if (!projectToDelete) return;
 
@@ -885,6 +1006,10 @@ export default function DashboardPage() {
       if (response.ok) {
         setProjects(prev => prev.filter(p => p.id !== projectToDelete.id));
         addNotification(`"${projectToDelete.title}" has been deleted`, 'success');
+        // If the deleted project was expanded, collapse it
+        if (expandedProjectId === projectToDelete.id) {
+          setExpandedProjectId(null);
+        }
       } else {
         const error = await response.json();
         addNotification(error.error || 'Failed to delete project', 'error');
@@ -898,7 +1023,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Toggle render history
   const handleToggleHistory = (projectId) => {
     if (showRenderHistory === projectId) {
       setShowRenderHistory(null);
@@ -908,7 +1032,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Manual refresh
   const handleRefresh = async () => {
     if (user) {
       await fetchProjects(user.id, false);
@@ -916,7 +1039,14 @@ export default function DashboardPage() {
     }
   };
 
-  // Submit feature suggestion
+  const handleToggleExpand = (projectId) => {
+    setExpandedProjectId(prev => prev === projectId ? null : projectId);
+    // Close render history if collapsing
+    if (expandedProjectId === projectId) {
+      setShowRenderHistory(null);
+    }
+  };
+
   const handleSubmitSuggestion = async () => {
     if (!suggestionTitle.trim() || !suggestionDescription.trim()) {
       addNotification('Please fill in all fields', 'error');
@@ -951,7 +1081,8 @@ export default function DashboardPage() {
     }
   };
 
-  // Loading state
+
+  // ---- LOADING STATE ----
   if (loading || checkingPendingPlan) {
     return (
       <>
@@ -962,43 +1093,13 @@ export default function DashboardPage() {
         />
         <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'} flex items-center justify-center`}>
           <div className="text-center">
-            <div className="w-16 h-16 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-gray-400">Loading...</p>
+            <div className="w-14 h-14 border-[3px] border-cyan-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>Loading...</p>
           </div>
         </div>
       </>
     );
   }
-
-  // Status helpers
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="w-5 h-5 text-green-400" />;
-      case 'processing':
-      case 'transcribing':
-      case 'rendering':
-        return <Loader2 className="w-5 h-5 text-yellow-400 animate-spin" />;
-      case 'awaiting_review':
-        return <Edit3 className="w-5 h-5 text-purple-400" />;
-      case 'failed':
-        return <AlertCircle className="w-5 h-5 text-red-400" />;
-      default:
-        return <Clock className="w-5 h-5 text-gray-400" />;
-    }
-  };
-
-  const getStatusText = (status) => {
-    switch (status) {
-      case 'completed': return 'Ready';
-      case 'processing': return 'Processing...';
-      case 'transcribing': return 'Transcribing...';
-      case 'rendering': return 'Rendering...';
-      case 'awaiting_review': return 'Review Lyrics';
-      case 'failed': return 'Failed';
-      default: return status;
-    }
-  };
 
   const processingCount = projects.filter(p =>
     ['processing', 'transcribing', 'rendering'].includes(p.status)
@@ -1006,6 +1107,8 @@ export default function DashboardPage() {
 
   const isPaidUser = profile?.subscription_tier && profile.subscription_tier !== 'free';
 
+
+  // ---- RENDER ----
   return (
     <>
       <SEO
@@ -1015,29 +1118,38 @@ export default function DashboardPage() {
       />
       <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
         {/* Notification Toasts */}
-        <div className="fixed top-4 right-4 z-50 space-y-2">
+        <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm w-full pointer-events-none">
           <AnimatePresence>
             {notifications.map(notification => (
               <motion.div
                 key={notification.id}
-                initial={{ opacity: 0, x: 100, scale: 0.9 }}
+                initial={{ opacity: 0, x: 50, scale: 0.95 }}
                 animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 100, scale: 0.9 }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg backdrop-blur-md ${
-                  notification.type === 'success'
-                    ? 'bg-green-500/20 border border-green-500/50'
+                exit={{ opacity: 0, x: 50, scale: 0.95 }}
+                className={`
+                  pointer-events-auto
+                  flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg backdrop-blur-xl
+                  ${notification.type === 'success'
+                    ? isDark
+                      ? 'bg-emerald-500/15 border border-emerald-500/30'
+                      : 'bg-emerald-50 border border-emerald-200'
                     : notification.type === 'error'
-                      ? 'bg-red-500/20 border border-red-500/50'
-                      : 'bg-cyan-500/20 border border-cyan-500/50'
-                }`}
+                      ? isDark
+                        ? 'bg-red-500/15 border border-red-500/30'
+                        : 'bg-red-50 border border-red-200'
+                      : isDark
+                        ? 'bg-cyan-500/15 border border-cyan-500/30'
+                        : 'bg-cyan-50 border border-cyan-200'
+                  }
+                `}
               >
-                {notification.type === 'success' && <CheckCircle className="w-5 h-5 text-green-400" />}
-                {notification.type === 'error' && <AlertCircle className="w-5 h-5 text-red-400" />}
-                {notification.type === 'info' && <Bell className="w-5 h-5 text-cyan-400" />}
-                <span className={`text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>{notification.message}</span>
+                {notification.type === 'success' && <CheckCircle className={`w-5 h-5 flex-shrink-0 ${isDark ? 'text-emerald-400' : 'text-emerald-500'}`} />}
+                {notification.type === 'error' && <AlertCircle className={`w-5 h-5 flex-shrink-0 ${isDark ? 'text-red-400' : 'text-red-500'}`} />}
+                {notification.type === 'info' && <Bell className={`w-5 h-5 flex-shrink-0 ${isDark ? 'text-cyan-400' : 'text-cyan-500'}`} />}
+                <span className={`text-sm flex-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>{notification.message}</span>
                 <button
                   onClick={() => removeNotification(notification.id)}
-                  className="ml-2 text-gray-400 hover:text-white"
+                  className={`ml-1 flex-shrink-0 ${isDark ? 'text-gray-500 hover:text-white' : 'text-gray-400 hover:text-gray-700'} transition-colors`}
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1050,104 +1162,133 @@ export default function DashboardPage() {
         <AppNavigation profile={profile} />
 
         {/* Main Content */}
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           {/* Welcome Section */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
+            className="mb-6 sm:mb-8"
           >
-            <h1 className={`text-2xl sm:text-3xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            <h1 className={`text-2xl sm:text-3xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
               Welcome back, {profile?.full_name || user?.email?.split('@')[0]}!
             </h1>
-            <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>Ready to transform some music?</p>
+            <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Ready to transform some music?</p>
           </motion.div>
 
-          {/* Stats Cards */}
-          <div className={`grid grid-cols-2 ${isPaidUser ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 sm:gap-6 mb-8`}>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="glass-panel p-4 sm:p-6"
-            >
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
-                  <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-400" />
+          {/* Stats Row */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+            className={`
+              grid grid-cols-3 ${isPaidUser ? 'sm:grid-cols-4' : ''} gap-3 sm:gap-4 mb-6 sm:mb-8
+            `}
+          >
+            {/* Credits */}
+            <div className={`
+              rounded-2xl p-4 sm:p-5 backdrop-blur-xl
+              ${isDark
+                ? 'bg-white/[0.04] border border-white/[0.08]'
+                : 'bg-white/70 border border-gray-200/80'
+              }
+            `}>
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-cyan-500/15' : 'bg-cyan-50'}`}>
+                  <Zap className={`w-4 h-4 sm:w-5 sm:h-5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
                 </div>
                 <div>
-                  <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Credits</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{profile?.credits_remaining || 0}</p>
+                  <p className={`text-[11px] sm:text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Credits</p>
+                  <p className={`text-lg sm:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{profile?.credits_remaining || 0}</p>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="glass-panel p-4 sm:p-6"
-            >
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                  <FileVideo className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
+            {/* Projects */}
+            <div className={`
+              rounded-2xl p-4 sm:p-5 backdrop-blur-xl
+              ${isDark
+                ? 'bg-white/[0.04] border border-white/[0.08]'
+                : 'bg-white/70 border border-gray-200/80'
+              }
+            `}>
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-purple-500/15' : 'bg-purple-50'}`}>
+                  <FileVideo className={`w-4 h-4 sm:w-5 sm:h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
                 </div>
                 <div>
-                  <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Projects</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{projects.length}</p>
+                  <p className={`text-[11px] sm:text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Projects</p>
+                  <p className={`text-lg sm:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{projects.length}</p>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="glass-panel p-4 sm:p-6"
-            >
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />
+            {/* Plan */}
+            <div className={`
+              rounded-2xl p-4 sm:p-5 backdrop-blur-xl
+              ${isDark
+                ? 'bg-white/[0.04] border border-white/[0.08]'
+                : 'bg-white/70 border border-gray-200/80'
+              }
+            `}>
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-emerald-500/15' : 'bg-emerald-50'}`}>
+                  <CheckCircle className={`w-4 h-4 sm:w-5 sm:h-5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
                 </div>
                 <div>
-                  <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Plan</p>
-                  <p className={`text-xl sm:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'} capitalize`}>{profile?.subscription_tier || 'Free'}</p>
+                  <p className={`text-[11px] sm:text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Plan</p>
+                  <p className={`text-lg sm:text-xl font-bold capitalize ${isDark ? 'text-white' : 'text-gray-900'}`}>{profile?.subscription_tier || 'Free'}</p>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
+            {/* Help (paid only) */}
             {isPaidUser && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
-                className="glass-panel p-4 sm:p-6 cursor-pointer hover:border-purple-500/50 transition-colors"
+              <div
                 onClick={() => setShowHelpModal(true)}
+                className={`
+                  rounded-2xl p-4 sm:p-5 backdrop-blur-xl cursor-pointer transition-all duration-200
+                  ${isDark
+                    ? 'bg-white/[0.04] border border-white/[0.08] hover:border-purple-500/30'
+                    : 'bg-white/70 border border-gray-200/80 hover:border-purple-300'
+                  }
+                  hidden sm:block
+                `}
               >
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                    <HelpCircle className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-purple-500/15' : 'bg-purple-50'}`}>
+                    <HelpCircle className={`w-4 h-4 sm:w-5 sm:h-5 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
                   </div>
                   <div>
-                    <p className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Need Help?</p>
-                    <p className={`text-base sm:text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    <p className={`text-[11px] sm:text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Support</p>
+                    <p className={`text-lg sm:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                       {profile?.subscription_tier === 'studio' ? 'Priority' : 'Standard'}
                     </p>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             )}
-          </div>
+          </motion.div>
 
-          {/* Upload Section */}
+          {/* Upload Zone */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="mb-8"
+            transition={{ delay: 0.1 }}
+            className="mb-6 sm:mb-8"
           >
             <div
-              className={`dropzone cursor-pointer group transition-all ${isDragging ? 'border-cyan-400 bg-cyan-400/10 scale-[1.02]' : ''}`}
+              className={`
+                rounded-2xl p-8 sm:p-10 text-center cursor-pointer transition-all duration-300 group
+                border-2 border-dashed backdrop-blur-xl
+                ${isDragging
+                  ? isDark
+                    ? 'border-cyan-400 bg-cyan-400/10 scale-[1.01]'
+                    : 'border-cyan-500 bg-cyan-50 scale-[1.01]'
+                  : isDark
+                    ? 'border-white/[0.1] bg-white/[0.02] hover:border-cyan-500/40 hover:bg-white/[0.04]'
+                    : 'border-gray-300 bg-white/50 hover:border-cyan-400 hover:bg-cyan-50/30'
+                }
+              `}
               onClick={() => router.push('/upload')}
               onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
               onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
@@ -1171,302 +1312,135 @@ export default function DashboardPage() {
                 }
               }}
             >
-              <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br flex items-center justify-center transition-all ${
-                isDragging
-                  ? 'from-cyan-400/40 to-purple-500/40'
-                  : 'from-cyan-400/20 to-purple-500/20 group-hover:from-cyan-400/40 group-hover:to-purple-500/40'
-              }`}>
-                <Upload className={`w-8 h-8 ${isDragging ? 'text-cyan-400' : 'text-cyan-500'}`} />
+              <div className={`
+                w-14 h-14 mx-auto mb-4 rounded-2xl flex items-center justify-center transition-all duration-300
+                ${isDragging
+                  ? 'bg-cyan-500/20 scale-110'
+                  : isDark
+                    ? 'bg-gradient-to-br from-cyan-500/15 to-purple-500/15 group-hover:from-cyan-500/25 group-hover:to-purple-500/25'
+                    : 'bg-gradient-to-br from-cyan-100 to-purple-100 group-hover:from-cyan-200 group-hover:to-purple-200'
+                }
+              `}>
+                <Upload className={`w-7 h-7 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
               </div>
-              <h3 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-lg font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                 {isDragging ? 'Drop your file here!' : 'Upload New Track'}
               </h3>
-              <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>
+              <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                 {isDragging ? 'Release to start uploading' : 'Drop your audio file or click to browse'}
               </p>
             </div>
           </motion.div>
 
-          {/* Suggest a Feature Card */}
+          {/* Suggest a Feature */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45 }}
-            className="mb-8"
+            transition={{ delay: 0.15 }}
+            className="mb-6 sm:mb-8"
           >
-            <div
+            <button
               onClick={() => setShowSuggestionModal(true)}
-              className={`glass-panel p-4 sm:p-6 cursor-pointer hover:border-yellow-500/50 transition-all group ${isDark ? 'hover:bg-yellow-500/5' : 'hover:bg-yellow-50'}`}
+              className={`
+                w-full rounded-2xl p-4 sm:p-5 text-left transition-all duration-200 group backdrop-blur-xl
+                ${isDark
+                  ? 'bg-white/[0.04] border border-white/[0.08] hover:border-amber-500/30 hover:bg-amber-500/[0.04]'
+                  : 'bg-white/70 border border-gray-200/80 hover:border-amber-300 hover:bg-amber-50/30'
+                }
+              `}
             >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Lightbulb className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400" />
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className={`
+                  w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105
+                  ${isDark ? 'bg-amber-500/15' : 'bg-amber-50'}
+                `}>
+                  <Lightbulb className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                 </div>
-                <div className="flex-1">
-                  <h3 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`font-semibold text-sm ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     Have an idea?
                   </h3>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                     Suggest a feature and help shape Karatrack Studio
                   </p>
                 </div>
-                <div className={`text-sm font-medium hidden sm:block ${isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                <span className={`text-sm font-medium hidden sm:block ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
                   Suggest Feature
-                </div>
+                </span>
               </div>
-            </div>
+            </button>
           </motion.div>
 
-          {/* Recent Projects */}
+          {/* ==================== */}
+          {/* RECENT PROJECTS LIST */}
+          {/* ==================== */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
+            transition={{ delay: 0.2 }}
           >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Recent Projects</h2>
+                <h2 className={`text-lg sm:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>Recent Projects</h2>
                 {processingCount > 0 && (
-                  <span className="px-2 py-1 text-xs bg-yellow-500/20 text-yellow-400 rounded-full flex items-center gap-1">
+                  <span className={`
+                    px-2 py-0.5 text-xs font-medium rounded-full flex items-center gap-1
+                    ${isDark
+                      ? 'bg-amber-500/15 text-amber-400'
+                      : 'bg-amber-50 text-amber-600 border border-amber-200'
+                    }
+                  `}>
                     <Loader2 className="w-3 h-3 animate-spin" />
-                    {processingCount} processing
+                    {processingCount}
                   </span>
                 )}
               </div>
               <button
                 onClick={handleRefresh}
-                className={`flex items-center gap-2 text-sm transition-colors ${isDark ? 'text-gray-400 hover:text-cyan-400' : 'text-gray-600 hover:text-cyan-600'}`}
+                className={`
+                  flex items-center gap-1.5 text-sm font-medium transition-colors
+                  ${isDark ? 'text-gray-500 hover:text-cyan-400' : 'text-gray-400 hover:text-cyan-600'}
+                `}
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Refresh</span>
               </button>
             </div>
 
             {projects.length === 0 ? (
-              <div className="glass-panel p-8 text-center">
-                <FileVideo className="w-12 h-12 text-gray-500 mx-auto mb-4" />
-                <p className={isDark ? 'text-gray-400' : 'text-gray-600'}>No projects yet. Upload your first track!</p>
+              <div className={`
+                rounded-2xl p-10 text-center backdrop-blur-xl
+                ${isDark
+                  ? 'bg-white/[0.04] border border-white/[0.08]'
+                  : 'bg-white/70 border border-gray-200/80'
+                }
+              `}>
+                <FileVideo className={`w-12 h-12 mx-auto mb-3 ${isDark ? 'text-gray-600' : 'text-gray-300'}`} />
+                <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>No projects yet. Upload your first track!</p>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {projects.map((project, i) => (
                   <motion.div
                     key={project.id}
-                    className={`glass-panel p-4 ${
-                      ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'border border-yellow-500/30' :
-                      project.status === 'awaiting_review' ? 'border border-purple-500/30' : ''
-                    }`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.05 }}
-                    style={{ 
-                      position: 'relative',
-                      zIndex: openDropdownId === project.id || showRenderHistory === project.id ? 9999 : 1 
-                    }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.22 + i * 0.03 }}
                   >
-                    {/* Main Row */}
-                    <div className="flex items-center gap-3 sm:gap-4">
-                      {/* Project Icon */}
-                      <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                        project.status === 'completed' ? 'bg-green-500/20' :
-                        ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'bg-yellow-500/20' :
-                        project.status === 'awaiting_review' ? 'bg-purple-500/20' :
-                        project.status === 'failed' ? 'bg-red-500/20' : 'bg-white/5'
-                      }`}>
-                        <Music className={`w-5 h-5 sm:w-6 sm:h-6 ${
-                          project.status === 'completed' ? 'text-green-400' :
-                          ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'text-yellow-400' :
-                          project.status === 'awaiting_review' ? 'text-purple-400' :
-                          project.status === 'failed' ? 'text-red-400' : 'text-cyan-400'
-                        }`} />
-                      </div>
-
-                      {/* Project Info */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className={`font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{project.title}</h3>
-                        <p className="text-gray-400 text-sm truncate">
-                          {new Date(project.created_at).toLocaleDateString()} • {project.artist_name || 'Unknown Artist'}
-                        </p>
-                      </div>
-
-                      {/* Status Badge */}
-                      <div className="hidden sm:flex items-center gap-2">
-                        {getStatusIcon(project.status)}
-                        <span className={`text-sm ${
-                          project.status === 'completed' ? 'text-green-400' :
-                          ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'text-yellow-400' :
-                          project.status === 'awaiting_review' ? 'text-purple-400' :
-                          project.status === 'failed' ? 'text-red-400' : 'text-gray-400'
-                        }`}>
-                          {getStatusText(project.status)}
-                        </span>
-                      </div>
-
-                      {/* Quick Download Button - Desktop Only, Completed Only */}
-                      {project.status === 'completed' && (
-                        <button
-                          onClick={() => handleDownload(project)}
-                          disabled={downloadingId === project.id}
-                          className="hidden md:flex px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 items-center gap-2"
-                        >
-                          {downloadingId === project.id ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span>Loading...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4" />
-                              <span>Download</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-
-                      {/* Quick Review Button - Desktop Only, Awaiting Review Only */}
-                      {project.status === 'awaiting_review' && (
-                        <Link href={`/preview/${project.id}`} className="hidden md:block">
-                          <button className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white font-medium hover:opacity-90 transition-opacity flex items-center gap-2">
-                            <Edit3 className="w-4 h-4" />
-                            <span>Review</span>
-                          </button>
-                        </Link>
-                      )}
-
-                      {/* Actions Dropdown - Always Visible */}
-                      <ProjectActionsDropdown
-                        project={project}
-                        isDark={isDark}
-                        onDownload={handleDownload}
-                        onDelete={setProjectToDelete}
-                        onRetry={handleRetryProject}
-                        onViewHistory={handleToggleHistory}
-                        downloadingId={downloadingId}
-                        isHistoryOpen={showRenderHistory === project.id}
-                        onOpenChange={setOpenDropdownId}
-                      />
-                    </div>
-
-                    {/* Mobile Status Row */}
-                    <div className="sm:hidden mt-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(project.status)}
-                        <span className={`text-sm ${
-                          project.status === 'completed' ? 'text-green-400' :
-                          ['processing', 'transcribing', 'rendering'].includes(project.status) ? 'text-yellow-400' :
-                          project.status === 'awaiting_review' ? 'text-purple-400' :
-                          project.status === 'failed' ? 'text-red-400' : 'text-gray-400'
-                        }`}>
-                          {getStatusText(project.status)}
-                        </span>
-                      </div>
-
-                      {/* Mobile Quick Actions */}
-                      {project.status === 'completed' && (
-                        <button
-                          onClick={() => handleDownload(project)}
-                          disabled={downloadingId === project.id}
-                          className="px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-500 rounded-lg text-white text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
-                        >
-                          {downloadingId === project.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <>
-                              <Download className="w-4 h-4" />
-                              Download
-                            </>
-                          )}
-                        </button>
-                      )}
-                      {project.status === 'awaiting_review' && (
-                        <Link href={`/preview/${project.id}`}>
-                          <button className="px-3 py-1.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg text-white text-sm font-medium flex items-center gap-1.5">
-                            <Edit3 className="w-4 h-4" />
-                            Review
-                          </button>
-                        </Link>
-                      )}
-                    </div>
-
-                    {/* Render History Panel */}
-                    <AnimatePresence>
-                      {showRenderHistory === project.id && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="overflow-visible"
-                          style={{ position: 'relative', zIndex: 10 }}
-                        >
-                          <div className={`mt-4 p-4 rounded-xl ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
-                            <h4 className={`text-sm font-semibold mb-3 flex items-center gap-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                              <History className="w-4 h-4" />
-                              Render History
-                            </h4>
-                            
-                            {loadingHistory ? (
-                              <div className="flex items-center gap-2 text-sm text-gray-400 py-4 justify-center">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                Loading history...
-                              </div>
-                            ) : renderHistory.length === 0 ? (
-                              <p className="text-sm text-gray-400 text-center py-4">No render history found</p>
-                            ) : (
-                              <div className="space-y-2 max-h-48 overflow-y-auto">
-                                {renderHistory.map((render, index) => (
-                                  <div 
-                                    key={render.id}
-                                    className={`flex items-center justify-between p-3 rounded-xl ${
-                                      isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-white hover:bg-gray-100'
-                                    } ${render.is_expired ? 'opacity-50' : ''} transition-colors`}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <span className={`text-xs px-2 py-1 rounded-lg font-medium ${
-                                        index === 0 
-                                          ? 'bg-cyan-500/20 text-cyan-400' 
-                                          : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'
-                                      }`}>
-                                        {index === 0 ? 'Latest' : `v${render.render_number}`}
-                                      </span>
-                                      <div>
-                                        <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                                          {render.video_quality || '720p'} • {new Date(render.created_at).toLocaleDateString()}
-                                        </p>
-                                        <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                                          {new Date(render.created_at).toLocaleTimeString()}
-                                          {render.is_expired && ' • Expired'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    
-                                    {!render.is_expired && render.download_url ? (
-                                      <a
-                                        href={render.download_url}
-                                        download
-                                        className={`p-2.5 rounded-xl transition-all ${
-                                          isDark 
-                                            ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' 
-                                            : 'bg-cyan-100 text-cyan-600 hover:bg-cyan-200'
-                                        }`}
-                                        title="Download this version"
-                                      >
-                                        <Download className="w-4 h-4" />
-                                      </a>
-                                    ) : render.is_expired ? (
-                                      <span className="text-xs text-red-400 px-2">Expired</span>
-                                    ) : null}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            
-                            <p className={`text-xs mt-3 text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                              Renders are available for 30 days
-                            </p>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    <ProjectCard
+                      project={project}
+                      isDark={isDark}
+                      isExpanded={expandedProjectId === project.id}
+                      onToggle={() => handleToggleExpand(project.id)}
+                      onDownload={handleDownload}
+                      onDelete={setProjectToDelete}
+                      onRetry={handleRetryProject}
+                      downloadingId={downloadingId}
+                      renderHistory={renderHistory}
+                      loadingHistory={loadingHistory}
+                      onToggleHistory={handleToggleHistory}
+                      showHistory={showRenderHistory === project.id}
+                    />
                   </motion.div>
                 ))}
               </div>
@@ -1488,9 +1462,9 @@ export default function DashboardPage() {
         </AnimatePresence>
 
         {/* Help Modal */}
-        <HelpModal 
-          isOpen={showHelpModal} 
-          onClose={() => setShowHelpModal(false)} 
+        <HelpModal
+          isOpen={showHelpModal}
+          onClose={() => setShowHelpModal(false)}
           profile={profile}
         />
 
@@ -1501,21 +1475,28 @@ export default function DashboardPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
               onClick={() => setShowSuggestionModal(false)}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className={`w-full max-w-lg rounded-2xl p-6 ${isDark ? 'bg-gray-900' : 'bg-white'} border ${isDark ? 'border-white/10' : 'border-gray-200'}`}
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                className={`
+                  w-full max-w-lg rounded-2xl p-6 backdrop-blur-xl
+                  ${isDark
+                    ? 'bg-gray-900/95 border border-white/15'
+                    : 'bg-white border border-gray-200'
+                  }
+                  shadow-2xl
+                `}
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Modal Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
-                      <Lightbulb className="w-5 h-5 text-yellow-400" />
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-amber-500/15' : 'bg-amber-50'}`}>
+                      <Lightbulb className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                     </div>
                     <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                       Suggest a Feature
@@ -1523,7 +1504,7 @@ export default function DashboardPage() {
                   </div>
                   <button
                     onClick={() => setShowSuggestionModal(false)}
-                    className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
+                    className={`p-2 rounded-lg transition-colors ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'}`}
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -1532,7 +1513,7 @@ export default function DashboardPage() {
                 {/* Form */}
                 <div className="space-y-4">
                   <div>
-                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       Title
                     </label>
                     <input
@@ -1541,16 +1522,19 @@ export default function DashboardPage() {
                       onChange={(e) => setSuggestionTitle(e.target.value)}
                       placeholder="Brief title for your idea"
                       maxLength={100}
-                      className={`w-full px-4 py-3 rounded-lg border ${
-                        isDark 
-                          ? 'bg-white/5 border-white/20 text-white placeholder-gray-500' 
+                      className={`
+                        w-full px-4 py-2.5 rounded-xl border text-sm
+                        ${isDark
+                          ? 'bg-white/5 border-white/15 text-white placeholder-gray-600'
                           : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                      } focus:outline-none focus:border-cyan-500`}
+                        }
+                        focus:outline-none focus:border-cyan-500 transition-colors
+                      `}
                     />
                   </div>
 
                   <div>
-                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       Description
                     </label>
                     <textarea
@@ -1559,29 +1543,35 @@ export default function DashboardPage() {
                       placeholder="Describe your feature idea and why it would be useful..."
                       rows={4}
                       maxLength={500}
-                      className={`w-full px-4 py-3 rounded-lg border resize-none ${
-                        isDark 
-                          ? 'bg-white/5 border-white/20 text-white placeholder-gray-500' 
+                      className={`
+                        w-full px-4 py-2.5 rounded-xl border resize-none text-sm
+                        ${isDark
+                          ? 'bg-white/5 border-white/15 text-white placeholder-gray-600'
                           : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'
-                      } focus:outline-none focus:border-cyan-500`}
+                        }
+                        focus:outline-none focus:border-cyan-500 transition-colors
+                      `}
                     />
-                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
                       {suggestionDescription.length}/500 characters
                     </p>
                   </div>
 
                   <div>
-                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       Category
                     </label>
                     <select
                       value={suggestionCategory}
                       onChange={(e) => setSuggestionCategory(e.target.value)}
-                      className={`w-full px-4 py-3 rounded-lg border ${
-                        isDark 
-                          ? 'bg-white/5 border-white/20 text-white' 
+                      className={`
+                        w-full px-4 py-2.5 rounded-xl border text-sm
+                        ${isDark
+                          ? 'bg-white/5 border-white/15 text-white'
                           : 'bg-white border-gray-300 text-gray-900'
-                      } focus:outline-none focus:border-cyan-500`}
+                        }
+                        focus:outline-none focus:border-cyan-500 transition-colors
+                      `}
                     >
                       <option value="feature" className={isDark ? 'bg-gray-900' : 'bg-white'}>New Feature</option>
                       <option value="improvement" className={isDark ? 'bg-gray-900' : 'bg-white'}>Improvement</option>
@@ -1591,25 +1581,33 @@ export default function DashboardPage() {
                     </select>
                   </div>
 
-                  <div className={`p-3 rounded-lg ${isDark ? 'bg-cyan-500/10 border border-cyan-500/20' : 'bg-cyan-50 border border-cyan-200'}`}>
-                    <p className={`text-sm ${isDark ? 'text-cyan-300' : 'text-cyan-700'}`}>
-                      Your suggestion will be reviewed by our team. Approved ideas will appear on the public roadmap for voting!
-                    </p>
+                  <div className={`
+                    p-3 rounded-xl text-sm
+                    ${isDark
+                      ? 'bg-cyan-500/10 border border-cyan-500/20 text-cyan-300'
+                      : 'bg-cyan-50 border border-cyan-200 text-cyan-700'
+                    }
+                  `}>
+                    Your suggestion will be reviewed by our team. Approved ideas will appear on the public roadmap for voting!
                   </div>
 
-                  <div className="flex gap-3 pt-2">
+                  <div className="flex gap-3 pt-1">
                     <button
                       onClick={() => setShowSuggestionModal(false)}
-                      className={`flex-1 px-4 py-3 rounded-lg font-medium ${
-                        isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      } transition-colors`}
+                      className={`
+                        flex-1 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors
+                        ${isDark
+                          ? 'bg-white/10 text-white hover:bg-white/15'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }
+                      `}
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleSubmitSuggestion}
                       disabled={submittingSuggestion || !suggestionTitle.trim() || !suggestionDescription.trim()}
-                      className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
+                      className="flex-1 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                       {submittingSuggestion ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
