@@ -678,7 +678,7 @@ const WordContextMenu = ({
 }) => {
   const menuRef = useRef(null);
 
-  // Close on click outside
+  // Close on click/tap outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -687,8 +687,12 @@ const WordContextMenu = ({
     };
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [isOpen, onClose]);
 
   // Close on Escape key
@@ -709,18 +713,19 @@ const WordContextMenu = ({
   const MenuItem = ({ icon: Icon, label, onClick, danger = false, disabled = false }) => (
     <button
       onClick={() => { onClick(); onClose(); }}
+      onTouchEnd={(e) => { e.preventDefault(); onClick(); onClose(); }}
       disabled={disabled}
-      className={`w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors rounded-lg
+      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-lg
         ${disabled 
           ? 'opacity-50 cursor-not-allowed' 
           : danger 
-            ? 'hover:bg-red-500/20 text-red-400' 
+            ? 'hover:bg-red-500/20 text-red-400 active:bg-red-500/30' 
             : isDark 
-              ? 'hover:bg-white/10 text-white' 
-              : 'hover:bg-gray-100 text-gray-700'
+              ? 'hover:bg-white/10 text-white active:bg-white/20' 
+              : 'hover:bg-gray-100 text-gray-700 active:bg-gray-200'
         }`}
     >
-      <Icon className="w-4 h-4" />
+      <Icon className="w-5 h-5 flex-shrink-0" />
       <span>{label}</span>
     </button>
   );
@@ -1481,67 +1486,138 @@ export default function PreviewEditPage() {
     position: { x: 0, y: 0 },
     wordIndex: null
   });
+
+  // Long-press context menu for mobile (500ms hold = context menu)
+  const wordLongPressTimer = useRef(null);
+  const wordLongPressTriggered = useRef(false);
+  const wordTouchStartPos = useRef({ x: 0, y: 0 });
   
   // For backwards compatibility - compute single selected index (must be after all useState)
   const selectedWordIndex = selectedWordIndices.size === 1 ? [...selectedWordIndices][0] : null;
 
   // ============================================================
-  // PREVIEW RESIZE HANDLERS
+  // GLOW & GROW RESIZE HANDLES (touch-friendly)
+  // ============================================================
+  // State for which handle is "glowing" (long-pressed / active drag)
+  const [glowingHandle, setGlowingHandle] = useState(null); // 'preview' | 'editor' | null
+  const longPressTimer = useRef(null);
+
+  // ============================================================
+  // PREVIEW RESIZE HANDLERS (mouse + touch with Glow & Grow)
   // ============================================================
   const handleResizeStart = useCallback((e) => {
     e.preventDefault();
     setIsResizing(true);
-    resizeStartY.current = e.clientY;
+    setGlowingHandle('preview');
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    resizeStartY.current = clientY;
     resizeStartHeight.current = previewHeight;
   }, [previewHeight]);
+
+  // Long press to activate glow before dragging
+  const handleResizeTouchStart = useCallback((e) => {
+    const touch = e.touches[0];
+    resizeStartY.current = touch.clientY;
+    resizeStartHeight.current = previewHeight;
+    // Start glow immediately on touch
+    setGlowingHandle('preview');
+    // Start actual resize after a brief moment (150ms) so the glow is visible
+    longPressTimer.current = setTimeout(() => {
+      setIsResizing(true);
+    }, 150);
+  }, [previewHeight]);
+
+  const handleResizeTouchEnd = useCallback(() => {
+    clearTimeout(longPressTimer.current);
+    setIsResizing(false);
+    setGlowingHandle(null);
+  }, []);
 
   useEffect(() => {
     const handleResizeMove = (e) => {
       if (!isResizing) return;
-      const deltaY = e.clientY - resizeStartY.current;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const deltaY = clientY - resizeStartY.current;
       const newHeight = Math.min(MAX_PREVIEW_HEIGHT, Math.max(MIN_PREVIEW_HEIGHT, resizeStartHeight.current + deltaY));
       setPreviewHeight(newHeight);
     };
 
-    const handleResizeEnd = () => setIsResizing(false);
+    const handleResizeEnd = () => {
+      setIsResizing(false);
+      setGlowingHandle(null);
+    };
 
     if (isResizing) {
       window.addEventListener('mousemove', handleResizeMove);
       window.addEventListener('mouseup', handleResizeEnd);
+      window.addEventListener('touchmove', handleResizeMove, { passive: false });
+      window.addEventListener('touchend', handleResizeEnd);
+      window.addEventListener('touchcancel', handleResizeEnd);
     }
     return () => {
       window.removeEventListener('mousemove', handleResizeMove);
       window.removeEventListener('mouseup', handleResizeEnd);
+      window.removeEventListener('touchmove', handleResizeMove);
+      window.removeEventListener('touchend', handleResizeEnd);
+      window.removeEventListener('touchcancel', handleResizeEnd);
     };
   }, [isResizing]);
 
   // ============================================================
-  // EDITOR RESIZE HANDLERS
+  // EDITOR RESIZE HANDLERS (mouse + touch with Glow & Grow)
   // ============================================================
   const handleEditorResizeStart = useCallback((e) => {
     e.preventDefault();
     setIsResizingEditor(true);
-    editorResizeStartY.current = e.clientY;
+    setGlowingHandle('editor');
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    editorResizeStartY.current = clientY;
     editorResizeStartHeight.current = editorHeight;
   }, [editorHeight]);
+
+  const handleEditorResizeTouchStart = useCallback((e) => {
+    const touch = e.touches[0];
+    editorResizeStartY.current = touch.clientY;
+    editorResizeStartHeight.current = editorHeight;
+    setGlowingHandle('editor');
+    longPressTimer.current = setTimeout(() => {
+      setIsResizingEditor(true);
+    }, 150);
+  }, [editorHeight]);
+
+  const handleEditorResizeTouchEnd = useCallback(() => {
+    clearTimeout(longPressTimer.current);
+    setIsResizingEditor(false);
+    setGlowingHandle(null);
+  }, []);
 
   useEffect(() => {
     const handleEditorResizeMove = (e) => {
       if (!isResizingEditor) return;
-      const deltaY = e.clientY - editorResizeStartY.current;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const deltaY = clientY - editorResizeStartY.current;
       const newHeight = Math.min(500, Math.max(150, editorResizeStartHeight.current + deltaY));
       setEditorHeight(newHeight);
     };
 
-    const handleEditorResizeEnd = () => setIsResizingEditor(false);
+    const handleEditorResizeEnd = () => {
+      setIsResizingEditor(false);
+      setGlowingHandle(null);
+    };
 
     if (isResizingEditor) {
       window.addEventListener('mousemove', handleEditorResizeMove);
       window.addEventListener('mouseup', handleEditorResizeEnd);
+      window.addEventListener('touchmove', handleEditorResizeMove, { passive: false });
+      window.addEventListener('touchend', handleEditorResizeEnd);
+      window.addEventListener('touchcancel', handleEditorResizeEnd);
     }
     return () => {
       window.removeEventListener('mousemove', handleEditorResizeMove);
       window.removeEventListener('mouseup', handleEditorResizeEnd);
+      window.removeEventListener('touchmove', handleEditorResizeMove);
+      window.removeEventListener('touchend', handleEditorResizeEnd);
+      window.removeEventListener('touchcancel', handleEditorResizeEnd);
     };
   }, [isResizingEditor]);
 
@@ -2481,6 +2557,78 @@ export default function PreviewEditPage() {
 
   const closeContextMenu = useCallback(() => {
     setContextMenu(prev => ({ ...prev, isOpen: false }));
+  }, []);
+
+  // Long-press handlers for mobile context menu on timeline words
+  const handleWordTouchStart = useCallback((index, e) => {
+    const touch = e.touches[0];
+    wordTouchStartPos.current = { x: touch.clientX, y: touch.clientY };
+    wordLongPressTriggered.current = false;
+
+    // Start a 500ms timer — if finger doesn't move much, open context menu
+    wordLongPressTimer.current = setTimeout(() => {
+      wordLongPressTriggered.current = true;
+
+      // Cancel any active drag so the word doesn't move
+      setIsDragging(false);
+
+      // Vibrate for haptic feedback if supported
+      if (navigator.vibrate) navigator.vibrate(30);
+
+      // Close any editing modes
+      if (editingWordIndex !== null) {
+        setEditingWordIndex(null);
+        setEditingText('');
+      }
+
+      // Select the word
+      setSelectedWordIndices(new Set([index]));
+
+      // Position menu near the touch point but above the finger
+      const menuWidth = 240;
+      const menuHeight = 300;
+      const padding = 10;
+      let x = touch.clientX - menuWidth / 2; // Center on finger
+      let y = touch.clientY - menuHeight - 20; // Above finger
+
+      // If not enough room above, put it below
+      if (y < padding) {
+        y = touch.clientY + 30;
+      }
+      // Keep within screen horizontally
+      if (x + menuWidth > window.innerWidth - padding) {
+        x = window.innerWidth - menuWidth - padding;
+      }
+      if (x < padding) x = padding;
+      // Keep within screen vertically
+      if (y + menuHeight > window.innerHeight - padding) {
+        y = window.innerHeight - menuHeight - padding;
+      }
+
+      setContextMenu({
+        isOpen: true,
+        position: { x, y },
+        wordIndex: index
+      });
+    }, 500);
+  }, [editingWordIndex]);
+
+  const handleWordTouchMove = useCallback((e) => {
+    // If finger moves more than 10px, cancel the long press (user is dragging)
+    if (wordLongPressTimer.current) {
+      const touch = e.touches[0];
+      const dx = touch.clientX - wordTouchStartPos.current.x;
+      const dy = touch.clientY - wordTouchStartPos.current.y;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        clearTimeout(wordLongPressTimer.current);
+        wordLongPressTimer.current = null;
+      }
+    }
+  }, []);
+
+  const handleWordTouchEnd = useCallback(() => {
+    clearTimeout(wordLongPressTimer.current);
+    wordLongPressTimer.current = null;
   }, []);
 
   // Extend word end time (makes the word last longer)
@@ -4445,12 +4593,25 @@ export default function PreviewEditPage() {
               })()}
             </div>
             
-            {/* Resize Handle */}
+            {/* Resize Handle - Glow & Grow on touch */}
             <div 
-              onMouseDown={handleResizeStart} 
-              className={`h-3 cursor-ns-resize flex items-center justify-center ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}
+              onMouseDown={handleResizeStart}
+              onTouchStart={handleResizeTouchStart}
+              onTouchEnd={handleResizeTouchEnd}
+              onTouchCancel={handleResizeTouchEnd}
+              className={`cursor-ns-resize flex items-center justify-center select-none transition-all duration-200 ${
+                glowingHandle === 'preview'
+                  ? isDark
+                    ? 'h-8 bg-cyan-500/20 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,212,228,0.3)]'
+                    : 'h-8 bg-cyan-100 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,180,200,0.25)]'
+                  : isDark
+                    ? 'h-3 bg-white/5 hover:bg-white/10 sm:hover:h-5'
+                    : 'h-3 bg-gray-100 hover:bg-gray-200 sm:hover:h-5'
+              }`}
             >
-              <GripHorizontal className="w-4 h-4 text-gray-400" />
+              <div className={`flex items-center gap-1 transition-all duration-200 ${glowingHandle === 'preview' ? 'scale-125' : ''}`}>
+                <GripHorizontal className={`w-4 h-4 transition-colors duration-200 ${glowingHandle === 'preview' ? 'text-cyan-400' : 'text-gray-400'}`} />
+              </div>
             </div>
           </motion.div>
 
@@ -4766,12 +4927,25 @@ export default function PreviewEditPage() {
                     </div>
                   </div>
 
-                  {/* Editor Resize Handle */}
+                  {/* Editor Resize Handle - Glow & Grow on touch */}
                   <div
                     onMouseDown={handleEditorResizeStart}
-                    className={`h-3 cursor-ns-resize flex items-center justify-center ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}
+                    onTouchStart={handleEditorResizeTouchStart}
+                    onTouchEnd={handleEditorResizeTouchEnd}
+                    onTouchCancel={handleEditorResizeTouchEnd}
+                    className={`cursor-ns-resize flex items-center justify-center select-none transition-all duration-200 ${
+                      glowingHandle === 'editor'
+                        ? isDark
+                          ? 'h-8 bg-cyan-500/20 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,212,228,0.3)]'
+                          : 'h-8 bg-cyan-100 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,180,200,0.25)]'
+                        : isDark
+                          ? 'h-3 bg-white/5 hover:bg-white/10 sm:hover:h-5'
+                          : 'h-3 bg-gray-100 hover:bg-gray-200 sm:hover:h-5'
+                    }`}
                   >
-                    <GripHorizontal className="w-4 h-4 text-gray-400" />
+                    <div className={`flex items-center gap-1 transition-all duration-200 ${glowingHandle === 'editor' ? 'scale-125' : ''}`}>
+                      <GripHorizontal className={`w-4 h-4 transition-colors duration-200 ${glowingHandle === 'editor' ? 'text-cyan-400' : 'text-gray-400'}`} />
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -5182,11 +5356,22 @@ export default function PreviewEditPage() {
                               }
                             }}
                             onTouchStart={(e) => {
-                              // Touch support for mobile dragging - only prevent default when actually dragging
+                              // Touch support: start both drag AND long-press timer
                               if (e.touches.length === 1 && !e.target.classList.contains('resize-handle')) {
-                                // Don't prevent default immediately - let the drag handler decide
                                 handleTimelineWordMouseDown(index, e, e.touches[0].clientX);
+                                handleWordTouchStart(index, e);
                               }
+                            }}
+                            onTouchMove={(e) => {
+                              // Cancel long-press if finger moves (user is dragging)
+                              handleWordTouchMove(e);
+                            }}
+                            onTouchEnd={() => {
+                              // Clean up long-press timer
+                              handleWordTouchEnd();
+                            }}
+                            onTouchCancel={() => {
+                              handleWordTouchEnd();
                             }}
                             onMouseEnter={() => {
                               handleTimelineWordMouseEnter(index);

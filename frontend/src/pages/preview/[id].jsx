@@ -485,11 +485,45 @@ const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outli
 // VOLUME SLIDER COMPONENT - NEW in V10.8
 // ============================================================
 const VolumeSlider = ({ value, onChange, label, icon: Icon, color, muted, onMuteToggle, isDark }) => {
+  const sliderRef = useRef(null);
+  const [isTouching, setIsTouching] = useState(false);
+
+  // Calculate volume from touch/mouse position on the track
+  const getValueFromEvent = useCallback((clientX) => {
+    if (!sliderRef.current) return value;
+    const rect = sliderRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const pct = Math.round(Math.max(0, Math.min(100, (x / rect.width) * 100)));
+    return pct;
+  }, [value]);
+
+  // Touch handlers for the custom slider track (fixes mobile)
+  const handleTouchStart = useCallback((e) => {
+    e.stopPropagation();
+    setIsTouching(true);
+    const val = getValueFromEvent(e.touches[0].clientX);
+    onChange(val);
+    if (muted && val > 0) onMuteToggle();
+  }, [getValueFromEvent, onChange, muted, onMuteToggle]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isTouching) return;
+    e.preventDefault();
+    const val = getValueFromEvent(e.touches[0].clientX);
+    onChange(val);
+  }, [isTouching, getValueFromEvent, onChange]);
+
+  const handleTouchEnd = useCallback(() => {
+    setIsTouching(false);
+  }, []);
+
+  const displayValue = muted ? 0 : value;
+
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       <button
         onClick={onMuteToggle}
-        className={`p-1.5 rounded transition-colors ${muted
+        className={`p-1.5 rounded transition-colors flex-shrink-0 ${muted
             ? 'text-red-400 hover:text-red-300'
             : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
           }`}
@@ -497,22 +531,43 @@ const VolumeSlider = ({ value, onChange, label, icon: Icon, color, muted, onMute
       >
         {muted ? <VolumeX className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
       </button>
-      <div className="flex items-center gap-1.5">
-        <span className={`text-xs w-14 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{label}</span>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={muted ? 0 : value}
-          onChange={(e) => onChange(parseInt(e.target.value))}
-          className="w-20 h-1.5 rounded-full appearance-none cursor-pointer"
-          style={{
-            background: `linear-gradient(to right, ${color} ${muted ? 0 : value}%, ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} ${muted ? 0 : value}%)`,
+      <span className={`text-xs flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{label}</span>
+      {/* Custom touch-friendly slider track */}
+      <div
+        ref={sliderRef}
+        className={`relative h-6 flex-1 min-w-[60px] max-w-[100px] flex items-center cursor-pointer select-none ${isTouching ? 'scale-y-150' : ''} transition-transform duration-150`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={(e) => {
+          const val = getValueFromEvent(e.clientX);
+          onChange(val);
+          if (muted && val > 0) onMuteToggle();
+        }}
+      >
+        {/* Track background */}
+        <div className={`absolute left-0 right-0 h-1.5 rounded-full ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
+          {/* Filled portion */}
+          <div
+            className="absolute left-0 top-0 h-full rounded-full transition-all duration-75"
+            style={{ width: `${displayValue}%`, backgroundColor: color }}
+          />
+        </div>
+        {/* Thumb */}
+        <div
+          className={`absolute w-4 h-4 rounded-full shadow-md border-2 transition-all duration-75 -translate-x-1/2 ${
+            isTouching 
+              ? 'scale-125 shadow-lg' 
+              : ''
+          }`}
+          style={{ 
+            left: `${displayValue}%`, 
+            backgroundColor: isDark ? '#fff' : '#fff',
+            borderColor: color 
           }}
-          title={`${label}: ${value}%`}
         />
-        <span className={`text-xs w-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{value}%</span>
       </div>
+      <span className={`text-xs w-7 text-right flex-shrink-0 tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{value}%</span>
     </div>
   );
 };
@@ -5463,8 +5518,8 @@ export default function PreviewEditPage() {
                       </div>
                     </div>
 
-                    {/* Volume Controls Row - NEW in V10.8 */}
-                    <div className={`flex items-center justify-between pt-2 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
+                    {/* Volume Controls - stacks on mobile */}
+                    <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
                       {/* Backing Track Volume */}
                       <VolumeSlider
                         value={instrumentalVolume}
@@ -5479,7 +5534,7 @@ export default function PreviewEditPage() {
 
                       {/* Vocals Volume (Reference Only) */}
                       {project.vocals_audio_url ? (
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <VolumeSlider
                             value={vocalsVolume}
                             onChange={handleVocalsVolumeChange}
@@ -5490,7 +5545,7 @@ export default function PreviewEditPage() {
                             onMuteToggle={toggleVocalsMute}
                             isDark={isDark}
                           />
-                          <span className={`text-[10px] px-2 py-0.5 rounded ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
+                          <span className={`hidden sm:inline text-[10px] px-2 py-0.5 rounded flex-shrink-0 ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
                             Reference only
                           </span>
                         </div>
@@ -6767,6 +6822,9 @@ export default function PreviewEditPage() {
               </button>
             </div>
           </motion.div>
+
+          {/* Spacer so chat bubble doesn't cover action bar on mobile */}
+          <div className="h-20 sm:h-0" />
 
         </main>
       </div>
