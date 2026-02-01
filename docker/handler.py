@@ -2435,11 +2435,10 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
                 scroll_progress = (current_time - line_start) / (line_end - line_start)
                 scroll_progress = max(0, min(1, scroll_progress))
     
-    # V12: Use lines_per_scroll from settings instead of hardcoded value
-    # lines_per_scroll is how many lines the user wants visible
-    # We show extra context lines above and below, so multiply by ~1.5-2
+    # V12: Use lines_per_scroll from settings - this is the exact number of lines
+    # the user wants visible on screen (matching the preview)
     lines_per_scroll = colors.get('lines_per_scroll', 5) if colors else 5
-    visible_lines = lines_per_scroll * 2 - 1  # e.g., 5 lines setting = 9 visible with context
+    visible_lines = lines_per_scroll  # Show exactly what the user selected
     center_y = height // 2
     
     for offset in range(-visible_lines // 2, visible_lines // 2 + 1):
@@ -2536,9 +2535,12 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
     
     lines = group_lyrics_into_lines(lyrics)
     
+    # V12: Use lines_per_page from user settings instead of hardcoded constant
+    lines_per_page = colors.get('lines_per_page', 4) if colors else 4
+    
     pages = []
-    for i in range(0, len(lines), LINES_PER_PAGE):
-        pages.append(lines[i:i + LINES_PER_PAGE])
+    for i in range(0, len(lines), lines_per_page):
+        pages.append(lines[i:i + lines_per_page])
     
     current_line_idx = 0
     for i, line in enumerate(lines):
@@ -2547,7 +2549,7 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
             break
         current_line_idx = i
     
-    current_page_idx = current_line_idx // LINES_PER_PAGE
+    current_page_idx = current_line_idx // lines_per_page
     current_page_idx = min(current_page_idx, len(pages) - 1)
     
     if current_page_idx < len(pages):
@@ -2558,7 +2560,7 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
         
         for i, line in enumerate(page):
             y = start_y + (i * line_height)
-            line_idx_global = current_page_idx * LINES_PER_PAGE + i
+            line_idx_global = current_page_idx * lines_per_page + i
             
             total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
             x_start = (width - total_width) // 2
@@ -2657,14 +2659,15 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
             break
         current_line_idx = i
     
-    NUM_POSITIONS = 3
+    # V12: Use lines_per_overwrite from user settings instead of hardcoded 3
+    NUM_POSITIONS = colors.get('lines_per_overwrite', 4) if colors else 4
     
     # Calculate vertical positions - centered on screen
     total_display_height = NUM_POSITIONS * line_height
     start_y = (height - total_display_height) // 2
     
-    # We always show the current line and the next 2 upcoming lines
-    lines_to_show = [current_line_idx, current_line_idx + 1, current_line_idx + 2]
+    # Show the current line and the next (NUM_POSITIONS - 1) upcoming lines
+    lines_to_show = [current_line_idx + i for i in range(NUM_POSITIONS)]
     
     for line_idx in lines_to_show:
         # Skip if line doesn't exist
