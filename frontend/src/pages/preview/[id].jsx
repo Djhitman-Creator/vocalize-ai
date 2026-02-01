@@ -2188,6 +2188,8 @@ export default function PreviewEditPage() {
   // Read directly from audio.currentTime each frame
   // Use flushSync to bypass React 18's automatic batching for smooth animations
 
+  const lastVocalSyncRef = useRef(0); // Throttle vocal sync to prevent choppy playback
+
   useEffect(() => {
     let rafId = null;
 
@@ -2201,11 +2203,16 @@ export default function PreviewEditPage() {
           setCurrentTime(audioTime);
         });
 
-        // Keep vocals in sync
+        // Keep vocals in sync — but throttled to avoid choppy playback on mobile
+        // Only check every 2 seconds and only correct if drift > 0.3s
         if (vocalsRef.current) {
-          const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
-          if (diff > 0.1) {
-            vocalsRef.current.currentTime = audioTime;
+          const now = performance.now();
+          if (now - lastVocalSyncRef.current > 2000) {
+            lastVocalSyncRef.current = now;
+            const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
+            if (diff > 0.3) {
+              vocalsRef.current.currentTime = audioTime;
+            }
           }
         }
 
@@ -3691,11 +3698,10 @@ export default function PreviewEditPage() {
 
       <SEO title={`Edit: ${project.title} | Karatrack Studio`} description="Edit lyrics timing and line breaks" />
 
-      {/* Audio Elements - crossOrigin needed for Web Audio API volume control */}
+      {/* Audio Elements */}
       <audio
         ref={instrumentalRef}
         src={project.processed_audio_url}
-        crossOrigin="anonymous"
         onLoadedMetadata={handleAudioLoaded}
         onEnded={() => setIsPlaying(false)}
         preload="auto"
@@ -3704,7 +3710,6 @@ export default function PreviewEditPage() {
         <audio
           ref={vocalsRef}
           src={project.vocals_audio_url}
-          crossOrigin="anonymous"
           onLoadedMetadata={handleVocalsLoaded}
           preload="auto"
         />
