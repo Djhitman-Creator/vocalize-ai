@@ -3486,8 +3486,12 @@ def handler(event):
               start_image_show_title
           )
         
-        video_key = f"processed/{project_id}/video.mp4"
+        # Use timestamped key so each render is preserved in R2 (for render history)
+        from datetime import datetime
+        render_timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+        video_key = f"processed/{project_id}/video_{render_timestamp}.mp4"
         results['video_url'] = upload_to_r2(video_path, video_key)
+        print(f" Video uploaded to R2: {video_key}")
         
         if callback_url:
             print(f" Sending callback to {callback_url}")
