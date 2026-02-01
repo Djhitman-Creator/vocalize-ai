@@ -1756,36 +1756,102 @@ def draw_centered_text(draw, text, y, font, color, width, padding=PADDING_LEFT_R
     draw.text((x, y), text, font=font, fill=color)
 
 
-def create_intro_frame(artist, title, frame_num, total_frames, width, height, colors=None, bg_image=None, video_reader=None, current_time=0):
-    """Create intro screen frame with fade in/out."""
+def create_intro_frame(artist, title, frame_num, total_frames, width, height, colors=None, bg_image=None, video_reader=None, current_time=0, start_image=None, start_image_fit='fill', start_image_opacity=100, start_image_show_title=True):
+    """Create intro screen frame with fade in/out. Supports optional start image overlay."""
     img = create_frame(width, height, colors, bg_image, video_reader, current_time)
-    draw = ImageDraw.Draw(img)
     
-    # Get colors or use defaults
-    text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
-    sung_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
-    font_name = colors.get('font', 'arial') if colors else 'arial'
+    # Overlay start image if provided
+    if start_image is not None:
+        try:
+            si = start_image.copy()
+            
+            # Resize start image based on fit mode
+            if start_image_fit == 'stretch':
+                # Stretch to fill exactly (may distort)
+                si = si.resize((width, height), Image.Resampling.LANCZOS)
+            elif start_image_fit == 'contain' or start_image_fit == 'fit':
+                # Show entire image, letterbox if needed
+                si_ratio = si.width / si.height
+                frame_ratio = width / height
+                if si_ratio > frame_ratio:
+                    new_w = width
+                    new_h = int(width / si_ratio)
+                else:
+                    new_h = height
+                    new_w = int(height * si_ratio)
+                si = si.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                # Center on a blank frame
+                centered = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+                paste_x = (width - new_w) // 2
+                paste_y = (height - new_h) // 2
+                centered.paste(si, (paste_x, paste_y))
+                si = centered
+            else:
+                # 'fill' / 'cover' - crop to fill frame
+                si_ratio = si.width / si.height
+                frame_ratio = width / height
+                if si_ratio > frame_ratio:
+                    new_h = height
+                    new_w = int(height * si_ratio)
+                else:
+                    new_w = width
+                    new_h = int(width / si_ratio)
+                si = si.resize((new_w, new_h), Image.Resampling.LANCZOS)
+                # Center crop
+                crop_x = (new_w - width) // 2
+                crop_y = (new_h - height) // 2
+                si = si.crop((crop_x, crop_y, crop_x + width, crop_y + height))
+            
+            # Apply opacity
+            opacity = max(0, min(100, int(start_image_opacity)))
+            if opacity < 100:
+                # Convert to RGBA if not already
+                if si.mode != 'RGBA':
+                    si = si.convert('RGBA')
+                # Create alpha mask
+                alpha = si.split()[3] if si.mode == 'RGBA' else Image.new('L', si.size, 255)
+                alpha = alpha.point(lambda p: int(p * opacity / 100))
+                si.putalpha(alpha)
+            
+            # Composite onto frame
+            if si.mode == 'RGBA':
+                img = img.convert('RGBA')
+                img = Image.alpha_composite(img, si)
+                img = img.convert('RGB')
+            else:
+                img.paste(si, (0, 0))
+        except Exception as e:
+            print(f"    Warning: Failed to overlay start image: {e}")
     
-    scale = width / 1920
-    font_artist = get_font(int(FONT_SIZE_ARTIST * scale), font_name, colors.get('custom_font_path') if colors else None)
-    font_title = get_font(int(FONT_SIZE_TITLE * scale), font_name, colors.get('custom_font_path') if colors else None)
-    
-    progress = frame_num / total_frames
-    if progress < 0.2:
-        alpha = progress / 0.2
-    elif progress > 0.8:
-        alpha = (1 - progress) / 0.2
-    else:
-        alpha = 1.0
-    
-    def apply_alpha(color, a):
-        return tuple(int(c * a) for c in color)
-    
-    draw_centered_text(draw, artist, height // 2 - int(60 * scale), 
-                       font_artist, apply_alpha(text_color, alpha), width)
-    
-    draw_centered_text(draw, title, height // 2 + int(40 * scale), 
-                       font_title, apply_alpha(sung_color, alpha), width)
+    # Only draw title/artist text if show_title is enabled
+    if start_image_show_title or start_image is None:
+        draw = ImageDraw.Draw(img)
+        
+        # Get colors or use defaults
+        text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
+        sung_color = colors.get('sung', COLOR_HIGHLIGHT) if colors else COLOR_HIGHLIGHT
+        font_name = colors.get('font', 'arial') if colors else 'arial'
+        
+        scale = width / 1920
+        font_artist = get_font(int(FONT_SIZE_ARTIST * scale), font_name, colors.get('custom_font_path') if colors else None)
+        font_title = get_font(int(FONT_SIZE_TITLE * scale), font_name, colors.get('custom_font_path') if colors else None)
+        
+        progress = frame_num / total_frames
+        if progress < 0.2:
+            alpha = progress / 0.2
+        elif progress > 0.8:
+            alpha = (1 - progress) / 0.2
+        else:
+            alpha = 1.0
+        
+        def apply_alpha(color, a):
+            return tuple(int(c * a) for c in color)
+        
+        draw_centered_text(draw, artist, height // 2 - int(60 * scale), 
+                           font_artist, apply_alpha(text_color, alpha), width)
+        
+        draw_centered_text(draw, title, height // 2 + int(40 * scale), 
+                           font_title, apply_alpha(sung_color, alpha), width)
     
     return img
 
@@ -2705,7 +2771,7 @@ def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, hei
     return lyrics_frame
 
 
-def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None, logo_url=None, logo_position='bottom-right', logo_size=50, logo_opacity=80):
+def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None, logo_url=None, logo_position='bottom-right', logo_size=50, logo_opacity=80, start_image_url=None, start_image_fit='fill', start_image_opacity=100, start_image_show_title=True):
     """Generate video with lyrics and countdown. Supports video/image backgrounds."""
     print(f"Generating video (mode: {display_mode}, background: {bg_type})...")
     print(f"   Subscription tier: {subscription_tier}")
@@ -2844,6 +2910,20 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
             print(f"    Falling back to gradient background")
             bg_type = 'gradient'
     
+    # Download and prepare start/intro image if provided
+    loaded_start_image = None
+    if start_image_url:
+        try:
+            print(f"    Downloading start image: {start_image_url[:80]}...")
+            work_dir_temp = os.path.dirname(audio_path)
+            start_img_path = os.path.join(work_dir_temp, 'start_image.jpg')
+            download_file(start_image_url, start_img_path)
+            loaded_start_image = Image.open(start_img_path).convert('RGBA')
+            print(f"    Start image loaded: {loaded_start_image.width}x{loaded_start_image.height}, fit={start_image_fit}, opacity={start_image_opacity}%, show_title={start_image_show_title}")
+        except Exception as e:
+            print(f"    Warning: Failed to load start image: {e}")
+            loaded_start_image = None
+    
     # Add silence to beginning of audio for intro screen
     work_dir = os.path.dirname(audio_path)
     audio_with_intro = os.path.join(work_dir, 'audio_with_intro.wav')
@@ -2930,7 +3010,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         
         if frame_num < intro_frames:
             # Show intro screen during the silence period
-            frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height, colors, bg_image, video_reader, current_time)
+            frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height, colors, bg_image, video_reader, current_time, loaded_start_image, start_image_fit, start_image_opacity, start_image_show_title)
         else:
             # Check if we're in a countdown period
             in_break = False
@@ -3398,7 +3478,12 @@ def handler(event):
               logo_url,
               logo_position,
               logo_size,
-              logo_opacity
+              logo_opacity,
+              # Start/Intro image settings
+              start_image_url,
+              start_image_fit,
+              start_image_opacity,
+              start_image_show_title
           )
         
         video_key = f"processed/{project_id}/video.mp4"
