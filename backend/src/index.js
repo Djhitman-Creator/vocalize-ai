@@ -476,7 +476,7 @@ async function sendCompletionEmail(project, downloadUrl) {
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -604,7 +604,7 @@ async function sendFailureEmail(project, errorMessage) {
               Need help? <a href="mailto:support@karatrack.com" style="color: #00d4ff; text-decoration: none;">Contact Support</a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -716,7 +716,7 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -1126,7 +1126,18 @@ app.delete('/api/projects/:id', authMiddleware, async (req, res) => {
     }
     
     // Delete associated render history first (if table exists)
+    // Also collect their R2 video URLs for file cleanup
+    let renderVideoUrls = [];
     try {
+      const { data: renderRows } = await supabase
+        .from('project_renders')
+        .select('video_url')
+        .eq('project_id', projectId);
+
+      if (renderRows) {
+        renderVideoUrls = renderRows.map(r => r.video_url).filter(Boolean);
+      }
+
       await supabase
         .from('project_renders')
         .delete()
@@ -1158,10 +1169,26 @@ app.delete('/api/projects/:id', authMiddleware, async (req, res) => {
         keysToDelete.push(originalKey);
       }
       
-      // Add processed files
+      // Add processed files (legacy key + current project video_url)
       keysToDelete.push(`processed/${projectId}/video.mp4`);
       keysToDelete.push(`processed/${projectId}/instrumental.mp3`);
       keysToDelete.push(`processed/${projectId}/vocals.mp3`);
+
+      // Add all versioned render video files from render history
+      for (const videoUrl of renderVideoUrls) {
+        // Extract R2 key from the full URL
+        // URL format: https://pub-xxx.r2.dev/processed/{id}/video_20260131_190000.mp4
+        try {
+          const urlPath = new URL(videoUrl).pathname;
+          // Remove leading slash to get the R2 key
+          const r2Key = urlPath.startsWith('/') ? urlPath.substring(1) : urlPath;
+          if (r2Key && !keysToDelete.includes(r2Key)) {
+            keysToDelete.push(r2Key);
+          }
+        } catch (e) {
+          console.log(`Could not parse render video URL: ${videoUrl}`);
+        }
+      }
       
       // Delete from R2 (fire and forget - don't wait)
       for (const key of keysToDelete) {
@@ -1707,6 +1734,7 @@ app.get('/api/projects/:id/renders', authMiddleware, async (req, res) => {
         expires_at: render.expires_at,
         download_url: downloadUrl,
         is_expired: isExpired,
+        settings_snapshot: render.settings_snapshot || {},
       };
     }));
 
@@ -2897,6 +2925,7 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
                 bg_type: project.bg_type,
                 aspect_ratio: project.aspect_ratio,
                 display_mode: project.display_mode,
+                audio_track: project.audio_track || 'instrumental',
               },
             });
 
@@ -3217,7 +3246,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             </p>
           </div>
           <div class="footer">
-            <p>ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
+            <p>ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
             <p>Questions? Reply to this email or visit our support page.</p>
           </div>
         </div>
