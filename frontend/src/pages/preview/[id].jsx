@@ -1461,8 +1461,11 @@ export default function PreviewEditPage() {
     }
   }, [id, router, updateBgSettings]);
 
-  // Section collapse state - ALL START COLLAPSED
-  const [lineEditorExpanded, setLineEditorExpanded] = useState(false);
+  // Section collapse state - Line Editor expanded on desktop, collapsed on mobile
+  const [lineEditorExpanded, setLineEditorExpanded] = useState(() => {
+    if (typeof window !== 'undefined') return window.innerWidth >= 640;
+    return false;
+  });
   const [timelineEditorExpanded, setTimelineEditorExpanded] = useState(false);
 
   // Preview resize state
@@ -4887,6 +4890,9 @@ export default function PreviewEditPage() {
                           <span className="hidden sm:inline">Line & Word Editor (Rhyme Sync)</span>
                           <span className="sm:hidden">Line Editor</span>
                         </span>
+                        {!lineEditorExpanded && (
+                          <span className="sm:hidden text-[10px] text-cyan-400/70 ml-1">tap to edit</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         {/* Warning count for lines that are too long */}
