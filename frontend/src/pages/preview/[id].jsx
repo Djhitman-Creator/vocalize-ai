@@ -1677,20 +1677,73 @@ export default function PreviewEditPage() {
   }, [isResizingEditor]);
 
   // ============================================================
-  // VOLUME HANDLERS - NEW in V10.8
+  // VOLUME HANDLERS - Web Audio API for iOS compatibility
   // ============================================================
-  // Update instrumental volume when state changes
+  // iOS Safari ignores audio.volume — we must use Web Audio GainNode
+  const audioContextRef = useRef(null);
+  const instrumentalGainRef = useRef(null);
+  const vocalsGainRef = useRef(null);
+  const instrumentalSourceRef = useRef(null);
+  const vocalsSourceRef = useRef(null);
+
+  // Initialize Web Audio context and connect gain nodes
+  const ensureAudioContext = useCallback(() => {
+    if (audioContextRef.current) return audioContextRef.current;
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioContext();
+      audioContextRef.current = ctx;
+
+      // Create gain nodes
+      instrumentalGainRef.current = ctx.createGain();
+      instrumentalGainRef.current.connect(ctx.destination);
+      vocalsGainRef.current = ctx.createGain();
+      vocalsGainRef.current.connect(ctx.destination);
+
+      return ctx;
+    } catch (err) {
+      console.warn('Web Audio API not available, falling back to .volume:', err);
+      return null;
+    }
+  }, []);
+
+  // Connect an audio element to its gain node (only once per element)
+  const connectAudioToGain = useCallback((audioEl, sourceRef, gainNode) => {
+    if (!audioEl || !gainNode || sourceRef.current) return;
+    try {
+      const ctx = audioContextRef.current;
+      if (!ctx) return;
+      const source = ctx.createMediaElementSource(audioEl);
+      source.connect(gainNode);
+      sourceRef.current = source;
+    } catch (err) {
+      // May throw if already connected — that's fine
+      console.warn('Audio source connect:', err.message);
+    }
+  }, []);
+
+  // Update instrumental volume via GainNode + fallback
   useEffect(() => {
+    const vol = instrumentalMuted ? 0 : instrumentalVolume / 100;
+    // Web Audio API path (works on iOS)
+    if (instrumentalGainRef.current) {
+      instrumentalGainRef.current.gain.value = vol;
+    }
+    // Fallback for desktop / non-WebAudio
     if (instrumentalRef.current) {
-      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
+      instrumentalRef.current.volume = vol;
     }
   }, [instrumentalVolume, instrumentalMuted]);
 
-  // Update vocals volume when state changes
+  // Update vocals volume via GainNode + fallback
   useEffect(() => {
+    const vol = vocalsMuted ? 0 : vocalsVolume / 100;
+    if (vocalsGainRef.current) {
+      vocalsGainRef.current.gain.value = vol;
+    }
     if (vocalsRef.current) {
-      vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
-      vocalsRef.current.muted = false;  // Remove permanent mute - we control via volume
+      vocalsRef.current.volume = vol;
+      vocalsRef.current.muted = false;
     }
   }, [vocalsVolume, vocalsMuted]);
 
@@ -2175,20 +2228,40 @@ export default function PreviewEditPage() {
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) {
       setDuration(instrumentalRef.current.duration);
-      // Apply initial volume
-      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
+      // Set initial volume (fallback for desktop — iOS uses GainNode after first play)
+      try { instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100; } catch(e) {}
     }
   }, [instrumentalVolume, instrumentalMuted]);
 
   const handleVocalsLoaded = useCallback(() => {
     if (vocalsRef.current) {
-      // Apply initial volume - vocals start muted for reference only
-      vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
+      // Set initial volume (fallback for desktop — iOS uses GainNode after first play)
+      try { vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100; } catch(e) {}
     }
   }, [vocalsVolume, vocalsMuted]);
 
   const togglePlayback = useCallback(() => {
     if (!instrumentalRef.current) return;
+
+    // Initialize Web Audio on first user-triggered play (iOS requirement)
+    const ctx = ensureAudioContext();
+    if (ctx) {
+      // Resume context if suspended (iOS suspends until user gesture)
+      if (ctx.state === 'suspended') ctx.resume();
+      // Connect audio elements to gain nodes
+      connectAudioToGain(instrumentalRef.current, instrumentalSourceRef, instrumentalGainRef.current);
+      if (vocalsRef.current) {
+        connectAudioToGain(vocalsRef.current, vocalsSourceRef, vocalsGainRef.current);
+      }
+      // Apply current volume levels immediately
+      if (instrumentalGainRef.current) {
+        instrumentalGainRef.current.gain.value = instrumentalMuted ? 0 : instrumentalVolume / 100;
+      }
+      if (vocalsGainRef.current) {
+        vocalsGainRef.current.gain.value = vocalsMuted ? 0 : vocalsVolume / 100;
+      }
+    }
+
     if (isPlaying) {
       instrumentalRef.current.pause();
       if (vocalsRef.current) vocalsRef.current.pause();
@@ -2201,7 +2274,7 @@ export default function PreviewEditPage() {
       if (vocalsRef.current) vocalsRef.current.play();
     }
     setIsPlaying(!isPlaying);
-  }, [isPlaying]);
+  }, [isPlaying, ensureAudioContext, connectAudioToGain, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted]);
 
   const seekTo = useCallback((time) => {
     const clampedTime = Math.max(0, Math.min(time, duration));
@@ -3571,10 +3644,11 @@ export default function PreviewEditPage() {
 
       <SEO title={`Edit: ${project.title} | Karatrack Studio`} description="Edit lyrics timing and line breaks" />
 
-      {/* Audio Elements */}
+      {/* Audio Elements - crossOrigin needed for Web Audio API volume control */}
       <audio
         ref={instrumentalRef}
         src={project.processed_audio_url}
+        crossOrigin="anonymous"
         onLoadedMetadata={handleAudioLoaded}
         onEnded={() => setIsPlaying(false)}
         preload="auto"
@@ -3583,6 +3657,7 @@ export default function PreviewEditPage() {
         <audio
           ref={vocalsRef}
           src={project.vocals_audio_url}
+          crossOrigin="anonymous"
           onLoadedMetadata={handleVocalsLoaded}
           preload="auto"
         />
@@ -4629,13 +4704,13 @@ export default function PreviewEditPage() {
                         {/* Mute Toggle */}
                         <button
                           onClick={() => {
-                            if (instrumentalRef.current) instrumentalRef.current.muted = !instrumentalRef.current.muted;
-                            if (vocalsRef.current) vocalsRef.current.muted = !vocalsRef.current.muted;
+                            setInstrumentalMuted(prev => !prev);
+                            if (vocalsRef.current) setVocalsMuted(prev => !prev);
                           }}
                           className={`${isPortrait ? 'p-1' : 'p-1.5'} rounded-full bg-white/10 hover:bg-white/20 transition-colors`}
                           title="Toggle Mute"
                         >
-                          {instrumentalRef.current?.muted ? (
+                          {instrumentalMuted ? (
                             <VolumeX className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
                           ) : (
                             <Volume2 className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
