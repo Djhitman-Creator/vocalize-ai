@@ -6312,24 +6312,6 @@ export default function PreviewEditPage() {
                         </div>
                       </label>
 
-                      {/* Countdown Toggle */}
-                      <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                        <div className="flex-1">
-                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            Show Countdown
-                          </p>
-                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Animated countdown dots before lyrics begin
-                          </p>
-                        </div>
-                        <div 
-                          onClick={() => updateLayoutSettings({ showCountdown: !layoutSettings.showCountdown })}
-                          className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.showCountdown ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
-                        >
-                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${layoutSettings.showCountdown ? 'translate-x-7' : 'translate-x-1'}`} />
-                        </div>
-                      </label>
-
                       {/* Lead-in Bars Toggle */}
                       <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
                         <div className="flex-1">
