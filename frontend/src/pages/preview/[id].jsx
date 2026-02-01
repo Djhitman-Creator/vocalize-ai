@@ -279,17 +279,17 @@ const LINES_PER_PAGE_OPTIONS = [2, 3, 4, 5, 6];
 
 // V11: Audio track options for export
 const AUDIO_TRACK_OPTIONS = [
-  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: 'ðŸŽ¤' },
-  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: 'ðŸŽµ' },
-  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: 'ðŸŽ§' },
+  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: String.fromCodePoint(0x1F3A4) },
+  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: String.fromCodePoint(0x1F3B5) },
+  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: String.fromCodePoint(0x1F3A7) },
 ];
 
 // V12: Video quality options with credit costs per minute
 const VIDEO_QUALITY_OPTIONS = [
-  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960Ã—540', creditsPerMin: 1, instantCreditsPerMin: 2 },
-  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280Ã—720', creditsPerMin: 2, instantCreditsPerMin: 4 },
-  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920Ã—1080', creditsPerMin: 3, instantCreditsPerMin: 6 },
-  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840Ã—2160', creditsPerMin: 5, instantCreditsPerMin: 10 },
+  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960' + String.fromCharCode(215) + '540', creditsPerMin: 1, instantCreditsPerMin: 2 },
+  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280' + String.fromCharCode(215) + '720', creditsPerMin: 2, instantCreditsPerMin: 4 },
+  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920' + String.fromCharCode(215) + '1080', creditsPerMin: 3, instantCreditsPerMin: 6 },
+  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840' + String.fromCharCode(215) + '2160', creditsPerMin: 5, instantCreditsPerMin: 10 },
 ];
 
 // V12: Export mode options
@@ -3748,7 +3748,7 @@ export default function PreviewEditPage() {
                       placeholder="Artist Name"
                       className={`px-2 py-0.5 text-sm rounded-lg border ${isDark ? 'bg-white/5 border-white/20 text-gray-300' : 'bg-white border-gray-300 text-gray-600'} focus:outline-none focus:border-cyan-500`}
                     />
-                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>â€¢</span>
+                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{String.fromCharCode(8226)}</span>
                     <input
                       type="text"
                       value={trackInfo.discId}
@@ -3774,7 +3774,7 @@ export default function PreviewEditPage() {
                     <Edit3 className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                   </div>
                   <p className="text-sm text-gray-500">
-                    {trackInfo.artistName || 'Unknown Artist'} â€¢ {trackInfo.discId || 'KT-01'}
+                    {trackInfo.artistName || 'Unknown Artist'} {String.fromCharCode(8226)} {trackInfo.discId || 'KT-01'}
                   </p>
                 </div>
               )}
@@ -3957,13 +3957,13 @@ export default function PreviewEditPage() {
                       )}
                       
                       {layoutSettings.displayMode === 'overwrite' ? (
-                        /* OVERWRITE MODE - Current line cycles through positions 1â†’2â†’3â†’4â†’1... */
+                        /* OVERWRITE MODE - Current line cycles through positions 1->2->3->4->1... */
                         (() => {
                           const numLines = layoutSettings.linesPerOverwrite || 4;
                           const currentIdx = currentLyrics.currentLineIdx ?? -1;
                           
                           // Overwrite mode behavior:
-                          // - Current line position cycles: 0 â†’ 1 â†’ 2 â†’ 3 â†’ 0 â†’ 1 â†’ ...
+                          // - Current line position cycles: 0 -> 1 -> 2 -> 3 -> 0 -> 1 -> ...
                           // - Each slot shows: current line at its cycling position, 
                           //   remaining slots show next unsung lines
                           // - When a line finishes, it's instantly replaced with the next unsung line
@@ -5753,9 +5753,9 @@ export default function PreviewEditPage() {
                                 <Image className="w-6 h-6 text-gray-400 mb-1" />
                                 <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Upload Start Image</span>
                                 <span className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                                  {layoutSettings.aspectRatio === '16:9' ? 'Recommended: 1920Ã—1080px' : 
-                                   layoutSettings.aspectRatio === '9:16' ? 'Recommended: 1080Ã—1920px' : 
-                                   layoutSettings.aspectRatio === '4:3' ? 'Recommended: 1440Ã—1080px' : 
+                                  {layoutSettings.aspectRatio === '16:9' ? 'Recommended: 1920x1080px' : 
+                                   layoutSettings.aspectRatio === '9:16' ? 'Recommended: 1080x1920px' : 
+                                   layoutSettings.aspectRatio === '4:3' ? 'Recommended: 1440x1080px' : 
                                    'PNG for transparency'}
                                 </span>
                               </>
@@ -5912,12 +5912,12 @@ export default function PreviewEditPage() {
                           className={`w-full px-3 py-2 rounded-lg text-sm border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                           style={{ colorScheme: isDark ? 'dark' : 'light' }}
                         >
-                          <option value="to bottom">â†“ Top to Bottom</option>
-                          <option value="to top">â†‘ Bottom to Top</option>
-                          <option value="to right">â†’ Left to Right</option>
-                          <option value="to left">â† Right to Left</option>
-                          <option value="to bottom right">â†˜ Diagonal Down</option>
-                          <option value="to top right">â†— Diagonal Up</option>
+                          <option value="to bottom">&#8595; Top to Bottom</option>
+                          <option value="to top">&#8593; Bottom to Top</option>
+                          <option value="to right">&#8594; Left to Right</option>
+                          <option value="to left">&#8592; Right to Left</option>
+                          <option value="to bottom right">&#8600; Diagonal Down</option>
+                          <option value="to top right">&#8599; Diagonal Up</option>
                         </select>
                       </div>
 
@@ -6494,7 +6494,7 @@ export default function PreviewEditPage() {
                           </div>
                           <div className="flex-1">
                             <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              {exportSettings.videoQuality.toUpperCase()} â€¢ {songMinutes} min â€¢ {exportSettings.exportMode === 'instant' ? 'Instant' : 'Queue'}
+                              {exportSettings.videoQuality.toUpperCase()} {String.fromCharCode(8226)} {songMinutes} min {String.fromCharCode(8226)} {exportSettings.exportMode === 'instant' ? 'Instant' : 'Queue'}
                             </p>
                             <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                               This will cost {totalCredits} credits
@@ -6701,7 +6701,7 @@ export default function PreviewEditPage() {
                             {preset.name}
                           </p>
                           <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            {preset.display_mode} â€¢ {preset.aspect_ratio} â€¢ {preset.font || 'Default font'}
+                            {preset.display_mode} {String.fromCharCode(8226)} {preset.aspect_ratio} {String.fromCharCode(8226)} {preset.font || 'Default font'}
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
