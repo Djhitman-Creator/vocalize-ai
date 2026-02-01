@@ -826,7 +826,12 @@ def get_watermark_logo():
 
 
 def get_custom_watermark(url):
-    """Download and cache a custom watermark logo"""
+    """Download and cache a custom watermark logo at original size.
+    
+    NOTE: Do NOT pre-shrink here. The apply_studio_watermark() function
+    handles all sizing based on the user's logo_size setting.
+    We only cap at 1000px to prevent memory issues with huge images.
+    """
     global _custom_watermark_cache
     
     if not url:
@@ -843,22 +848,22 @@ def get_custom_watermark(url):
         from io import BytesIO
         logo = Image.open(BytesIO(response.content)).convert('RGBA')
         
-        # Resize custom watermark - medium size for visibility without being intrusive
-        max_width = 150
-        aspect_ratio = logo.height / logo.width
-        new_width = min(logo.width, max_width)
-        new_height = int(new_width * aspect_ratio)
-        
-        # Cap height as well
-        max_height = 100
-        if new_height > max_height:
-            new_height = max_height
-            new_width = int(new_height / aspect_ratio)
-        
-        logo = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        # Only cap at a large max to prevent memory issues with huge source images
+        # The actual user-facing size is controlled by apply_studio_watermark()
+        max_dimension = 1000
+        if logo.width > max_dimension or logo.height > max_dimension:
+            aspect_ratio = logo.height / logo.width
+            if logo.width > logo.height:
+                new_width = max_dimension
+                new_height = int(new_width * aspect_ratio)
+            else:
+                new_height = max_dimension
+                new_width = int(new_height / aspect_ratio)
+            logo = logo.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            print(f"    Custom watermark capped to ({new_width}x{new_height})")
         
         _custom_watermark_cache[url] = logo
-        print(f"    Custom watermark loaded ({new_width}x{new_height})")
+        print(f"    Custom watermark loaded ({logo.width}x{logo.height})")
         return logo
         
     except Exception as e:
@@ -936,6 +941,24 @@ def apply_studio_watermark(frame, video_width, video_height, logo_url, logo_posi
         logo_size: Size in pixels (20-150, will be scaled by resolution)
         logo_opacity: Opacity percentage (0-100)
     """
+    # Ensure numeric types (values may arrive as strings from JSON)
+    try:
+        logo_size = int(float(logo_size))
+    except (ValueError, TypeError):
+        logo_size = 50
+    try:
+        logo_opacity = int(float(logo_opacity))
+    except (ValueError, TypeError):
+        logo_opacity = 80
+    if not logo_position or not isinstance(logo_position, str):
+        logo_position = 'bottom-right'
+    
+    # Log what we received (only on first frame to avoid spam)
+    if not hasattr(apply_studio_watermark, '_logged'):
+        print(f"    [LOGO DEBUG] url={logo_url}")
+        print(f"    [LOGO DEBUG] position={logo_position}, size={logo_size}px, opacity={logo_opacity}%")
+        apply_studio_watermark._logged = True
+    
     logo = get_custom_watermark(logo_url)
     if not logo:
         return frame  # Return original if no custom watermark loaded
@@ -960,6 +983,11 @@ def apply_studio_watermark(frame, video_width, video_height, logo_url, logo_posi
     if target_width < min_width:
         target_width = min_width
         target_height = int(target_width * aspect_ratio)
+    
+    # Log the computed size (only once)
+    if not hasattr(apply_studio_watermark, '_size_logged'):
+        print(f"    [LOGO DEBUG] source_img={logo.width}x{logo.height}, target={target_width}x{target_height}, res_scale={resolution_scale:.2f}")
+        apply_studio_watermark._size_logged = True
     
     # Resize logo
     scaled_logo = logo.resize((target_width, target_height), Image.Resampling.LANCZOS)
@@ -1254,7 +1282,7 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
             if i > 0:
                 gap = w['start'] - lyrics[i-1]['end']
                 if gap > 0.5:
-                    gap_info = f" ÃƒÆ’Ã‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÆ’Ã‚Â¢ GAP: {gap:.2f}s"
+                    gap_info = f" ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ GAP: {gap:.2f}s"
             duration = w['end'] - w['start']
             print(f"      {i+1}. '{w['word']}' at {w['start']:.2f}s - {w['end']:.2f}s (duration: {duration:.2f}s){gap_info}")
         
@@ -2682,6 +2710,17 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     print(f"Generating video (mode: {display_mode}, background: {bg_type})...")
     print(f"   Subscription tier: {subscription_tier}")
     
+    # Reset one-time debug log flags for apply_studio_watermark
+    if hasattr(apply_studio_watermark, '_logged'):
+        del apply_studio_watermark._logged
+    if hasattr(apply_studio_watermark, '_size_logged'):
+        del apply_studio_watermark._size_logged
+    
+    # Log logo settings received by generate_video
+    print(f"    [LOGO GENERATE] logo_url={logo_url}")
+    print(f"    [LOGO GENERATE] logo_position={logo_position}, logo_size={logo_size}, logo_opacity={logo_opacity}")
+    print(f"    [LOGO GENERATE] custom_watermark_url={custom_watermark_url}")
+    
     # Clear caches for fresh video generation
     clear_text_width_cache()
     
@@ -3053,6 +3092,11 @@ def handler(event):
         logo_position = input_data.get('logo_position', 'bottom-right')
         logo_size = input_data.get('logo_size', 50)
         logo_opacity = input_data.get('logo_opacity', 80)
+        
+        print(f"    [LOGO INPUT] url={logo_url}")
+        print(f"    [LOGO INPUT] position={logo_position}, size={logo_size} (type={type(logo_size).__name__}), opacity={logo_opacity} (type={type(logo_opacity).__name__})")
+        print(f"    [LOGO INPUT] custom_watermark_url={custom_watermark_url}")
+        print(f"    [LOGO INPUT] subscription_tier={subscription_tier}")
         
         track_info = {
             'track_number': input_data.get('track_number', 'KT-01'),
