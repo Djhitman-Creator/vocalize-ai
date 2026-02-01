@@ -460,6 +460,19 @@ function ProjectCard({
                                 <div>
                                   <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
                                     {render.video_quality || '720p'}
+                                    {render.settings_snapshot?.display_mode && (
+                                      <span className={`ml-1.5 font-normal ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                        {render.settings_snapshot.display_mode}
+                                      </span>
+                                    )}
+                                    {render.settings_snapshot?.audio_track && (
+                                      <span className={`ml-1.5 font-normal ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                        {render.settings_snapshot.audio_track === 'instrumental' ? 'No Vocals' :
+                                         render.settings_snapshot.audio_track === 'guide' ? 'Guide' :
+                                         render.settings_snapshot.audio_track === 'original' ? 'Original' :
+                                         render.settings_snapshot.audio_track}
+                                      </span>
+                                    )}
                                     <span className={`ml-2 font-normal ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                                       {new Date(render.created_at).toLocaleDateString('en-US', {
                                         month: 'short', day: 'numeric'
