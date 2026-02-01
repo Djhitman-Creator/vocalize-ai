@@ -1050,8 +1050,8 @@ export default function PreviewEditPage() {
     linesPerOverwrite: 4, // For overwrite mode: 4-8
     emphasizeCurrentLine: false, // Make current line larger
     showProgressBar: true, // Show progress bar during instrumental breaks
-    showCountdown: true, // Show countdown dots before lyrics start
     showLeadInBars: true, // Show lead-in sweep bars before each line
+    cleanVersion: false, // Replace profanity with ###
   });
 
   // V11: Update layout settings helper
@@ -1144,8 +1144,8 @@ export default function PreviewEditPage() {
         lines_per_overwrite: layoutSettings.linesPerOverwrite,
         emphasize_current_line: layoutSettings.emphasizeCurrentLine,
         show_progress_bar: layoutSettings.showProgressBar,
-        show_countdown: layoutSettings.showCountdown,
         show_lead_in_bars: layoutSettings.showLeadInBars,
+        clean_version: layoutSettings.cleanVersion,
         // Export settings
         audio_track: exportSettings.audioTrack,
         video_quality: exportSettings.videoQuality,
@@ -1216,8 +1216,8 @@ export default function PreviewEditPage() {
       linesPerOverwrite: preset.lines_per_overwrite || 4,
       emphasizeCurrentLine: preset.emphasize_current_line || false,
       showProgressBar: preset.show_progress_bar !== false,
-      showCountdown: preset.show_countdown !== false,
       showLeadInBars: preset.show_lead_in_bars !== false,
+      cleanVersion: preset.clean_version || false,
     });
 
     // Apply export settings
@@ -1950,8 +1950,8 @@ export default function PreviewEditPage() {
           linesPerOverwrite: projectData.lines_per_overwrite || 4,
           emphasizeCurrentLine: projectData.emphasize_current_line || false,
           showProgressBar: projectData.show_progress_bar !== false, // default true
-          showCountdown: projectData.show_countdown !== false, // default true
           showLeadInBars: projectData.show_lead_in_bars !== false, // default true
+          cleanVersion: projectData.clean_version || false,
         });
         
         // V11: Initialize export settings from project data
@@ -2733,8 +2733,8 @@ export default function PreviewEditPage() {
           lines_per_overwrite: layoutSettings.linesPerOverwrite,
           emphasize_current_line: layoutSettings.emphasizeCurrentLine,
           show_progress_bar: layoutSettings.showProgressBar,
-          show_countdown: layoutSettings.showCountdown,
           show_lead_in_bars: layoutSettings.showLeadInBars,
+          clean_version: layoutSettings.cleanVersion,
           // V11: Export settings
           audio_track: exportSettings.audioTrack,
           video_quality: exportSettings.videoQuality,
@@ -6246,6 +6246,32 @@ export default function PreviewEditPage() {
                           <span className={`text-[10px] text-center ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{ratio.description}</span>
                         </button>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* Content Options */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Content Options
+                    </label>
+                    <div className="space-y-3">
+                      {/* Clean Lyrics Toggle */}
+                      <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                            Clean Lyrics
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Replace profanity with ### in rendered video
+                          </p>
+                        </div>
+                        <div 
+                          onClick={() => updateLayoutSettings({ cleanVersion: !layoutSettings.cleanVersion })}
+                          className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.cleanVersion ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
+                        >
+                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${layoutSettings.cleanVersion ? 'translate-x-7' : 'translate-x-1'}`} />
+                        </div>
+                      </label>
                     </div>
                   </div>
 

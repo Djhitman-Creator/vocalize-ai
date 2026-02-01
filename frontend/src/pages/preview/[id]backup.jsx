@@ -79,24 +79,28 @@ const MAX_WORDS_PER_LINE = 10;
 // These values were measured from the preview at each setting
 const MAX_CHARS_PER_LINE = {
   '16:9': {
-    'small': 55,
-    'normal': 55,
-    'large': 53,
-    'xlarge': 49
+    'small': 50,
+    'normal': 50,
+    'large': 48,
+    'xlarge': 44
   },
   '4:3': {
-    'small': 45,
-    'normal': 40,
-    'large': 36,
-    'xlarge': 34
+    'small': 40,
+    'normal': 35,
+    'large': 31,
+    'xlarge': 29
   },
   '9:16': {
-    'small': 23,
-    'normal': 21,
-    'large': 19,
-    'xlarge': 17
+    'small': 18,
+    'normal': 16,
+    'large': 14,
+    'xlarge': 12
   }
 };
+
+// When "Emphasize Current Line" is ON, the current line renders 1.3x larger.
+// Reduce max character limits proportionally so warnings account for the bigger text.
+const EMPHASIZE_CHAR_REDUCTION = 0.77; // 1 / 1.3 = ~0.77
 
 // Sweep highlighting constants - TIERED SYSTEM
 const SWEEP_IN_LONG_DURATION = 2.0;    // 2 seconds for gaps >= 2s
@@ -275,17 +279,17 @@ const LINES_PER_PAGE_OPTIONS = [2, 3, 4, 5, 6];
 
 // V11: Audio track options for export
 const AUDIO_TRACK_OPTIONS = [
-  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: '🎤' },
-  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: '🎵' },
-  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: '🎧' },
+  { value: 'instrumental', label: 'Remove All Vocals', description: 'Karaoke mode - sing along to the music', icon: String.fromCodePoint(0x1F3A4) },
+  { value: 'guide', label: 'Guide Vocals', description: 'Vocals reduced by 70% to help you learn the song', icon: String.fromCodePoint(0x1F3B5) },
+  { value: 'original', label: 'Keep Original', description: 'Full original audio with all vocals', icon: String.fromCodePoint(0x1F3A7) },
 ];
 
 // V12: Video quality options with credit costs per minute
 const VIDEO_QUALITY_OPTIONS = [
-  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960×540', creditsPerMin: 1, instantCreditsPerMin: 2 },
-  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280×720', creditsPerMin: 2, instantCreditsPerMin: 4 },
-  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920×1080', creditsPerMin: 3, instantCreditsPerMin: 6 },
-  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840×2160', creditsPerMin: 5, instantCreditsPerMin: 10 },
+  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960' + String.fromCharCode(215) + '540', creditsPerMin: 1, instantCreditsPerMin: 2 },
+  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280' + String.fromCharCode(215) + '720', creditsPerMin: 2, instantCreditsPerMin: 4 },
+  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920' + String.fromCharCode(215) + '1080', creditsPerMin: 3, instantCreditsPerMin: 6 },
+  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840' + String.fromCharCode(215) + '2160', creditsPerMin: 5, instantCreditsPerMin: 10 },
 ];
 
 // V12: Export mode options
@@ -527,8 +531,9 @@ const LineLengthWarning = ({ lineIndex, charCount, maxChars }) => (
 );
 
 // Header warning component - shows count of lines that are too long
-const TooLongLinesWarning = ({ lyricsLines, aspectRatio, fontSize }) => {
-  const maxChars = MAX_CHARS_PER_LINE[aspectRatio || '16:9']?.[fontSize || 'normal'] || 50;
+const TooLongLinesWarning = ({ lyricsLines, aspectRatio, fontSize, emphasizeCurrentLine }) => {
+  let maxChars = MAX_CHARS_PER_LINE[aspectRatio || '16:9']?.[fontSize || 'normal'] || 50;
+  if (emphasizeCurrentLine) maxChars = Math.floor(maxChars * EMPHASIZE_CHAR_REDUCTION);
   
   const tooLongCount = lyricsLines.filter(line => {
     if (!line || line.length === 0) return false;
@@ -1646,12 +1651,17 @@ export default function PreviewEditPage() {
     // Get dynamic character limit based on aspect ratio and font size
     const aspectRatio = layoutSettings.aspectRatio || '16:9';
     const fontSize = styleSettings.fontSize || 'normal';
-    const maxChars = MAX_CHARS_PER_LINE[aspectRatio]?.[fontSize] || 50;
+    let maxChars = MAX_CHARS_PER_LINE[aspectRatio]?.[fontSize] || 50;
+    
+    // Reduce limit when emphasize is on (current line renders 1.3x larger)
+    if (layoutSettings.emphasizeCurrentLine) {
+      maxChars = Math.floor(maxChars * EMPHASIZE_CHAR_REDUCTION);
+    }
     
     // Check character count
     const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0) - 1; // -1 to not count trailing space
     return charCount > maxChars;
-  }, [layoutSettings.aspectRatio, styleSettings.fontSize]);
+  }, [layoutSettings.aspectRatio, layoutSettings.emphasizeCurrentLine, styleSettings.fontSize]);
 
   // ============================================================
   // LINE BREAK FUNCTIONS - ORIGINAL WORKING LOGIC
@@ -3738,7 +3748,7 @@ export default function PreviewEditPage() {
                       placeholder="Artist Name"
                       className={`px-2 py-0.5 text-sm rounded-lg border ${isDark ? 'bg-white/5 border-white/20 text-gray-300' : 'bg-white border-gray-300 text-gray-600'} focus:outline-none focus:border-cyan-500`}
                     />
-                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>•</span>
+                    <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{String.fromCharCode(8226)}</span>
                     <input
                       type="text"
                       value={trackInfo.discId}
@@ -3764,7 +3774,7 @@ export default function PreviewEditPage() {
                     <Edit3 className={`w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                   </div>
                   <p className="text-sm text-gray-500">
-                    {trackInfo.artistName || 'Unknown Artist'} • {trackInfo.discId || 'KT-01'}
+                    {trackInfo.artistName || 'Unknown Artist'} {String.fromCharCode(8226)} {trackInfo.discId || 'KT-01'}
                   </p>
                 </div>
               )}
@@ -3947,13 +3957,13 @@ export default function PreviewEditPage() {
                       )}
                       
                       {layoutSettings.displayMode === 'overwrite' ? (
-                        /* OVERWRITE MODE - Current line cycles through positions 1→2→3→4→1... */
+                        /* OVERWRITE MODE - Current line cycles through positions 1->2->3->4->1... */
                         (() => {
                           const numLines = layoutSettings.linesPerOverwrite || 4;
                           const currentIdx = currentLyrics.currentLineIdx ?? -1;
                           
                           // Overwrite mode behavior:
-                          // - Current line position cycles: 0 → 1 → 2 → 3 → 0 → 1 → ...
+                          // - Current line position cycles: 0 -> 1 -> 2 -> 3 -> 0 -> 1 -> ...
                           // - Each slot shows: current line at its cycling position, 
                           //   remaining slots show next unsung lines
                           // - When a line finishes, it's instantly replaced with the next unsung line
@@ -4537,7 +4547,7 @@ export default function PreviewEditPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         {/* Warning count for lines that are too long */}
-                        <TooLongLinesWarning lyricsLines={lyricsLines} aspectRatio={layoutSettings.aspectRatio} fontSize={styleSettings.fontSize} />
+                        <TooLongLinesWarning lyricsLines={lyricsLines} aspectRatio={layoutSettings.aspectRatio} fontSize={styleSettings.fontSize} emphasizeCurrentLine={layoutSettings.emphasizeCurrentLine} />
                         <span className="text-xs text-gray-500">{lyricsLines.length} lines | {words.length} words</span>
                       </div>
                     </div>
@@ -4572,7 +4582,8 @@ export default function PreviewEditPage() {
                         {lyricsLines.map((line, lineIndex) => {
                           // Calculate if line is too long inline (not using useCallback)
                           const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0);
-                          const maxCharsForLine = MAX_CHARS_PER_LINE[layoutSettings.aspectRatio || '16:9']?.[styleSettings.fontSize || 'normal'] || 50;
+                          let maxCharsForLine = MAX_CHARS_PER_LINE[layoutSettings.aspectRatio || '16:9']?.[styleSettings.fontSize || 'normal'] || 50;
+                          if (layoutSettings.emphasizeCurrentLine) maxCharsForLine = Math.floor(maxCharsForLine * EMPHASIZE_CHAR_REDUCTION);
                           const lineTooLong = (charCount - 1) > maxCharsForLine;
                           
                           // Check if any word in THIS line is selected
@@ -5742,9 +5753,9 @@ export default function PreviewEditPage() {
                                 <Image className="w-6 h-6 text-gray-400 mb-1" />
                                 <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Upload Start Image</span>
                                 <span className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                                  {layoutSettings.aspectRatio === '16:9' ? 'Recommended: 1920×1080px' : 
-                                   layoutSettings.aspectRatio === '9:16' ? 'Recommended: 1080×1920px' : 
-                                   layoutSettings.aspectRatio === '4:3' ? 'Recommended: 1440×1080px' : 
+                                  {layoutSettings.aspectRatio === '16:9' ? 'Recommended: 1920x1080px' : 
+                                   layoutSettings.aspectRatio === '9:16' ? 'Recommended: 1080x1920px' : 
+                                   layoutSettings.aspectRatio === '4:3' ? 'Recommended: 1440x1080px' : 
                                    'PNG for transparency'}
                                 </span>
                               </>
@@ -5901,12 +5912,12 @@ export default function PreviewEditPage() {
                           className={`w-full px-3 py-2 rounded-lg text-sm border ${isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'}`}
                           style={{ colorScheme: isDark ? 'dark' : 'light' }}
                         >
-                          <option value="to bottom">↓ Top to Bottom</option>
-                          <option value="to top">↑ Bottom to Top</option>
-                          <option value="to right">→ Left to Right</option>
-                          <option value="to left">← Right to Left</option>
-                          <option value="to bottom right">↘ Diagonal Down</option>
-                          <option value="to top right">↗ Diagonal Up</option>
+                          <option value="to bottom">&#8595; Top to Bottom</option>
+                          <option value="to top">&#8593; Bottom to Top</option>
+                          <option value="to right">&#8594; Left to Right</option>
+                          <option value="to left">&#8592; Right to Left</option>
+                          <option value="to bottom right">&#8600; Diagonal Down</option>
+                          <option value="to top right">&#8599; Diagonal Up</option>
                         </select>
                       </div>
 
@@ -6261,6 +6272,27 @@ export default function PreviewEditPage() {
                           <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${layoutSettings.emphasizeCurrentLine ? 'translate-x-7' : 'translate-x-1'}`} />
                         </div>
                       </label>
+                      {/* Warning when emphasize is ON */}
+                      {layoutSettings.emphasizeCurrentLine && (
+                        <div className={`flex items-start gap-2 p-3 rounded-lg ${isDark ? 'bg-yellow-500/10 border border-yellow-500/20' : 'bg-yellow-50 border border-yellow-200'}`}>
+                          <AlertTriangle className="w-4 h-4 text-yellow-500 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className={`text-xs font-medium ${isDark ? 'text-yellow-400' : 'text-yellow-700'}`}>
+                              Line limits reduced
+                            </p>
+                            <p className={`text-xs mt-0.5 ${isDark ? 'text-yellow-400/70' : 'text-yellow-600'}`}>
+                              The current line renders 30% larger. Check the{' '}
+                              <button 
+                                onClick={() => setActiveTab('timing')} 
+                                className="underline font-medium hover:opacity-80"
+                              >
+                                Line &amp; Word Editor
+                              </button>
+                              {' '}for any lines that now exceed the limit.
+                            </p>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Progress Bar Toggle */}
                       <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
@@ -6277,24 +6309,6 @@ export default function PreviewEditPage() {
                           className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.showProgressBar ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
                         >
                           <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${layoutSettings.showProgressBar ? 'translate-x-7' : 'translate-x-1'}`} />
-                        </div>
-                      </label>
-
-                      {/* Countdown Toggle */}
-                      <label className={`flex items-center justify-between p-3 rounded-lg cursor-pointer ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                        <div className="flex-1">
-                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                            Show Countdown
-                          </p>
-                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            Animated countdown dots before lyrics begin
-                          </p>
-                        </div>
-                        <div 
-                          onClick={() => updateLayoutSettings({ showCountdown: !layoutSettings.showCountdown })}
-                          className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.showCountdown ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
-                        >
-                          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${layoutSettings.showCountdown ? 'translate-x-7' : 'translate-x-1'}`} />
                         </div>
                       </label>
 
@@ -6462,7 +6476,7 @@ export default function PreviewEditPage() {
                           </div>
                           <div className="flex-1">
                             <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              {exportSettings.videoQuality.toUpperCase()} • {songMinutes} min • {exportSettings.exportMode === 'instant' ? 'Instant' : 'Queue'}
+                              {exportSettings.videoQuality.toUpperCase()} {String.fromCharCode(8226)} {songMinutes} min {String.fromCharCode(8226)} {exportSettings.exportMode === 'instant' ? 'Instant' : 'Queue'}
                             </p>
                             <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                               This will cost {totalCredits} credits
@@ -6669,7 +6683,7 @@ export default function PreviewEditPage() {
                             {preset.name}
                           </p>
                           <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            {preset.display_mode} • {preset.aspect_ratio} • {preset.font || 'Default font'}
+                            {preset.display_mode} {String.fromCharCode(8226)} {preset.aspect_ratio} {String.fromCharCode(8226)} {preset.font || 'Default font'}
                           </p>
                         </div>
                         <div className="flex items-center gap-1">
