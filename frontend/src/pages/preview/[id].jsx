@@ -5661,6 +5661,7 @@ export default function PreviewEditPage() {
                             onClick={() => {
                               const newMuted = !vocalsMuted;
                               setVocalsMuted(newMuted);
+                              if (!newMuted) setVocalsVolume(100);
                               if (vocalsRef.current) vocalsRef.current.muted = newMuted;
                             }}
                             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
