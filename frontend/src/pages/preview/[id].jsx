@@ -1687,14 +1687,13 @@ export default function PreviewEditPage() {
   // ============================================================
   // VOLUME HANDLERS - Direct .volume control
   // ============================================================
-  // Update instrumental volume when state changes
+  // Sync volume to audio elements whenever state changes
   useEffect(() => {
     if (instrumentalRef.current) {
       instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
     }
   }, [instrumentalVolume, instrumentalMuted]);
 
-  // Update vocals volume when state changes
   useEffect(() => {
     if (vocalsRef.current) {
       vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
@@ -1706,6 +1705,10 @@ export default function PreviewEditPage() {
     if (value > 0 && instrumentalMuted) {
       setInstrumentalMuted(false);
     }
+    // Set volume directly on the element — don't wait for useEffect
+    if (instrumentalRef.current) {
+      instrumentalRef.current.volume = (value > 0 && !instrumentalMuted) ? value / 100 : (value > 0 ? value / 100 : 0);
+    }
   }, [instrumentalMuted]);
 
   const handleVocalsVolumeChange = useCallback((value) => {
@@ -1713,17 +1716,29 @@ export default function PreviewEditPage() {
     if (value > 0 && vocalsMuted) {
       setVocalsMuted(false);
     }
+    // Set volume directly on the element — don't wait for useEffect
+    if (vocalsRef.current) {
+      vocalsRef.current.volume = (value > 0 && !vocalsMuted) ? value / 100 : (value > 0 ? value / 100 : 0);
+    }
   }, [vocalsMuted]);
 
   const toggleInstrumentalMute = useCallback(() => {
-    setInstrumentalMuted(prev => !prev);
-  }, []);
+    const newMuted = !instrumentalMuted;
+    setInstrumentalMuted(newMuted);
+    // Apply immediately
+    if (instrumentalRef.current) {
+      instrumentalRef.current.volume = newMuted ? 0 : instrumentalVolume / 100;
+    }
+  }, [instrumentalMuted, instrumentalVolume]);
 
   const toggleVocalsMute = useCallback(() => {
-    setVocalsMuted(prev => !prev);
-    // If unmuting and volume is 0, set to a reasonable default
-    if (vocalsMuted && vocalsVolume === 0) {
+    const newMuted = !vocalsMuted;
+    setVocalsMuted(newMuted);
+    if (newMuted === false && vocalsVolume === 0) {
       setVocalsVolume(50);
+      if (vocalsRef.current) vocalsRef.current.volume = 0.5;
+    } else if (vocalsRef.current) {
+      vocalsRef.current.volume = newMuted ? 0 : vocalsVolume / 100;
     }
   }, [vocalsMuted, vocalsVolume]);
 
