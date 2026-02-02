@@ -20,7 +20,8 @@ import {
   Check,
   Scale,
   Menu,
-  X
+  X,
+  ChevronDown
 } from 'lucide-react';
 
 const ThemeToggle = ({ isDark, toggle }) => (
@@ -396,6 +397,10 @@ const FeaturesSection = ({ isDark }) => {
 };
 
 const PricingSection = ({ isDark }) => {
+  const [mode, setMode] = useState('subscription');   // 'subscription' or 'credits'
+  const [billing, setBilling] = useState('annual');    // 'monthly' or 'annual'
+  const [subIndex, setSubIndex] = useState(2);         // default to 250 cr/mo
+
   const packs = [
     { name: 'Starter',  credits: 50,   price: 4.99,  perCredit: '$0.10', savings: null,  popular: false },
     { name: 'Standard', credits: 150,  price: 11.99, perCredit: '$0.08', savings: '20%', popular: false },
@@ -403,25 +408,34 @@ const PricingSection = ({ isDark }) => {
     { name: 'Studio',   credits: 1000, price: 54.99, perCredit: '$0.055', savings: '45%', popular: false },
   ];
 
+  const subs = [
+    { credits: 50,   monthly: 2.99,  annualMo: 2.49,  annualTotal: 29.88  },
+    { credits: 100,  monthly: 4.99,  annualMo: 3.99,  annualTotal: 47.88  },
+    { credits: 250,  monthly: 9.99,  annualMo: 7.99,  annualTotal: 95.88  },
+    { credits: 500,  monthly: 17.99, annualMo: 14.49, annualTotal: 173.88 },
+    { credits: 1000, monthly: 29.99, annualMo: 23.99, annualTotal: 287.88 },
+  ];
+
+  const sel = subs[subIndex];
+  const subPrice = billing === 'annual' ? sel.annualMo : sel.monthly;
+  const paygoEquiv = sel.credits * 0.10;
+  const savingsPct = Math.round((1 - subPrice / paygoEquiv) * 100);
+
   return (
     <section id="pricing" className="py-20 sm:py-32 px-6">
       <div className="max-w-6xl mx-auto">
+        {/* Heading */}
         <motion.div initial={{ y: 30, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} className="text-center mb-6 sm:mb-8">
           <h2 className={`font-display text-3xl sm:text-4xl md:text-5xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Simple <span className="text-gradient">Credit Pricing</span>
           </h2>
           <p className={`text-base sm:text-lg max-w-xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            All features included for everyone. Buy credits as you go or subscribe monthly and save.
+            All features included for everyone. Subscribe monthly and save, or buy credits as you go.
           </p>
         </motion.div>
 
         {/* Free banner */}
-        <motion.div
-          initial={{ y: 20, opacity: 0 }}
-          whileInView={{ y: 0, opacity: 1 }}
-          viewport={{ once: true }}
-          className="text-center mb-8 sm:mb-12"
-        >
+        <motion.div initial={{ y: 20, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} className="text-center mb-8">
           <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
             <Sparkles className="w-4 h-4 text-green-500" />
             <span className={`text-sm font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>
@@ -430,51 +444,181 @@ const PricingSection = ({ isDark }) => {
           </div>
         </motion.div>
 
-        {/* Credit Packs — 2x2 mobile, 4-col desktop */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-          {packs.map((pack, i) => (
-            <motion.div key={i} initial={{ y: 30, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className={`feature-card relative ${pack.popular ? 'border-cyan-500/50' : ''}`}>
-              {pack.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-cyan-400 to-purple-500 text-white text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1 rounded-full whitespace-nowrap">BEST VALUE</span>
-                </div>
-              )}
-              {pack.savings && (
-                <div className={`absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
-                  isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'
-                }`}>
-                  Save {pack.savings}
-                </div>
-              )}
-              <h3 className={`font-display text-base sm:text-xl font-semibold mb-1 sm:mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>{pack.name}</h3>
-              <div className="mb-1 sm:mb-2">
-                <span className={`text-2xl sm:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{pack.credits}</span>
-                <span className={`text-xs sm:text-base ml-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>credits</span>
-              </div>
-              <div className="mb-3 sm:mb-6">
-                <span className={`text-lg sm:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>${pack.price}</span>
-                <span className={`text-xs sm:text-sm ml-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>({pack.perCredit}/cr)</span>
-              </div>
-              <ul className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-6">
-                {[
-                  'All features included',
-                  'Up to 4K MP4 export',
-                  'Credits valid 1 year',
-                ].map((feat, j) => (
-                  <li key={j} className={`flex items-start gap-1.5 sm:gap-2 text-xs sm:text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    <Check className="w-3 sm:w-4 h-3 sm:h-4 text-cyan-500 flex-shrink-0 mt-0.5" />
-                    <span>{feat}</span>
-                  </li>
+        {/* Mode toggle */}
+        <motion.div initial={{ y: 20, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} className="flex justify-center mb-8">
+          <div className={`inline-flex rounded-2xl p-1.5 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-100 border border-gray-200'}`}>
+            {[
+              { key: 'subscription', label: 'Subscribe & Save' },
+              { key: 'credits', label: 'Buy Credits' },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setMode(tab.key)}
+                className={`px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                  mode === tab.key
+                    ? 'bg-gradient-to-r from-cyan-400 to-purple-500 text-white shadow-lg'
+                    : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* ===== SUBSCRIPTION VIEW ===== */}
+        {mode === 'subscription' && (
+          <motion.div key="sub" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            {/* Billing toggle */}
+            <div className="flex justify-center mb-6">
+              <div className={`inline-flex rounded-xl p-1 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-100 border border-gray-200'}`}>
+                {['monthly', 'annual'].map((cycle) => (
+                  <button
+                    key={cycle}
+                    onClick={() => setBilling(cycle)}
+                    className={`flex items-center gap-2 px-4 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
+                      billing === cycle
+                        ? isDark ? 'bg-white/10 text-white' : 'bg-white text-gray-900 shadow-sm'
+                        : isDark ? 'text-gray-500' : 'text-gray-400'
+                    }`}
+                  >
+                    {cycle === 'monthly' ? 'Monthly' : 'Annual'}
+                    {cycle === 'annual' && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-green-500/20 text-green-400">~20% off</span>
+                    )}
+                  </button>
                 ))}
-              </ul>
-              <Link href="/signup">
-                <button className={`w-full ${pack.popular ? 'glass-button-primary' : ''} glass-button text-xs sm:text-base py-2 sm:py-3 ${!pack.popular && (isDark ? 'text-white' : 'text-gray-800')}`}>
-                  Buy Credits
-                </button>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
+              </div>
+            </div>
+
+            {/* Subscription card */}
+            <div className="max-w-md mx-auto">
+              <div className={`feature-card relative ${isDark ? 'border-cyan-500/50' : 'border-cyan-300'}`}>
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="bg-gradient-to-r from-cyan-400 to-purple-500 text-white text-[10px] sm:text-xs font-bold px-3 py-1 rounded-full whitespace-nowrap">BEST VALUE</span>
+                </div>
+
+                <h3 className={`font-display text-base sm:text-xl font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Monthly Credit Subscription
+                </h3>
+                <p className={`text-xs sm:text-sm mb-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Credits delivered monthly. Change or cancel anytime.
+                </p>
+
+                {/* Dropdown */}
+                <div className="relative mb-5">
+                  <label className={`block text-xs font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Credits per month</label>
+                  <select
+                    value={subIndex}
+                    onChange={(e) => setSubIndex(parseInt(e.target.value))}
+                    style={{ colorScheme: isDark ? 'dark' : 'light' }}
+                    className={`w-full py-3 pl-4 pr-10 rounded-xl text-sm font-medium appearance-none cursor-pointer outline-none transition-colors ${
+                      isDark
+                        ? 'bg-white/5 border border-white/10 text-white focus:border-cyan-400'
+                        : 'bg-white border border-gray-200 text-gray-900 focus:border-cyan-500'
+                    }`}
+                  >
+                    {subs.map((plan, idx) => (
+                      <option key={idx} value={idx} className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
+                        {plan.credits} credits/mo &mdash; ${billing === 'annual' ? plan.annualMo.toFixed(2) : plan.monthly.toFixed(2)}/mo
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className={`absolute right-3 top-[calc(50%+10px)] -translate-y-1/2 w-5 h-5 pointer-events-none ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
+                </div>
+
+                {/* Price summary */}
+                <div className={`rounded-xl p-4 mb-5 ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                  <div className="flex items-baseline justify-between mb-2">
+                    <div>
+                      <span className={`text-3xl sm:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>${subPrice.toFixed(2)}</span>
+                      <span className={`text-sm ml-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>/mo</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs sm:text-sm font-bold text-green-400">Save {savingsPct}%</div>
+                      <div className={`text-[10px] sm:text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>vs. pay-as-you-go</div>
+                    </div>
+                  </div>
+                  <div className={`flex items-center justify-between text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <span><span className="font-semibold text-cyan-400">{sel.credits} credits</span> delivered monthly</span>
+                    <span>${(subPrice / sel.credits).toFixed(3)}/credit</span>
+                  </div>
+                  {billing === 'annual' && (
+                    <div className={`mt-2 pt-2 border-t text-[10px] sm:text-xs ${isDark ? 'border-white/10 text-gray-500' : 'border-gray-200 text-gray-400'}`}>
+                      Billed as ${sel.annualTotal.toFixed(2)}/year
+                    </div>
+                  )}
+                </div>
+
+                <Link href="/signup">
+                  <button className="w-full glass-button-primary glass-button text-sm sm:text-base py-3">
+                    Subscribe Now
+                  </button>
+                </Link>
+
+                <p className={`text-center text-[10px] sm:text-xs mt-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Just need a one-time purchase?{' '}
+                  <button onClick={() => setMode('credits')} className="text-cyan-400 hover:underline font-medium">Buy a credit pack</button>
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ===== CREDIT PACKS VIEW ===== */}
+        {mode === 'credits' && (
+          <motion.div key="packs" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+              {packs.map((pack, i) => (
+                <motion.div key={i} initial={{ y: 30, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className={`feature-card relative ${pack.popular ? 'border-cyan-500/50' : ''}`}>
+                  {pack.popular && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                      <span className="bg-gradient-to-r from-cyan-400 to-purple-500 text-white text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1 rounded-full whitespace-nowrap">BEST VALUE</span>
+                    </div>
+                  )}
+                  {pack.savings && (
+                    <div className={`absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
+                      isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'
+                    }`}>
+                      Save {pack.savings}
+                    </div>
+                  )}
+                  <h3 className={`font-display text-base sm:text-xl font-semibold mb-1 sm:mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>{pack.name}</h3>
+                  <div className="mb-1 sm:mb-2">
+                    <span className={`text-2xl sm:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{pack.credits}</span>
+                    <span className={`text-xs sm:text-base ml-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>credits</span>
+                  </div>
+                  <div className="mb-3 sm:mb-6">
+                    <span className={`text-lg sm:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>${pack.price}</span>
+                    <span className={`text-xs sm:text-sm ml-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>({pack.perCredit}/cr)</span>
+                  </div>
+                  <ul className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-6">
+                    {[
+                      'All features included',
+                      'Up to 4K MP4 export',
+                      'Credits valid 1 year',
+                    ].map((feat, j) => (
+                      <li key={j} className={`flex items-start gap-1.5 sm:gap-2 text-xs sm:text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                        <Check className="w-3 sm:w-4 h-3 sm:h-4 text-cyan-500 flex-shrink-0 mt-0.5" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/signup">
+                    <button className={`w-full ${pack.popular ? 'glass-button-primary' : ''} glass-button text-xs sm:text-base py-2 sm:py-3 ${!pack.popular && (isDark ? 'text-white' : 'text-gray-800')}`}>
+                      Buy Credits
+                    </button>
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+
+            <p className={`text-center text-xs sm:text-sm mt-6 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+              Want automatic monthly credits at a discount?{' '}
+              <button onClick={() => setMode('subscription')} className="text-cyan-400 hover:underline font-medium">Check out subscriptions</button>
+            </p>
+          </motion.div>
+        )}
 
         {/* Link to full pricing page */}
         <motion.div
@@ -484,7 +628,7 @@ const PricingSection = ({ isDark }) => {
           className="text-center mt-6 sm:mt-8"
         >
           <Link href="/pricing" className={`text-xs sm:text-sm ${isDark ? 'text-gray-400 hover:text-cyan-400' : 'text-gray-600 hover:text-cyan-600'} transition-colors`}>
-            View subscriptions, credit costs per minute & full details &rarr;
+            View credit costs per minute, re-render pricing & full details &rarr;
           </Link>
         </motion.div>
       </div>
