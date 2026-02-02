@@ -1685,49 +1685,52 @@ export default function PreviewEditPage() {
   }, [isResizingEditor]);
 
   // ============================================================
-  // VOLUME HANDLERS - Direct .volume control
+  // VOLUME HANDLERS
   // ============================================================
-  // Sync volume to audio elements whenever state changes
+  // iOS ignores audio.volume (always 1.0, read-only).
+  // Use .muted as the actual control — it's the only thing iOS respects.
+  // .volume is set as a bonus for desktop/Android.
+  // ============================================================
   useEffect(() => {
     if (instrumentalRef.current) {
-      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
+      const shouldMute = instrumentalMuted || instrumentalVolume === 0;
+      instrumentalRef.current.muted = shouldMute;
+      instrumentalRef.current.volume = instrumentalVolume / 100;
     }
   }, [instrumentalVolume, instrumentalMuted]);
 
   useEffect(() => {
     if (vocalsRef.current) {
-      vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
+      const shouldMute = vocalsMuted || vocalsVolume === 0;
+      vocalsRef.current.muted = shouldMute;
+      vocalsRef.current.volume = vocalsVolume / 100;
     }
   }, [vocalsVolume, vocalsMuted]);
 
   const handleInstrumentalVolumeChange = useCallback((value) => {
     setInstrumentalVolume(value);
-    if (value > 0 && instrumentalMuted) {
-      setInstrumentalMuted(false);
-    }
-    // Set volume directly on the element — don't wait for useEffect
+    if (value > 0 && instrumentalMuted) setInstrumentalMuted(false);
     if (instrumentalRef.current) {
-      instrumentalRef.current.volume = (value > 0 && !instrumentalMuted) ? value / 100 : (value > 0 ? value / 100 : 0);
+      instrumentalRef.current.muted = value === 0;
+      instrumentalRef.current.volume = value / 100;
     }
   }, [instrumentalMuted]);
 
   const handleVocalsVolumeChange = useCallback((value) => {
     setVocalsVolume(value);
-    if (value > 0 && vocalsMuted) {
-      setVocalsMuted(false);
-    }
-    // Set volume directly on the element — don't wait for useEffect
+    if (value > 0 && vocalsMuted) setVocalsMuted(false);
     if (vocalsRef.current) {
-      vocalsRef.current.volume = (value > 0 && !vocalsMuted) ? value / 100 : (value > 0 ? value / 100 : 0);
+      vocalsRef.current.muted = value === 0;
+      vocalsRef.current.volume = value / 100;
     }
   }, [vocalsMuted]);
 
   const toggleInstrumentalMute = useCallback(() => {
     const newMuted = !instrumentalMuted;
     setInstrumentalMuted(newMuted);
-    // Apply immediately
     if (instrumentalRef.current) {
-      instrumentalRef.current.volume = newMuted ? 0 : instrumentalVolume / 100;
+      instrumentalRef.current.muted = newMuted || instrumentalVolume === 0;
+      instrumentalRef.current.volume = instrumentalVolume / 100;
     }
   }, [instrumentalMuted, instrumentalVolume]);
 
@@ -1736,9 +1739,13 @@ export default function PreviewEditPage() {
     setVocalsMuted(newMuted);
     if (newMuted === false && vocalsVolume === 0) {
       setVocalsVolume(50);
-      if (vocalsRef.current) vocalsRef.current.volume = 0.5;
+      if (vocalsRef.current) {
+        vocalsRef.current.muted = false;
+        vocalsRef.current.volume = 0.5;
+      }
     } else if (vocalsRef.current) {
-      vocalsRef.current.volume = newMuted ? 0 : vocalsVolume / 100;
+      vocalsRef.current.muted = newMuted || vocalsVolume === 0;
+      vocalsRef.current.volume = vocalsVolume / 100;
     }
   }, [vocalsMuted, vocalsVolume]);
 
@@ -2204,13 +2211,15 @@ export default function PreviewEditPage() {
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) {
       setDuration(instrumentalRef.current.duration);
-      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
+      instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
+      instrumentalRef.current.volume = instrumentalVolume / 100;
     }
   }, [instrumentalVolume, instrumentalMuted]);
 
   const handleVocalsLoaded = useCallback(() => {
     if (vocalsRef.current) {
-      vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
+      vocalsRef.current.muted = vocalsMuted || vocalsVolume === 0;
+      vocalsRef.current.volume = vocalsVolume / 100;
     }
   }, [vocalsVolume, vocalsMuted]);
 
@@ -2221,10 +2230,12 @@ export default function PreviewEditPage() {
       instrumentalRef.current.pause();
       if (vocalsRef.current) vocalsRef.current.pause();
     } else {
-      // Apply volume before playing
-      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
+      // Apply muted state before playing (iOS only respects .muted, not .volume)
+      instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
+      instrumentalRef.current.volume = instrumentalVolume / 100;
       if (vocalsRef.current) {
-        vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
+        vocalsRef.current.muted = vocalsMuted || vocalsVolume === 0;
+        vocalsRef.current.volume = vocalsVolume / 100;
         vocalsRef.current.currentTime = instrumentalRef.current.currentTime;
       }
       instrumentalRef.current.play();
@@ -4706,8 +4717,13 @@ export default function PreviewEditPage() {
                         {/* Mute Toggle */}
                         <button
                           onClick={() => {
-                            setInstrumentalMuted(prev => !prev);
-                            if (vocalsRef.current) setVocalsMuted(prev => !prev);
+                            const newMuted = !instrumentalMuted;
+                            setInstrumentalMuted(newMuted);
+                            if (instrumentalRef.current) instrumentalRef.current.muted = newMuted;
+                            if (vocalsRef.current) {
+                              setVocalsMuted(newMuted);
+                              vocalsRef.current.muted = newMuted;
+                            }
                           }}
                           className={`${isPortrait ? 'p-1' : 'p-1.5'} rounded-full bg-white/10 hover:bg-white/20 transition-colors`}
                           title="Toggle Mute"
