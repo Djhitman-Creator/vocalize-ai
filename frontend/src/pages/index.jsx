@@ -279,7 +279,7 @@ const HeroSection = ({ isDark, onWatchDemo }) => (
         transition={{ delay: 0.4 }}
         className={`text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-12 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
       >
-        Remove vocals, add guide vocals for practice, add scrolling lyrics, and export stunning music videos - all powered by cutting-edge AI.
+        Remove vocals, add scrolling lyrics, customize everything, and export stunning karaoke videos - all powered by cutting-edge AI.
       </motion.p>
       <motion.div
         initial={{ y: 30, opacity: 0 }}
@@ -354,7 +354,7 @@ const HeroSection = ({ isDark, onWatchDemo }) => (
         transition={{ delay: 0.65 }}
         className={`text-xs mt-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
       >
-        *with edit-before-render feature on Pro/Studio plans. 4K export available on Studio plan only.
+        *with edit-before-render feature. All quality tiers available to everyone.
       </motion.div>
     </div>
   </section>
@@ -362,10 +362,10 @@ const HeroSection = ({ isDark, onWatchDemo }) => (
 
 const FeaturesSection = ({ isDark }) => {
   const features = [
-    { icon: <Mic2 className="w-8 h-8" />, title: 'Vocal Removal', description: 'Remove all vocals from any track with studio-quality precision using advanced AI separation.' },
-    { icon: <Music className="w-8 h-8" />, title: 'Guide Vocals', description: 'Reduce the lead vocal by 70% - great for practice and learning new songs.' },
-    { icon: <FileVideo className="w-8 h-8" />, title: 'Scrolling Lyrics', description: 'AI automatically transcribes and syncs lyrics with smooth, karaoke-style animations.' },
-    { icon: <Sparkles className="w-8 h-8" />, title: 'Video Export', description: 'Export your processed track as a beautiful MP4 video with custom thumbnails.*' },
+    { icon: <Mic2 className="w-8 h-8" />, title: 'AI Vocal Removal', description: 'Remove all vocals from any track with studio-quality precision using advanced AI separation.' },
+    { icon: <Music className="w-8 h-8" />, title: 'Listen to Isolated Vocals', description: 'Play back the isolated original vocals to assist with timing adjustments and lyric accuracy.' },
+    { icon: <FileVideo className="w-8 h-8" />, title: 'Auto Scrolling Lyrics', description: 'AI automatically transcribes and syncs lyrics with smooth, word-level karaoke-style animations in 50+ languages.' },
+    { icon: <Sparkles className="w-8 h-8" />, title: 'Customizable Video Export', description: 'Export as MP4 in up to 4K with custom fonts, colors, backgrounds, intro screens, logos, and more.' },
   ];
 
   return (
@@ -376,7 +376,7 @@ const FeaturesSection = ({ isDark }) => {
             Powerful <span className="text-gradient">Features</span>
           </h2>
           <p className={`text-base sm:text-lg max-w-xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Everything you need to transform your music into professional content.
+            Everything you need to create professional karaoke videos. All features included for everyone.
           </p>
         </motion.div>
         <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
@@ -390,20 +390,17 @@ const FeaturesSection = ({ isDark }) => {
             </motion.div>
           ))}
         </div>
-        <div className={`text-center text-xs mt-6 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-          *Custom thumbnails available with the Studio package.
-        </div>
       </div>
     </section>
   );
 };
 
 const PricingSection = ({ isDark }) => {
-  const plans = [
-    { name: 'Free', tier: 'free', price: 0, features: ['3 credits/month', '480p video quality', 'Karatrack watermark', 'Chat support'], popular: false },
-    { name: 'Starter', tier: 'starter', price: 9.99, features: ['25 credits/month', '1080p video quality', 'No watermark', 'Color customization', 'Email support'], popular: false },
-    { name: 'Pro', tier: 'pro', price: 24.99, features: ['75 credits/month', '1080p video quality', 'No watermark', 'Edit lyrics before render', 'Email support'], popular: true },
-    { name: 'Studio', tier: 'studio', price: 49.99, features: ['200 credits/month', '4K video quality', 'Custom logo watermark', 'Edit lyrics before render', 'Full style control', 'Priority support'], popular: false },
+  const packs = [
+    { name: 'Starter',  credits: 50,   price: 4.99,  perCredit: '$0.10', savings: null,  popular: false },
+    { name: 'Standard', credits: 150,  price: 11.99, perCredit: '$0.08', savings: '20%', popular: false },
+    { name: 'Pro',      credits: 400,  price: 27.99, perCredit: '$0.07', savings: '30%', popular: true },
+    { name: 'Studio',   credits: 1000, price: 54.99, perCredit: '$0.055', savings: '45%', popular: false },
   ];
 
   return (
@@ -411,68 +408,83 @@ const PricingSection = ({ isDark }) => {
       <div className="max-w-6xl mx-auto">
         <motion.div initial={{ y: 30, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} className="text-center mb-6 sm:mb-8">
           <h2 className={`font-display text-3xl sm:text-4xl md:text-5xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            Simple <span className="text-gradient">Pricing</span>
+            Simple <span className="text-gradient">Credit Pricing</span>
           </h2>
           <p className={`text-base sm:text-lg max-w-xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Choose the plan that fits your needs. Upgrade or downgrade anytime.
+            All features included for everyone. Buy credits as you go or subscribe monthly and save.
           </p>
         </motion.div>
-        
-        {/* Select a plan message */}
-        <motion.div 
-          initial={{ y: 20, opacity: 0 }} 
-          whileInView={{ y: 0, opacity: 1 }} 
+
+        {/* Free banner */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          whileInView={{ y: 0, opacity: 1 }}
           viewport={{ once: true }}
           className="text-center mb-8 sm:mb-12"
         >
-          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${isDark ? 'bg-cyan-500/10 border border-cyan-500/30' : 'bg-cyan-50 border border-cyan-200'}`}>
-            <Sparkles className="w-4 h-4 text-cyan-500" />
-            <span className={`text-sm font-medium ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
-              Select a plan to get started
+          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
+            <Sparkles className="w-4 h-4 text-green-500" />
+            <span className={`text-sm font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+              Start free with 15 credits &mdash; no credit card required
             </span>
           </div>
         </motion.div>
 
-        {/* Mobile: 2x2 grid, Desktop: 4 columns */}
+        {/* Credit Packs — 2x2 mobile, 4-col desktop */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-          {plans.map((plan, i) => (
-            <motion.div key={i} initial={{ y: 30, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className={`feature-card relative ${plan.popular ? 'border-cyan-500/50' : ''}`}>
-              {plan.popular && (
+          {packs.map((pack, i) => (
+            <motion.div key={i} initial={{ y: 30, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className={`feature-card relative ${pack.popular ? 'border-cyan-500/50' : ''}`}>
+              {pack.popular && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-cyan-400 to-purple-500 text-white text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1 rounded-full whitespace-nowrap">MOST POPULAR</span>
+                  <span className="bg-gradient-to-r from-cyan-400 to-purple-500 text-white text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1 rounded-full whitespace-nowrap">BEST VALUE</span>
                 </div>
               )}
-              <h3 className={`font-display text-base sm:text-xl font-semibold mb-1 sm:mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>{plan.name}</h3>
-              <div className="mb-3 sm:mb-6">
-                <span className={`text-2xl sm:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>${plan.price}</span>
-                <span className={`text-xs sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>/mo</span>
+              {pack.savings && (
+                <div className={`absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold ${
+                  isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'
+                }`}>
+                  Save {pack.savings}
+                </div>
+              )}
+              <h3 className={`font-display text-base sm:text-xl font-semibold mb-1 sm:mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>{pack.name}</h3>
+              <div className="mb-1 sm:mb-2">
+                <span className={`text-2xl sm:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{pack.credits}</span>
+                <span className={`text-xs sm:text-base ml-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>credits</span>
               </div>
-              <ul className="space-y-1.5 sm:space-y-3 mb-4 sm:mb-8">
-                {plan.features.map((feature, j) => (
+              <div className="mb-3 sm:mb-6">
+                <span className={`text-lg sm:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>${pack.price}</span>
+                <span className={`text-xs sm:text-sm ml-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>({pack.perCredit}/cr)</span>
+              </div>
+              <ul className="space-y-1.5 sm:space-y-2 mb-4 sm:mb-6">
+                {[
+                  'All features included',
+                  'Up to 4K MP4 export',
+                  'Credits valid 1 year',
+                ].map((feat, j) => (
                   <li key={j} className={`flex items-start gap-1.5 sm:gap-2 text-xs sm:text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     <Check className="w-3 sm:w-4 h-3 sm:h-4 text-cyan-500 flex-shrink-0 mt-0.5" />
-                    <span>{feature}</span>
+                    <span>{feat}</span>
                   </li>
                 ))}
               </ul>
-              <Link href={`/signup?plan=${plan.tier}`}>
-                <button className={`w-full ${plan.popular ? 'glass-button-primary' : ''} glass-button text-xs sm:text-base py-2 sm:py-3 ${!plan.popular && (isDark ? 'text-white' : 'text-gray-800')}`}>
-                  {plan.price === 0 ? 'Get Started Free' : 'Get Started'}
+              <Link href="/signup">
+                <button className={`w-full ${pack.popular ? 'glass-button-primary' : ''} glass-button text-xs sm:text-base py-2 sm:py-3 ${!pack.popular && (isDark ? 'text-white' : 'text-gray-800')}`}>
+                  Buy Credits
                 </button>
               </Link>
             </motion.div>
           ))}
         </div>
-        
+
         {/* Link to full pricing page */}
-        <motion.div 
-          initial={{ y: 20, opacity: 0 }} 
-          whileInView={{ y: 0, opacity: 1 }} 
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          whileInView={{ y: 0, opacity: 1 }}
           viewport={{ once: true }}
           className="text-center mt-6 sm:mt-8"
         >
           <Link href="/pricing" className={`text-xs sm:text-sm ${isDark ? 'text-gray-400 hover:text-cyan-400' : 'text-gray-600 hover:text-cyan-600'} transition-colors`}>
-            View full pricing details & compare features 
+            View subscriptions, credit costs per minute & full details &rarr;
           </Link>
         </motion.div>
       </div>
@@ -498,7 +510,7 @@ const UploadSection = ({ isDark }) => (
         <h3 className={`font-display text-xl sm:text-2xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>Drop your audio file here</h3>
         <p className={`mb-4 text-sm sm:text-base ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>or click to browse - MP3, WAV, FLAC supported</p>
         <div className={`text-xs sm:text-sm ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
-          Quality options: <span className="text-cyan-500">480p, 1080p, and 4K</span> (varies by plan)
+          Quality options: <span className="text-cyan-500">540p, 720p, 1080p, and 4K</span> available for everyone
         </div>
       </motion.div>
       <div className="grid grid-cols-3 gap-4 sm:gap-8 mt-12 sm:mt-16">
@@ -532,7 +544,7 @@ const Footer = ({ isDark }) => (
           <a href="mailto:support@karatrack.com" className="hover:text-cyan-500 transition-colors">Contact</a>
         </div>
         <div className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          © 2025 Karatrack Studio. All rights reserved.
+          &copy; {new Date().getFullYear()} Karatrack Studio. All rights reserved.
         </div>
       </div>
     </div>
@@ -548,7 +560,7 @@ const supabase = createClient(
 export default function HomePage() {
   const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
-  const [credits, setCredits] = useState(25);
+  const [credits, setCredits] = useState(15);
   
   // NEW: State for video modal
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
