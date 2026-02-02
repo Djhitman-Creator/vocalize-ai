@@ -30,7 +30,8 @@ import {
   QrCode,
   ClipboardCheck,
   Bookmark,
-  Share2
+  Share2,
+  Headphones
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 import SEO, { getOrganizationSchema } from '../components/SEO';
@@ -79,19 +80,19 @@ const qualityTiers = [
 // ============================================
 const includedFeatures = [
   { icon: Music,           text: 'AI vocal removal' },
-  { icon: Mic2,            text: 'Backing vocal isolation' },
+  { icon: Headphones,      text: 'Listen to isolated original vocals to assist with adjustments' },
   { icon: Sparkles,        text: 'Auto lyrics sync (50+ languages)' },
   { icon: Video,           text: 'All display modes (Scroll, Page, Overwrite)' },
   { icon: Download,        text: 'Up to 4K MP4 export' },
   { icon: Image,           text: 'Custom backgrounds (images, video, gradients)' },
-  { icon: Type,            text: 'Custom font uploads (.ttf / .otf)' },
+  { icon: Type,            text: 'Standard and Custom font uploads (.ttf / .otf)' },
   { icon: Palette,         text: 'Full color control & word highlight effects' },
   { icon: Shield,          text: 'Logo & watermark overlay' },
-  { icon: Layers,          text: 'Custom intro screen / thumbnail' },
+  { icon: Layers,          text: 'Customize your unique intro screen / add logo' },
   { icon: Users,           text: 'Duet mode (color-coded singer parts)' },
   { icon: Bookmark,        text: 'Save & load favorite style presets' },
   { icon: ClipboardCheck,  text: 'Readiness checklist before export' },
-  { icon: Share2,          text: 'Share via link or QR code for team edits & client approval' },
+  { icon: Share2,          text: 'Share via link or QR code for team edits & client approval \u2014 before credit spend' },
 ];
 
 // ============================================
