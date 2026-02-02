@@ -485,11 +485,45 @@ const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outli
 // VOLUME SLIDER COMPONENT - NEW in V10.8
 // ============================================================
 const VolumeSlider = ({ value, onChange, label, icon: Icon, color, muted, onMuteToggle, isDark }) => {
+  const sliderRef = useRef(null);
+  const [isTouching, setIsTouching] = useState(false);
+
+  // Calculate volume from touch/mouse position on the track
+  const getValueFromEvent = useCallback((clientX) => {
+    if (!sliderRef.current) return value;
+    const rect = sliderRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const pct = Math.round(Math.max(0, Math.min(100, (x / rect.width) * 100)));
+    return pct;
+  }, [value]);
+
+  // Touch handlers for the custom slider track (fixes mobile)
+  const handleTouchStart = useCallback((e) => {
+    e.stopPropagation();
+    setIsTouching(true);
+    const val = getValueFromEvent(e.touches[0].clientX);
+    onChange(val);
+    if (muted && val > 0) onMuteToggle();
+  }, [getValueFromEvent, onChange, muted, onMuteToggle]);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isTouching) return;
+    e.preventDefault();
+    const val = getValueFromEvent(e.touches[0].clientX);
+    onChange(val);
+  }, [isTouching, getValueFromEvent, onChange]);
+
+  const handleTouchEnd = useCallback(() => {
+    setIsTouching(false);
+  }, []);
+
+  const displayValue = muted ? 0 : value;
+
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       <button
         onClick={onMuteToggle}
-        className={`p-1.5 rounded transition-colors ${muted
+        className={`p-1.5 rounded transition-colors flex-shrink-0 ${muted
             ? 'text-red-400 hover:text-red-300'
             : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
           }`}
@@ -497,22 +531,43 @@ const VolumeSlider = ({ value, onChange, label, icon: Icon, color, muted, onMute
       >
         {muted ? <VolumeX className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
       </button>
-      <div className="flex items-center gap-1.5">
-        <span className={`text-xs w-14 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{label}</span>
-        <input
-          type="range"
-          min="0"
-          max="100"
-          value={muted ? 0 : value}
-          onChange={(e) => onChange(parseInt(e.target.value))}
-          className="w-20 h-1.5 rounded-full appearance-none cursor-pointer"
-          style={{
-            background: `linear-gradient(to right, ${color} ${muted ? 0 : value}%, ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} ${muted ? 0 : value}%)`,
+      <span className={`text-xs flex-shrink-0 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{label}</span>
+      {/* Custom touch-friendly slider track */}
+      <div
+        ref={sliderRef}
+        className={`relative h-6 flex-1 min-w-[60px] max-w-[100px] flex items-center cursor-pointer select-none ${isTouching ? 'scale-y-150' : ''} transition-transform duration-150`}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={(e) => {
+          const val = getValueFromEvent(e.clientX);
+          onChange(val);
+          if (muted && val > 0) onMuteToggle();
+        }}
+      >
+        {/* Track background */}
+        <div className={`absolute left-0 right-0 h-1.5 rounded-full ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
+          {/* Filled portion */}
+          <div
+            className="absolute left-0 top-0 h-full rounded-full transition-all duration-75"
+            style={{ width: `${displayValue}%`, backgroundColor: color }}
+          />
+        </div>
+        {/* Thumb */}
+        <div
+          className={`absolute w-4 h-4 rounded-full shadow-md border-2 transition-all duration-75 -translate-x-1/2 ${
+            isTouching 
+              ? 'scale-125 shadow-lg' 
+              : ''
+          }`}
+          style={{ 
+            left: `${displayValue}%`, 
+            backgroundColor: isDark ? '#fff' : '#fff',
+            borderColor: color 
           }}
-          title={`${label}: ${value}%`}
         />
-        <span className={`text-xs w-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{value}%</span>
       </div>
+      <span className={`text-xs w-7 text-right flex-shrink-0 tabular-nums ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{value}%</span>
     </div>
   );
 };
@@ -1406,9 +1461,17 @@ export default function PreviewEditPage() {
     }
   }, [id, router, updateBgSettings]);
 
-  // Section collapse state - ALL START COLLAPSED
+  // Section collapse state
   const [lineEditorExpanded, setLineEditorExpanded] = useState(false);
   const [timelineEditorExpanded, setTimelineEditorExpanded] = useState(false);
+  const [originalLyricsExpanded, setOriginalLyricsExpanded] = useState(false); // collapsed on mobile by default
+
+  // On mount: expand Line Editor on desktop only (mobile stays collapsed)
+  useEffect(() => {
+    if (window.innerWidth >= 640) {
+      setLineEditorExpanded(true);
+    }
+  }, []);
 
   // Preview resize state
   const [previewHeight, setPreviewHeight] = useState(DEFAULT_PREVIEW_HEIGHT);
@@ -1622,46 +1685,67 @@ export default function PreviewEditPage() {
   }, [isResizingEditor]);
 
   // ============================================================
-  // VOLUME HANDLERS - NEW in V10.8
+  // VOLUME HANDLERS
   // ============================================================
-  // Update instrumental volume when state changes
+  // iOS ignores audio.volume (always 1.0, read-only).
+  // Use .muted as the actual control — it's the only thing iOS respects.
+  // .volume is set as a bonus for desktop/Android.
+  // ============================================================
   useEffect(() => {
     if (instrumentalRef.current) {
-      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
+      const shouldMute = instrumentalMuted || instrumentalVolume === 0;
+      instrumentalRef.current.muted = shouldMute;
+      instrumentalRef.current.volume = instrumentalVolume / 100;
     }
   }, [instrumentalVolume, instrumentalMuted]);
 
-  // Update vocals volume when state changes
   useEffect(() => {
     if (vocalsRef.current) {
-      vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
-      vocalsRef.current.muted = false;  // Remove permanent mute - we control via volume
+      const shouldMute = vocalsMuted || vocalsVolume === 0;
+      vocalsRef.current.muted = shouldMute;
+      vocalsRef.current.volume = vocalsVolume / 100;
     }
   }, [vocalsVolume, vocalsMuted]);
 
   const handleInstrumentalVolumeChange = useCallback((value) => {
     setInstrumentalVolume(value);
-    if (value > 0 && instrumentalMuted) {
-      setInstrumentalMuted(false);
+    if (value > 0 && instrumentalMuted) setInstrumentalMuted(false);
+    if (instrumentalRef.current) {
+      instrumentalRef.current.muted = value === 0;
+      instrumentalRef.current.volume = value / 100;
     }
   }, [instrumentalMuted]);
 
   const handleVocalsVolumeChange = useCallback((value) => {
     setVocalsVolume(value);
-    if (value > 0 && vocalsMuted) {
-      setVocalsMuted(false);
+    if (value > 0 && vocalsMuted) setVocalsMuted(false);
+    if (vocalsRef.current) {
+      vocalsRef.current.muted = value === 0;
+      vocalsRef.current.volume = value / 100;
     }
   }, [vocalsMuted]);
 
   const toggleInstrumentalMute = useCallback(() => {
-    setInstrumentalMuted(prev => !prev);
-  }, []);
+    const newMuted = !instrumentalMuted;
+    setInstrumentalMuted(newMuted);
+    if (instrumentalRef.current) {
+      instrumentalRef.current.muted = newMuted || instrumentalVolume === 0;
+      instrumentalRef.current.volume = instrumentalVolume / 100;
+    }
+  }, [instrumentalMuted, instrumentalVolume]);
 
   const toggleVocalsMute = useCallback(() => {
-    setVocalsMuted(prev => !prev);
-    // If unmuting and volume is 0, set to a reasonable default
-    if (vocalsMuted && vocalsVolume === 0) {
+    const newMuted = !vocalsMuted;
+    setVocalsMuted(newMuted);
+    if (newMuted === false && vocalsVolume === 0) {
       setVocalsVolume(50);
+      if (vocalsRef.current) {
+        vocalsRef.current.muted = false;
+        vocalsRef.current.volume = 0.5;
+      }
+    } else if (vocalsRef.current) {
+      vocalsRef.current.muted = newMuted || vocalsVolume === 0;
+      vocalsRef.current.volume = vocalsVolume / 100;
     }
   }, [vocalsMuted, vocalsVolume]);
 
@@ -2080,6 +2164,8 @@ export default function PreviewEditPage() {
   // Read directly from audio.currentTime each frame
   // Use flushSync to bypass React 18's automatic batching for smooth animations
 
+  const lastVocalSyncRef = useRef(0); // Throttle vocal sync to prevent choppy playback
+
   useEffect(() => {
     let rafId = null;
 
@@ -2093,11 +2179,16 @@ export default function PreviewEditPage() {
           setCurrentTime(audioTime);
         });
 
-        // Keep vocals in sync
+        // Keep vocals in sync — but throttled to avoid choppy playback on mobile
+        // Only check every 2 seconds and only correct if drift > 0.3s
         if (vocalsRef.current) {
-          const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
-          if (diff > 0.1) {
-            vocalsRef.current.currentTime = audioTime;
+          const now = performance.now();
+          if (now - lastVocalSyncRef.current > 2000) {
+            lastVocalSyncRef.current = now;
+            const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
+            if (diff > 0.3) {
+              vocalsRef.current.currentTime = audioTime;
+            }
           }
         }
 
@@ -2120,33 +2211,38 @@ export default function PreviewEditPage() {
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) {
       setDuration(instrumentalRef.current.duration);
-      // Apply initial volume
-      instrumentalRef.current.volume = instrumentalMuted ? 0 : instrumentalVolume / 100;
+      instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
+      instrumentalRef.current.volume = instrumentalVolume / 100;
     }
   }, [instrumentalVolume, instrumentalMuted]);
 
   const handleVocalsLoaded = useCallback(() => {
     if (vocalsRef.current) {
-      // Apply initial volume - vocals start muted for reference only
-      vocalsRef.current.volume = vocalsMuted ? 0 : vocalsVolume / 100;
+      vocalsRef.current.muted = vocalsMuted || vocalsVolume === 0;
+      vocalsRef.current.volume = vocalsVolume / 100;
     }
   }, [vocalsVolume, vocalsMuted]);
 
   const togglePlayback = useCallback(() => {
     if (!instrumentalRef.current) return;
+
     if (isPlaying) {
       instrumentalRef.current.pause();
       if (vocalsRef.current) vocalsRef.current.pause();
     } else {
-      // Sync time before playing
+      // Apply muted state before playing (iOS only respects .muted, not .volume)
+      instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
+      instrumentalRef.current.volume = instrumentalVolume / 100;
       if (vocalsRef.current) {
+        vocalsRef.current.muted = vocalsMuted || vocalsVolume === 0;
+        vocalsRef.current.volume = vocalsVolume / 100;
         vocalsRef.current.currentTime = instrumentalRef.current.currentTime;
       }
       instrumentalRef.current.play();
       if (vocalsRef.current) vocalsRef.current.play();
     }
     setIsPlaying(!isPlaying);
-  }, [isPlaying]);
+  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted]);
 
   const seekTo = useCallback((time) => {
     const clampedTime = Math.max(0, Math.min(time, duration));
@@ -2179,6 +2275,53 @@ export default function PreviewEditPage() {
     timeline.addEventListener('wheel', handleWheel, { passive: false });
     return () => timeline.removeEventListener('wheel', handleWheel);
   }, [duration, currentTime]);
+
+  // ============================================================
+  // TIMELINE TOUCH-DRAG TO SCRUB (mobile finger scrubbing)
+  // ============================================================
+  const [isTimelineScrubbing, setIsTimelineScrubbing] = useState(false);
+  const timelineScrubStartX = useRef(0);
+  const timelineScrubStartTime = useRef(0);
+
+  const handleTimelineTouchStart = useCallback((e) => {
+    // Only start scrub if touching the background, not a word element
+    if (e.target.closest('.timeline-word')) return;
+    const touch = e.touches[0];
+    timelineScrubStartX.current = touch.clientX;
+    timelineScrubStartTime.current = currentTime;
+    setIsTimelineScrubbing(true);
+  }, [currentTime]);
+
+  useEffect(() => {
+    if (!isTimelineScrubbing) return;
+
+    const handleScrubMove = (e) => {
+      if (!e.touches || e.touches.length === 0) return;
+      e.preventDefault(); // Prevent page scroll while scrubbing
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - timelineScrubStartX.current;
+      // Dragging left = forward in time, dragging right = backward
+      // (because the timeline moves left as time advances)
+      const timeShift = -deltaX / zoom;
+      const newTime = Math.max(0, Math.min(duration, timelineScrubStartTime.current + timeShift));
+      setCurrentTime(newTime);
+      if (instrumentalRef.current) instrumentalRef.current.currentTime = newTime;
+      if (vocalsRef.current) vocalsRef.current.currentTime = newTime;
+    };
+
+    const handleScrubEnd = () => {
+      setIsTimelineScrubbing(false);
+    };
+
+    window.addEventListener('touchmove', handleScrubMove, { passive: false });
+    window.addEventListener('touchend', handleScrubEnd);
+    window.addEventListener('touchcancel', handleScrubEnd);
+    return () => {
+      window.removeEventListener('touchmove', handleScrubMove);
+      window.removeEventListener('touchend', handleScrubEnd);
+      window.removeEventListener('touchcancel', handleScrubEnd);
+    };
+  }, [isTimelineScrubbing, zoom, duration]);
 
   // ============================================================
   // WORD EDITING - SAVE/CANCEL (must be defined before handleWordClick)
@@ -3382,14 +3525,14 @@ export default function PreviewEditPage() {
   const currentLyrics = getCurrentLyricsData();
 
   const handleTimelineClick = useCallback((e) => {
-    if (!timelineContainerRef.current || isDragging) return;
+    if (!timelineContainerRef.current || isDragging || isTimelineScrubbing) return;
     const rect = timelineContainerRef.current.getBoundingClientRect();
     const centerX = rect.width / 2;
     const clickX = e.clientX - rect.left;
     const offsetFromCenter = clickX - centerX;
     const timeOffset = offsetFromCenter / zoom;
     seekTo(currentTime + timeOffset);
-  }, [zoom, currentTime, seekTo, isDragging]);
+  }, [zoom, currentTime, seekTo, isDragging, isTimelineScrubbing]);
 
   const handleProgressClick = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -4574,13 +4717,18 @@ export default function PreviewEditPage() {
                         {/* Mute Toggle */}
                         <button
                           onClick={() => {
-                            if (instrumentalRef.current) instrumentalRef.current.muted = !instrumentalRef.current.muted;
-                            if (vocalsRef.current) vocalsRef.current.muted = !vocalsRef.current.muted;
+                            const newMuted = !instrumentalMuted;
+                            setInstrumentalMuted(newMuted);
+                            if (instrumentalRef.current) instrumentalRef.current.muted = newMuted;
+                            if (vocalsRef.current) {
+                              setVocalsMuted(newMuted);
+                              vocalsRef.current.muted = newMuted;
+                            }
                           }}
                           className={`${isPortrait ? 'p-1' : 'p-1.5'} rounded-full bg-white/10 hover:bg-white/20 transition-colors`}
                           title="Toggle Mute"
                         >
-                          {instrumentalRef.current?.muted ? (
+                          {instrumentalMuted ? (
                             <VolumeX className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
                           ) : (
                             <Volume2 className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
@@ -4697,7 +4845,10 @@ export default function PreviewEditPage() {
                 <>
                   {/* LINE & WORD EDITOR - Collapsible */}
                   <div className={`${isDark ? 'border-b border-white/10' : 'border-b border-gray-200'}`}>
-                    <div onClick={() => setLineEditorExpanded(!lineEditorExpanded)} className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}>
+                    <div 
+                      onClick={() => setLineEditorExpanded(!lineEditorExpanded)} 
+                      className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+                    >
                       <div className="flex items-center gap-2 min-w-0">
                         {lineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
                         <SplitSquareHorizontal className="w-4 h-4 text-cyan-400 flex-shrink-0" />
@@ -4705,6 +4856,9 @@ export default function PreviewEditPage() {
                           <span className="hidden sm:inline">Line & Word Editor (Rhyme Sync)</span>
                           <span className="sm:hidden">Line Editor</span>
                         </span>
+                        {!lineEditorExpanded && (
+                          <span className="sm:hidden text-[10px] text-cyan-400/70 ml-1">tap to expand</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
                         {/* Warning count for lines that are too long */}
@@ -4713,9 +4867,8 @@ export default function PreviewEditPage() {
                       </div>
                     </div>
 
-            <AnimatePresence>
-              {lineEditorExpanded && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            {lineEditorExpanded && (
+                <div className="overflow-hidden">
                   {/* Selected Word Actions */}
                   {selectedWordIndex !== null && editingWordIndex === null && (
                     <div className={`px-4 py-2 border-t ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
@@ -4911,18 +5064,38 @@ export default function PreviewEditPage() {
                       </div>
                     </div>
 
-                    {/* Right: Original Lyrics */}
+                    {/* Right: Original Lyrics - collapsible on mobile */}
                     <div className="p-4 overflow-y-auto" style={{ maxHeight: editorHeight }}>
-                      <div className="flex items-center gap-2 mb-2">
+                      <div 
+                        className={`flex items-center gap-2 mb-2 sm:cursor-default cursor-pointer select-none ${
+                          !originalLyricsExpanded ? 'sm:mb-2 mb-0' : ''
+                        }`}
+                        onClick={() => {
+                          if (window.innerWidth < 640) setOriginalLyricsExpanded(prev => !prev);
+                        }}
+                      >
+                        {/* Chevron only on mobile */}
+                        <span className="sm:hidden">
+                          {originalLyricsExpanded 
+                            ? <ChevronDown className="w-3 h-3 text-gray-400" /> 
+                            : <ChevronRight className="w-3 h-3 text-gray-400" />
+                          }
+                        </span>
                         <Type className="w-4 h-4 text-gray-400" />
                         <span className="text-xs font-medium text-gray-400">Original Lyrics (Reference)</span>
-                      </div>
-                      <div className={`p-3 rounded-lg text-sm ${isDark ? 'bg-white/5 text-gray-300' : 'bg-gray-50 text-gray-700'}`}>
-                        {originalLyricsText ? (
-                          <pre className="whitespace-pre-wrap font-sans">{originalLyricsText}</pre>
-                        ) : (
-                          <p className="text-gray-500 italic">No original lyrics available</p>
+                        {!originalLyricsExpanded && (
+                          <span className="sm:hidden text-[10px] text-gray-500 ml-auto">tap to show</span>
                         )}
+                      </div>
+                      {/* Always visible on desktop, collapsible on mobile */}
+                      <div className={`sm:block ${originalLyricsExpanded ? 'block' : 'hidden'}`}>
+                        <div className={`p-3 rounded-lg text-sm ${isDark ? 'bg-white/5 text-gray-300' : 'bg-gray-50 text-gray-700'}`}>
+                          {originalLyricsText ? (
+                            <pre className="whitespace-pre-wrap font-sans">{originalLyricsText}</pre>
+                          ) : (
+                            <p className="text-gray-500 italic">No original lyrics available</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -4947,9 +5120,8 @@ export default function PreviewEditPage() {
                       <GripHorizontal className={`w-4 h-4 transition-colors duration-200 ${glowingHandle === 'editor' ? 'text-cyan-400' : 'text-gray-400'}`} />
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
           </div>
 
           {/* TIMELINE EDITOR - Collapsible with Duet Mode Toggle */}
@@ -4980,9 +5152,8 @@ export default function PreviewEditPage() {
               </button>
             </div>
 
-            <AnimatePresence>
-              {timelineEditorExpanded && (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+            {timelineEditorExpanded && (
+                <div className="overflow-hidden">
 
                   {/* Duet Color Settings */}
                   {isDuetMode && (
@@ -5049,6 +5220,7 @@ export default function PreviewEditPage() {
                         <span className="text-xs text-cyan-400 font-medium">{selectedWordIndices.size} words selected</span>
                       )}
                       <span className="text-xs text-gray-500 hidden sm:inline">Scroll to navigate | Drag edges to resize | Shift+Click range</span>
+                      <span className="text-xs text-gray-500 sm:hidden">Swipe to scrub | Hold word for menu</span>
                     </div>
                   </div>
 
@@ -5056,6 +5228,7 @@ export default function PreviewEditPage() {
                   <div 
                     ref={timelineContainerRef} 
                     onClick={handleTimelineClick}
+                    onTouchStart={handleTimelineTouchStart}
                     onMouseMove={(e) => {
                       // Calculate time at mouse position for tooltip
                       const rect = e.currentTarget.getBoundingClientRect();
@@ -5342,7 +5515,7 @@ export default function PreviewEditPage() {
                         return (
                           <div
                             key={index}
-                            className="absolute cursor-pointer select-none group"
+                            className="timeline-word absolute cursor-pointer select-none group"
                             style={{
                               left: wordX,
                               width: wordWidth,
@@ -5463,8 +5636,8 @@ export default function PreviewEditPage() {
                       </div>
                     </div>
 
-                    {/* Volume Controls Row - NEW in V10.8 */}
-                    <div className={`flex items-center justify-between pt-2 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
+                    {/* Volume Controls - stacks on mobile */}
+                    <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
                       {/* Backing Track Volume */}
                       <VolumeSlider
                         value={instrumentalVolume}
@@ -5479,7 +5652,7 @@ export default function PreviewEditPage() {
 
                       {/* Vocals Volume (Reference Only) */}
                       {project.vocals_audio_url ? (
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <VolumeSlider
                             value={vocalsVolume}
                             onChange={handleVocalsVolumeChange}
@@ -5490,7 +5663,7 @@ export default function PreviewEditPage() {
                             onMuteToggle={toggleVocalsMute}
                             isDark={isDark}
                           />
-                          <span className={`text-[10px] px-2 py-0.5 rounded ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
+                          <span className={`hidden sm:inline text-[10px] px-2 py-0.5 rounded flex-shrink-0 ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
                             Reference only
                           </span>
                         </div>
@@ -5502,9 +5675,8 @@ export default function PreviewEditPage() {
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
           </div>
                 </>
               )}
@@ -6767,6 +6939,9 @@ export default function PreviewEditPage() {
               </button>
             </div>
           </motion.div>
+
+          {/* Spacer so chat bubble doesn't cover action bar on mobile */}
+          <div className="h-20 sm:h-0" />
 
         </main>
       </div>

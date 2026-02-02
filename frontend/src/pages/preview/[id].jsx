@@ -5636,43 +5636,83 @@ export default function PreviewEditPage() {
                       </div>
                     </div>
 
-                    {/* Volume Controls - stacks on mobile */}
-                    <div className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
-                      {/* Backing Track Volume */}
-                      <VolumeSlider
-                        value={instrumentalVolume}
-                        onChange={handleInstrumentalVolumeChange}
-                        label="Backing"
-                        icon={Music}
-                        color="#06b6d4"
-                        muted={instrumentalMuted}
-                        onMuteToggle={toggleInstrumentalMute}
-                        isDark={isDark}
-                      />
+                    {/* Volume Controls - simple toggles on mobile, sliders on desktop */}
+                    <div className={`pt-2 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
+                      {/* Mobile: Simple on/off toggle buttons */}
+                      <div className="flex sm:hidden items-center justify-center gap-3">
+                        <button
+                          onClick={() => {
+                            const newMuted = !instrumentalMuted;
+                            setInstrumentalMuted(newMuted);
+                            if (instrumentalRef.current) instrumentalRef.current.muted = newMuted;
+                          }}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                            instrumentalMuted
+                              ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                              : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          }`}
+                        >
+                          <span className="text-base">🎵</span>
+                          <span>Music {instrumentalMuted ? 'OFF' : 'ON'}</span>
+                        </button>
 
-                      {/* Vocals Volume (Reference Only) */}
-                      {project.vocals_audio_url ? (
-                        <div className="flex items-center gap-2">
-                          <VolumeSlider
-                            value={vocalsVolume}
-                            onChange={handleVocalsVolumeChange}
-                            label="Vocals"
-                            icon={Mic}
-                            color="#f472b6"
-                            muted={vocalsMuted}
-                            onMuteToggle={toggleVocalsMute}
-                            isDark={isDark}
-                          />
-                          <span className={`hidden sm:inline text-[10px] px-2 py-0.5 rounded flex-shrink-0 ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
-                            Reference only
-                          </span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Mic className="w-4 h-4 text-gray-500" />
-                          <span className="text-xs text-gray-500">No vocals track available</span>
-                        </div>
-                      )}
+                        {project.vocals_audio_url && (
+                          <button
+                            onClick={() => {
+                              const newMuted = !vocalsMuted;
+                              setVocalsMuted(newMuted);
+                              if (vocalsRef.current) vocalsRef.current.muted = newMuted;
+                            }}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                              vocalsMuted
+                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            }`}
+                          >
+                            <span className="text-base">🎤</span>
+                            <span>Vocals {vocalsMuted ? 'OFF' : 'ON'}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Desktop: Full volume sliders */}
+                      <div className="hidden sm:flex sm:items-center sm:justify-between gap-2">
+                        {/* Backing Track Volume */}
+                        <VolumeSlider
+                          value={instrumentalVolume}
+                          onChange={handleInstrumentalVolumeChange}
+                          label="Backing"
+                          icon={Music}
+                          color="#06b6d4"
+                          muted={instrumentalMuted}
+                          onMuteToggle={toggleInstrumentalMute}
+                          isDark={isDark}
+                        />
+
+                        {/* Vocals Volume (Reference Only) */}
+                        {project.vocals_audio_url ? (
+                          <div className="flex items-center gap-2">
+                            <VolumeSlider
+                              value={vocalsVolume}
+                              onChange={handleVocalsVolumeChange}
+                              label="Vocals"
+                              icon={Mic}
+                              color="#f472b6"
+                              muted={vocalsMuted}
+                              onMuteToggle={toggleVocalsMute}
+                              isDark={isDark}
+                            />
+                            <span className={`text-[10px] px-2 py-0.5 rounded flex-shrink-0 ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
+                              Reference only
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Mic className="w-4 h-4 text-gray-500" />
+                            <span className="text-xs text-gray-500">No vocals track available</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
