@@ -1,79 +1,15 @@
-/**
- * ReadinessChecklist Component - Karatrack Studio
- * 
- * A collapsible checklist panel for the preview/edit page.
- * Shows completion status of all karaoke video settings.
- * 
- * Features:
- * - Auto-detects when settings have been changed from defaults
- * - Manual tick/untick capability
- * - Red (incomplete) / Green (complete) color coding
- * - Each item links to the relevant tab/section
- * - Highlight animation when an item is clicked
- * - Responsive: works on desktop and mobile
- * 
- * INTEGRATION INSTRUCTIONS:
- * ========================
- * 
- * 1. Place this file at: frontend/src/components/ReadinessChecklist.jsx
- * 
- * 2. In your preview/[id].jsx file, add the import near the top with other imports:
- *    
- *    import ReadinessChecklist from '../../components/ReadinessChecklist';
- * 
- * 3. Add this state variable near the other useState declarations (around line 876):
- *    
- *    const [checklistHighlight, setChecklistHighlight] = useState(null);
- * 
- * 4. Find this line (around line 4103):
- *    
- *          </motion.div>
- *
- *          {/* Custom Font Loading - placed outside preview for better loading */}
- * 
- *    Place the ReadinessChecklist component RIGHT ABOVE that comment, like this:
- * 
- *          </motion.div>
- *
- *          {/* READINESS CHECKLIST */}
- *          <ReadinessChecklist
- *            isDark={isDark}
- *            trackInfo={trackInfo}
- *            words={words}
- *            styleSettings={styleSettings}
- *            bgSettings={bgSettings}
- *            layoutSettings={layoutSettings}
- *            exportSettings={exportSettings}
- *            brandingSettings={brandingSettings}
- *            lyricsLines={lyricsLines}
- *            setActiveTab={setActiveTab}
- *            checklistHighlight={checklistHighlight}
- *            setChecklistHighlight={setChecklistHighlight}
- *          />
- *
- *          {/* Custom Font Loading - placed outside preview for better loading */}
- * 
- * 5. To make the highlight effect work on the tab sections, add this data attribute
- *    to each tab content section in [id].jsx. Find each section and add the id:
- * 
- *    For Timing tab (around line 4844):
- *      {activeTab === 'timing' && (
- *        <div id="checklist-target-timing">   <-- ADD THIS WRAPPER
- *          ...existing timing content...
- *        </div>
- *      )}
- * 
- *    For Style tab (around line 5726):
- *      {activeTab === 'style' && (
- *        <div id="checklist-target-style">    <-- ADD THIS WRAPPER
- *          ...existing style content...
- *        </div>
- *      )}
- * 
- *    Similarly for background, layout, export tabs.
- *    (This step is OPTIONAL - the checklist works without it, 
- *     it just won't scroll to the exact section)
- */
+// ReadinessChecklist Component - Karatrack Studio
+//
+// A collapsible checklist panel for the preview/edit page.
+// Shows completion status of all karaoke video settings.
+//
+// Features:
+// - Auto-detects when settings have been changed from defaults
+// - Manual tick/untick capability
+// - Red (incomplete) / Green (complete) color coding
+// - Each item links to the relevant tab/section
+// - Highlight animation when an item is clicked
+// - Responsive: works on desktop and mobile
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
