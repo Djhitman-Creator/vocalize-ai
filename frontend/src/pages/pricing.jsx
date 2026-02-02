@@ -348,6 +348,7 @@ export default function Pricing() {
                       <select
                         value={selectedSubIndex}
                         onChange={(e) => setSelectedSubIndex(parseInt(e.target.value))}
+                        style={{ colorScheme: isDark ? 'dark' : 'light' }}
                         className={`w-full py-3.5 pl-4 pr-10 rounded-xl text-sm font-medium appearance-none cursor-pointer transition-colors outline-none ${
                           isDark
                             ? 'bg-white/5 border border-white/10 text-white focus:border-[var(--accent-primary)]'
@@ -355,7 +356,7 @@ export default function Pricing() {
                         }`}
                       >
                         {subscriptionPlans.map((plan, idx) => (
-                          <option key={idx} value={idx}>
+                          <option key={idx} value={idx} className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
                             {plan.credits} credits/mo &mdash; ${billingCycle === 'annual' ? plan.annualMonthly.toFixed(2) : plan.monthlyPrice.toFixed(2)}/mo
                           </option>
                         ))}
