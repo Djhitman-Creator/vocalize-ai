@@ -270,35 +270,6 @@ export default function LoginPage() {
                   Sign in with Google
                 </button>
 
-                {/* Apple */}
-                <button
-                  type="button"
-                  onClick={() => handleSocialLogin('apple')}
-                  className="login-social-btn"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '12px',
-                    width: '100%',
-                    padding: '13px 20px',
-                    borderRadius: '14px',
-                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)'}`,
-                    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.9)',
-                    color: isDark ? '#E2E8F0' : '#1E293B',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    fontFamily: "'Inter', sans-serif",
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 18 22" fill={isDark ? '#E2E8F0' : '#1E293B'}>
-                    <path d="M14.94 11.588c-.025-2.563 2.094-3.796 2.189-3.858-1.197-1.746-3.055-1.985-3.71-2.005-1.568-.164-3.08.936-3.878.936-.812 0-2.05-.918-3.382-.892C4.55 5.8 3.03 6.85 2.188 8.44.474 11.66 1.756 16.406 3.404 19.01c.826 1.275 1.8 2.7 3.08 2.65 1.247-.054 1.715-.808 3.222-.808 1.494 0 1.928.808 3.227.778 1.336-.022 2.176-1.284 2.983-2.567.955-1.468 1.342-2.912 1.362-2.986-.03-.012-2.607-1.002-2.634-3.973v-.517zM12.464 3.736C13.145 2.91 13.61 1.77 13.484.612 12.5.655 11.29 1.277 10.588 2.085c-.628.725-1.186 1.9-1.04 3.013 1.098.084 2.222-.436 2.916-1.362z"/>
-                  </svg>
-                  Sign in with Apple
-                </button>
-
                 {/* Microsoft */}
                 <button
                   type="button"
@@ -329,35 +300,6 @@ export default function LoginPage() {
                     <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
                   </svg>
                   Sign in with Microsoft
-                </button>
-
-                {/* Facebook */}
-                <button
-                  type="button"
-                  onClick={() => handleSocialLogin('facebook')}
-                  className="login-social-btn"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '12px',
-                    width: '100%',
-                    padding: '13px 20px',
-                    borderRadius: '14px',
-                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.12)'}`,
-                    background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.9)',
-                    color: isDark ? '#E2E8F0' : '#1E293B',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    fontFamily: "'Inter', sans-serif",
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
-                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                  </svg>
-                  Sign in with Facebook
                 </button>
               </div>
 
