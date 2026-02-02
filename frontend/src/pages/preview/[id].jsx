@@ -55,6 +55,7 @@ import {
 import { useTheme } from '../../context/ThemeContext';
 import AppNavigation from '../../components/AppNavigation';
 import ShareModal from '../../components/ShareModal';
+import ReadinessChecklist from '../../components/ReadinessChecklist';
 import { createClient } from '@supabase/supabase-js';
 import SEO from '../../components/SEO';
 
@@ -874,6 +875,7 @@ export default function PreviewEditPage() {
 
   // V11: Active tab state
   const [activeTab, setActiveTab] = useState('timing');
+  const [checklistHighlight, setChecklistHighlight] = useState(null);
 
   // V11: Style settings state (will be initialized from project data)
   const [styleSettings, setStyleSettings] = useState({
@@ -4101,6 +4103,26 @@ export default function PreviewEditPage() {
               </AnimatePresence>
             </div>
           </motion.div>
+
+          </motion.div>
+
+          {/* READINESS CHECKLIST */}
+          <ReadinessChecklist
+            isDark={isDark}
+            trackInfo={trackInfo}
+            words={words}
+            styleSettings={styleSettings}
+            bgSettings={bgSettings}
+            layoutSettings={layoutSettings}
+            exportSettings={exportSettings}
+            brandingSettings={brandingSettings}
+            lyricsLines={lyricsLines}
+            setActiveTab={setActiveTab}
+            checklistHighlight={checklistHighlight}
+            setChecklistHighlight={setChecklistHighlight}
+          />
+
+          {/* Custom Font Loading - placed outside preview for better loading */}
 
           {/* Custom Font Loading - placed outside preview for better loading */}
           {project.custom_font_url && (
