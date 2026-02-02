@@ -4104,8 +4104,6 @@ export default function PreviewEditPage() {
             </div>
           </motion.div>
 
-          </motion.div>
-
           {/* READINESS CHECKLIST */}
           <ReadinessChecklist
             isDark={isDark}
@@ -4121,8 +4119,6 @@ export default function PreviewEditPage() {
             checklistHighlight={checklistHighlight}
             setChecklistHighlight={setChecklistHighlight}
           />
-
-          {/* Custom Font Loading - placed outside preview for better loading */}
 
           {/* Custom Font Loading - placed outside preview for better loading */}
           {project.custom_font_url && (
