@@ -434,14 +434,14 @@ const PricingSection = ({ isDark }) => {
           </p>
         </motion.div>
 
-        {/* Free banner */}
+        {/* Free banner - clickable link to signup */}
         <motion.div initial={{ y: 20, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} className="text-center mb-8">
-          <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${isDark ? 'bg-green-500/10 border border-green-500/30' : 'bg-green-50 border border-green-200'}`}>
+          <Link href="/signup" className={`inline-flex items-center gap-2 px-4 py-2 rounded-full cursor-pointer transition-all hover:scale-105 ${isDark ? 'bg-green-500/10 border border-green-500/30 hover:bg-green-500/20' : 'bg-green-50 border border-green-200 hover:bg-green-100'}`}>
             <Sparkles className="w-4 h-4 text-green-500" />
             <span className={`text-sm font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>
               Start free with 15 credits &mdash; no credit card required
             </span>
-          </div>
+          </Link>
         </motion.div>
 
         {/* Mode toggle */}
