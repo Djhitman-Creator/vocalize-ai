@@ -151,6 +151,7 @@ export default function Pricing() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedFaq, setExpandedFaq] = useState(null);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   const [purchaseMode, setPurchaseMode] = useState('subscription');
   const [selectedPack, setSelectedPack] = useState('pro');
@@ -170,15 +171,93 @@ export default function Pricing() {
     }
   };
 
+  // ============================================
+  // V15: Purchase credit pack
+  // ============================================
   const handlePurchase = async (packId) => {
-    if (!user) { router.push('/signup?redirect=pricing'); return; }
-    console.log('Purchasing pack:', packId);
+    if (!user) { 
+      router.push('/signup?redirect=pricing'); 
+      return; 
+    }
+    
+    setPurchaseLoading(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/buy-credits`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ package_id: packId })
+      });
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else if (data.error) {
+        alert(data.error);
+      }
+    } catch (error) {
+      console.error('Purchase error:', error);
+      alert('Failed to start checkout. Please try again.');
+    } finally {
+      setPurchaseLoading(false);
+    }
   };
 
+  // ============================================
+  // V15: Subscribe with credits_per_month + billing_cycle
+  // ============================================
   const handleSubscribe = async () => {
-    if (!user) { router.push('/signup?redirect=pricing'); return; }
-    const plan = subscriptionPlans[selectedSubIndex];
-    console.log('Subscribing:', plan, billingCycle);
+    if (!user) { 
+      router.push('/signup?redirect=pricing'); 
+      return; 
+    }
+    
+    setPurchaseLoading(true);
+    
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const plan = subscriptionPlans[selectedSubIndex];
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/create-checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ 
+          credits_per_month: plan.credits,
+          billing_cycle: billingCycle  // 'monthly' or 'annual'
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else if (data.redirect) {
+        // For subscription changes (upgrade/downgrade), redirect to dashboard
+        window.location.href = data.redirect;
+      } else if (data.success) {
+        // Show success message and redirect
+        alert(data.message);
+        router.push('/dashboard');
+      } else if (data.error) {
+        alert(data.error);
+      }
+    } catch (error) {
+      console.error('Subscribe error:', error);
+      alert('Failed to start checkout. Please try again.');
+    } finally {
+      setPurchaseLoading(false);
+    }
   };
 
   const getSubSavings = (plan) => {
@@ -291,120 +370,97 @@ export default function Pricing() {
           {/* ======== SUBSCRIPTION MODE ======== */}
           {purchaseMode === 'subscription' && (
             <motion.div
-              key="subscription"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-16"
             >
-              {/* Billing toggle */}
+              {/* Billing cycle toggle */}
               <div className="flex justify-center mb-6">
-                <div className={`inline-flex rounded-xl p-1 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-black/5 border border-black/10'}`}>
+                <div className={`inline-flex rounded-xl p-1 ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
                   {['monthly', 'annual'].map((cycle) => (
                     <button
                       key={cycle}
                       onClick={() => setBillingCycle(cycle)}
-                      className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                         billingCycle === cycle
-                          ? isDark ? 'bg-white/10 text-white' : 'bg-white text-gray-900 shadow-sm'
-                          : isDark ? 'text-gray-500' : 'text-gray-400'
+                          ? isDark ? 'bg-white/10 text-white' : 'bg-white text-gray-900 shadow'
+                          : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'
                       }`}
                     >
-                      {cycle === 'monthly' ? 'Monthly' : 'Annual'}
-                      {cycle === 'annual' && (
-                        <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-400">
-                          Save ~20%
-                        </span>
-                      )}
+                      {cycle === 'annual' ? 'Annual (Save ~17%)' : 'Monthly'}
                     </button>
                   ))}
                 </div>
               </div>
 
               {/* Subscription card */}
-              <div className="max-w-lg mx-auto">
-                <div className="relative glass-panel p-8 ring-2 ring-[var(--accent-primary)]">
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-[var(--accent-primary)] text-[#0A0A0F] text-xs font-bold tracking-wide">
-                    BEST VALUE
-                  </div>
-
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-xl ${isDark ? 'bg-[var(--accent-primary)]/20' : 'bg-cyan-100'}`}>
-                      <Crown className="w-6 h-6 text-[var(--accent-primary)]" />
-                    </div>
-                    <h2 className={`text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      Monthly Credit Subscription
-                    </h2>
-                  </div>
-                  <p className={`text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Choose how many credits you receive each {billingCycle === 'annual' ? 'month (billed annually)' : 'month'}. Change or cancel anytime.
-                  </p>
-
-                  {/* Dropdown */}
-                  <div className="mb-6">
-                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
-                      Credits per month
-                    </label>
-                    <div className="relative">
-                      <select
-                        value={selectedSubIndex}
-                        onChange={(e) => setSelectedSubIndex(parseInt(e.target.value))}
-                        style={{ colorScheme: isDark ? 'dark' : 'light' }}
-                        className={`w-full py-3.5 pl-4 pr-10 rounded-xl text-sm font-medium appearance-none cursor-pointer transition-colors outline-none ${
-                          isDark
-                            ? 'bg-white/5 border border-white/10 text-white focus:border-[var(--accent-primary)]'
-                            : 'bg-white border border-gray-200 text-gray-900 focus:border-[var(--accent-primary)]'
-                        }`}
-                      >
-                        {subscriptionPlans.map((plan, idx) => (
-                          <option key={idx} value={idx} className="bg-white text-gray-900 dark:bg-gray-800 dark:text-white">
-                            {plan.credits} credits/mo &mdash; ${billingCycle === 'annual' ? plan.annualMonthly.toFixed(2) : plan.monthlyPrice.toFixed(2)}/mo
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
-                    </div>
-                  </div>
-
-                  {/* Price summary */}
-                  <div className={`rounded-xl p-5 mb-6 ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
-                    <div className="flex items-baseline justify-between mb-3">
-                      <div>
-                        <span className={`text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          ${subPrice.toFixed(2)}
-                        </span>
-                        <span className={`text-base ml-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>/month</span>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-bold text-green-400">Save {getSubSavings(selectedSub)}%</div>
-                        <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>vs. pay-as-you-go</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        <span className="font-semibold text-[var(--accent-primary)]">{selectedSub.credits} credits</span> delivered monthly
-                      </span>
-                      <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        ${subPerCredit.toFixed(3)}/credit
-                      </span>
-                    </div>
-                    {billingCycle === 'annual' && (
-                      <div className={`mt-3 pt-3 border-t text-xs ${isDark ? 'border-white/10 text-gray-500' : 'border-gray-200 text-gray-400'}`}>
-                        Billed as ${selectedSub.annualTotal.toFixed(2)}/year
-                      </div>
-                    )}
-                  </div>
-
-                  <button onClick={handleSubscribe} className="w-full glass-button glass-button-primary py-4 text-base font-bold">
-                    Subscribe Now
-                  </button>
-
-                  <p className={`text-center text-xs mt-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    Just need a one-time purchase?{' '}
-                    <button onClick={() => setPurchaseMode('credits')} className="text-[var(--accent-primary)] hover:underline font-medium">
-                      Buy a credit pack instead
-                    </button>
+              <div className="glass-panel max-w-lg mx-auto p-8">
+                <div className="text-center mb-6">
+                  <Crown className="w-10 h-10 mx-auto mb-3 text-[var(--accent-secondary)]" />
+                  <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Subscribe & Save
+                  </h3>
+                  <p className={`mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    Credits reload every month — save up to 75% vs pay-as-you-go
                   </p>
                 </div>
+
+                {/* Credits slider */}
+                <div className="mb-6">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Credits per month</span>
+                    <span className="text-[var(--accent-primary)] font-bold">{selectedSub.credits} credits</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={subscriptionPlans.length - 1}
+                    value={selectedSubIndex}
+                    onChange={(e) => setSelectedSubIndex(parseInt(e.target.value))}
+                    className="w-full accent-[var(--accent-primary)]"
+                  />
+                  <div className="flex justify-between text-xs mt-1">
+                    {subscriptionPlans.map((p, i) => (
+                      <span key={i} className={selectedSubIndex === i ? 'text-[var(--accent-primary)] font-medium' : isDark ? 'text-gray-600' : 'text-gray-400'}>
+                        {p.credits}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Price display */}
+                <div className="text-center mb-6">
+                  <div className={`text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    ${subPrice.toFixed(2)}
+                    <span className={`text-base font-normal ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>/mo</span>
+                  </div>
+                  {billingCycle === 'annual' && (
+                    <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      Billed ${selectedSub.annualTotal.toFixed(2)}/year
+                    </p>
+                  )}
+                  <div className="flex items-center justify-center gap-4 mt-3">
+                    <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      ${subPerCredit.toFixed(3)}/credit
+                    </span>
+                    <span className="px-2 py-1 rounded-full text-xs font-bold bg-green-500/20 text-green-400">
+                      Save {getSubSavings(selectedSub)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Subscribe button */}
+                <button
+                  onClick={handleSubscribe}
+                  disabled={purchaseLoading}
+                  className="w-full glass-button glass-button-primary py-4 text-lg font-semibold disabled:opacity-50"
+                >
+                  {purchaseLoading ? 'Processing...' : user ? 'Subscribe Now' : 'Sign Up to Subscribe'}
+                </button>
+
+                <p className={`text-center text-xs mt-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Cancel anytime. Unused credits stay valid for 90 days.
+                </p>
               </div>
             </motion.div>
           )}
@@ -413,127 +469,112 @@ export default function Pricing() {
           {/* ======== CREDIT PACKS MODE ======== */}
           {purchaseMode === 'credits' && (
             <motion.div
-              key="credits"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-16"
             >
-              <h2 className={`text-2xl font-bold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                Credit Packs
-              </h2>
-              <p className={`text-center mb-8 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                One-time purchase. No commitment. Credits valid for 1 year.
-              </p>
-
-              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {creditPacks.map((pack, idx) => (
-                  <motion.div
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {creditPacks.map((pack) => (
+                  <div
                     key={pack.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.05 * idx }}
-                    className={`relative glass-panel p-6 cursor-pointer transition-all hover:scale-[1.02] ${
-                      pack.popular ? 'ring-2 ring-[var(--accent-primary)]' : ''
-                    }`}
                     onClick={() => setSelectedPack(pack.id)}
+                    className={`glass-panel p-6 cursor-pointer transition-all relative ${
+                      selectedPack === pack.id
+                        ? 'ring-2 ring-[var(--accent-primary)] scale-[1.02]'
+                        : 'hover:scale-[1.01]'
+                    }`}
                   >
                     {pack.popular && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-[var(--accent-primary)] text-[#0A0A0F] text-xs font-bold">
-                        BEST VALUE
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] text-[#0A0A0F]">
+                          Most Popular
+                        </span>
                       </div>
                     )}
 
-                    {pack.savings && (
-                      <div className={`absolute top-4 right-4 px-2 py-1 rounded-full text-xs font-bold ${
-                        isDark ? 'bg-green-500/20 text-green-400' : 'bg-green-100 text-green-600'
-                      }`}>
-                        Save {pack.savings}
-                      </div>
-                    )}
+                    <div className="text-center">
+                      <h3 className={`text-lg font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {pack.name}
+                      </h3>
+                      <p className={`text-sm mb-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        {pack.description}
+                      </p>
 
-                    <h3 className={`text-lg font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {pack.name}
-                    </h3>
-                    <p className={`text-sm mb-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                      {pack.description}
-                    </p>
-
-                    <div className="mb-4">
-                      <span className={`text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <div className={`text-3xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {pack.credits}
-                      </span>
-                      <span className={`text-lg ml-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        credits
-                      </span>
-                    </div>
+                        <span className={`text-sm font-normal ${isDark ? 'text-gray-400' : 'text-gray-500'}`}> credits</span>
+                      </div>
 
-                    <div className="flex items-baseline gap-1 mb-4">
-                      <span className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      <div className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         ${pack.price}
-                      </span>
-                      <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                        (${pack.perCredit}/credit)
-                      </span>
-                    </div>
+                      </div>
 
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handlePurchase(pack.id); }}
-                      className={`w-full py-3 rounded-xl font-semibold transition-all ${
-                        pack.popular ? 'glass-button-primary' : 'glass-button'
-                      }`}
-                    >
-                      Buy Credits
-                    </button>
-                  </motion.div>
+                      <div className="flex items-center justify-center gap-2">
+                        <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          ${pack.perCredit.toFixed(2)}/credit
+                        </span>
+                        {pack.savings && (
+                          <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-400">
+                            {pack.savings} off
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
 
-              <p className={`text-center text-sm mt-6 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                Want automatic monthly credits at a discount?{' '}
-                <button onClick={() => setPurchaseMode('subscription')} className="text-[var(--accent-primary)] hover:underline font-medium">
-                  Check out subscriptions
+              {/* Buy button */}
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={() => handlePurchase(selectedPack)}
+                  disabled={purchaseLoading}
+                  className="glass-button glass-button-primary px-12 py-4 text-lg font-semibold disabled:opacity-50"
+                >
+                  {purchaseLoading ? 'Processing...' : user ? `Buy ${creditPacks.find(p => p.id === selectedPack)?.credits} Credits` : 'Sign Up to Purchase'}
                 </button>
+              </div>
+
+              <p className={`text-center text-sm mt-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                One-time purchase. Credits valid for 1 year.
               </p>
             </motion.div>
           )}
 
 
-          {/* ======== CREDIT COST PER MINUTE TABLE ======== */}
+          {/* ======== CREDIT COST TABLE ======== */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="glass-panel mb-16 p-6"
+            className="mb-16"
           >
-            <h2 className={`text-2xl font-bold text-center mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-              Credit Cost per Minute
+            <h2 className={`text-2xl font-bold text-center mb-8 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              Credit Cost by Quality
             </h2>
-            <p className={`text-center text-sm mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Credits are charged per minute of audio. Re-renders are roughly half price.
-            </p>
 
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className={`w-full ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                 <thead>
                   <tr className={`border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                    <th className={`text-left py-3 px-4 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Quality</th>
-                    <th className={`text-left py-3 px-4 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Resolution</th>
-                    <th className={`text-center py-3 px-4 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <th className="py-4 px-4 text-left font-semibold">Quality</th>
+                    <th className="py-4 px-4 text-left font-semibold">Resolution</th>
+                    <th className="py-4 px-4 text-center font-semibold">
                       <div className="flex items-center justify-center gap-2">
                         <Clock className="w-4 h-4" />
                         Queue
                       </div>
                     </th>
-                    <th className={`text-center py-3 px-4 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <th className="py-4 px-4 text-center font-semibold">
                       <div className="flex items-center justify-center gap-2">
-                        <Zap className="w-4 h-4 text-[var(--accent-secondary)]" />
+                        <Zap className="w-4 h-4" />
                         Instant
                       </div>
                     </th>
-                    <th className={`text-center py-3 px-4 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <th className="py-4 px-4 text-center font-semibold">
                       <div className="flex items-center justify-center gap-2">
-                        <Repeat className="w-4 h-4 text-green-400" />
-                        Re-Render
+                        <Repeat className="w-4 h-4" />
+                        Re-render
                       </div>
                     </th>
                   </tr>
