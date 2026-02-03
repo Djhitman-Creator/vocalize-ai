@@ -2398,7 +2398,7 @@ app.post('/api/stripe/buy-credits', authMiddleware, async (req, res) => {
     const { data: pkg, error } = await supabase
       .from('credit_packages')
       .select('*')
-      .eq('id', package_id)
+      .eq('name', package_id)
       .single();
 
     if (error || !pkg) {
