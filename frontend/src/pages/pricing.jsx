@@ -47,10 +47,10 @@ const supabase = createClient(
 // PAY-AS-YOU-GO CREDIT PACKS
 // ============================================
 const creditPacks = [
-  { id: 'starter',  name: 'Starter',  credits: 50,   price: 4.99,  perCredit: 0.10,  savings: null,  description: 'Perfect to try it out',         popular: false },
-  { id: 'standard', name: 'Standard', credits: 150,  price: 11.99, perCredit: 0.08,  savings: '20%', description: 'Great for casual creators',      popular: false },
-  { id: 'pro',      name: 'Pro',      credits: 400,  price: 27.99, perCredit: 0.07,  savings: '30%', description: 'Best for regular use',           popular: true  },
-  { id: 'studio',   name: 'Studio',   credits: 1000, price: 54.99, perCredit: 0.055, savings: '45%', description: 'Maximum value for power users',  popular: false },
+  { id: 'Starter Pack',  name: 'Starter',  credits: 50,   price: 4.99,  perCredit: 0.10,  savings: null,  description: 'Perfect to try it out',         popular: false },
+  { id: 'Standard Pack', name: 'Standard', credits: 150,  price: 11.99, perCredit: 0.08,  savings: '20%', description: 'Great for casual creators',      popular: false },
+  { id: 'Pro Pack',      name: 'Pro',      credits: 400,  price: 27.99, perCredit: 0.07,  savings: '30%', description: 'Best for regular use',           popular: true  },
+  { id: 'Studio Pack',   name: 'Studio',   credits: 1000, price: 54.99, perCredit: 0.055, savings: '45%', description: 'Maximum value for power users',  popular: false },
 ];
 
 // ============================================
