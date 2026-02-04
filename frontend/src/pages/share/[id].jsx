@@ -1,19 +1,31 @@
 'use client';
 
 /**
- * Share Page - Public Preview for Karatrack Studio
+ * Preview/Edit Page - Karatrack Studio (V11.0)
  * 
- * This page allows anyone with the share link to:
- * - View and interact with the karaoke video preview
- * - Experiment with ALL settings (timing, fonts, colors, backgrounds, etc.)
- * - Changes are LOCAL ONLY - nothing is saved to the database
+ * Place this at: frontend/src/pages/preview/[id].jsx
  * 
- * Features NOT available (redirect to signup):
- * - Save changes to database
- * - Export/Render video
- * - Access to dashboard or other projects
+ * V11.0 TABBED INTERFACE:
+ * - New 5-tab layout: Timing, Style, Background, Layout, Export
+ * - All settings will be moved from Upload page to Preview page
+ * - Users can experiment with different settings before rendering
  * 
- * Place this at: frontend/src/pages/share/[id].jsx
+ * TABS:
+ * 1. TIMING - Timeline editor, word/line editing, duet mode (implemented)
+ * 2. STYLE - Font, colors, text effects (placeholder - Stage 2)
+ * 3. BACKGROUND - Color/gradient, image, video presets (placeholder - Stage 3)
+ * 4. LAYOUT - Display mode, aspect ratio (placeholder - Stage 4)
+ * 5. EXPORT - Audio track, quality, watermark (placeholder - Stage 5)
+ * 
+ * V10.10 WORD DURATION CONTEXT MENU (preserved):
+ * - Right-click on any word in timeline to access duration controls
+ * 
+ * V10.9 MULTI-SELECT (preserved):
+ * - Shift+Click to select range of words
+ * - Ctrl/Cmd+Click to toggle individual words
+ * 
+ * V10.8 FEATURES (preserved):
+ * - Volume sliders for backing track and vocals
  */
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
@@ -37,10 +49,13 @@ import {
   Bookmark, Star, FolderOpen,
   // Fullscreen
   Maximize2, Minimize2,
-  // Share page CTA
-  Rocket, LogIn
+  // V13: QR Sharing
+  QrCode
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import AppNavigation from '../../components/AppNavigation';
+import ShareModal from '../../components/ShareModal';
+import ReadinessChecklist from '../../components/ReadinessChecklist';
 import { createClient } from '@supabase/supabase-js';
 import SEO from '../../components/SEO';
 
@@ -54,6 +69,9 @@ const DEFAULT_DUET_COLORS = { singer1: '#00FFFF', singer2: '#FF69B4', both: '#FF
 const PIXELS_PER_SECOND_DEFAULT = 100;
 const TIMELINE_HEIGHT = 160;
 const TIMELINE_HEIGHT_DUET = 200; // Taller timeline for 3-row duet mode
+
+// Intro duration - 4 seconds of title screen before audio/lyrics start
+const INTRO_DURATION = 4;
 
 // Preset video backgrounds base URL
 const PRESET_BASE_URL = process.env.NEXT_PUBLIC_PRESET_VIDEOS_URL || 'https://pub-71dae0f9e45e4d8e8d1eedd472780341.r2.dev/presets';
@@ -827,7 +845,7 @@ const WordContextMenu = ({
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
-export default function SharePage() {
+export default function PreviewEditPage() {
   const router = useRouter();
   const { id } = router.query;
   const { isDark } = useTheme();
@@ -905,17 +923,100 @@ export default function SharePage() {
   }, []);
 
   // V11: Handle logo upload
-  // Share page: Redirect to signup for logo upload
   const handleLogoUpload = useCallback(async (e) => {
-    e.preventDefault();
-    router.push('/signup?redirect=dashboard&message=signup_to_upload');
-  }, [router]);
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  // Share page: Redirect to signup for start image upload
+    if (!file.type.startsWith('image/')) {
+      setBrandingError('Please upload an image file (PNG recommended for transparency)');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setBrandingError('Logo must be less than 5MB');
+      return;
+    }
+
+    setLogoUploading(true);
+    setBrandingError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const formData = new FormData();
+      formData.append('logo', file);
+      formData.append('projectId', id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-logo`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to upload logo');
+      }
+
+      const result = await response.json();
+      updateBrandingSettings({ logoUrl: result.logoUrl });
+      setProject(prev => ({ ...prev, logo_url: result.logoUrl }));
+    } catch (err) {
+      console.error('Logo upload error:', err);
+      setBrandingError(err.message || 'Failed to upload logo');
+    } finally {
+      setLogoUploading(false);
+    }
+  }, [id, router, updateBrandingSettings]);
+
+  // V11: Handle start image upload
   const handleStartImageUpload = useCallback(async (e) => {
-    e.preventDefault();
-    router.push('/signup?redirect=dashboard&message=signup_to_upload');
-  }, [router]);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setBrandingError('Please upload an image file (PNG recommended for transparency)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setBrandingError('Start image must be less than 10MB');
+      return;
+    }
+
+    setStartImageUploading(true);
+    setBrandingError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const formData = new FormData();
+      formData.append('startImage', file);
+      formData.append('projectId', id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-start-image`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to upload start image');
+      }
+
+      const result = await response.json();
+      updateBrandingSettings({ startImageUrl: result.startImageUrl });
+      setProject(prev => ({ ...prev, start_image_url: result.startImageUrl }));
+    } catch (err) {
+      console.error('Start image upload error:', err);
+      setBrandingError(err.message || 'Failed to upload start image');
+    } finally {
+      setStartImageUploading(false);
+    }
+  }, [id, router, updateBrandingSettings]);
 
   // V11: Update style settings helper
   const updateStyleSettings = useCallback((updates) => {
@@ -923,11 +1024,72 @@ export default function SharePage() {
     setHasChanges(true);
   }, []);
 
-  // Share page: Redirect to signup for custom font upload
+  // V11: Handle custom font upload
   const handleCustomFontUpload = useCallback(async (e) => {
-    e.preventDefault();
-    router.push('/signup?redirect=dashboard&message=signup_to_upload');
-  }, [router]);
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['.ttf', '.otf', '.woff', '.woff2'];
+    const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+    if (!validTypes.includes(ext)) {
+      setCustomFontError('Please upload a .ttf, .otf, .woff, or .woff2 font file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setCustomFontError('Font file must be less than 5MB');
+      return;
+    }
+
+    setCustomFontUploading(true);
+    setCustomFontError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.push('/login');
+        return;
+      }
+
+      // Upload to R2 via API
+      const formData = new FormData();
+      formData.append('font', file);
+      formData.append('projectId', id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-font`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to upload font');
+      }
+
+      const result = await response.json();
+      
+      // Update project state with new font URL
+      setProject(prev => ({
+        ...prev,
+        custom_font_url: result.fontUrl,
+        custom_font_name: file.name.replace(/\.[^/.]+$/, ''),
+      }));
+
+      // Auto-select custom font
+      updateStyleSettings({ selectedFont: 'custom' });
+      
+    } catch (err) {
+      console.error('Font upload error:', err);
+      setCustomFontError(err.message || 'Failed to upload font');
+    } finally {
+      setCustomFontUploading(false);
+    }
+  }, [id, router, updateStyleSettings]);
 
   // V11: Background settings state
   const [bgSettings, setBgSettings] = useState({
@@ -1007,10 +1169,80 @@ export default function SharePage() {
     }
   }, []);
 
-  // V12: Save preset - redirect to signup on share page
+  // V12: Save current settings as preset
   const savePreset = useCallback(async () => {
-    router.push('/signup?redirect=dashboard&message=signup_to_save_preset');
-  }, [router]);
+    if (!presetName.trim()) {
+      setPresetError('Please enter a preset name');
+      return;
+    }
+
+    setSavingPreset(true);
+    setPresetError(null);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const presetData = {
+        user_id: session.user.id,
+        name: presetName.trim(),
+        // Style settings
+        font: styleSettings.selectedFont,
+        font_size: styleSettings.fontSize,
+        text_color: styleSettings.textColor,
+        sung_color: styleSettings.sungColor,
+        outline_color: styleSettings.outlineColor,
+        // Background settings
+        bg_type: bgSettings.bgType,
+        bg_color_1: bgSettings.bgColor1,
+        bg_color_2: bgSettings.bgColor2,
+        gradient_direction: bgSettings.gradientDirection,
+        bg_image_url: bgSettings.bgImageUrl,
+          bg_image_fit: bgSettings.bgImageFit || 'fill',
+        bg_image_fit: bgSettings.bgImageFit || 'fill',
+        bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
+        // Layout settings
+        display_mode: layoutSettings.displayMode,
+        aspect_ratio: layoutSettings.aspectRatio,
+        lines_per_page: layoutSettings.linesPerPage,
+        lines_per_scroll: layoutSettings.linesPerScroll,
+        lines_per_overwrite: layoutSettings.linesPerOverwrite,
+        emphasize_current_line: layoutSettings.emphasizeCurrentLine,
+        show_progress_bar: layoutSettings.showProgressBar,
+        show_lead_in_bars: layoutSettings.showLeadInBars,
+        clean_version: layoutSettings.cleanVersion,
+        // Export settings
+        audio_track: exportSettings.audioTrack,
+        video_quality: exportSettings.videoQuality,
+        // Branding settings
+        logo_url: brandingSettings.logoUrl,
+        logo_position: brandingSettings.logoPosition,
+        logo_size: brandingSettings.logoSize,
+        logo_opacity: brandingSettings.logoOpacity,
+        start_image_url: brandingSettings.startImageUrl,
+        start_image_fit: brandingSettings.startImageFit,
+        start_image_opacity: brandingSettings.startImageOpacity,
+        start_image_show_title: brandingSettings.startImageShowTitle,
+      };
+
+      const { data, error } = await supabase
+        .from('user_presets')
+        .insert(presetData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setPresets(prev => [data, ...prev]);
+      setPresetModalOpen(false);
+      setPresetName('');
+    } catch (err) {
+      console.error('Failed to save preset:', err);
+      setPresetError(err.message || 'Failed to save preset');
+    } finally {
+      setSavingPreset(false);
+    }
+  }, [presetName, styleSettings, bgSettings, layoutSettings, exportSettings, brandingSettings, router]);
 
   // V12: Load a preset and apply settings
   const loadPreset = useCallback((preset) => {
@@ -1768,18 +2000,48 @@ export default function SharePage() {
       try {
         setLoading(true);
         
-        // Share page: Load project if share_enabled is true (no auth required)
-        const { data: projectData, error: projectError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('id', id)
-          .eq('share_enabled', true)
-          .single();
+        // V13: Check for edit token in URL (for accessing from another device via QR code)
+        const urlParams = new URLSearchParams(window.location.search);
+        const editToken = urlParams.get('token');
         
-        if (projectError || !projectData) { 
-          setError('This project is not available for sharing, or the link is invalid.'); 
-          setLoading(false);
-          return; 
+        let projectData = null;
+        
+        if (editToken) {
+          // Token-based access (no login required, but must have valid token)
+          const { data, error: tokenError } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('id', id)
+            .eq('edit_token', editToken)
+            .single();
+          
+          if (tokenError || !data) {
+            setError('Invalid or expired edit link. Please request a new one from the project owner.');
+            setLoading(false);
+            return;
+          }
+          
+          projectData = data;
+          setIsTokenAccess(true);
+        } else {
+          // Normal authenticated access
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) { router.push('/login'); return; }
+          
+          const { data, error: projectError } = await supabase
+            .from('projects')
+            .select('*')
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .single();
+          
+          if (projectError || !data) { 
+            setError('Project not found'); 
+            setLoading(false);
+            return; 
+          }
+          
+          projectData = data;
         }
 
         // Debug: Log custom font info
@@ -1906,6 +2168,9 @@ export default function SharePage() {
   // Use requestAnimationFrame for smooth visual updates
   // Read directly from audio.currentTime each frame
   // Use flushSync to bypass React 18's automatic batching for smooth animations
+  // 
+  // TIMING: currentTime = audioTime + INTRO_DURATION
+  // This means currentTime 0-4 is the intro period, and audio plays from currentTime 4+
 
   const lastVocalSyncRef = useRef(0); // Throttle vocal sync to prevent choppy playback
 
@@ -1913,16 +2178,19 @@ export default function SharePage() {
     let rafId = null;
 
     const updateTime = () => {
-      if (instrumentalRef.current && isPlaying) {
+      // Only update from audio if we're past the intro period
+      // During intro, the togglePlayback interval handles timing
+      if (instrumentalRef.current && isPlaying && currentTime >= INTRO_DURATION) {
         const audioTime = instrumentalRef.current.currentTime;
 
         // flushSync forces React to update synchronously, bypassing batching
         // This ensures smooth animations during playback
         flushSync(() => {
-          setCurrentTime(audioTime);
+          // Add intro offset: visual time = audio time + 4 seconds
+          setCurrentTime(audioTime + INTRO_DURATION);
         });
 
-        // Keep vocals in sync â€” but throttled to avoid choppy playback on mobile
+        // Keep vocals in sync - but throttled to avoid choppy playback on mobile
         // Only check every 2 seconds and only correct if drift > 0.3s
         if (vocalsRef.current) {
           const now = performance.now();
@@ -1937,6 +2205,9 @@ export default function SharePage() {
 
         // Continue the loop
         rafId = requestAnimationFrame(updateTime);
+      } else if (isPlaying && currentTime < INTRO_DURATION) {
+        // During intro - just keep the loop going, intro timer handles the time update
+        rafId = requestAnimationFrame(updateTime);
       }
     };
 
@@ -1949,7 +2220,7 @@ export default function SharePage() {
         cancelAnimationFrame(rafId);
       }
     };
-  }, [isPlaying]);
+  }, [isPlaying, currentTime]);
 
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) {
@@ -1966,12 +2237,21 @@ export default function SharePage() {
     }
   }, [vocalsVolume, vocalsMuted]);
 
+  // Intro timer ref for countdown
+  const introIntervalRef = useRef(null);
+
   const togglePlayback = useCallback(() => {
     if (!instrumentalRef.current) return;
 
     if (isPlaying) {
+      // Pause
       instrumentalRef.current.pause();
       if (vocalsRef.current) vocalsRef.current.pause();
+      // Clear intro timer if running
+      if (introIntervalRef.current) {
+        clearInterval(introIntervalRef.current);
+        introIntervalRef.current = null;
+      }
     } else {
       // Apply muted state before playing (iOS only respects .muted, not .volume)
       instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
@@ -1979,19 +2259,65 @@ export default function SharePage() {
       if (vocalsRef.current) {
         vocalsRef.current.muted = vocalsMuted || vocalsVolume === 0;
         vocalsRef.current.volume = vocalsVolume / 100;
-        vocalsRef.current.currentTime = instrumentalRef.current.currentTime;
       }
-      instrumentalRef.current.play();
-      if (vocalsRef.current) vocalsRef.current.play();
+      
+      // Check if we're in intro period (visual time < INTRO_DURATION means audio time < 0)
+      if (currentTime < INTRO_DURATION) {
+        // Start intro countdown timer - don't play audio yet
+        const startTime = performance.now();
+        const startCurrentTime = currentTime;
+        
+        introIntervalRef.current = setInterval(() => {
+          const elapsed = (performance.now() - startTime) / 1000;
+          const newTime = startCurrentTime + elapsed;
+          
+          if (newTime >= INTRO_DURATION) {
+            // Intro finished - start audio
+            clearInterval(introIntervalRef.current);
+            introIntervalRef.current = null;
+            setCurrentTime(INTRO_DURATION);
+            instrumentalRef.current.currentTime = 0;
+            instrumentalRef.current.play();
+            if (vocalsRef.current) {
+              vocalsRef.current.currentTime = 0;
+              vocalsRef.current.play();
+            }
+          } else {
+            setCurrentTime(newTime);
+          }
+        }, 16); // ~60fps
+      } else {
+        // Past intro - play audio normally
+        // currentTime includes intro offset, so audio time = currentTime - INTRO_DURATION
+        const audioTime = currentTime - INTRO_DURATION;
+        instrumentalRef.current.currentTime = audioTime;
+        if (vocalsRef.current) {
+          vocalsRef.current.currentTime = audioTime;
+        }
+        instrumentalRef.current.play();
+        if (vocalsRef.current) vocalsRef.current.play();
+      }
     }
     setIsPlaying(!isPlaying);
-  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted]);
+  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted, currentTime]);
 
   const seekTo = useCallback((time) => {
-    const clampedTime = Math.max(0, Math.min(time, duration));
-    if (instrumentalRef.current) instrumentalRef.current.currentTime = clampedTime;
-    if (vocalsRef.current) vocalsRef.current.currentTime = clampedTime;
+    // time is visual time (0 = start of intro, INTRO_DURATION = start of audio)
+    const maxTime = (duration || 0) + INTRO_DURATION;
+    const clampedTime = Math.max(0, Math.min(time, maxTime));
+    
+    // Calculate audio time
+    const audioTime = Math.max(0, clampedTime - INTRO_DURATION);
+    
+    if (instrumentalRef.current) instrumentalRef.current.currentTime = audioTime;
+    if (vocalsRef.current) vocalsRef.current.currentTime = audioTime;
     setCurrentTime(clampedTime);
+    
+    // Clear any intro timer when seeking
+    if (introIntervalRef.current) {
+      clearInterval(introIntervalRef.current);
+      introIntervalRef.current = null;
+    }
   }, [duration]);
 
   const restart = useCallback(() => seekTo(0), [seekTo]);
@@ -2005,19 +2331,12 @@ export default function SharePage() {
       e.preventDefault();
       e.stopPropagation();
       const scrollAmount = e.deltaY > 0 ? 2 : -2;
-      const newTime = Math.max(0, Math.min(duration, currentTime + scrollAmount));
-      setCurrentTime(newTime);
-      if (instrumentalRef.current) {
-        instrumentalRef.current.currentTime = newTime;
-      }
-      if (vocalsRef.current) {
-        vocalsRef.current.currentTime = newTime;
-      }
+      seekTo(currentTime + scrollAmount);
     };
     
     timeline.addEventListener('wheel', handleWheel, { passive: false });
     return () => timeline.removeEventListener('wheel', handleWheel);
-  }, [duration, currentTime]);
+  }, [currentTime, seekTo]);
 
   // ============================================================
   // TIMELINE TOUCH-DRAG TO SCRUB (mobile finger scrubbing)
@@ -2723,21 +3042,128 @@ export default function SharePage() {
     }
   }, [hasChanges, originalWords, project]);
 
-  // Share page: Redirect to signup instead of saving
   const saveChanges = useCallback(async () => {
-    router.push('/signup?redirect=dashboard&message=signup_to_save');
-  }, [router]);
+    if (!hasChanges) return;
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
 
-  // Share page: Redirect to signup instead of rendering
+      const { error } = await supabase
+        .from('projects')
+        .update({
+          // Track info
+          artist_name: trackInfo.artistName,
+          song_title: trackInfo.songTitle,
+          disc_id: trackInfo.discId,
+          // Lyrics
+          lyrics_json: words,
+          is_duet_mode: isDuetMode,
+          duet_singer1_color: duetColors.singer1,
+          duet_singer2_color: duetColors.singer2,
+          duet_both_color: duetColors.both,
+          // V11: Style settings
+          font: styleSettings.selectedFont,
+          font_size: styleSettings.fontSize,
+          text_color: styleSettings.textColor,
+          sung_color: styleSettings.sungColor,
+          outline_color: styleSettings.outlineColor,
+          // V11: Background settings
+          bg_type: bgSettings.bgType,
+          bg_color_1: bgSettings.bgColor1,
+          bg_color_2: bgSettings.bgColor2,
+          gradient_direction: bgSettings.gradientDirection,
+          bg_image_url: bgSettings.bgImageUrl,
+          bg_image_fit: bgSettings.bgImageFit || 'fill',
+        bg_image_fit: bgSettings.bgImageFit || 'fill',
+          bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
+          bg_video_url: bgSettings.bgCustomVideoUrl,
+          // V11: Layout settings
+          display_mode: layoutSettings.displayMode,
+          aspect_ratio: layoutSettings.aspectRatio,
+          lines_per_page: layoutSettings.linesPerPage,
+          lines_per_scroll: layoutSettings.linesPerScroll,
+          lines_per_overwrite: layoutSettings.linesPerOverwrite,
+          emphasize_current_line: layoutSettings.emphasizeCurrentLine,
+          show_progress_bar: layoutSettings.showProgressBar,
+          show_lead_in_bars: layoutSettings.showLeadInBars,
+          clean_version: layoutSettings.cleanVersion,
+          // V11: Export settings
+          audio_track: exportSettings.audioTrack,
+          video_quality: exportSettings.videoQuality,
+          // V11: Branding settings
+          logo_url: brandingSettings.logoUrl,
+          logo_position: brandingSettings.logoPosition,
+          logo_size: brandingSettings.logoSize,
+          logo_opacity: brandingSettings.logoOpacity,
+          start_image_url: brandingSettings.startImageUrl,
+          start_image_fit: brandingSettings.startImageFit,
+          start_image_opacity: brandingSettings.startImageOpacity,
+          start_image_show_title: brandingSettings.startImageShowTitle,
+          outro_text: brandingSettings.outroText,
+          outro_duration: brandingSettings.outroDuration,
+          outro_font_size: brandingSettings.outroFontSize,
+        })
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      // Update local project state with new track info
+      setProject(prev => ({
+        ...prev,
+        artist_name: trackInfo.artistName,
+        song_title: trackInfo.songTitle,
+        disc_id: trackInfo.discId
+      }));
+      
+      setHasChanges(false);
+      setOriginalWords(JSON.parse(JSON.stringify(words)));
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    } catch (err) {
+      console.error('Save error:', err);
+      console.error('Error details:', JSON.stringify(err, null, 2));
+      setError(`Failed to save: ${err.message || err.code || 'Unknown error'}`);
+    } finally {
+      setSaving(false);
+    }
+  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, layoutSettings, exportSettings, brandingSettings, trackInfo, id, router]);
+
   const handleApproveAndRender = useCallback(async () => {
-    router.push('/signup?redirect=dashboard&message=signup_to_render');
-  }, [router]);
+    if (hasChanges) await saveChanges();
+
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${id}/render`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ edited_lyrics: words })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to start render');
+      }
+
+      router.push('/dashboard');
+    } catch (err) {
+      console.error('Render error:', err);
+      setError(err.message || 'Failed to start render');
+    } finally {
+      setSaving(false);
+    }
+  }, [hasChanges, saveChanges, words, router, id]);
 
   // ============================================================
   // UTILITY FUNCTIONS
   // ============================================================
-  // Intro duration constant (matches handler.py)
-  const INTRO_DURATION = 4;
+  // Note: INTRO_DURATION is defined at the top of the file
 
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -2789,7 +3215,9 @@ export default function SharePage() {
     return isCurrent ? (styleSettings.sungColor || '#00d4ff') : (styleSettings.textColor || '#ffffff');
   }, [isDuetMode, duetColors, styleSettings]);
 
-  const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
+  // For word timing, use audio time (currentTime - INTRO_DURATION)
+  const audioTimeForWords = Math.max(0, currentTime - INTRO_DURATION);
+  const isWordCurrent = useCallback((word) => audioTimeForWords >= word.start && audioTimeForWords <= word.end, [audioTimeForWords]);
 
   const getHighlightColor = useCallback((wordIndex) => {
     if (isDuetMode && words[wordIndex]?.singer !== undefined) {
@@ -2810,6 +3238,9 @@ export default function SharePage() {
   const LINES_PER_PAGE = layoutSettings.linesPerPage || 4; // Use setting from Layout tab
 
   const getCurrentLyricsData = () => {
+    // Use audio time for lyrics calculations (word timings are in audio time)
+    const lyricsTime = Math.max(0, currentTime - INTRO_DURATION);
+    
     if (!lyricsLines.length) return {
       prevLine: '',
       currentLine: null,
@@ -2825,12 +3256,12 @@ export default function SharePage() {
 
     let currentLineIdx = -1;
 
-    // Find current line
+    // Find current line (using audio time)
     for (let i = 0; i < lyricsLines.length; i++) {
       const line = lyricsLines[i];
       for (let j = 0; j < line.length; j++) {
         const word = line[j];
-        if (currentTime >= word.start && currentTime <= word.end) {
+        if (lyricsTime >= word.start && lyricsTime <= word.end) {
           currentLineIdx = i;
           break;
         }
@@ -2842,9 +3273,9 @@ export default function SharePage() {
     if (currentLineIdx === -1) {
       for (let i = 0; i < lyricsLines.length; i++) {
         const line = lyricsLines[i];
-        if (line.length > 0 && line[0].start > currentTime) {
+        if (line.length > 0 && line[0].start > lyricsTime) {
           const firstWordStart = line[0].start;
-          const timeUntilLine = firstWordStart - currentTime;
+          const timeUntilLine = firstWordStart - lyricsTime;
           const prevLineEnd = i === 0 ? 0 : lyricsLines[i - 1][lyricsLines[i - 1].length - 1].end;
           const gapDuration = firstWordStart - prevLineEnd;
 
@@ -2935,7 +3366,7 @@ export default function SharePage() {
           if (i > 0) {
             const prevLineData = lyricsLines[i - 1];
             const lastWordEnd = prevLineData[prevLineData.length - 1].end;
-            if (currentTime - lastWordEnd <= 2) {
+            if (lyricsTime - lastWordEnd <= 2) {
               const currentLineText = prevLineData.map(w => ({
                 word: w.word, index: w.globalIndex, start: w.start, end: w.end,
                 isActive: false, isPast: true, sweepPercent: 1
@@ -3011,7 +3442,7 @@ export default function SharePage() {
           };
         }
 
-        if (line.length > 0 && line[line.length - 1].end >= currentTime) {
+        if (line.length > 0 && line[line.length - 1].end >= lyricsTime) {
           currentLineIdx = i;
           break;
         }
@@ -3022,7 +3453,7 @@ export default function SharePage() {
         if (lyricsLines.length > 0) {
           const lastLine = lyricsLines[lyricsLines.length - 1];
           const lastWordEnd = lastLine[lastLine.length - 1].end;
-          if (currentTime - lastWordEnd <= 2) {
+          if (lyricsTime - lastWordEnd <= 2) {
             const lastLineIdx = lyricsLines.length - 1;
             const currentLineText = lastLine.map(w => ({
               word: w.word, index: w.globalIndex, start: w.start, end: w.end,
@@ -3076,8 +3507,8 @@ export default function SharePage() {
     const currentLineText = line.map(w => {
       let sweepPercent = 0;
       let fadeInProgress = 0; // 0-1, used for glow fade-in animation
-      const isActive = currentTime >= w.start && currentTime <= w.end;
-      const isPast = currentTime > w.end;
+      const isActive = lyricsTime >= w.start && lyricsTime <= w.end;
+      const isPast = lyricsTime > w.end;
 
       if (isPast) {
         sweepPercent = 1;
@@ -3085,7 +3516,7 @@ export default function SharePage() {
       } else if (isActive) {
         const wordDuration = w.end - w.start;
         if (wordDuration > 0) {
-          sweepPercent = (currentTime - w.start) / wordDuration;
+          sweepPercent = (lyricsTime - w.start) / wordDuration;
           // Fade in glow quickly at start of word (first 20% of duration)
           fadeInProgress = Math.min(1, sweepPercent * 5);
         }
@@ -3119,8 +3550,8 @@ export default function SharePage() {
       const lineWords = pageLine.map(w => {
         let sweepPct = 0;
         let fadeInPct = 0;
-        const isWordActive = currentTime >= w.start && currentTime <= w.end;
-        const isWordPast = currentTime > w.end;
+        const isWordActive = lyricsTime >= w.start && lyricsTime <= w.end;
+        const isWordPast = lyricsTime > w.end;
         
         if (isPastLine || isWordPast) {
           sweepPct = 1;
@@ -3128,7 +3559,7 @@ export default function SharePage() {
         } else if (isCurrentLine && isWordActive) {
           const dur = w.end - w.start;
           if (dur > 0) {
-            sweepPct = (currentTime - w.start) / dur;
+            sweepPct = (lyricsTime - w.start) / dur;
             fadeInPct = Math.min(1, sweepPct * 5);
           }
         }
@@ -3166,8 +3597,8 @@ export default function SharePage() {
     const clickX = e.clientX - rect.left;
     const offsetFromCenter = clickX - centerX;
     const timeOffset = offsetFromCenter / zoom;
-    seekTo(currentTime + timeOffset);
-  }, [zoom, currentTime, seekTo, isDragging, isTimelineScrubbing]);
+    seekTo(lyricsTime + timeOffset);
+  }, [zoom, lyricsTime, seekTo, isDragging, isTimelineScrubbing]);
 
   const handleProgressClick = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -3283,7 +3714,16 @@ export default function SharePage() {
   // ============================================================
   return (
     <>
-      <SEO title={`Shared: ${project?.title || 'Karaoke Preview'} | Karatrack Studio`} description="Preview this karaoke video - try all settings and create your own!" />
+      {/* V13: Share Modal */}
+      <ShareModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        project={project}
+        isDark={isDark}
+        onTokensUpdated={(updatedProject) => setProject(updatedProject)}
+      />
+
+      <SEO title={`Edit: ${project.title} | Karatrack Studio`} description="Edit lyrics timing and line breaks" />
 
       {/* Audio Elements */}
       <audio
@@ -3615,31 +4055,22 @@ export default function SharePage() {
           <div className={`absolute -top-1/2 -left-1/2 w-full h-full ${isDark ? 'bg-gradient-to-br from-cyan-900/20 via-transparent to-purple-900/20' : 'bg-gradient-to-br from-cyan-100/50 via-transparent to-purple-100/50'} rounded-full blur-3xl`} />
         </div>
 
-        {/* Share page header - minimal branding */}
-        <nav className={`sticky top-0 z-50 backdrop-blur-xl ${isDark ? 'bg-[#0A0A0F]/80 border-b border-white/10' : 'bg-white/80 border-b border-gray-200'}`}>
-          <div className="max-w-[1800px] mx-auto px-4 py-3 flex items-center justify-between">
-            <a href="https://studio.karatrack.com" className="flex items-center gap-2">
-              <img src="/logo.png" alt="Karatrack Studio" className="h-8 w-auto" />
-              <span className={`font-bold text-lg ${isDark ? 'text-white' : 'text-gray-900'}`}>Karatrack Studio</span>
-            </a>
-            <div className="flex items-center gap-3">
-              <span className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Shared Preview</span>
-              <Link href="/signup" className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl text-sm font-medium hover:from-cyan-600 hover:to-purple-600 transition-all">
-                <Rocket className="w-4 h-4" />
-                Create Your Own
-              </Link>
-            </div>
-          </div>
-        </nav>
+        <AppNavigation />
 
         <main className="relative z-10 px-4 py-4 max-w-[1800px] mx-auto">
           {/* Header */}
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
-              {/* Share page: Always link back to karatrack homepage */}
-              <a href="https://studio.karatrack.com" className={`p-2 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`} title="Back to Karatrack Studio">
-                <ArrowLeft className="w-5 h-5" />
-              </a>
+              {/* V13: Back button - different behavior for token access */}
+              {!isTokenAccess ? (
+                <Link href="/dashboard" className={`p-2 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>
+                  <ArrowLeft className="w-5 h-5" />
+                </Link>
+              ) : (
+                <a href="https://studio.karatrack.com" className={`p-2 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`} title="Back to Karatrack Studio">
+                  <ArrowLeft className="w-5 h-5" />
+                </a>
+              )}
               
               {/* Editable Track Info */}
               {editingTrackInfo ? (
@@ -3706,19 +4137,19 @@ export default function SharePage() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {/* Share page: Sign up link instead of share button */}
-              <Link
-                href="/signup"
+              {/* V13: Share Button */}
+              <button
+                onClick={() => setShowShareModal(true)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                   isDark 
-                    ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 hover:from-cyan-500/30 hover:to-purple-500/30 text-cyan-400' 
-                    : 'bg-gradient-to-r from-cyan-50 to-purple-50 hover:from-cyan-100 hover:to-purple-100 text-cyan-600'
+                    ? 'bg-white/10 hover:bg-white/20 text-white' 
+                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                 }`}
-                title="Sign up to save"
+                title="Share Project"
               >
-                <LogIn className="w-4 h-4" />
-                <span className="hidden sm:inline">Sign Up to Save</span>
-              </Link>
+                <QrCode className="w-4 h-4" />
+                <span className="hidden sm:inline">Share</span>
+              </button>
 
               {project.custom_font_url && (
                 <span className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/20 text-cyan-400 text-xs rounded-lg">
@@ -3730,35 +4161,28 @@ export default function SharePage() {
                   <Paintbrush className="w-3 h-3" />Paint Mode
                 </span>
               )}
-              {hasChanges && <span className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-lg"><AlertCircle className="w-3 h-3" />Local Changes</span>}
+              {hasChanges && <span className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/20 text-yellow-400 text-xs rounded-lg"><AlertCircle className="w-3 h-3" />Unsaved</span>}
               <AnimatePresence>
                 {saveSuccess && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center gap-2 px-3 py-1.5 bg-green-500/20 text-green-400 text-xs rounded-lg"><CheckCircle className="w-3 h-3" />Saved!</motion.span>}
               </AnimatePresence>
             </div>
           </motion.div>
 
-          {/* SHARE PAGE CTA BANNER */}
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} 
-            animate={{ opacity: 1, y: 0 }}
-            className={`mb-4 p-4 rounded-2xl ${isDark ? 'bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/20' : 'bg-gradient-to-r from-cyan-50 to-purple-50 border border-cyan-200'}`}
-          >
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-xl ${isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'}`}>
-                  <Sparkles className="w-5 h-5 text-cyan-500" />
-                </div>
-                <div>
-                  <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>Like what you see?</p>
-                  <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Create your own karaoke videos with 15 free credits!</p>
-                </div>
-              </div>
-              <Link href="/signup" className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-purple-500 text-white rounded-xl font-medium hover:from-cyan-600 hover:to-purple-600 transition-all whitespace-nowrap">
-                <Rocket className="w-4 h-4" />
-                Get Started Free
-              </Link>
-            </div>
-          </motion.div>
+          {/* READINESS CHECKLIST */}
+          <ReadinessChecklist
+            isDark={isDark}
+            trackInfo={trackInfo}
+            words={words}
+            styleSettings={styleSettings}
+            bgSettings={bgSettings}
+            layoutSettings={layoutSettings}
+            exportSettings={exportSettings}
+            brandingSettings={brandingSettings}
+            lyricsLines={lyricsLines}
+            setActiveTab={setActiveTab}
+            checklistHighlight={checklistHighlight}
+            setChecklistHighlight={setChecklistHighlight}
+          />
 
           {/* Custom Font Loading - placed outside preview for better loading */}
           {project.custom_font_url && (
@@ -5146,7 +5570,8 @@ export default function SharePage() {
                       };
 
                       return words.map((word, index) => {
-                        const wordX = centerX + (word.start - currentTime) * zoom;
+                        // Use audio time for positioning (word.start is in audio time)
+                        const wordX = centerX + (word.start - audioTimeForWords) * zoom;
                         const wordWidth = Math.max(isDuetMode ? 35 : 40, (word.end - word.start) * zoom);
 
                         // Skip if off-screen
@@ -6584,24 +7009,36 @@ export default function SharePage() {
                     );
                   })()}
 
-                  {/* Render Button - Share Page redirects to signup */}
-                  <Link
-                    href="/signup"
-                    className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-lg font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90 transition-opacity"
+                  {/* Render Button */}
+                  <button
+                    onClick={handleApproveAndRender}
+                    disabled={saving}
+                    className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-lg font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50"
                   >
-                    <Rocket className="w-6 h-6" />
-                    Sign Up to Export
-                  </Link>
+                    {saving ? (
+                      <>
+                        <Loader2 className="w-6 h-6 animate-spin" />
+                        Starting Render...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-6 h-6" />
+                        Export Video
+                      </>
+                    )}
+                  </button>
 
                   {/* Render Info */}
                   <div className={`space-y-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                     <p className="flex items-center gap-2">
-                      <Sparkles className="w-3 h-3" />
-                      Sign up free to export your karaoke videos
+                      <Clock className="w-3 h-3" />
+                      {exportSettings.exportMode === 'instant' 
+                        ? 'Instant mode typically renders in under 2 minutes'
+                        : 'Queue mode typically takes 5-15 minutes during busy times'}
                     </p>
                     <p className="flex items-center gap-2">
                       <CheckCircle className="w-3 h-3" />
-                      Get 15 free credits - no credit card required
+                      You'll receive an email when your video is ready
                     </p>
                   </div>
                 </div>
@@ -6609,21 +7046,21 @@ export default function SharePage() {
             </div>
           </motion.div>
 
-          {/* BOTTOM ACTION BAR - Share Page Version */}
+          {/* BOTTOM ACTION BAR */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className={`rounded-2xl overflow-hidden ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}>
             <div className="px-4 py-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <button onClick={resetToOriginal} disabled={!hasChanges} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${hasChanges ? isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-gray-500/20 text-gray-500 cursor-not-allowed'}`}>
                   <RotateCcw className="w-4 h-4" />Reset
                 </button>
-                <Link href="/signup" className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-cyan-500 hover:bg-cyan-600 text-white">
-                  <LogIn className="w-4 h-4" />Sign Up to Save
-                </Link>
+                <button onClick={saveChanges} disabled={saving || !hasChanges} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${hasChanges ? 'bg-cyan-500 hover:bg-cyan-600 text-white' : 'bg-gray-500/20 text-gray-500 cursor-not-allowed'}`}>
+                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Save
+                </button>
               </div>
-              <Link href="/signup" className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90 transition-opacity">
-                <Rocket className="w-4 h-4" />
-                Create Your Own
-              </Link>
+              <button onClick={handleApproveAndRender} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90 transition-opacity">
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                Render
+              </button>
             </div>
           </motion.div>
 
