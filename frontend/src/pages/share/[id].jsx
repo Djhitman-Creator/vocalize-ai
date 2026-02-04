@@ -50,12 +50,12 @@ import {
   // Fullscreen
   Maximize2, Minimize2,
   // V13: QR Sharing
-  QrCode
+  Rocket, LogIn
 } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
-import AppNavigation from '../../components/AppNavigation';
-import ShareModal from '../../components/ShareModal';
-import ReadinessChecklist from '../../components/ReadinessChecklist';
+
+
+
 import { createClient } from '@supabase/supabase-js';
 import SEO from '../../components/SEO';
 
@@ -69,9 +69,6 @@ const DEFAULT_DUET_COLORS = { singer1: '#00FFFF', singer2: '#FF69B4', both: '#FF
 const PIXELS_PER_SECOND_DEFAULT = 100;
 const TIMELINE_HEIGHT = 160;
 const TIMELINE_HEIGHT_DUET = 200; // Taller timeline for 3-row duet mode
-
-// Intro duration - 4 seconds of title screen before audio/lyrics start
-const INTRO_DURATION = 4;
 
 // Preset video backgrounds base URL
 const PRESET_BASE_URL = process.env.NEXT_PUBLIC_PRESET_VIDEOS_URL || 'https://pub-71dae0f9e45e4d8e8d1eedd472780341.r2.dev/presets';
@@ -845,7 +842,7 @@ const WordContextMenu = ({
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
-export default function PreviewEditPage() {
+export default function SharePage() {
   const router = useRouter();
   const { id } = router.query;
   const { isDark } = useTheme();
@@ -873,8 +870,8 @@ export default function PreviewEditPage() {
   const [isFullscreenPreview, setIsFullscreenPreview] = useState(false);
 
   // V13: QR Sharing state
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [isTokenAccess, setIsTokenAccess] = useState(false);
+  
+  
 
   // V11: Active tab state
   const [activeTab, setActiveTab] = useState('timing');
@@ -2000,48 +1997,18 @@ export default function PreviewEditPage() {
       try {
         setLoading(true);
         
-        // V13: Check for edit token in URL (for accessing from another device via QR code)
-        const urlParams = new URLSearchParams(window.location.search);
-        const editToken = urlParams.get('token');
+        // Share page: Load project if share_enabled is true (no auth required)
+        const { data: projectData, error: projectError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('id', id)
+          .eq('share_enabled', true)
+          .single();
         
-        let projectData = null;
-        
-        if (editToken) {
-          // Token-based access (no login required, but must have valid token)
-          const { data, error: tokenError } = await supabase
-            .from('projects')
-            .select('*')
-            .eq('id', id)
-            .eq('edit_token', editToken)
-            .single();
-          
-          if (tokenError || !data) {
-            setError('Invalid or expired edit link. Please request a new one from the project owner.');
-            setLoading(false);
-            return;
-          }
-          
-          projectData = data;
-          setIsTokenAccess(true);
-        } else {
-          // Normal authenticated access
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) { router.push('/login'); return; }
-          
-          const { data, error: projectError } = await supabase
-            .from('projects')
-            .select('*')
-            .eq('id', id)
-            .eq('user_id', user.id)
-            .single();
-          
-          if (projectError || !data) { 
-            setError('Project not found'); 
-            setLoading(false);
-            return; 
-          }
-          
-          projectData = data;
+        if (projectError || !projectData) { 
+          setError('This project is not available for sharing, or the link is invalid.'); 
+          setLoading(false);
+          return; 
         }
 
         // Debug: Log custom font info
@@ -2168,9 +2135,6 @@ export default function PreviewEditPage() {
   // Use requestAnimationFrame for smooth visual updates
   // Read directly from audio.currentTime each frame
   // Use flushSync to bypass React 18's automatic batching for smooth animations
-  // 
-  // TIMING: currentTime = audioTime + INTRO_DURATION
-  // This means currentTime 0-4 is the intro period, and audio plays from currentTime 4+
 
   const lastVocalSyncRef = useRef(0); // Throttle vocal sync to prevent choppy playback
 
@@ -2178,19 +2142,16 @@ export default function PreviewEditPage() {
     let rafId = null;
 
     const updateTime = () => {
-      // Only update from audio if we're past the intro period
-      // During intro, the togglePlayback interval handles timing
-      if (instrumentalRef.current && isPlaying && currentTime >= INTRO_DURATION) {
+      if (instrumentalRef.current && isPlaying) {
         const audioTime = instrumentalRef.current.currentTime;
 
         // flushSync forces React to update synchronously, bypassing batching
         // This ensures smooth animations during playback
         flushSync(() => {
-          // Add intro offset: visual time = audio time + 4 seconds
-          setCurrentTime(audioTime + INTRO_DURATION);
+          setCurrentTime(audioTime);
         });
 
-        // Keep vocals in sync - but throttled to avoid choppy playback on mobile
+        // Keep vocals in sync â€” but throttled to avoid choppy playback on mobile
         // Only check every 2 seconds and only correct if drift > 0.3s
         if (vocalsRef.current) {
           const now = performance.now();
@@ -2205,9 +2166,6 @@ export default function PreviewEditPage() {
 
         // Continue the loop
         rafId = requestAnimationFrame(updateTime);
-      } else if (isPlaying && currentTime < INTRO_DURATION) {
-        // During intro - just keep the loop going, intro timer handles the time update
-        rafId = requestAnimationFrame(updateTime);
       }
     };
 
@@ -2220,7 +2178,7 @@ export default function PreviewEditPage() {
         cancelAnimationFrame(rafId);
       }
     };
-  }, [isPlaying, currentTime]);
+  }, [isPlaying]);
 
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) {
@@ -2237,21 +2195,12 @@ export default function PreviewEditPage() {
     }
   }, [vocalsVolume, vocalsMuted]);
 
-  // Intro timer ref for countdown
-  const introIntervalRef = useRef(null);
-
   const togglePlayback = useCallback(() => {
     if (!instrumentalRef.current) return;
 
     if (isPlaying) {
-      // Pause
       instrumentalRef.current.pause();
       if (vocalsRef.current) vocalsRef.current.pause();
-      // Clear intro timer if running
-      if (introIntervalRef.current) {
-        clearInterval(introIntervalRef.current);
-        introIntervalRef.current = null;
-      }
     } else {
       // Apply muted state before playing (iOS only respects .muted, not .volume)
       instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
@@ -2259,65 +2208,19 @@ export default function PreviewEditPage() {
       if (vocalsRef.current) {
         vocalsRef.current.muted = vocalsMuted || vocalsVolume === 0;
         vocalsRef.current.volume = vocalsVolume / 100;
+        vocalsRef.current.currentTime = instrumentalRef.current.currentTime;
       }
-      
-      // Check if we're in intro period (visual time < INTRO_DURATION means audio time < 0)
-      if (currentTime < INTRO_DURATION) {
-        // Start intro countdown timer - don't play audio yet
-        const startTime = performance.now();
-        const startCurrentTime = currentTime;
-        
-        introIntervalRef.current = setInterval(() => {
-          const elapsed = (performance.now() - startTime) / 1000;
-          const newTime = startCurrentTime + elapsed;
-          
-          if (newTime >= INTRO_DURATION) {
-            // Intro finished - start audio
-            clearInterval(introIntervalRef.current);
-            introIntervalRef.current = null;
-            setCurrentTime(INTRO_DURATION);
-            instrumentalRef.current.currentTime = 0;
-            instrumentalRef.current.play();
-            if (vocalsRef.current) {
-              vocalsRef.current.currentTime = 0;
-              vocalsRef.current.play();
-            }
-          } else {
-            setCurrentTime(newTime);
-          }
-        }, 16); // ~60fps
-      } else {
-        // Past intro - play audio normally
-        // currentTime includes intro offset, so audio time = currentTime - INTRO_DURATION
-        const audioTime = currentTime - INTRO_DURATION;
-        instrumentalRef.current.currentTime = audioTime;
-        if (vocalsRef.current) {
-          vocalsRef.current.currentTime = audioTime;
-        }
-        instrumentalRef.current.play();
-        if (vocalsRef.current) vocalsRef.current.play();
-      }
+      instrumentalRef.current.play();
+      if (vocalsRef.current) vocalsRef.current.play();
     }
     setIsPlaying(!isPlaying);
-  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted, currentTime]);
+  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted]);
 
   const seekTo = useCallback((time) => {
-    // time is visual time (0 = start of intro, INTRO_DURATION = start of audio)
-    const maxTime = (duration || 0) + INTRO_DURATION;
-    const clampedTime = Math.max(0, Math.min(time, maxTime));
-    
-    // Calculate audio time
-    const audioTime = Math.max(0, clampedTime - INTRO_DURATION);
-    
-    if (instrumentalRef.current) instrumentalRef.current.currentTime = audioTime;
-    if (vocalsRef.current) vocalsRef.current.currentTime = audioTime;
+    const clampedTime = Math.max(0, Math.min(time, duration));
+    if (instrumentalRef.current) instrumentalRef.current.currentTime = clampedTime;
+    if (vocalsRef.current) vocalsRef.current.currentTime = clampedTime;
     setCurrentTime(clampedTime);
-    
-    // Clear any intro timer when seeking
-    if (introIntervalRef.current) {
-      clearInterval(introIntervalRef.current);
-      introIntervalRef.current = null;
-    }
   }, [duration]);
 
   const restart = useCallback(() => seekTo(0), [seekTo]);
@@ -2331,12 +2234,19 @@ export default function PreviewEditPage() {
       e.preventDefault();
       e.stopPropagation();
       const scrollAmount = e.deltaY > 0 ? 2 : -2;
-      seekTo(currentTime + scrollAmount);
+      const newTime = Math.max(0, Math.min(duration, currentTime + scrollAmount));
+      setCurrentTime(newTime);
+      if (instrumentalRef.current) {
+        instrumentalRef.current.currentTime = newTime;
+      }
+      if (vocalsRef.current) {
+        vocalsRef.current.currentTime = newTime;
+      }
     };
     
     timeline.addEventListener('wheel', handleWheel, { passive: false });
     return () => timeline.removeEventListener('wheel', handleWheel);
-  }, [currentTime, seekTo]);
+  }, [duration, currentTime]);
 
   // ============================================================
   // TIMELINE TOUCH-DRAG TO SCRUB (mobile finger scrubbing)
@@ -3042,128 +2952,21 @@ export default function PreviewEditPage() {
     }
   }, [hasChanges, originalWords, project]);
 
+  // Share page: Save redirects to signup
   const saveChanges = useCallback(async () => {
-    if (!hasChanges) return;
-    setSaving(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/login'); return; }
+    router.push('/signup?redirect=dashboard&message=signup_to_save');
+  }, [router]);
 
-      const { error } = await supabase
-        .from('projects')
-        .update({
-          // Track info
-          artist_name: trackInfo.artistName,
-          song_title: trackInfo.songTitle,
-          disc_id: trackInfo.discId,
-          // Lyrics
-          lyrics_json: words,
-          is_duet_mode: isDuetMode,
-          duet_singer1_color: duetColors.singer1,
-          duet_singer2_color: duetColors.singer2,
-          duet_both_color: duetColors.both,
-          // V11: Style settings
-          font: styleSettings.selectedFont,
-          font_size: styleSettings.fontSize,
-          text_color: styleSettings.textColor,
-          sung_color: styleSettings.sungColor,
-          outline_color: styleSettings.outlineColor,
-          // V11: Background settings
-          bg_type: bgSettings.bgType,
-          bg_color_1: bgSettings.bgColor1,
-          bg_color_2: bgSettings.bgColor2,
-          gradient_direction: bgSettings.gradientDirection,
-          bg_image_url: bgSettings.bgImageUrl,
-          bg_image_fit: bgSettings.bgImageFit || 'fill',
-        bg_image_fit: bgSettings.bgImageFit || 'fill',
-          bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
-          bg_video_url: bgSettings.bgCustomVideoUrl,
-          // V11: Layout settings
-          display_mode: layoutSettings.displayMode,
-          aspect_ratio: layoutSettings.aspectRatio,
-          lines_per_page: layoutSettings.linesPerPage,
-          lines_per_scroll: layoutSettings.linesPerScroll,
-          lines_per_overwrite: layoutSettings.linesPerOverwrite,
-          emphasize_current_line: layoutSettings.emphasizeCurrentLine,
-          show_progress_bar: layoutSettings.showProgressBar,
-          show_lead_in_bars: layoutSettings.showLeadInBars,
-          clean_version: layoutSettings.cleanVersion,
-          // V11: Export settings
-          audio_track: exportSettings.audioTrack,
-          video_quality: exportSettings.videoQuality,
-          // V11: Branding settings
-          logo_url: brandingSettings.logoUrl,
-          logo_position: brandingSettings.logoPosition,
-          logo_size: brandingSettings.logoSize,
-          logo_opacity: brandingSettings.logoOpacity,
-          start_image_url: brandingSettings.startImageUrl,
-          start_image_fit: brandingSettings.startImageFit,
-          start_image_opacity: brandingSettings.startImageOpacity,
-          start_image_show_title: brandingSettings.startImageShowTitle,
-          outro_text: brandingSettings.outroText,
-          outro_duration: brandingSettings.outroDuration,
-          outro_font_size: brandingSettings.outroFontSize,
-        })
-        .eq('id', id);
-
-      if (error) throw error;
-      
-      // Update local project state with new track info
-      setProject(prev => ({
-        ...prev,
-        artist_name: trackInfo.artistName,
-        song_title: trackInfo.songTitle,
-        disc_id: trackInfo.discId
-      }));
-      
-      setHasChanges(false);
-      setOriginalWords(JSON.parse(JSON.stringify(words)));
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 2000);
-    } catch (err) {
-      console.error('Save error:', err);
-      console.error('Error details:', JSON.stringify(err, null, 2));
-      setError(`Failed to save: ${err.message || err.code || 'Unknown error'}`);
-    } finally {
-      setSaving(false);
-    }
-  }, [hasChanges, words, isDuetMode, duetColors, styleSettings, bgSettings, layoutSettings, exportSettings, brandingSettings, trackInfo, id, router]);
-
+  // Share page: Render redirects to signup
   const handleApproveAndRender = useCallback(async () => {
-    if (hasChanges) await saveChanges();
-
-    setSaving(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/login'); return; }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/projects/${id}/render`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ edited_lyrics: words })
-      });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to start render');
-      }
-
-      router.push('/dashboard');
-    } catch (err) {
-      console.error('Render error:', err);
-      setError(err.message || 'Failed to start render');
-    } finally {
-      setSaving(false);
-    }
-  }, [hasChanges, saveChanges, words, router, id]);
+    router.push('/signup?redirect=dashboard&message=signup_to_render');
+  }, [router]);
 
   // ============================================================
   // UTILITY FUNCTIONS
   // ============================================================
-  // Note: INTRO_DURATION is defined at the top of the file
+  // Intro duration constant (matches handler.py)
+  const INTRO_DURATION = 4;
 
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -3215,9 +3018,7 @@ export default function PreviewEditPage() {
     return isCurrent ? (styleSettings.sungColor || '#00d4ff') : (styleSettings.textColor || '#ffffff');
   }, [isDuetMode, duetColors, styleSettings]);
 
-  // For word timing, use audio time (currentTime - INTRO_DURATION)
-  const audioTimeForWords = Math.max(0, currentTime - INTRO_DURATION);
-  const isWordCurrent = useCallback((word) => audioTimeForWords >= word.start && audioTimeForWords <= word.end, [audioTimeForWords]);
+  const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
 
   const getHighlightColor = useCallback((wordIndex) => {
     if (isDuetMode && words[wordIndex]?.singer !== undefined) {
@@ -3238,9 +3039,6 @@ export default function PreviewEditPage() {
   const LINES_PER_PAGE = layoutSettings.linesPerPage || 4; // Use setting from Layout tab
 
   const getCurrentLyricsData = () => {
-    // Use audio time for lyrics calculations (word timings are in audio time)
-    const lyricsTime = Math.max(0, currentTime - INTRO_DURATION);
-    
     if (!lyricsLines.length) return {
       prevLine: '',
       currentLine: null,
@@ -3256,12 +3054,12 @@ export default function PreviewEditPage() {
 
     let currentLineIdx = -1;
 
-    // Find current line (using audio time)
+    // Find current line
     for (let i = 0; i < lyricsLines.length; i++) {
       const line = lyricsLines[i];
       for (let j = 0; j < line.length; j++) {
         const word = line[j];
-        if (lyricsTime >= word.start && lyricsTime <= word.end) {
+        if (currentTime >= word.start && currentTime <= word.end) {
           currentLineIdx = i;
           break;
         }
@@ -3273,9 +3071,9 @@ export default function PreviewEditPage() {
     if (currentLineIdx === -1) {
       for (let i = 0; i < lyricsLines.length; i++) {
         const line = lyricsLines[i];
-        if (line.length > 0 && line[0].start > lyricsTime) {
+        if (line.length > 0 && line[0].start > currentTime) {
           const firstWordStart = line[0].start;
-          const timeUntilLine = firstWordStart - lyricsTime;
+          const timeUntilLine = firstWordStart - currentTime;
           const prevLineEnd = i === 0 ? 0 : lyricsLines[i - 1][lyricsLines[i - 1].length - 1].end;
           const gapDuration = firstWordStart - prevLineEnd;
 
@@ -3366,7 +3164,7 @@ export default function PreviewEditPage() {
           if (i > 0) {
             const prevLineData = lyricsLines[i - 1];
             const lastWordEnd = prevLineData[prevLineData.length - 1].end;
-            if (lyricsTime - lastWordEnd <= 2) {
+            if (currentTime - lastWordEnd <= 2) {
               const currentLineText = prevLineData.map(w => ({
                 word: w.word, index: w.globalIndex, start: w.start, end: w.end,
                 isActive: false, isPast: true, sweepPercent: 1
@@ -3442,7 +3240,7 @@ export default function PreviewEditPage() {
           };
         }
 
-        if (line.length > 0 && line[line.length - 1].end >= lyricsTime) {
+        if (line.length > 0 && line[line.length - 1].end >= currentTime) {
           currentLineIdx = i;
           break;
         }
@@ -3453,7 +3251,7 @@ export default function PreviewEditPage() {
         if (lyricsLines.length > 0) {
           const lastLine = lyricsLines[lyricsLines.length - 1];
           const lastWordEnd = lastLine[lastLine.length - 1].end;
-          if (lyricsTime - lastWordEnd <= 2) {
+          if (currentTime - lastWordEnd <= 2) {
             const lastLineIdx = lyricsLines.length - 1;
             const currentLineText = lastLine.map(w => ({
               word: w.word, index: w.globalIndex, start: w.start, end: w.end,
@@ -3507,8 +3305,8 @@ export default function PreviewEditPage() {
     const currentLineText = line.map(w => {
       let sweepPercent = 0;
       let fadeInProgress = 0; // 0-1, used for glow fade-in animation
-      const isActive = lyricsTime >= w.start && lyricsTime <= w.end;
-      const isPast = lyricsTime > w.end;
+      const isActive = currentTime >= w.start && currentTime <= w.end;
+      const isPast = currentTime > w.end;
 
       if (isPast) {
         sweepPercent = 1;
@@ -3516,7 +3314,7 @@ export default function PreviewEditPage() {
       } else if (isActive) {
         const wordDuration = w.end - w.start;
         if (wordDuration > 0) {
-          sweepPercent = (lyricsTime - w.start) / wordDuration;
+          sweepPercent = (currentTime - w.start) / wordDuration;
           // Fade in glow quickly at start of word (first 20% of duration)
           fadeInProgress = Math.min(1, sweepPercent * 5);
         }
@@ -3550,8 +3348,8 @@ export default function PreviewEditPage() {
       const lineWords = pageLine.map(w => {
         let sweepPct = 0;
         let fadeInPct = 0;
-        const isWordActive = lyricsTime >= w.start && lyricsTime <= w.end;
-        const isWordPast = lyricsTime > w.end;
+        const isWordActive = currentTime >= w.start && currentTime <= w.end;
+        const isWordPast = currentTime > w.end;
         
         if (isPastLine || isWordPast) {
           sweepPct = 1;
@@ -3559,7 +3357,7 @@ export default function PreviewEditPage() {
         } else if (isCurrentLine && isWordActive) {
           const dur = w.end - w.start;
           if (dur > 0) {
-            sweepPct = (lyricsTime - w.start) / dur;
+            sweepPct = (currentTime - w.start) / dur;
             fadeInPct = Math.min(1, sweepPct * 5);
           }
         }
@@ -3597,8 +3395,8 @@ export default function PreviewEditPage() {
     const clickX = e.clientX - rect.left;
     const offsetFromCenter = clickX - centerX;
     const timeOffset = offsetFromCenter / zoom;
-    seekTo(lyricsTime + timeOffset);
-  }, [zoom, lyricsTime, seekTo, isDragging, isTimelineScrubbing]);
+    seekTo(currentTime + timeOffset);
+  }, [zoom, currentTime, seekTo, isDragging, isTimelineScrubbing]);
 
   const handleProgressClick = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -3714,16 +3512,7 @@ export default function PreviewEditPage() {
   // ============================================================
   return (
     <>
-      {/* V13: Share Modal */}
-      <ShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        project={project}
-        isDark={isDark}
-        onTokensUpdated={(updatedProject) => setProject(updatedProject)}
-      />
-
-      <SEO title={`Edit: ${project.title} | Karatrack Studio`} description="Edit lyrics timing and line breaks" />
+      <SEO title={`Shared: ${project.title} | Karatrack Studio`} description="Preview this karaoke project" />
 
       {/* Audio Elements */}
       <audio
@@ -4055,22 +3844,38 @@ export default function PreviewEditPage() {
           <div className={`absolute -top-1/2 -left-1/2 w-full h-full ${isDark ? 'bg-gradient-to-br from-cyan-900/20 via-transparent to-purple-900/20' : 'bg-gradient-to-br from-cyan-100/50 via-transparent to-purple-100/50'} rounded-full blur-3xl`} />
         </div>
 
-        <AppNavigation />
+        {/* Share Page Header */}
+        <div className={`sticky top-0 z-50 px-4 py-3 ${isDark ? 'bg-slate-900/95 border-b border-white/10' : 'bg-white/95 border-b border-gray-200'} backdrop-blur-xl`}>
+          <div className="max-w-[1800px] mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Link href="/" className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-purple-600 flex items-center justify-center">
+                  <Music2 className="w-5 h-5 text-white" />
+                </div>
+                <span className="font-bold text-lg">Karatrack</span>
+              </Link>
+              <span className={`px-2 py-1 text-xs rounded-full ${isDark ? 'bg-cyan-500/20 text-cyan-400' : 'bg-cyan-100 text-cyan-700'}`}>
+                Shared Preview
+              </span>
+            </div>
+            <Link 
+              href="/signup" 
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-lg font-medium hover:opacity-90 transition-opacity"
+            >
+              <Rocket className="w-4 h-4" />
+              Create Your Own
+            </Link>
+          </div>
+        </div>
 
         <main className="relative z-10 px-4 py-4 max-w-[1800px] mx-auto">
           {/* Header */}
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">
-              {/* V13: Back button - different behavior for token access */}
-              {!isTokenAccess ? (
-                <Link href="/dashboard" className={`p-2 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>
-                  <ArrowLeft className="w-5 h-5" />
-                </Link>
-              ) : (
-                <a href="https://studio.karatrack.com" className={`p-2 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`} title="Back to Karatrack Studio">
-                  <ArrowLeft className="w-5 h-5" />
-                </a>
-              )}
+              {/* Share page: Link back to homepage */}
+              <Link href="/" className={`p-2 rounded-xl ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-black/5 hover:bg-black/10'}`}>
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
               
               {/* Editable Track Info */}
               {editingTrackInfo ? (
@@ -4137,19 +3942,14 @@ export default function PreviewEditPage() {
               )}
             </div>
             <div className="flex items-center gap-2">
-              {/* V13: Share Button */}
-              <button
-                onClick={() => setShowShareModal(true)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  isDark 
-                    ? 'bg-white/10 hover:bg-white/20 text-white' 
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
-                title="Share Project"
+              {/* Share Page: Create Your Own CTA */}
+              <Link
+                href="/signup"
+                className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-purple-600 text-white rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
               >
-                <QrCode className="w-4 h-4" />
-                <span className="hidden sm:inline">Share</span>
-              </button>
+                <Rocket className="w-4 h-4" />
+                <span className="hidden sm:inline">Create Your Own</span>
+              </Link>
 
               {project.custom_font_url && (
                 <span className="flex items-center gap-2 px-3 py-1.5 bg-cyan-500/20 text-cyan-400 text-xs rounded-lg">
@@ -4167,22 +3967,6 @@ export default function PreviewEditPage() {
               </AnimatePresence>
             </div>
           </motion.div>
-
-          {/* READINESS CHECKLIST */}
-          <ReadinessChecklist
-            isDark={isDark}
-            trackInfo={trackInfo}
-            words={words}
-            styleSettings={styleSettings}
-            bgSettings={bgSettings}
-            layoutSettings={layoutSettings}
-            exportSettings={exportSettings}
-            brandingSettings={brandingSettings}
-            lyricsLines={lyricsLines}
-            setActiveTab={setActiveTab}
-            checklistHighlight={checklistHighlight}
-            setChecklistHighlight={setChecklistHighlight}
-          />
 
           {/* Custom Font Loading - placed outside preview for better loading */}
           {project.custom_font_url && (
@@ -5570,8 +5354,7 @@ export default function PreviewEditPage() {
                       };
 
                       return words.map((word, index) => {
-                        // Use audio time for positioning (word.start is in audio time)
-                        const wordX = centerX + (word.start - audioTimeForWords) * zoom;
+                        const wordX = centerX + (word.start - currentTime) * zoom;
                         const wordWidth = Math.max(isDuetMode ? 35 : 40, (word.end - word.start) * zoom);
 
                         // Skip if off-screen
