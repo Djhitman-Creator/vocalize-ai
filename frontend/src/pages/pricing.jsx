@@ -65,7 +65,7 @@ const subscriptionPlans = [
 ];
 
 // ============================================
-// QUALITY TIERS — credits per minute
+// QUALITY TIERS â€” credits per minute
 // Re-render = ~50% of original cost
 // ============================================
 const qualityTiers = [
@@ -76,7 +76,7 @@ const qualityTiers = [
 ];
 
 // ============================================
-// FEATURES — everything included
+// FEATURES â€” everything included
 // ============================================
 const includedFeatures = [
   { icon: Music,           text: 'AI vocal removal' },
@@ -311,32 +311,54 @@ export default function Pricing() {
             </p>
           </motion.div>
 
-          {/* ======== FREE BANNER — fully centered ======== */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="glass-panel mb-10 p-6"
-          >
-            <div className="flex flex-col items-center text-center gap-4">
-              <div className={`p-3 rounded-xl ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
-                <Gift className="w-8 h-8 text-green-500" />
-              </div>
-              <div>
-                <h3 className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  Start Free &mdash; 15 Credits Included
-                </h3>
-                <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>
-                  Create your first karaoke video and try every feature &mdash; no credit card required
-                </p>
-              </div>
-              {!user && (
+          {/* ======== BACK TO DASHBOARD - logged in users only ======== */}
+          {user && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              className="mb-6"
+            >
+              <Link 
+                href="/dashboard"
+                className={`inline-flex items-center gap-2 text-sm font-medium transition-colors ${
+                  isDark ? 'text-gray-400 hover:text-cyan-400' : 'text-gray-500 hover:text-cyan-600'
+                }`}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Back to Dashboard
+              </Link>
+            </motion.div>
+          )}
+
+          {/* ======== FREE BANNER - only for logged out users ======== */}
+          {!user && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="glass-panel mb-10 p-6"
+            >
+              <div className="flex flex-col items-center text-center gap-4">
+                <div className={`p-3 rounded-xl ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
+                  <Gift className="w-8 h-8 text-green-500" />
+                </div>
+                <div>
+                  <h3 className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    Start Free &mdash; 15 Credits Included
+                  </h3>
+                  <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>
+                    Create your first karaoke video and try every feature &mdash; no credit card required
+                  </p>
+                </div>
                 <Link href="/signup" className="glass-button glass-button-primary whitespace-nowrap">
                   Create Free Account
                 </Link>
-              )}
-            </div>
-          </motion.div>
+              </div>
+            </motion.div>
+          )}
 
           {/* ======== MODE TOGGLE ======== */}
           <motion.div
@@ -401,7 +423,7 @@ export default function Pricing() {
                     Subscribe & Save
                   </h3>
                   <p className={`mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Credits reload every month — save up to 75% vs pay-as-you-go
+                    Credits reload every month â€” save up to 75% vs pay-as-you-go
                   </p>
                 </div>
 
