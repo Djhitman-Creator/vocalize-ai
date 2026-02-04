@@ -1690,7 +1690,7 @@ export default function PreviewEditPage() {
   // VOLUME HANDLERS
   // ============================================================
   // iOS ignores audio.volume (always 1.0, read-only).
-  // Use .muted as the actual control — it's the only thing iOS respects.
+  // Use .muted as the actual control â€” it's the only thing iOS respects.
   // .volume is set as a bonus for desktop/Android.
   // ============================================================
   useEffect(() => {
@@ -2163,43 +2163,83 @@ export default function PreviewEditPage() {
   // AUDIO PLAYBACK - SMOOTH ANIMATION WITH RAF
   // ============================================================
   // Use requestAnimationFrame for smooth visual updates
-  // Read directly from audio.currentTime each frame
-  // Use flushSync to bypass React 18's automatic batching for smooth animations
-
+  // INTRO HANDLING: First 4 seconds are visual-only countdown, audio starts after
+  
+  const INTRO_DURATION = 4; // 4 second intro before audio starts
   const lastVocalSyncRef = useRef(0); // Throttle vocal sync to prevent choppy playback
+  const lastFrameTimeRef = useRef(0); // For intro timing
 
   useEffect(() => {
     let rafId = null;
 
     const updateTime = () => {
-      if (instrumentalRef.current && isPlaying) {
-        const audioTime = instrumentalRef.current.currentTime;
+      if (isPlaying) {
+        const now = performance.now();
+        
+        // During intro period (currentTime < INTRO_DURATION), we manually increment time
+        if (currentTime < INTRO_DURATION) {
+          // Calculate delta time since last frame
+          if (lastFrameTimeRef.current === 0) {
+            lastFrameTimeRef.current = now;
+          }
+          const deltaMs = now - lastFrameTimeRef.current;
+          lastFrameTimeRef.current = now;
+          
+          // Increment visual time (convert ms to seconds)
+          const newTime = currentTime + (deltaMs / 1000);
+          
+          if (newTime >= INTRO_DURATION) {
+            // Intro finished - start audio from beginning
+            flushSync(() => {
+              setCurrentTime(INTRO_DURATION);
+            });
+            if (instrumentalRef.current) {
+              instrumentalRef.current.currentTime = 0;
+              instrumentalRef.current.play();
+            }
+            if (vocalsRef.current) {
+              vocalsRef.current.currentTime = 0;
+              vocalsRef.current.play();
+            }
+          } else {
+            flushSync(() => {
+              setCurrentTime(newTime);
+            });
+          }
+          
+          rafId = requestAnimationFrame(updateTime);
+        } else {
+          // After intro - sync with actual audio time
+          if (instrumentalRef.current) {
+            const audioTime = instrumentalRef.current.currentTime;
 
-        // flushSync forces React to update synchronously, bypassing batching
-        // This ensures smooth animations during playback
-        flushSync(() => {
-          setCurrentTime(audioTime);
-        });
+            // flushSync forces React to update synchronously, bypassing batching
+            // This ensures smooth animations during playback
+            flushSync(() => {
+              setCurrentTime(audioTime + INTRO_DURATION); // Add intro offset
+            });
 
-        // Keep vocals in sync — but throttled to avoid choppy playback on mobile
-        // Only check every 2 seconds and only correct if drift > 0.3s
-        if (vocalsRef.current) {
-          const now = performance.now();
-          if (now - lastVocalSyncRef.current > 2000) {
-            lastVocalSyncRef.current = now;
-            const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
-            if (diff > 0.3) {
-              vocalsRef.current.currentTime = audioTime;
+            // Keep vocals in sync - but throttled to avoid choppy playback on mobile
+            // Only check every 2 seconds and only correct if drift > 0.3s
+            if (vocalsRef.current) {
+              if (now - lastVocalSyncRef.current > 2000) {
+                lastVocalSyncRef.current = now;
+                const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
+                if (diff > 0.3) {
+                  vocalsRef.current.currentTime = audioTime;
+                }
+              }
             }
           }
+          
+          // Continue the loop
+          rafId = requestAnimationFrame(updateTime);
         }
-
-        // Continue the loop
-        rafId = requestAnimationFrame(updateTime);
       }
     };
 
     if (isPlaying) {
+      lastFrameTimeRef.current = performance.now();
       rafId = requestAnimationFrame(updateTime);
     }
 
@@ -2207,8 +2247,9 @@ export default function PreviewEditPage() {
       if (rafId) {
         cancelAnimationFrame(rafId);
       }
+      lastFrameTimeRef.current = 0;
     };
-  }, [isPlaying]);
+  }, [isPlaying, currentTime]);
 
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) {
@@ -2226,32 +2267,70 @@ export default function PreviewEditPage() {
   }, [vocalsVolume, vocalsMuted]);
 
   const togglePlayback = useCallback(() => {
-    if (!instrumentalRef.current) return;
-
     if (isPlaying) {
-      instrumentalRef.current.pause();
+      // Pause everything
+      if (instrumentalRef.current) instrumentalRef.current.pause();
       if (vocalsRef.current) vocalsRef.current.pause();
+      setIsPlaying(false);
     } else {
+      // Start playback - audio only starts after intro period
       // Apply muted state before playing (iOS only respects .muted, not .volume)
-      instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
-      instrumentalRef.current.volume = instrumentalVolume / 100;
+      if (instrumentalRef.current) {
+        instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
+        instrumentalRef.current.volume = instrumentalVolume / 100;
+      }
       if (vocalsRef.current) {
         vocalsRef.current.muted = vocalsMuted || vocalsVolume === 0;
         vocalsRef.current.volume = vocalsVolume / 100;
-        vocalsRef.current.currentTime = instrumentalRef.current.currentTime;
       }
-      instrumentalRef.current.play();
-      if (vocalsRef.current) vocalsRef.current.play();
+      
+      // Only start audio if we're past the intro
+      if (currentTime >= INTRO_DURATION) {
+        const audioTime = currentTime - INTRO_DURATION;
+        if (instrumentalRef.current) {
+          instrumentalRef.current.currentTime = audioTime;
+          instrumentalRef.current.play();
+        }
+        if (vocalsRef.current) {
+          vocalsRef.current.currentTime = audioTime;
+          vocalsRef.current.play();
+        }
+      }
+      // If in intro period, the RAF loop will handle starting audio when intro ends
+      
+      setIsPlaying(true);
     }
-    setIsPlaying(!isPlaying);
-  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted]);
+  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted, currentTime]);
 
   const seekTo = useCallback((time) => {
-    const clampedTime = Math.max(0, Math.min(time, duration));
-    if (instrumentalRef.current) instrumentalRef.current.currentTime = clampedTime;
-    if (vocalsRef.current) vocalsRef.current.currentTime = clampedTime;
+    // time is visual time (0 = start of intro, INTRO_DURATION = start of audio)
+    const clampedTime = Math.max(0, Math.min(time, duration + INTRO_DURATION));
+    
+    // Convert to audio time (can be negative during intro)
+    const audioTime = clampedTime - INTRO_DURATION;
+    
+    if (audioTime >= 0) {
+      // Past intro - set audio position
+      if (instrumentalRef.current) instrumentalRef.current.currentTime = audioTime;
+      if (vocalsRef.current) vocalsRef.current.currentTime = audioTime;
+    } else {
+      // During intro - pause audio and reset to start
+      if (instrumentalRef.current) {
+        instrumentalRef.current.pause();
+        instrumentalRef.current.currentTime = 0;
+      }
+      if (vocalsRef.current) {
+        vocalsRef.current.pause();
+        vocalsRef.current.currentTime = 0;
+      }
+      // If we were playing, we need to stop
+      if (isPlaying) {
+        setIsPlaying(false);
+      }
+    }
+    
     setCurrentTime(clampedTime);
-  }, [duration]);
+  }, [duration, isPlaying]);
 
   const restart = useCallback(() => seekTo(0), [seekTo]);
 
@@ -2264,19 +2343,14 @@ export default function PreviewEditPage() {
       e.preventDefault();
       e.stopPropagation();
       const scrollAmount = e.deltaY > 0 ? 2 : -2;
-      const newTime = Math.max(0, Math.min(duration, currentTime + scrollAmount));
-      setCurrentTime(newTime);
-      if (instrumentalRef.current) {
-        instrumentalRef.current.currentTime = newTime;
-      }
-      if (vocalsRef.current) {
-        vocalsRef.current.currentTime = newTime;
-      }
+      // Visual time goes from 0 to (duration + INTRO_DURATION)
+      const newTime = Math.max(0, Math.min(duration + INTRO_DURATION, currentTime + scrollAmount));
+      seekTo(newTime);
     };
     
     timeline.addEventListener('wheel', handleWheel, { passive: false });
     return () => timeline.removeEventListener('wheel', handleWheel);
-  }, [duration, currentTime]);
+  }, [duration, currentTime, seekTo]);
 
   // ============================================================
   // TIMELINE TOUCH-DRAG TO SCRUB (mobile finger scrubbing)
@@ -2710,7 +2784,7 @@ export default function PreviewEditPage() {
     wordTouchStartPos.current = { x: touch.clientX, y: touch.clientY };
     wordLongPressTriggered.current = false;
 
-    // Start a 500ms timer — if finger doesn't move much, open context menu
+    // Start a 500ms timer â€” if finger doesn't move much, open context menu
     wordLongPressTimer.current = setTimeout(() => {
       wordLongPressTriggered.current = true;
 
@@ -3103,8 +3177,7 @@ export default function PreviewEditPage() {
   // ============================================================
   // UTILITY FUNCTIONS
   // ============================================================
-  // Intro duration constant (matches handler.py)
-  const INTRO_DURATION = 4;
+  // Note: INTRO_DURATION is declared earlier in the playback section
 
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -3156,7 +3229,10 @@ export default function PreviewEditPage() {
     return isCurrent ? (styleSettings.sungColor || '#00d4ff') : (styleSettings.textColor || '#ffffff');
   }, [isDuetMode, duetColors, styleSettings]);
 
-  const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
+  // Convert visual time to audio time for word comparisons
+  const audioTime = Math.max(0, currentTime - INTRO_DURATION);
+  
+  const isWordCurrent = useCallback((word) => audioTime >= word.start && audioTime <= word.end, [audioTime]);
 
   const getHighlightColor = useCallback((wordIndex) => {
     if (isDuetMode && words[wordIndex]?.singer !== undefined) {
@@ -3175,8 +3251,12 @@ export default function PreviewEditPage() {
   // Calculate directly during render (not useMemo) to ensure smooth animations
   // useMemo was causing stale values during rapid currentTime updates
   const LINES_PER_PAGE = layoutSettings.linesPerPage || 4; // Use setting from Layout tab
-
+  
+  // Use audioTime for lyrics calculations (word timings are in audio time)
   const getCurrentLyricsData = () => {
+    // audioTime is visual currentTime minus intro offset
+    const lyricsAudioTime = Math.max(0, currentTime - INTRO_DURATION);
+    
     if (!lyricsLines.length) return {
       prevLine: '',
       currentLine: null,
@@ -3192,12 +3272,12 @@ export default function PreviewEditPage() {
 
     let currentLineIdx = -1;
 
-    // Find current line
+    // Find current line (using audioTime for word comparisons)
     for (let i = 0; i < lyricsLines.length; i++) {
       const line = lyricsLines[i];
       for (let j = 0; j < line.length; j++) {
         const word = line[j];
-        if (currentTime >= word.start && currentTime <= word.end) {
+        if (lyricsAudioTime >= word.start && lyricsAudioTime <= word.end) {
           currentLineIdx = i;
           break;
         }
@@ -3209,9 +3289,9 @@ export default function PreviewEditPage() {
     if (currentLineIdx === -1) {
       for (let i = 0; i < lyricsLines.length; i++) {
         const line = lyricsLines[i];
-        if (line.length > 0 && line[0].start > currentTime) {
+        if (line.length > 0 && line[0].start > lyricsAudioTime) {
           const firstWordStart = line[0].start;
-          const timeUntilLine = firstWordStart - currentTime;
+          const timeUntilLine = firstWordStart - lyricsAudioTime;
           const prevLineEnd = i === 0 ? 0 : lyricsLines[i - 1][lyricsLines[i - 1].length - 1].end;
           const gapDuration = firstWordStart - prevLineEnd;
 
@@ -3302,7 +3382,7 @@ export default function PreviewEditPage() {
           if (i > 0) {
             const prevLineData = lyricsLines[i - 1];
             const lastWordEnd = prevLineData[prevLineData.length - 1].end;
-            if (currentTime - lastWordEnd <= 2) {
+            if (lyricsAudioTime - lastWordEnd <= 2) {
               const currentLineText = prevLineData.map(w => ({
                 word: w.word, index: w.globalIndex, start: w.start, end: w.end,
                 isActive: false, isPast: true, sweepPercent: 1
@@ -3378,7 +3458,7 @@ export default function PreviewEditPage() {
           };
         }
 
-        if (line.length > 0 && line[line.length - 1].end >= currentTime) {
+        if (line.length > 0 && line[line.length - 1].end >= lyricsAudioTime) {
           currentLineIdx = i;
           break;
         }
@@ -3389,7 +3469,7 @@ export default function PreviewEditPage() {
         if (lyricsLines.length > 0) {
           const lastLine = lyricsLines[lyricsLines.length - 1];
           const lastWordEnd = lastLine[lastLine.length - 1].end;
-          if (currentTime - lastWordEnd <= 2) {
+          if (lyricsAudioTime - lastWordEnd <= 2) {
             const lastLineIdx = lyricsLines.length - 1;
             const currentLineText = lastLine.map(w => ({
               word: w.word, index: w.globalIndex, start: w.start, end: w.end,
@@ -3443,8 +3523,8 @@ export default function PreviewEditPage() {
     const currentLineText = line.map(w => {
       let sweepPercent = 0;
       let fadeInProgress = 0; // 0-1, used for glow fade-in animation
-      const isActive = currentTime >= w.start && currentTime <= w.end;
-      const isPast = currentTime > w.end;
+      const isActive = lyricsAudioTime >= w.start && lyricsAudioTime <= w.end;
+      const isPast = lyricsAudioTime > w.end;
 
       if (isPast) {
         sweepPercent = 1;
@@ -3452,7 +3532,7 @@ export default function PreviewEditPage() {
       } else if (isActive) {
         const wordDuration = w.end - w.start;
         if (wordDuration > 0) {
-          sweepPercent = (currentTime - w.start) / wordDuration;
+          sweepPercent = (lyricsAudioTime - w.start) / wordDuration;
           // Fade in glow quickly at start of word (first 20% of duration)
           fadeInProgress = Math.min(1, sweepPercent * 5);
         }
@@ -3486,8 +3566,8 @@ export default function PreviewEditPage() {
       const lineWords = pageLine.map(w => {
         let sweepPct = 0;
         let fadeInPct = 0;
-        const isWordActive = currentTime >= w.start && currentTime <= w.end;
-        const isWordPast = currentTime > w.end;
+        const isWordActive = lyricsAudioTime >= w.start && lyricsAudioTime <= w.end;
+        const isWordPast = lyricsAudioTime > w.end;
         
         if (isPastLine || isWordPast) {
           sweepPct = 1;
@@ -3495,7 +3575,7 @@ export default function PreviewEditPage() {
         } else if (isCurrentLine && isWordActive) {
           const dur = w.end - w.start;
           if (dur > 0) {
-            sweepPct = (currentTime - w.start) / dur;
+            sweepPct = (lyricsAudioTime - w.start) / dur;
             fadeInPct = Math.min(1, sweepPct * 5);
           }
         }
@@ -5506,7 +5586,8 @@ export default function PreviewEditPage() {
                       };
 
                       return words.map((word, index) => {
-                        const wordX = centerX + (word.start - currentTime) * zoom;
+                        // Use audioTime for positioning (word.start is in audio time)
+                        const wordX = centerX + (word.start - audioTime) * zoom;
                         const wordWidth = Math.max(isDuetMode ? 35 : 40, (word.end - word.start) * zoom);
 
                         // Skip if off-screen
@@ -5670,7 +5751,7 @@ export default function PreviewEditPage() {
                               : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           }`}
                         >
-                          <span className="text-base">🎵</span>
+                          <span className="text-base">ðŸŽµ</span>
                           <span>Music {instrumentalMuted ? 'OFF' : 'ON'}</span>
                         </button>
 
@@ -5688,7 +5769,7 @@ export default function PreviewEditPage() {
                                 : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                             }`}
                           >
-                            <span className="text-base">🎤</span>
+                            <span className="text-base">ðŸŽ¤</span>
                             <span>Vocals {vocalsMuted ? 'OFF' : 'ON'}</span>
                           </button>
                         )}
