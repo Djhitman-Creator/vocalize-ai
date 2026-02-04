@@ -252,114 +252,181 @@ const Navigation = ({ isDark, toggleTheme, credits }) => {
   );
 };
 
-// UPDATED: HeroSection now accepts onWatchDemo callback
-const HeroSection = ({ isDark, onWatchDemo }) => (
-  <section className="min-h-screen flex items-center justify-center px-6 pt-32 pb-20">
-    <div className="max-w-6xl mx-auto text-center">
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="inline-flex items-center gap-2 glass-panel px-4 py-2 mb-8"
-      >
-        <Sparkles className="w-4 h-4 text-cyan-500" />
-        <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>AI-Powered Music Processing</span>
-      </motion.div>
-      <motion.h1
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className={`font-display text-4xl sm:text-5xl md:text-7xl font-bold mb-6 leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}
-      >
-        Transform Your Music<br />
-        <span className="text-gradient">With AI Magic</span>
-      </motion.h1>
-      <motion.p
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.4 }}
-        className={`text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-12 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
-      >
-        Remove vocals, add scrolling lyrics, customize everything, and export stunning karaoke videos - all powered by cutting-edge AI.
-      </motion.p>
-      <motion.div
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="flex flex-col sm:flex-row items-center justify-center gap-4"
-      >
-        <Link href="#pricing">
-          <button className="glass-button-primary glass-button flex items-center gap-2 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4">
-            <Sparkles className="w-5 h-5" />
-            Get Started
-          </button>
-        </Link>
-        {/* UPDATED: Watch Demo button now triggers the modal */}
-        <button 
-          onClick={onWatchDemo}
-          className={`glass-button flex items-center gap-2 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 ${isDark ? 'text-white' : 'text-gray-800'}`}
-        >
-          <Play className="w-5 h-5" />
-          Watch Demo
-        </button>
-      </motion.div>
+// ============================================
+// HERO SECTION WITH PARALLAX BACKGROUND
+// ============================================
+const HeroSection = ({ isDark, onWatchDemo }) => {
+  const [scrollY, setScrollY] = useState(0);
 
-      {/* Legal Disclaimer */}
-      <motion.div
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.55 }}
-        className={`max-w-2xl mx-auto mt-8 p-4 rounded-xl ${isDark
-            ? 'bg-white/5 border border-white/10'
-            : 'bg-gray-50 border border-gray-200'
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+    
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Parallax: background moves at 40% of scroll speed
+  const parallaxOffset = scrollY * 0.4;
+
+  return (
+    <section className="relative min-h-screen flex items-center justify-center px-6 pt-32 pb-20 overflow-hidden">
+      {/* Parallax Background Screenshot */}
+      <div 
+        className="absolute inset-0 z-0"
+        style={{ 
+          transform: `translateY(${parallaxOffset}px)`,
+          willChange: 'transform'
+        }}
+      >
+        {/* Screenshot Image */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            backgroundImage: 'url(/screenshots/editor-preview.png)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center top',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
+        
+        {/* Gradient overlay to fade screenshot into background */}
+        <div 
+          className={`absolute inset-0 ${
+            isDark 
+              ? 'bg-gradient-to-b from-[#0a0a0f]/70 via-[#0a0a0f]/85 to-[#0a0a0f]' 
+              : 'bg-gradient-to-b from-white/70 via-white/85 to-white'
           }`}
-      >
-        <div className="flex items-start gap-3">
-          <Scale className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
-          <div className="text-left">
-            <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-              <strong>For personal use only.</strong> By using Karatrack Studio, you confirm you have
-              the rights to any music you upload - either through ownership, license, or original creation.
-            </p>
-            <Link
-              href="/terms"
-              className={`text-sm mt-2 inline-block ${isDark ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'}`}
-            >
-              Read our Terms of Service 
-            </Link>
-          </div>
-        </div>
-      </motion.div>
+        />
+        
+        {/* Additional radial gradient for center focus */}
+        <div 
+          className={`absolute inset-0 ${
+            isDark 
+              ? 'bg-[radial-gradient(ellipse_at_center,transparent_0%,#0a0a0f_70%)]' 
+              : 'bg-[radial-gradient(ellipse_at_center,transparent_0%,white_70%)]'
+          }`}
+          style={{ opacity: 0.6 }}
+        />
+        
+        {/* Subtle color tint overlay */}
+        <div 
+          className={`absolute inset-0 ${
+            isDark 
+              ? 'bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5' 
+              : 'bg-gradient-to-br from-cyan-500/3 via-transparent to-purple-500/3'
+          }`}
+        />
+      </div>
 
-      {/* Stats Grid */}
-      <motion.div
-        initial={{ y: 40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.6 }}
-        className="grid grid-cols-3 gap-4 sm:gap-8 mt-16 max-w-2xl mx-auto"
-      >
-        {[
-          { value: '98%+', label: 'Lyrics Accuracy*' },
-          { value: 'Word-Level', label: 'Timing Sync' },
-          { value: 'Up to 4K', label: 'Export Quality*' },
-        ].map((stat, i) => (
-          <div key={i} className="text-center">
-            <div className="font-display text-xl sm:text-3xl font-bold text-gradient">{stat.value}</div>
-            <div className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{stat.label}</div>
+      {/* Hero Content */}
+      <div className="relative z-10 max-w-6xl mx-auto text-center">
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="inline-flex items-center gap-2 glass-panel px-4 py-2 mb-8"
+        >
+          <Sparkles className="w-4 h-4 text-cyan-500" />
+          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>AI-Powered Music Processing</span>
+        </motion.div>
+        <motion.h1
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className={`font-display text-4xl sm:text-5xl md:text-7xl font-bold mb-6 leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}
+        >
+          Transform Your Music<br />
+          <span className="text-gradient">With AI Magic</span>
+        </motion.h1>
+        <motion.p
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className={`text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-12 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
+        >
+          Remove vocals, add scrolling lyrics, customize everything, and export stunning karaoke videos - all powered by cutting-edge AI.
+        </motion.p>
+        <motion.div
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-4"
+        >
+          <Link href="#pricing">
+            <button className="glass-button-primary glass-button flex items-center gap-2 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4">
+              <Sparkles className="w-5 h-5" />
+              Get Started
+            </button>
+          </Link>
+          {/* UPDATED: Watch Demo button now triggers the modal */}
+          <button 
+            onClick={onWatchDemo}
+            className={`glass-button flex items-center gap-2 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 ${isDark ? 'text-white' : 'text-gray-800'}`}
+          >
+            <Play className="w-5 h-5" />
+            Watch Demo
+          </button>
+        </motion.div>
+
+        {/* Legal Disclaimer */}
+        <motion.div
+          initial={{ y: 30, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.55 }}
+          className={`max-w-2xl mx-auto mt-8 p-4 rounded-xl backdrop-blur-sm ${isDark
+              ? 'bg-white/5 border border-white/10'
+              : 'bg-gray-50/80 border border-gray-200'
+            }`}
+        >
+          <div className="flex items-start gap-3">
+            <Scale className={`w-5 h-5 flex-shrink-0 mt-0.5 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+            <div className="text-left">
+              <p className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                <strong>For personal use only.</strong> By using Karatrack Studio, you confirm you have
+                the rights to any music you upload - either through ownership, license, or original creation.
+              </p>
+              <Link
+                href="/terms"
+                className={`text-sm mt-2 inline-block ${isDark ? 'text-cyan-400 hover:text-cyan-300' : 'text-cyan-600 hover:text-cyan-700'}`}
+              >
+                Read our Terms of Service 
+              </Link>
+            </div>
           </div>
-        ))}
-      </motion.div>
-      <motion.div
-        initial={{ y: 40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.65 }}
-        className={`text-xs mt-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
-      >
-        *with edit-before-render feature. All quality tiers available to everyone.
-      </motion.div>
-    </div>
-  </section>
-);
+        </motion.div>
+
+        {/* Stats Grid */}
+        <motion.div
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="grid grid-cols-3 gap-4 sm:gap-8 mt-16 max-w-2xl mx-auto"
+        >
+          {[
+            { value: '98%+', label: 'Lyrics Accuracy*' },
+            { value: 'Word-Level', label: 'Timing Sync' },
+            { value: 'Up to 4K', label: 'Export Quality*' },
+          ].map((stat, i) => (
+            <div key={i} className="text-center">
+              <div className="font-display text-xl sm:text-3xl font-bold text-gradient">{stat.value}</div>
+              <div className={`text-xs sm:text-sm mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{stat.label}</div>
+            </div>
+          ))}
+        </motion.div>
+        <motion.div
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.65 }}
+          className={`text-xs mt-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}
+        >
+          *with edit-before-render feature. All quality tiers available to everyone.
+        </motion.div>
+      </div>
+    </section>
+  );
+};
 
 const FeaturesSection = ({ isDark }) => {
   const features = [
@@ -391,6 +458,80 @@ const FeaturesSection = ({ isDark }) => {
             </motion.div>
           ))}
         </div>
+      </div>
+    </section>
+  );
+};
+
+// ============================================
+// EVERYTHING INCLUDED SECTION - Features grid
+// ============================================
+const EverythingIncludedSection = ({ isDark }) => {
+  const includedFeatures = [
+    { icon: <Music className="w-5 h-5" />, text: 'AI vocal removal' },
+    { icon: <Mic2 className="w-5 h-5" />, text: 'Listen to isolated original vocals to assist with adjustments' },
+    { icon: <Sparkles className="w-5 h-5" />, text: 'Auto lyrics sync (50+ languages)' },
+    { icon: <FileVideo className="w-5 h-5" />, text: 'All display modes (Scroll, Page, Overwrite)' },
+    { icon: <Zap className="w-5 h-5" />, text: 'Up to 4K MP4 export' },
+    { icon: <Upload className="w-5 h-5" />, text: 'Custom backgrounds (images, video, gradients)' },
+    { icon: <FileVideo className="w-5 h-5" />, text: 'Standard and Custom font uploads (.ttf / .otf)' },
+    { icon: <Sparkles className="w-5 h-5" />, text: 'Full color control & word highlight effects' },
+    { icon: <Check className="w-5 h-5" />, text: 'Logo & watermark overlay' },
+    { icon: <FileVideo className="w-5 h-5" />, text: 'Customize your unique intro screen / add logo' },
+    { icon: <Music className="w-5 h-5" />, text: 'Duet mode (color-coded singer parts)' },
+    { icon: <Check className="w-5 h-5" />, text: 'Save & load favorite style presets' },
+    { icon: <Check className="w-5 h-5" />, text: 'Readiness checklist before export' },
+    { icon: <Zap className="w-5 h-5" />, text: 'Share via link or QR code for team edits & client approval' },
+  ];
+
+  return (
+    <section className="py-16 sm:py-24 px-6">
+      <div className="max-w-5xl mx-auto">
+        <motion.div
+          initial={{ y: 30, opacity: 0 }}
+          whileInView={{ y: 0, opacity: 1 }}
+          viewport={{ once: true }}
+          className="text-center mb-10"
+        >
+          <h2 className={`font-display text-3xl sm:text-4xl md:text-5xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            Everything Included <span className="text-gradient">for Everyone</span>
+          </h2>
+          <p className={`text-base sm:text-lg max-w-xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+            No tier restrictions. Every feature unlocked from day one.
+          </p>
+        </motion.div>
+
+        <motion.div
+          initial={{ y: 30, opacity: 0 }}
+          whileInView={{ y: 0, opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.1 }}
+          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
+        >
+          {includedFeatures.map((feature, i) => (
+            <motion.div
+              key={i}
+              initial={{ y: 20, opacity: 0 }}
+              whileInView={{ y: 0, opacity: 1 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.03 }}
+              className={`
+                flex items-start gap-3 p-4 rounded-xl transition-all
+                ${isDark 
+                  ? 'bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-cyan-500/30' 
+                  : 'bg-gray-50 border border-gray-100 hover:bg-white hover:border-cyan-200 hover:shadow-sm'
+                }
+              `}
+            >
+              <div className={`flex-shrink-0 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                {feature.icon}
+              </div>
+              <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                {feature.text}
+              </span>
+            </motion.div>
+          ))}
+        </motion.div>
       </div>
     </section>
   );
@@ -788,15 +929,19 @@ export default function HomePage() {
         <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
           <Navigation isDark={isDark} toggleTheme={toggleTheme} credits={credits} />
           
-          {/* UPDATED: Pass the modal open handler to HeroSection */}
+          {/* Hero with parallax screenshot background */}
           <HeroSection isDark={isDark} onWatchDemo={() => setIsVideoModalOpen(true)} />
           
           <FeaturesSection isDark={isDark} />
+          
+          {/* Everything included features grid */}
+          <EverythingIncludedSection isDark={isDark} />
+          
           <UploadSection isDark={isDark} />
           <PricingSection isDark={isDark} />
           <Footer isDark={isDark} />
           
-          {/* NEW: Video Modal */}
+          {/* Video Modal */}
           <VideoModal 
             isOpen={isVideoModalOpen} 
             onClose={() => setIsVideoModalOpen(false)} 
