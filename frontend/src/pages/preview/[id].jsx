@@ -3220,7 +3220,10 @@ export default function PreviewEditPage() {
     return isCurrent ? (styleSettings.sungColor || '#00d4ff') : (styleSettings.textColor || '#ffffff');
   }, [isDuetMode, duetColors, styleSettings]);
 
-  const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
+  // Audio time for word comparisons (currentTime includes intro offset, word.start is in audio time)
+  const audioTime = Math.max(0, currentTime - INTRO_DURATION);
+  
+  const isWordCurrent = useCallback((word) => audioTime >= word.start && audioTime <= word.end, [audioTime]);
 
   const getHighlightColor = useCallback((wordIndex) => {
     if (isDuetMode && words[wordIndex]?.singer !== undefined) {
@@ -3241,6 +3244,9 @@ export default function PreviewEditPage() {
   const LINES_PER_PAGE = layoutSettings.linesPerPage || 4; // Use setting from Layout tab
 
   const getCurrentLyricsData = () => {
+    // Use audioTime for lyrics calculations (word timings are in audio time, not visual time)
+    const lyricsTime = Math.max(0, currentTime - INTRO_DURATION);
+    
     if (!lyricsLines.length) return {
       prevLine: '',
       currentLine: null,
@@ -3256,12 +3262,12 @@ export default function PreviewEditPage() {
 
     let currentLineIdx = -1;
 
-    // Find current line
+    // Find current line (using audio time for word comparisons)
     for (let i = 0; i < lyricsLines.length; i++) {
       const line = lyricsLines[i];
       for (let j = 0; j < line.length; j++) {
         const word = line[j];
-        if (currentTime >= word.start && currentTime <= word.end) {
+        if (lyricsTime >= word.start && lyricsTime <= word.end) {
           currentLineIdx = i;
           break;
         }
@@ -3273,9 +3279,9 @@ export default function PreviewEditPage() {
     if (currentLineIdx === -1) {
       for (let i = 0; i < lyricsLines.length; i++) {
         const line = lyricsLines[i];
-        if (line.length > 0 && line[0].start > currentTime) {
+        if (line.length > 0 && line[0].start > lyricsTime) {
           const firstWordStart = line[0].start;
-          const timeUntilLine = firstWordStart - currentTime;
+          const timeUntilLine = firstWordStart - lyricsTime;
           const prevLineEnd = i === 0 ? 0 : lyricsLines[i - 1][lyricsLines[i - 1].length - 1].end;
           const gapDuration = firstWordStart - prevLineEnd;
 
@@ -3366,7 +3372,7 @@ export default function PreviewEditPage() {
           if (i > 0) {
             const prevLineData = lyricsLines[i - 1];
             const lastWordEnd = prevLineData[prevLineData.length - 1].end;
-            if (currentTime - lastWordEnd <= 2) {
+            if (lyricsTime - lastWordEnd <= 2) {
               const currentLineText = prevLineData.map(w => ({
                 word: w.word, index: w.globalIndex, start: w.start, end: w.end,
                 isActive: false, isPast: true, sweepPercent: 1
@@ -3442,7 +3448,7 @@ export default function PreviewEditPage() {
           };
         }
 
-        if (line.length > 0 && line[line.length - 1].end >= currentTime) {
+        if (line.length > 0 && line[line.length - 1].end >= lyricsTime) {
           currentLineIdx = i;
           break;
         }
@@ -3453,7 +3459,7 @@ export default function PreviewEditPage() {
         if (lyricsLines.length > 0) {
           const lastLine = lyricsLines[lyricsLines.length - 1];
           const lastWordEnd = lastLine[lastLine.length - 1].end;
-          if (currentTime - lastWordEnd <= 2) {
+          if (lyricsTime - lastWordEnd <= 2) {
             const lastLineIdx = lyricsLines.length - 1;
             const currentLineText = lastLine.map(w => ({
               word: w.word, index: w.globalIndex, start: w.start, end: w.end,
@@ -3507,8 +3513,8 @@ export default function PreviewEditPage() {
     const currentLineText = line.map(w => {
       let sweepPercent = 0;
       let fadeInProgress = 0; // 0-1, used for glow fade-in animation
-      const isActive = currentTime >= w.start && currentTime <= w.end;
-      const isPast = currentTime > w.end;
+      const isActive = lyricsTime >= w.start && lyricsTime <= w.end;
+      const isPast = lyricsTime > w.end;
 
       if (isPast) {
         sweepPercent = 1;
@@ -3516,7 +3522,7 @@ export default function PreviewEditPage() {
       } else if (isActive) {
         const wordDuration = w.end - w.start;
         if (wordDuration > 0) {
-          sweepPercent = (currentTime - w.start) / wordDuration;
+          sweepPercent = (lyricsTime - w.start) / wordDuration;
           // Fade in glow quickly at start of word (first 20% of duration)
           fadeInProgress = Math.min(1, sweepPercent * 5);
         }
@@ -3550,8 +3556,8 @@ export default function PreviewEditPage() {
       const lineWords = pageLine.map(w => {
         let sweepPct = 0;
         let fadeInPct = 0;
-        const isWordActive = currentTime >= w.start && currentTime <= w.end;
-        const isWordPast = currentTime > w.end;
+        const isWordActive = lyricsTime >= w.start && lyricsTime <= w.end;
+        const isWordPast = lyricsTime > w.end;
         
         if (isPastLine || isWordPast) {
           sweepPct = 1;
@@ -3559,7 +3565,7 @@ export default function PreviewEditPage() {
         } else if (isCurrentLine && isWordActive) {
           const dur = w.end - w.start;
           if (dur > 0) {
-            sweepPct = (currentTime - w.start) / dur;
+            sweepPct = (lyricsTime - w.start) / dur;
             fadeInPct = Math.min(1, sweepPct * 5);
           }
         }
@@ -5570,7 +5576,8 @@ export default function PreviewEditPage() {
                       };
 
                       return words.map((word, index) => {
-                        const wordX = centerX + (word.start - currentTime) * zoom;
+                        // Use audioTime for positioning (word.start is in audio time, not visual time)
+                        const wordX = centerX + (word.start - audioTime) * zoom;
                         const wordWidth = Math.max(isDuetMode ? 35 : 40, (word.end - word.start) * zoom);
 
                         // Skip if off-screen
