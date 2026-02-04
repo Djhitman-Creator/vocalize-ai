@@ -209,7 +209,7 @@ export default function UploadPage() {
       formData.append('lyrics_text', lyrics);
       formData.append('notify_on_complete', notifyOnComplete.toString());
       formData.append('include_lyrics', 'true');
-      formData.append('processing_mode', 'full');
+      formData.append('processing_mode', 'transcribe_only');  // Preview lyrics before rendering
 
       // Use defaults for everything else
       formData.append('processing_type', 'remove_vocals');
@@ -308,9 +308,9 @@ export default function UploadPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
 
-            {/* ──────────────────────────────────────────────
+            {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SECTION 1: Track Info
-            ────────────────────────────────────────────── */}
+            â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -379,9 +379,9 @@ export default function UploadPage() {
               </div>
             </motion.div>
 
-            {/* ──────────────────────────────────────────────
+            {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SECTION 2: Audio Upload + File Types
-            ────────────────────────────────────────────── */}
+            â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -411,7 +411,7 @@ export default function UploadPage() {
                 <input {...getAudioInputProps()} />
 
                 {audioFile ? (
-                  /* ── File Selected State ── */
+                  /* â”€â”€ File Selected State â”€â”€ */
                   <div className="p-6">
                     <div className="flex items-center gap-4">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-green-500/20' : 'bg-green-100'}`}>
@@ -435,7 +435,7 @@ export default function UploadPage() {
                     </div>
                   </div>
                 ) : (
-                  /* ── Empty / Drag State ── */
+                  /* â”€â”€ Empty / Drag State â”€â”€ */
                   <div className="p-8 sm:p-10 text-center">
                     <div className={`w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center ${isDark ? 'bg-cyan-400/10' : 'bg-cyan-50'}`}>
                       <Upload className={`w-8 h-8 ${isAudioDragActive ? 'text-cyan-300 animate-bounce' : 'text-cyan-400'}`} />
@@ -474,9 +474,9 @@ export default function UploadPage() {
               </div>
             </motion.div>
 
-            {/* ──────────────────────────────────────────────
+            {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SECTION 3: Lyrics
-            ────────────────────────────────────────────── */}
+            â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -518,9 +518,9 @@ export default function UploadPage() {
               </div>
             </motion.div>
 
-            {/* ──────────────────────────────────────────────
+            {/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 SECTION 4: Email + Rights + Render
-            ────────────────────────────────────────────── */}
+            â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

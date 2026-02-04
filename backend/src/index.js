@@ -1,15 +1,18 @@
 /**
  * Karatrack Studio Backend API Server
  * 
- * UPDATED: Added support for:
+ * V15 UPDATE: Migrated to credit-based pricing model
+ * - Removed tier-locked features (all features available to everyone)
+ * - New subscription model: credits_per_month + billing_cycle
+ * - New credit packs with 365-day validity
+ * - Watermark based on has_ever_paid (not tier)
+ * 
+ * Previous features:
  * - lyrics_text (user-provided lyrics for 100% accuracy)
  * - display_mode (auto/scroll/page/overwrite)
  * - clean_version (profanity filter toggle)
  * - Style customization (colors, fonts, gradients)
  * - Email notifications via Brevo when processing completes
- * - Subscription tier passed to RunPod for watermark logic
- * 
- * Changes marked with "// NEW:" comments
  */
 
 require('dotenv').config();
@@ -476,7 +479,7 @@ async function sendCompletionEmail(project, downloadUrl) {
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -604,7 +607,7 @@ async function sendFailureEmail(project, errorMessage) {
               Need help? <a href="mailto:support@karatrack.com" style="color: #00d4ff; text-decoration: none;">Contact Support</a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -716,7 +719,7 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -783,7 +786,8 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
       ? recentProjects.map(p => `- "${p.title}" (${p.status})`).join('\n')
       : 'No projects yet';
 
-    const isPaidUser = ['starter', 'pro', 'studio'].includes(profile.subscription_tier?.toLowerCase());
+    // V15: User is "paid" if they have ever paid (subscription or credit pack)
+    const isPaidUser = profile.has_ever_paid || profile.subscription_credits_per_month > 0;
 
     const systemPrompt = `You are a friendly, helpful assistant for Karatrack Studio - an AI-powered karaoke video creation platform. Your job is to help users understand how to use the software and solve any confusion they have.
 
@@ -796,22 +800,35 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 6. A karaoke video is generated with scrolling lyrics
 7. User downloads the finished MP4 video
 
-## SUBSCRIPTION TIERS & CREDITS
-- Free: 3 credits/month, 480p video, Karatrack watermark on videos
-- Starter ($9.99/mo): 25 credits/month, up to 1080p, no watermark, customize colors
-- Pro ($24.99/mo): 75 credits/month, up to 1080p, can edit lyrics timing before rendering
-- Studio ($49.99/mo): 200 credits/month, up to 4K, add your own logo, custom outro, full style control
+## PRICING MODEL
+Karatrack uses a universal credit system - all features are available to everyone!
 
-## CREDIT COSTS
-- 480p video: 3 credits
-- 720p video: 5 credits
-- 1080p video: 7 credits
-- 4K video: 9 credits
-- Credits expire 90 days after being added
-- Extra credit packs can be purchased anytime
+### Subscriptions (credits/month with recurring billing)
+- 50 credits/mo: $2.99/mo or $2.49/mo (annual)
+- 100 credits/mo: $4.99/mo or $3.99/mo (annual)
+- 250 credits/mo: $9.99/mo or $7.99/mo (annual)
+- 500 credits/mo: $17.99/mo or $14.49/mo (annual)
+- 1,000 credits/mo: $29.99/mo or $23.99/mo (annual)
+
+### Credit Packs (one-time purchase, valid 1 year)
+- 50 credits: $4.99
+- 150 credits: $11.99
+- 400 credits: $27.99
+- 1,000 credits: $54.99
+
+### Credit Costs Per Minute of Audio
+- 540p: 1 credit/min (queue) or 2 credits/min (instant)
+- 720p: 2 credits/min (queue) or 4 credits/min (instant)
+- 1080p: 3 credits/min (queue) or 6 credits/min (instant)
+- 4K: 5 credits/min (queue) or 10 credits/min (instant)
+
+Re-renders cost ~50% of original price.
+
+Free accounts get 15 credits to try everything. No credit card required.
+Watermarks only appear on free account exports - any purchase removes them.
 
 ## CURRENT USER INFO
-- Tier: ${profile.subscription_tier || 'free'}
+- Subscription: ${profile.subscription_credits_per_month || 0} credits/month
 - Credits: ${profile.credits_remaining || 0}
 - Recent projects:
 ${projectContext}
@@ -938,11 +955,12 @@ app.post('/api/chat/guest', async (req, res) => {
 4. AI removes vocals and syncs lyrics automatically
 5. Download your finished karaoke video (MP4)
 
-## SUBSCRIPTION TIERS
-- Free: 3 credits/month, 480p video quality
-- Starter ($9.99/mo): 25 credits/month, 1080p, no watermark
-- Pro ($24.99/mo): 75 credits/month, edit lyrics before rendering
-- Studio ($49.99/mo): 200 credits/month, 4K quality, custom branding
+## PRICING
+Karatrack uses a simple credit system - all features available to everyone!
+- Free: 15 credits to try everything
+- Subscriptions: 50-1000 credits/month from $2.99/mo
+- Credit packs: 50-1000 credits from $4.99 (one-time, valid 1 year)
+- Credits per minute: 1-5 depending on video quality (540p to 4K)
 
 ## YOUR GUIDELINES
 - Be friendly and concise (under 100 words)
@@ -1000,17 +1018,14 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
 });
 
 // ============================================
-// DEFAULT WATERMARK MANAGEMENT (Studio tier only)
+// DEFAULT WATERMARK MANAGEMENT
+// V15: All features available to everyone
 // ============================================
 
 // Upload/save default watermark
 app.post('/api/profile/watermark', authMiddleware, upload.single('watermark'), async (req, res) => {
   try {
-    // Check if user is Studio tier
-    const profile = await getUserProfile(req.user.id);
-    if (profile.subscription_tier !== 'studio') {
-      return res.status(403).json({ error: 'Custom watermarks are only available for Studio tier subscribers' });
-    }
+    // V15: All features available to everyone - no tier check needed
 
     if (!req.file) {
       return res.status(400).json({ error: 'No watermark file provided' });
@@ -1298,36 +1313,32 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       thumbnailUrl = await uploadToR2(thumbnailFile.buffer, thumbKey, thumbnailFile.mimetype);
     }
 
-    // Upload custom watermark if provided (Studio tier only)
+    // V15: Upload custom watermark if provided (available to all users)
     let customWatermarkUrl = null;
     const userProfileForWatermark = await getUserProfile(req.user.id);
     
-    if (userProfileForWatermark.subscription_tier === 'studio') {
-      if (customWatermarkFile) {
-        // New watermark file uploaded this session
-        const watermarkKey = `watermarks/${req.user.id}/${projectId}-watermark${customWatermarkFile.originalname.substring(customWatermarkFile.originalname.lastIndexOf('.'))}`;
-        customWatermarkUrl = await uploadToR2(customWatermarkFile.buffer, watermarkKey, customWatermarkFile.mimetype);
-        console.log(`Custom watermark uploaded: ${customWatermarkUrl}`);
-      } else if (req.body.custom_watermark_url) {
-        // Use saved default watermark URL from profile
-        customWatermarkUrl = req.body.custom_watermark_url;
-        console.log(`Using saved default watermark: ${customWatermarkUrl}`);
-      }
-    } else if (customWatermarkFile) {
-      console.log('Custom watermark ignored - user is not Studio tier');
+    if (customWatermarkFile) {
+      // New watermark file uploaded this session
+      const watermarkKey = `watermarks/${req.user.id}/${projectId}-watermark${customWatermarkFile.originalname.substring(customWatermarkFile.originalname.lastIndexOf('.'))}`;
+      customWatermarkUrl = await uploadToR2(customWatermarkFile.buffer, watermarkKey, customWatermarkFile.mimetype);
+      console.log(`Custom watermark uploaded: ${customWatermarkUrl}`);
+    } else if (req.body.custom_watermark_url) {
+      // Use saved default watermark URL from profile
+      customWatermarkUrl = req.body.custom_watermark_url;
+      console.log(`Using saved default watermark: ${customWatermarkUrl}`);
     }
 
-    // Upload background image if provided (Studio tier only)
+    // V15: Upload background image if provided (available to all users)
     let bgImageUrl = null;
-    if (userProfileForWatermark.subscription_tier === 'studio' && bgImageFile && bg_type === 'image') {
+    if (bgImageFile && bg_type === 'image') {
       const bgImageKey = `backgrounds/${req.user.id}/${projectId}-bg-image${bgImageFile.originalname.substring(bgImageFile.originalname.lastIndexOf('.'))}`;
       bgImageUrl = await uploadToR2(bgImageFile.buffer, bgImageKey, bgImageFile.mimetype);
       console.log(`Background image uploaded: ${bgImageUrl}`);
     }
 
-    // Upload custom background video if provided (Studio tier only)
+    // V15: Upload custom background video if provided (available to all users)
     let bgVideoUrl = null;
-    if (userProfileForWatermark.subscription_tier === 'studio' && bgVideoFile && bg_type === 'video') {
+    if (bgVideoFile && bg_type === 'video') {
       const bgVideoKey = `backgrounds/${req.user.id}/${projectId}-bg-video${bgVideoFile.originalname.substring(bgVideoFile.originalname.lastIndexOf('.'))}`;
       bgVideoUrl = await uploadToR2(bgVideoFile.buffer, bgVideoKey, bgVideoFile.mimetype);
       console.log(`Custom background video uploaded: ${bgVideoUrl}`);
@@ -1524,15 +1535,11 @@ app.post('/api/upload-logo', authMiddleware, upload.single('logo'), async (req, 
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    // Check if user is Studio tier (optional - you may want to enable for all tiers)
-    const profile = await getUserProfile(req.user.id);
-    if (profile.subscription_tier !== 'studio') {
-      return res.status(403).json({ error: 'Custom logos are only available for Studio tier subscribers' });
-    }
-
     if (!req.file) {
       return res.status(400).json({ error: 'No logo file provided' });
     }
+
+    // V15: All features available to everyone - no tier check needed
 
     // Upload logo to R2
     const logoKey = `logos/${req.user.id}/${projectId}-logo${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
@@ -1579,11 +1586,7 @@ app.post('/api/upload-start-image', authMiddleware, upload.single('startImage'),
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    // Check if user is Studio tier
-    const profile = await getUserProfile(req.user.id);
-    if (profile.subscription_tier !== 'studio') {
-      return res.status(403).json({ error: 'Start images are only available for Studio tier subscribers' });
-    }
+    // V15: All features available to everyone - no tier check needed
 
     if (!req.file) {
       return res.status(400).json({ error: 'No start image file provided' });
@@ -2126,24 +2129,17 @@ app.get('/api/plans', async (req, res) => {
   }
 });
 
-// Check if user has upgrade discount available
+// V15: Upgrade discounts are built into subscription pricing now
 app.get('/api/stripe/upgrade-discount', authMiddleware, async (req, res) => {
   try {
     const profile = await getUserProfile(req.user.id);
 
-    // User gets ONE 20% discount on their first upgrade
-    const hasDiscount = !profile.upgrade_discount_used &&
-      profile.subscription_tier &&
-      profile.subscription_tier !== 'free' &&
-      profile.subscription_tier !== 'studio'; // Can't upgrade from Studio
-
+    // V15: No more tier-based upgrade discounts - savings are built into subscription vs PAYG pricing
     res.json({
-      has_discount: hasDiscount,
-      discount_percent: hasDiscount ? 20 : 0,
-      current_tier: profile.subscription_tier || 'free',
-      message: hasDiscount
-        ? 'You have a one-time 20% discount available on your next upgrade!'
-        : null
+      has_discount: false,
+      discount_percent: 0,
+      current_credits_per_month: profile.subscription_credits_per_month || 0,
+      message: 'Savings are built into subscription pricing - subscriptions save 50-75% vs pay-as-you-go!'
     });
   } catch (error) {
     console.error('Upgrade discount check error:', error);
@@ -2151,22 +2147,29 @@ app.get('/api/stripe/upgrade-discount', authMiddleware, async (req, res) => {
   }
 });
 
-// Helper: Get tier level for comparison (higher number = higher tier)
-function getTierLevel(tier) {
-  const levels = {
-    'free': 0,
-    'starter': 1,
-    'pro': 2,
-    'studio': 3
-  };
-  return levels[tier?.toLowerCase()] ?? 0;
-}
-
+// V15: Credit-based subscription checkout
+// Accepts credits_per_month and billing_cycle instead of price_id
 app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
   try {
-    const { price_id } = req.body;
+    const { credits_per_month, billing_cycle } = req.body;
+    
+    // Validate input
+    if (!credits_per_month || !billing_cycle) {
+      return res.status(400).json({ error: 'Missing credits_per_month or billing_cycle' });
+    }
+    
+    const validCredits = [50, 100, 250, 500, 1000];
+    if (!validCredits.includes(credits_per_month)) {
+      return res.status(400).json({ error: 'Invalid credits_per_month value' });
+    }
+    
+    if (!['monthly', 'annual'].includes(billing_cycle)) {
+      return res.status(400).json({ error: 'Invalid billing_cycle. Must be "monthly" or "annual"' });
+    }
+    
     const profile = await getUserProfile(req.user.id);
-
+    
+    // Get or create Stripe customer
     let customerId = profile.stripe_customer_id;
     if (!customerId) {
       const customer = await stripe.customers.create({
@@ -2174,244 +2177,194 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
         metadata: { supabase_user_id: req.user.id },
       });
       customerId = customer.id;
-
+      
       await supabase
         .from('profiles')
         .update({ stripe_customer_id: customerId })
         .eq('id', req.user.id);
     }
-
-    // Get the new plan details
-    const { data: newPlan } = await supabase
+    
+    // Find the subscription plan
+    const { data: plan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('tier, credits_per_month')
-      .eq('stripe_price_id', price_id)
+      .select('*')
+      .eq('credits_per_month', credits_per_month)
+      .eq('is_active', true)
       .single();
-
-    if (!newPlan) {
-      return res.status(400).json({ error: 'Invalid plan selected' });
+    
+    if (planError || !plan) {
+      return res.status(400).json({ error: 'Subscription plan not found' });
     }
-
-    const currentTierLevel = getTierLevel(profile.subscription_tier);
-    const newTierLevel = getTierLevel(newPlan.tier);
-
-    console.log(`Plan change: ${profile.subscription_tier} (${currentTierLevel}) -> ${newPlan.tier} (${newTierLevel})`);
-
-    // If user has existing subscription, handle upgrade vs downgrade differently
+    
+    // Get the correct price ID based on billing cycle
+    const priceId = billing_cycle === 'annual' 
+      ? plan.stripe_annual_price_id 
+      : plan.stripe_monthly_price_id;
+    
+    if (!priceId) {
+      return res.status(400).json({ error: `No ${billing_cycle} price configured for this plan` });
+    }
+    
+    console.log(`Creating checkout for ${credits_per_month} credits/mo, ${billing_cycle} billing`);
+    console.log(`   Price ID: ${priceId}`);
+    
+    // If user has existing subscription, handle change
     if (profile.stripe_subscription_id) {
       try {
         const existingSubscription = await stripe.subscriptions.retrieve(profile.stripe_subscription_id);
-
+        
         if (existingSubscription.status === 'active' || existingSubscription.status === 'trialing') {
           const subscriptionItemId = existingSubscription.items.data[0].id;
-
-          if (newTierLevel > currentTierLevel) {
-            // UPGRADE: Update immediately, NO proration (user pays full price)
-            // User keeps their existing credits + gets new tier's credits
-            console.log(`   Upgrading immediately (no proration - full price)`);
-
-            // Check if user has upgrade discount available
-            const hasDiscount = !profile.upgrade_discount_used;
-            let couponId = null;
-
-            if (hasDiscount && process.env.STRIPE_UPGRADE_COUPON_ID) {
-              couponId = process.env.STRIPE_UPGRADE_COUPON_ID;
-              console.log(`   Applying 20% upgrade discount coupon`);
-            }
-
-            const updateParams = {
-              items: [{
-                id: subscriptionItemId,
-                price: price_id,
-              }],
-              proration_behavior: 'none',  // No proration - user pays full price for new tier
-              billing_cycle_anchor: 'now', // Reset billing cycle to now
-              metadata: {
-                previous_tier: profile.subscription_tier,
-                new_tier: newPlan.tier,
-                change_type: 'upgrade',
-                discount_applied: hasDiscount ? 'true' : 'false'
-              }
-            };
-
-            // Apply coupon if available (one-time 20% discount)
-            if (couponId) {
-              updateParams.coupon = couponId;
-            }
-
+          const currentCredits = profile.subscription_credits_per_month || 0;
+          
+          if (credits_per_month > currentCredits) {
+            // INCREASE: Update immediately with proration
+            console.log(`   Increasing credits: ${currentCredits} -> ${credits_per_month}`);
+            
             const updatedSubscription = await stripe.subscriptions.update(
               profile.stripe_subscription_id,
-              updateParams
+              {
+                items: [{ id: subscriptionItemId, price: priceId }],
+                proration_behavior: 'create_prorations',
+                metadata: {
+                  previous_credits: currentCredits,
+                  new_credits: credits_per_month,
+                  change_type: 'increase'
+                }
+              }
             );
-
-            // Update profile immediately (and mark discount as used if applied)
-            const profileUpdate = { subscription_tier: newPlan.tier };
-            if (hasDiscount) {
-              profileUpdate.upgrade_discount_used = true;
-            }
-
+            
+            // Update profile - tier will be set by webhook based on price_id
             await supabase
               .from('profiles')
-              .update(profileUpdate)
+              .update({
+                subscription_credits_per_month: credits_per_month,
+                subscription_billing_cycle: billing_cycle
+              })
               .eq('id', req.user.id);
-
-            // Update subscriptions table
-            await supabase
-              .from('subscriptions')
-              .upsert({
-                user_id: req.user.id,
-                stripe_subscription_id: profile.stripe_subscription_id,
-                stripe_price_id: price_id,
-                tier: newPlan.tier,
-                status: updatedSubscription.status
-              }, { onConflict: 'user_id' });
-
-            // Add upgrade credits (user keeps existing + gets new tier's credits)
-            console.log(`   Adding ${newPlan.credits_per_month} upgrade credits`);
+            
+            // Add bonus credits for the increase
+            const bonusCredits = credits_per_month - currentCredits;
             await addCreditsWithExpiration(
               req.user.id,
-              newPlan.credits_per_month,
-              'upgrade',
-              `Upgraded to ${newPlan.tier} - ${newPlan.credits_per_month} credits`
+              bonusCredits,
+              'subscription_upgrade',
+              `Subscription increased to ${credits_per_month} credits/mo (+${bonusCredits} bonus)`
             );
-
-            const discountMessage = hasDiscount && couponId
-              ? ' Your 20% upgrade discount has been applied!'
-              : '';
-
+            
             return res.json({
               success: true,
-              message: `Upgraded to ${newPlan.tier}! Your new plan is active immediately and you've received ${newPlan.credits_per_month} credits.${discountMessage}`,
-              redirect: `${process.env.FRONTEND_URL}/dashboard?upgraded=true`,
-              discount_applied: hasDiscount && couponId
+              message: `Subscription updated to ${credits_per_month} credits/month! You've received ${bonusCredits} bonus credits.`,
+              redirect: `${process.env.FRONTEND_URL}/dashboard?subscription_updated=true`
             });
-
-
-          } else if (newTierLevel < currentTierLevel) {
-            // DOWNGRADE: Schedule for end of billing period using subscription schedule
-            console.log(`   Scheduling downgrade for period end`);
-
-            try {
-              // Check if there's already a schedule attached
-              let schedule;
-              if (existingSubscription.schedule) {
-                // Retrieve existing schedule to get its current phase
-                const existingSchedule = await stripe.subscriptionSchedules.retrieve(existingSubscription.schedule);
-                
-                // Update existing schedule - keep current phase, add new phase for downgrade
-                schedule = await stripe.subscriptionSchedules.update(existingSubscription.schedule, {
-                  end_behavior: 'release',
-                  phases: [
-                    {
-                      items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
-                      start_date: existingSchedule.phases[0].start_date,
-                      end_date: existingSubscription.current_period_end,
-                    },
-                    {
-                      items: [{ price: price_id, quantity: 1 }],
-                      start_date: existingSubscription.current_period_end,
-                    }
-                  ],
-                  metadata: {
-                    previous_tier: profile.subscription_tier,
-                    new_tier: newPlan.tier,
-                    change_type: 'downgrade'
+            
+          } else if (credits_per_month < currentCredits) {
+            // DECREASE: Schedule for end of billing period
+            console.log(`   Decreasing credits: ${currentCredits} -> ${credits_per_month} (scheduled)`);
+            
+            // Create or update subscription schedule
+            let schedule;
+            if (existingSubscription.schedule) {
+              const existingSchedule = await stripe.subscriptionSchedules.retrieve(existingSubscription.schedule);
+              schedule = await stripe.subscriptionSchedules.update(existingSubscription.schedule, {
+                end_behavior: 'release',
+                phases: [
+                  {
+                    items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
+                    start_date: existingSchedule.phases[0].start_date,
+                    end_date: existingSubscription.current_period_end,
+                  },
+                  {
+                    items: [{ price: priceId, quantity: 1 }],
+                    start_date: existingSubscription.current_period_end,
                   }
-                });
-              } else {
-                // Create new schedule from the subscription
-                // When using from_subscription, Stripe auto-creates first phase
-                // We just need to add the second phase via update after creation
-                schedule = await stripe.subscriptionSchedules.create({
-                  from_subscription: profile.stripe_subscription_id,
-                });
-
-                // Now update the schedule to add the downgrade phase
-                schedule = await stripe.subscriptionSchedules.update(schedule.id, {
-                  end_behavior: 'release',
-                  phases: [
-                    {
-                      items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
-                      start_date: schedule.phases[0].start_date,
-                      end_date: existingSubscription.current_period_end,
-                    },
-                    {
-                      items: [{ price: price_id, quantity: 1 }],
-                      start_date: existingSubscription.current_period_end,
-                    }
-                  ],
-                  metadata: {
-                    previous_tier: profile.subscription_tier,
-                    new_tier: newPlan.tier,
-                    change_type: 'downgrade'
+                ],
+                metadata: {
+                  previous_credits: currentCredits,
+                  new_credits: credits_per_month,
+                  change_type: 'decrease'
+                }
+              });
+            } else {
+              schedule = await stripe.subscriptionSchedules.create({
+                from_subscription: profile.stripe_subscription_id,
+              });
+              
+              schedule = await stripe.subscriptionSchedules.update(schedule.id, {
+                end_behavior: 'release',
+                phases: [
+                  {
+                    items: [{ price: existingSubscription.items.data[0].price.id, quantity: 1 }],
+                    start_date: schedule.phases[0].start_date,
+                    end_date: existingSubscription.current_period_end,
+                  },
+                  {
+                    items: [{ price: priceId, quantity: 1 }],
+                    start_date: existingSubscription.current_period_end,
                   }
-                });
-              }
-
-              // Store the scheduled downgrade in our database
-              await supabase
-                .from('profiles')
-                .update({
-                  scheduled_tier: newPlan.tier,
-                  scheduled_tier_date: new Date(existingSubscription.current_period_end * 1000).toISOString()
-                })
-                .eq('id', req.user.id);
-
-              const periodEnd = new Date(existingSubscription.current_period_end * 1000);
-              const formattedDate = periodEnd.toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-              });
-
-              console.log(`   Downgrade scheduled for ${formattedDate}`);
-
-              // Send confirmation email
-              const userEmail = req.user.email;
-              const userName = profile.full_name || userEmail.split('@')[0];
-              sendDowngradeScheduledEmail(
-                userEmail,
-                userName,
-                profile.subscription_tier,
-                newPlan.tier,
-                periodEnd.toISOString()
-              ).catch(err => console.error('Downgrade email error:', err));
-
-              return res.json({
-                success: true,
-                message: `Your plan will change to ${newPlan.tier} on ${formattedDate}. You'll keep your ${profile.subscription_tier} benefits until then.`,
-                redirect: `${process.env.FRONTEND_URL}/dashboard?downgrade_scheduled=true`,
-                effective_date: periodEnd.toISOString()
-              });
-            } catch (scheduleError) {
-              console.error(`   Downgrade schedule failed:`, scheduleError.message);
-              // Return error instead of falling through to checkout
-              return res.status(500).json({ 
-                error: `Failed to schedule downgrade: ${scheduleError.message}. Please try again or contact support.` 
+                ],
+                metadata: {
+                  previous_credits: currentCredits,
+                  new_credits: credits_per_month,
+                  change_type: 'decrease'
+                }
               });
             }
+            
+            const periodEnd = new Date(existingSubscription.current_period_end * 1000);
+            const formattedDate = periodEnd.toLocaleDateString('en-US', {
+              month: 'long', day: 'numeric', year: 'numeric'
+            });
+            
+            // Store scheduled change
+            await supabase
+              .from('profiles')
+              .update({
+                scheduled_tier: `sub-${credits_per_month}`,
+                scheduled_tier_date: periodEnd.toISOString()
+              })
+              .eq('id', req.user.id);
+            
+            // Send confirmation email
+            const userEmail = req.user.email;
+            const userName = profile.full_name || userEmail.split('@')[0];
+            sendDowngradeScheduledEmail(
+              userEmail,
+              userName,
+              `${currentCredits} credits/mo`,
+              `${credits_per_month} credits/mo`,
+              periodEnd.toISOString()
+            ).catch(err => console.error('Downgrade email error:', err));
+            
+            return res.json({
+              success: true,
+              message: `Your subscription will change to ${credits_per_month} credits/month on ${formattedDate}.`,
+              redirect: `${process.env.FRONTEND_URL}/dashboard?change_scheduled=true`,
+              effective_date: periodEnd.toISOString()
+            });
           }
         }
       } catch (subError) {
         console.log(`   Could not process subscription change: ${subError.message}`);
-        // Fall through to create new checkout session only for NEW subscriptions
+        // Fall through to create new checkout session
       }
     }
-
-    // No existing subscription or subscription update failed - create new checkout session
+    
+    // No existing subscription - create new checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       mode: 'subscription',
       payment_method_types: ['card'],
-      line_items: [{ price: price_id, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${process.env.FRONTEND_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.FRONTEND_URL}/pricing`,
       metadata: {
         user_id: req.user.id,
-        is_upgrade: 'false'
+        credits_per_month: credits_per_month,
+        billing_cycle: billing_cycle
       },
     });
-
+    
     res.json({ url: session.url });
   } catch (error) {
     console.error('Stripe checkout error:', error);
@@ -2419,14 +2372,19 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
   }
 });
 
+// V15: Credit pack purchase with configurable validity
 app.post('/api/stripe/buy-credits', authMiddleware, async (req, res) => {
   try {
     const { package_id } = req.body;
+    
+    if (!package_id) {
+      return res.status(400).json({ error: 'Missing package_id' });
+    }
 
     const { data: pkg, error } = await supabase
       .from('credit_packages')
       .select('*')
-      .eq('id', package_id)
+      .eq('name', package_id)
       .single();
 
     if (error || !pkg) {
@@ -2434,24 +2392,43 @@ app.post('/api/stripe/buy-credits', authMiddleware, async (req, res) => {
     }
 
     const profile = await getUserProfile(req.user.id);
+    
+    // Get or create Stripe customer
+    let customerId = profile.stripe_customer_id;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: req.user.email,
+        metadata: { supabase_user_id: req.user.id },
+      });
+      customerId = customer.id;
+      
+      await supabase
+        .from('profiles')
+        .update({ stripe_customer_id: customerId })
+        .eq('id', req.user.id);
+    }
+    
+    console.log(`Creating credit pack checkout: ${pkg.name} (${pkg.credits} credits, valid ${pkg.validity_days || 365} days)`);
 
     const session = await stripe.checkout.sessions.create({
-      customer: profile.stripe_customer_id,
+      customer: customerId,
       mode: 'payment',
       payment_method_types: ['card'],
       line_items: [{ price: pkg.stripe_price_id, quantity: 1 }],
       success_url: `${process.env.FRONTEND_URL}/dashboard?credits_purchased=true`,
-      cancel_url: `${process.env.FRONTEND_URL}/dashboard`,
+      cancel_url: `${process.env.FRONTEND_URL}/pricing`,
       metadata: {
         user_id: req.user.id,
+        package_id: package_id,
         credits: pkg.credits,
+        validity_days: pkg.validity_days || 365,
         type: 'credit_purchase',
       },
     });
 
     res.json({ url: session.url });
   } catch (error) {
-    console.error('Stripe checkout error:', error);
+    console.error('Stripe buy-credits error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2583,43 +2560,77 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
       case 'checkout.session.completed': {
         const session = event.data.object;
 
-        // Handle credit purchases
+        // V15: Handle credit pack purchases with configurable validity
         if (session.metadata.type === 'credit_purchase') {
+          const credits = parseInt(session.metadata.credits);
+          const validityDays = parseInt(session.metadata.validity_days) || 365;
+          
+          console.log(`Credit pack purchased: ${credits} credits (valid for ${validityDays} days)`);
+          
           await addCreditsWithExpiration(
             session.metadata.user_id,
-            parseInt(session.metadata.credits),
+            credits,
             'purchase',
-            `Purchased ${session.metadata.credits} credits`
+            `Purchased ${credits} credits pack`,
+            validityDays
           );
+          
+          // Mark user as has_ever_paid (removes watermark)
+          await supabase
+            .from('profiles')
+            .update({ has_ever_paid: true })
+            .eq('id', session.metadata.user_id);
         }
 
-        // Handle subscription credits (both new signups AND upgrades get credits)
-        if (session.mode === 'subscription') {
-          const isUpgrade = session.metadata.is_upgrade === 'true';
-          console.log(`Subscription checkout completed for user: ${session.metadata.user_id} (upgrade: ${isUpgrade})`);
+        // V15: Handle new subscription signup with credit-based model
+        if (session.mode === 'subscription' && session.subscription) {
+          console.log(`Subscription checkout completed for user: ${session.metadata.user_id}`);
 
           // Get the subscription to find the price/plan
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
           const priceId = subscription.items.data[0].price.id;
 
-          const { data: plan } = await supabase
-            .from('subscription_plans')
-            .select('tier, credits_per_month')
-            .eq('stripe_price_id', priceId)
-            .single();
+          // V15: Find plan by price ID (checks both monthly and annual columns)
+          const { data: planResult } = await supabase.rpc('get_plan_by_price_id', { p_price_id: priceId });
 
-          if (plan) {
-            const description = isUpgrade
-              ? `Upgraded to ${plan.tier} - ${plan.credits_per_month} credits`
-              : `${plan.tier} subscription - ${plan.credits_per_month} monthly credits`;
+          if (planResult && planResult.length > 0) {
+            const plan = planResult[0];
+            console.log(`   Plan found: ${plan.tier} - ${plan.credits_per_month} credits/mo, ${plan.billing_cycle}`);
 
-            console.log(`   Adding ${plan.credits_per_month} credits for ${plan.tier} subscription (expires in 90 days)`);
+            // Add initial subscription credits (90 day expiration)
             await addCreditsWithExpiration(
               session.metadata.user_id,
               plan.credits_per_month,
-              isUpgrade ? 'upgrade' : 'subscription',
-              description
+              'subscription',
+              `${plan.name} subscription - ${plan.credits_per_month} monthly credits`,
+              90
             );
+
+            // Update profile with new credit-based fields
+            // Use tier from database (starter, basic, pro, plus, studio)
+            await supabase
+              .from('profiles')
+              .update({
+                subscription_credits_per_month: plan.credits_per_month,
+                subscription_billing_cycle: plan.billing_cycle,
+                subscription_tier: plan.tier,
+                stripe_subscription_id: subscription.id,
+                has_ever_paid: true
+              })
+              .eq('id', session.metadata.user_id);
+
+            // Update subscriptions table
+            await supabase
+              .from('subscriptions')
+              .upsert({
+                user_id: session.metadata.user_id,
+                stripe_subscription_id: subscription.id,
+                stripe_price_id: priceId,
+                tier: plan.tier,
+                status: subscription.status
+              }, { onConflict: 'user_id' });
+          } else {
+            console.log('   No plan found for price ID:', priceId);
           }
         }
         break;
@@ -2633,7 +2644,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, subscription_credits_per_month')
           .eq('stripe_customer_id', customerId)
           .single();
 
@@ -2647,24 +2658,19 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
           const priceId = subscription.items.data[0].price.id;
           console.log(`   Price ID from subscription: ${priceId}`);
 
-          const { data: plan, error: planError } = await supabase
-            .from('subscription_plans')
-            .select('tier, credits_per_month')
-            .eq('stripe_price_id', priceId)
-            .single();
+          // V15: Find plan by price ID (checks both monthly and annual columns)
+          const { data: planResult } = await supabase.rpc('get_plan_by_price_id', { p_price_id: priceId });
 
-          if (planError) {
-            console.error('Error finding plan by stripe_price_id:', planError);
-            console.log('   Looking for price ID:', priceId);
-          }
-
-          if (plan) {
-            console.log(`Found plan: ${plan.tier} (${plan.credits_per_month} credits)`);
+          if (planResult && planResult.length > 0) {
+            const plan = planResult[0];
+            console.log(`   Plan: ${plan.tier} - ${plan.credits_per_month} credits/mo, ${plan.billing_cycle}`);
 
             const { error: updateError } = await supabase
               .from('profiles')
               .update({
                 subscription_tier: plan.tier,
+                subscription_credits_per_month: plan.credits_per_month,
+                subscription_billing_cycle: plan.billing_cycle,
                 stripe_subscription_id: subscription.id,
               })
               .eq('id', profile.id);
@@ -2672,10 +2678,10 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             if (updateError) {
               console.error('Error updating profile:', updateError);
             } else {
-              console.log(`Profile updated to tier: ${plan.tier}`);
+              console.log(`   Profile updated: ${plan.tier} (${plan.credits_per_month} credits/mo)`);
             }
 
-            // ALSO upsert into subscriptions table (THIS WAS MISSING - caused "Failed to Fetch" errors)
+            // Update subscriptions table
             const { error: subError } = await supabase
               .from('subscriptions')
               .upsert({
@@ -2689,13 +2695,10 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             if (subError) {
               console.error('Error upserting subscription record:', subError);
             } else {
-              console.log(`Subscription record created/updated in subscriptions table`);
+              console.log(`   Subscription record created/updated in subscriptions table`);
             }
-
-            // Note: Credits are now added in checkout.session.completed handler
-            // This allows us to check metadata and skip credits for upgrades
           } else {
-            console.log('No plan found for price ID:', priceId);
+            console.log('   No plan found for price ID:', priceId);
           }
         } else {
           console.log('No profile found for customer ID:', customerId);
@@ -2707,14 +2710,17 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
         const subscription = event.data.object;
         console.log(`Subscription deleted for customer: ${subscription.customer}`);
 
-        // Update profile
+        // V15: Reset to free but keep has_ever_paid status
         await supabase
           .from('profiles')
           .update({
             subscription_tier: 'free',
+            subscription_credits_per_month: 0,
+            subscription_billing_cycle: 'none',
             stripe_subscription_id: null,
             scheduled_tier: null,
             scheduled_tier_date: null,
+            // Note: has_ever_paid stays true - they keep their "paid user" status for watermark
           })
           .eq('stripe_customer_id', subscription.customer);
 
@@ -2730,7 +2736,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
             .from('subscriptions')
             .delete()
             .eq('user_id', profile.id);
-          console.log(`Subscription record deleted from subscriptions table`);
+          console.log(`   Subscription record deleted from subscriptions table`);
         }
         break;
       }
@@ -2796,27 +2802,37 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
 
       case 'invoice.paid': {
         const invoice = event.data.object;
+        
+        // V15: Handle subscription renewal with credit-based model
         if (invoice.billing_reason === 'subscription_cycle') {
+          console.log(`Subscription renewal invoice paid: ${invoice.id}`);
+          
+          // Get the subscription to find the price
+          const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+          const priceId = subscription.items.data[0].price.id;
+          
           const { data: profile } = await supabase
             .from('profiles')
-            .select('id, subscription_tier')
+            .select('id, subscription_credits_per_month')
             .eq('stripe_customer_id', invoice.customer)
             .single();
 
           if (profile) {
-            const { data: plan } = await supabase
-              .from('subscription_plans')
-              .select('credits_per_month')
-              .eq('tier', profile.subscription_tier)
-              .single();
+            // V15: Find plan by price ID to get credits_per_month
+            const { data: planResult } = await supabase.rpc('get_plan_by_price_id', { p_price_id: priceId });
+            
+            const creditsToAdd = planResult && planResult.length > 0 
+              ? planResult[0].credits_per_month 
+              : profile.subscription_credits_per_month;
 
-            if (plan) {
-              console.log(`Monthly renewal for ${profile.subscription_tier}: adding ${plan.credits_per_month} credits`);
+            if (creditsToAdd > 0) {
+              console.log(`   Adding ${creditsToAdd} renewal credits`);
               await addCreditsWithExpiration(
                 profile.id,
-                plan.credits_per_month,
+                creditsToAdd,
                 'subscription',
-                `Monthly renewal - ${plan.credits_per_month} credits`
+                `Monthly renewal - ${creditsToAdd} credits`,
+                90  // Subscription credits expire in 90 days
               );
 
               await supabase
@@ -2982,8 +2998,8 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
 // ============================================
 
 // Support contact form - sends email to admin
-// Only available for paid subscribers (starter, pro, studio)
-// Studio users get "Priority Support", Starter/Pro get "Standard Support"
+// V15: Available to any user who has ever paid (subscription or credit pack)
+// Higher subscription = "Priority Support", others get "Standard Support"
 app.post('/api/support/contact', authMiddleware, async (req, res) => {
   try {
     // Get user profile to check subscription tier
@@ -2997,13 +3013,12 @@ app.post('/api/support/contact', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Profile not found' });
     }
 
-    // Check if user has a paid subscription
-    const tier = profile.subscription_tier?.toLowerCase();
-    const paidTiers = ['starter', 'pro', 'studio'];
+    // V15: Check if user has ever paid (subscription or credit pack purchase)
+    const isPaidUser = profile.has_ever_paid || profile.subscription_credits_per_month > 0;
     
-    if (!paidTiers.includes(tier)) {
+    if (!isPaidUser) {
       return res.status(403).json({ 
-        error: 'Support is only available for paid subscribers. Please upgrade your plan.' 
+        error: 'Support is available to customers who have made a purchase. Get credits to unlock support.' 
       });
     }
 
@@ -3022,10 +3037,11 @@ app.post('/api/support/contact', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Message must be 2000 characters or less' });
     }
 
-    // Determine support level based on tier
-    const isStudio = tier === 'studio';
-    const supportLevel = isStudio ? 'Priority Support' : 'Standard Support';
-    const emailSubject = isStudio 
+    // Determine support level based on subscription credits
+    // V15: 500+ credits/month = Priority Support, others = Standard Support
+    const isPriority = profile.subscription_credits_per_month >= 500;
+    const supportLevel = isPriority ? 'Priority Support' : 'Standard Support';
+    const emailSubject = isPriority 
       ? `[Priority Support] Karatrack Studio: ${subject}`
       : `[Standard Support] Karatrack Studio: ${subject}`;
 
@@ -3246,7 +3262,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             </p>
           </div>
           <div class="footer">
-            <p>ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
+            <p>ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
             <p>Questions? Reply to this email or visit our support page.</p>
           </div>
         </div>
