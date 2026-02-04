@@ -1118,7 +1118,8 @@ export default function DashboardPage() {
     ['processing', 'transcribing', 'rendering'].includes(p.status)
   ).length;
 
-  const isPaidUser = profile?.subscription_tier && profile.subscription_tier !== 'free';
+  // V15: User is "paid" if they have an active subscription OR have ever paid (credit pack purchase)
+  const isPaidUser = profile?.has_ever_paid || (profile?.subscription_credits_per_month > 0);
 
 
   // ---- RENDER ----
@@ -1236,23 +1237,42 @@ export default function DashboardPage() {
             </div>
 
             {/* Plan */}
-            <div className={`
-              rounded-2xl p-4 sm:p-5 backdrop-blur-xl
-              ${isDark
-                ? 'bg-white/[0.04] border border-white/[0.08]'
-                : 'bg-white/70 border border-gray-200/80'
-              }
-            `}>
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-emerald-500/15' : 'bg-emerald-50'}`}>
-                  <CheckCircle className={`w-4 h-4 sm:w-5 sm:h-5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
-                </div>
-                <div>
-                  <p className={`text-[11px] sm:text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Plan</p>
-                  <p className={`text-lg sm:text-xl font-bold capitalize ${isDark ? 'text-white' : 'text-gray-900'}`}>{profile?.subscription_tier || 'Free'}</p>
+            <Link href="/pricing">
+              <div className={`
+                rounded-2xl p-4 sm:p-5 backdrop-blur-xl cursor-pointer transition-all duration-200
+                ${isDark
+                  ? 'bg-white/[0.04] border border-white/[0.08] hover:border-emerald-500/30'
+                  : 'bg-white/70 border border-gray-200/80 hover:border-emerald-300'
+                }
+              `}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center ${isDark ? 'bg-emerald-500/15' : 'bg-emerald-50'}`}>
+                    {profile?.subscription_credits_per_month > 0 ? (
+                      <CheckCircle className={`w-4 h-4 sm:w-5 sm:h-5 ${isDark ? 'text-emerald-400' : 'text-emerald-600'}`} />
+                    ) : (
+                      <Calendar className={`w-4 h-4 sm:w-5 sm:h-5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-[11px] sm:text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Plan</p>
+                    {profile?.subscription_credits_per_month > 0 ? (
+                      <>
+                        <p className={`text-base sm:text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {profile.subscription_credits_per_month} cr/mo
+                        </p>
+                        <p className={`text-[10px] sm:text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} truncate`}>
+                          {profile.subscription_billing_cycle === 'annual' ? 'Annual' : 'Monthly'}
+                        </p>
+                      </>
+                    ) : (
+                      <p className={`text-base sm:text-lg font-bold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        No Plan
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Help (paid only) */}
             {isPaidUser && (
@@ -1274,7 +1294,7 @@ export default function DashboardPage() {
                   <div>
                     <p className={`text-[11px] sm:text-xs font-medium ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>Support</p>
                     <p className={`text-lg sm:text-xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                      {profile?.subscription_tier === 'studio' ? 'Priority' : 'Standard'}
+                      {profile?.subscription_credits_per_month >= 500 ? 'Priority' : 'Standard'}
                     </p>
                   </div>
                 </div>
