@@ -479,7 +479,7 @@ async function sendCompletionEmail(project, downloadUrl) {
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -607,7 +607,7 @@ async function sendFailureEmail(project, errorMessage) {
               Need help? <a href="mailto:support@karatrack.com" style="color: #00d4ff; text-decoration: none;">Contact Support</a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -719,7 +719,7 @@ async function sendDowngradeScheduledEmail(userEmail, userName, currentTier, new
               </a>
             </p>
             <p style="color: #444; font-size: 12px; margin: 0;">
-              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
+              ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.
             </p>
           </div>
         </div>
@@ -786,7 +786,8 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
       ? recentProjects.map(p => `- "${p.title}" (${p.status})`).join('\n')
       : 'No projects yet';
 
-    const isPaidUser = ['starter', 'pro', 'studio'].includes(profile.subscription_tier?.toLowerCase());
+    // V15: User is "paid" if they have ever paid (subscription or credit pack)
+    const isPaidUser = profile.has_ever_paid || profile.subscription_credits_per_month > 0;
 
     const systemPrompt = `You are a friendly, helpful assistant for Karatrack Studio - an AI-powered karaoke video creation platform. Your job is to help users understand how to use the software and solve any confusion they have.
 
@@ -1017,17 +1018,14 @@ app.get('/api/user/profile', authMiddleware, async (req, res) => {
 });
 
 // ============================================
-// DEFAULT WATERMARK MANAGEMENT (Studio tier only)
+// DEFAULT WATERMARK MANAGEMENT
+// V15: All features available to everyone
 // ============================================
 
 // Upload/save default watermark
 app.post('/api/profile/watermark', authMiddleware, upload.single('watermark'), async (req, res) => {
   try {
-    // Check if user is Studio tier
-    const profile = await getUserProfile(req.user.id);
-    if (profile.subscription_tier !== 'studio') {
-      return res.status(403).json({ error: 'Custom watermarks are only available for Studio tier subscribers' });
-    }
+    // V15: All features available to everyone - no tier check needed
 
     if (!req.file) {
       return res.status(400).json({ error: 'No watermark file provided' });
@@ -1315,36 +1313,32 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       thumbnailUrl = await uploadToR2(thumbnailFile.buffer, thumbKey, thumbnailFile.mimetype);
     }
 
-    // Upload custom watermark if provided (Studio tier only)
+    // V15: Upload custom watermark if provided (available to all users)
     let customWatermarkUrl = null;
     const userProfileForWatermark = await getUserProfile(req.user.id);
     
-    if (userProfileForWatermark.subscription_tier === 'studio') {
-      if (customWatermarkFile) {
-        // New watermark file uploaded this session
-        const watermarkKey = `watermarks/${req.user.id}/${projectId}-watermark${customWatermarkFile.originalname.substring(customWatermarkFile.originalname.lastIndexOf('.'))}`;
-        customWatermarkUrl = await uploadToR2(customWatermarkFile.buffer, watermarkKey, customWatermarkFile.mimetype);
-        console.log(`Custom watermark uploaded: ${customWatermarkUrl}`);
-      } else if (req.body.custom_watermark_url) {
-        // Use saved default watermark URL from profile
-        customWatermarkUrl = req.body.custom_watermark_url;
-        console.log(`Using saved default watermark: ${customWatermarkUrl}`);
-      }
-    } else if (customWatermarkFile) {
-      console.log('Custom watermark ignored - user is not Studio tier');
+    if (customWatermarkFile) {
+      // New watermark file uploaded this session
+      const watermarkKey = `watermarks/${req.user.id}/${projectId}-watermark${customWatermarkFile.originalname.substring(customWatermarkFile.originalname.lastIndexOf('.'))}`;
+      customWatermarkUrl = await uploadToR2(customWatermarkFile.buffer, watermarkKey, customWatermarkFile.mimetype);
+      console.log(`Custom watermark uploaded: ${customWatermarkUrl}`);
+    } else if (req.body.custom_watermark_url) {
+      // Use saved default watermark URL from profile
+      customWatermarkUrl = req.body.custom_watermark_url;
+      console.log(`Using saved default watermark: ${customWatermarkUrl}`);
     }
 
-    // Upload background image if provided (Studio tier only)
+    // V15: Upload background image if provided (available to all users)
     let bgImageUrl = null;
-    if (userProfileForWatermark.subscription_tier === 'studio' && bgImageFile && bg_type === 'image') {
+    if (bgImageFile && bg_type === 'image') {
       const bgImageKey = `backgrounds/${req.user.id}/${projectId}-bg-image${bgImageFile.originalname.substring(bgImageFile.originalname.lastIndexOf('.'))}`;
       bgImageUrl = await uploadToR2(bgImageFile.buffer, bgImageKey, bgImageFile.mimetype);
       console.log(`Background image uploaded: ${bgImageUrl}`);
     }
 
-    // Upload custom background video if provided (Studio tier only)
+    // V15: Upload custom background video if provided (available to all users)
     let bgVideoUrl = null;
-    if (userProfileForWatermark.subscription_tier === 'studio' && bgVideoFile && bg_type === 'video') {
+    if (bgVideoFile && bg_type === 'video') {
       const bgVideoKey = `backgrounds/${req.user.id}/${projectId}-bg-video${bgVideoFile.originalname.substring(bgVideoFile.originalname.lastIndexOf('.'))}`;
       bgVideoUrl = await uploadToR2(bgVideoFile.buffer, bgVideoKey, bgVideoFile.mimetype);
       console.log(`Custom background video uploaded: ${bgVideoUrl}`);
@@ -1541,15 +1535,11 @@ app.post('/api/upload-logo', authMiddleware, upload.single('logo'), async (req, 
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    // Check if user is Studio tier (optional - you may want to enable for all tiers)
-    const profile = await getUserProfile(req.user.id);
-    if (profile.subscription_tier !== 'studio') {
-      return res.status(403).json({ error: 'Custom logos are only available for Studio tier subscribers' });
-    }
-
     if (!req.file) {
       return res.status(400).json({ error: 'No logo file provided' });
     }
+
+    // V15: All features available to everyone - no tier check needed
 
     // Upload logo to R2
     const logoKey = `logos/${req.user.id}/${projectId}-logo${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
@@ -1596,11 +1586,7 @@ app.post('/api/upload-start-image', authMiddleware, upload.single('startImage'),
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    // Check if user is Studio tier
-    const profile = await getUserProfile(req.user.id);
-    if (profile.subscription_tier !== 'studio') {
-      return res.status(403).json({ error: 'Start images are only available for Studio tier subscribers' });
-    }
+    // V15: All features available to everyone - no tier check needed
 
     if (!req.file) {
       return res.status(400).json({ error: 'No start image file provided' });
@@ -3012,8 +2998,8 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
 // ============================================
 
 // Support contact form - sends email to admin
-// Only available for paid subscribers (starter, pro, studio)
-// Studio users get "Priority Support", Starter/Pro get "Standard Support"
+// V15: Available to any user who has ever paid (subscription or credit pack)
+// Higher subscription = "Priority Support", others get "Standard Support"
 app.post('/api/support/contact', authMiddleware, async (req, res) => {
   try {
     // Get user profile to check subscription tier
@@ -3027,13 +3013,12 @@ app.post('/api/support/contact', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Profile not found' });
     }
 
-    // Check if user has a paid subscription
-    const tier = profile.subscription_tier?.toLowerCase();
-    const paidTiers = ['starter', 'pro', 'studio'];
+    // V15: Check if user has ever paid (subscription or credit pack purchase)
+    const isPaidUser = profile.has_ever_paid || profile.subscription_credits_per_month > 0;
     
-    if (!paidTiers.includes(tier)) {
+    if (!isPaidUser) {
       return res.status(403).json({ 
-        error: 'Support is only available for paid subscribers. Please upgrade your plan.' 
+        error: 'Support is available to customers who have made a purchase. Get credits to unlock support.' 
       });
     }
 
@@ -3052,10 +3037,11 @@ app.post('/api/support/contact', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Message must be 2000 characters or less' });
     }
 
-    // Determine support level based on tier
-    const isStudio = tier === 'studio';
-    const supportLevel = isStudio ? 'Priority Support' : 'Standard Support';
-    const emailSubject = isStudio 
+    // Determine support level based on subscription credits
+    // V15: 500+ credits/month = Priority Support, others = Standard Support
+    const isPriority = profile.subscription_credits_per_month >= 500;
+    const supportLevel = isPriority ? 'Priority Support' : 'Standard Support';
+    const emailSubject = isPriority 
       ? `[Priority Support] Karatrack Studio: ${subject}`
       : `[Standard Support] Karatrack Studio: ${subject}`;
 
@@ -3276,7 +3262,7 @@ async function sendExpirationWarningEmail(email, creditsExpiring, daysLeft, expi
             </p>
           </div>
           <div class="footer">
-            <p>ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
+            <p>ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â‚¬Å¾Ã‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Â ÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Â¦Ãƒâ€šÃ‚Â¡ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â© ${new Date().getFullYear()} Karatrack Studio. All rights reserved.</p>
             <p>Questions? Reply to this email or visit our support page.</p>
           </div>
         </div>
