@@ -3609,7 +3609,9 @@ export default function PreviewEditPage() {
   const handleProgressClick = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const percent = (e.clientX - rect.left) / rect.width;
-    seekTo(percent * duration);
+    // Total visual duration includes intro
+    const totalVisualDuration = (duration || 0) + INTRO_DURATION;
+    seekTo(percent * totalVisualDuration);
   }, [duration, seekTo]);
 
   const zoomIn = () => setZoom(prev => Math.min(prev * 1.25, 300));
@@ -3618,13 +3620,17 @@ export default function PreviewEditPage() {
   // ============================================================
   // GENERATE TIME MARKERS FOR TIMELINE
   // ============================================================
+  // Time markers show AUDIO time (0, 1, 2, 3...) not visual time
+  // The playhead position represents currentTime (visual), but markers are audio time
   const timeMarkers = useMemo(() => {
     if (!duration || !timelineContainerRef.current) return [];
 
     const markers = [];
     const visibleRange = 20; // seconds visible on each side of center
-    const startTime = Math.max(0, currentTime - visibleRange);
-    const endTime = Math.min(duration, currentTime + visibleRange);
+    // Use audioTime for marker generation since markers represent audio time
+    const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
+    const startTime = Math.max(0, audioTimeNow - visibleRange);
+    const endTime = Math.min(duration, audioTimeNow + visibleRange);
 
     // Generate markers for every second in visible range
     for (let t = Math.floor(startTime); t <= Math.ceil(endTime); t++) {
@@ -4750,13 +4756,14 @@ export default function PreviewEditPage() {
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
                           const percent = (e.clientX - rect.left) / rect.width;
-                          const newTime = percent * duration;
+                          const totalVisualDuration = (duration || 0) + INTRO_DURATION;
+                          const newTime = percent * totalVisualDuration;
                           seekTo(newTime);
                         }}
                       >
                         <div 
                           className="h-full bg-cyan-400 rounded-full"
-                          style={{ width: `${(currentTime / duration) * 100}%` }}
+                          style={{ width: `${(currentTime / ((duration || 0) + INTRO_DURATION)) * 100}%` }}
                         />
                       </div>
                       
@@ -5318,15 +5325,16 @@ export default function PreviewEditPage() {
                     onClick={handleTimelineClick}
                     onTouchStart={handleTimelineTouchStart}
                     onMouseMove={(e) => {
-                      // Calculate time at mouse position for tooltip
+                      // Calculate time at mouse position for tooltip (shows audio time)
                       const rect = e.currentTarget.getBoundingClientRect();
                       const mouseX = e.clientX - rect.left;
                       const centerX = rect.width / 2;
-                      const timeAtMouse = currentTime + (mouseX - centerX) / zoom;
+                      // Mouse offset from center represents audioTime offset
+                      const audioTimeAtMouse = audioTime + (mouseX - centerX) / zoom;
                       setTimelineHover({ 
                         show: true, 
                         x: mouseX, 
-                        time: Math.max(0, Math.min(duration, timeAtMouse))
+                        time: Math.max(0, Math.min(duration || 0, audioTimeAtMouse))
                       });
                     }}
                     onMouseLeave={() => setTimelineHover({ show: false, x: 0, time: 0 })}
@@ -5361,7 +5369,8 @@ export default function PreviewEditPage() {
                           
                           for (let sampleIndex = 0; sampleIndex < waveformData.amplitudes.length; sampleIndex++) {
                             const sampleTime = sampleIndex * secondsPerSample;
-                            const barX = centerX + (sampleTime - currentTime) * zoom;
+                            // Use audioTime for waveform positioning (waveform starts at audio time 0)
+                            const barX = centerX + (sampleTime - audioTime) * zoom;
                             
                             // Skip if way off-screen (with buffer for smooth edges)
                             if (barX < -50 || barX > containerWidth + 50) continue;
@@ -5478,7 +5487,8 @@ export default function PreviewEditPage() {
                         const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
                         const centerX = containerWidth / 2;
                         return timeMarkers.map(({ time, isMajor }) => {
-                          const markerX = centerX + (time - currentTime) * zoom;
+                          // Position markers using audioTime (markers show audio time, not visual time)
+                          const markerX = centerX + (time - audioTime) * zoom;
                           if (markerX < -50 || markerX > containerWidth + 50) return null;
                           return (
                             <div
@@ -5719,7 +5729,7 @@ export default function PreviewEditPage() {
                           {formatTrackTimeDetailed(currentTime)}
                         </span>
                         <div onClick={handleProgressClick} className={`flex-1 h-2 rounded-full cursor-pointer overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
-                          <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all" style={{ width: `${(currentTime / duration) * 100}%` }} />
+                          <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all" style={{ width: `${(currentTime / ((duration || 0) + INTRO_DURATION)) * 100}%` }} />
                         </div>
                         <span className="text-xs text-gray-500 w-12">{formatTime(duration)}</span>
                       </div>
