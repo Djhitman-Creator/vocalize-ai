@@ -3234,7 +3234,12 @@ export default function PreviewEditPage() {
     return isCurrent ? (styleSettings.sungColor || '#00d4ff') : (styleSettings.textColor || '#ffffff');
   }, [isDuetMode, duetColors, styleSettings]);
 
-  const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
+  // word.start/end are in audio time, currentTime is visual time
+  // Convert to audio time for comparison
+  const isWordCurrent = useCallback((word) => {
+    const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
+    return audioTimeNow >= word.start && audioTimeNow <= word.end;
+  }, [currentTime]);
 
   const getHighlightColor = useCallback((wordIndex) => {
     if (isDuetMode && words[wordIndex]?.singer !== undefined) {
@@ -3255,6 +3260,11 @@ export default function PreviewEditPage() {
   const LINES_PER_PAGE = layoutSettings.linesPerPage || 4; // Use setting from Layout tab
 
   const getCurrentLyricsData = () => {
+    // Convert visual time to audio time for word comparisons
+    // word.start/end are in audio time (0 = song start)
+    // currentTime is visual time (0 = intro start, INTRO_DURATION = song start)
+    const audioTime = Math.max(0, currentTime - INTRO_DURATION);
+    
     if (!lyricsLines.length) return {
       prevLine: '',
       currentLine: null,
@@ -3270,12 +3280,12 @@ export default function PreviewEditPage() {
 
     let currentLineIdx = -1;
 
-    // Find current line
+    // Find current line (using audioTime for word comparisons)
     for (let i = 0; i < lyricsLines.length; i++) {
       const line = lyricsLines[i];
       for (let j = 0; j < line.length; j++) {
         const word = line[j];
-        if (currentTime >= word.start && currentTime <= word.end) {
+        if (audioTime >= word.start && audioTime <= word.end) {
           currentLineIdx = i;
           break;
         }
@@ -3287,9 +3297,9 @@ export default function PreviewEditPage() {
     if (currentLineIdx === -1) {
       for (let i = 0; i < lyricsLines.length; i++) {
         const line = lyricsLines[i];
-        if (line.length > 0 && line[0].start > currentTime) {
+        if (line.length > 0 && line[0].start > audioTime) {
           const firstWordStart = line[0].start;
-          const timeUntilLine = firstWordStart - currentTime;
+          const timeUntilLine = firstWordStart - audioTime;
           const prevLineEnd = i === 0 ? 0 : lyricsLines[i - 1][lyricsLines[i - 1].length - 1].end;
           const gapDuration = firstWordStart - prevLineEnd;
 
@@ -3380,7 +3390,7 @@ export default function PreviewEditPage() {
           if (i > 0) {
             const prevLineData = lyricsLines[i - 1];
             const lastWordEnd = prevLineData[prevLineData.length - 1].end;
-            if (currentTime - lastWordEnd <= 2) {
+            if (audioTime - lastWordEnd <= 2) {
               const currentLineText = prevLineData.map(w => ({
                 word: w.word, index: w.globalIndex, start: w.start, end: w.end,
                 isActive: false, isPast: true, sweepPercent: 1
@@ -3456,7 +3466,7 @@ export default function PreviewEditPage() {
           };
         }
 
-        if (line.length > 0 && line[line.length - 1].end >= currentTime) {
+        if (line.length > 0 && line[line.length - 1].end >= audioTime) {
           currentLineIdx = i;
           break;
         }
@@ -3467,7 +3477,7 @@ export default function PreviewEditPage() {
         if (lyricsLines.length > 0) {
           const lastLine = lyricsLines[lyricsLines.length - 1];
           const lastWordEnd = lastLine[lastLine.length - 1].end;
-          if (currentTime - lastWordEnd <= 2) {
+          if (audioTime - lastWordEnd <= 2) {
             const lastLineIdx = lyricsLines.length - 1;
             const currentLineText = lastLine.map(w => ({
               word: w.word, index: w.globalIndex, start: w.start, end: w.end,
@@ -3521,8 +3531,8 @@ export default function PreviewEditPage() {
     const currentLineText = line.map(w => {
       let sweepPercent = 0;
       let fadeInProgress = 0; // 0-1, used for glow fade-in animation
-      const isActive = currentTime >= w.start && currentTime <= w.end;
-      const isPast = currentTime > w.end;
+      const isActive = audioTime >= w.start && audioTime <= w.end;
+      const isPast = audioTime > w.end;
 
       if (isPast) {
         sweepPercent = 1;
@@ -3530,7 +3540,7 @@ export default function PreviewEditPage() {
       } else if (isActive) {
         const wordDuration = w.end - w.start;
         if (wordDuration > 0) {
-          sweepPercent = (currentTime - w.start) / wordDuration;
+          sweepPercent = (audioTime - w.start) / wordDuration;
           // Fade in glow quickly at start of word (first 20% of duration)
           fadeInProgress = Math.min(1, sweepPercent * 5);
         }
@@ -3564,8 +3574,8 @@ export default function PreviewEditPage() {
       const lineWords = pageLine.map(w => {
         let sweepPct = 0;
         let fadeInPct = 0;
-        const isWordActive = currentTime >= w.start && currentTime <= w.end;
-        const isWordPast = currentTime > w.end;
+        const isWordActive = audioTime >= w.start && audioTime <= w.end;
+        const isWordPast = audioTime > w.end;
         
         if (isPastLine || isWordPast) {
           sweepPct = 1;
@@ -3573,7 +3583,7 @@ export default function PreviewEditPage() {
         } else if (isCurrentLine && isWordActive) {
           const dur = w.end - w.start;
           if (dur > 0) {
-            sweepPct = (currentTime - w.start) / dur;
+            sweepPct = (audioTime - w.start) / dur;
             fadeInPct = Math.min(1, sweepPct * 5);
           }
         }
@@ -3610,14 +3620,20 @@ export default function PreviewEditPage() {
     const centerX = rect.width / 2;
     const clickX = e.clientX - rect.left;
     const offsetFromCenter = clickX - centerX;
-    const timeOffset = offsetFromCenter / zoom;
-    seekTo(currentTime + timeOffset);
+    const audioTimeOffset = offsetFromCenter / zoom;
+    // Timeline is positioned in audio time, so add offset to current audio time, then convert back to visual time
+    const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
+    const newAudioTime = audioTimeNow + audioTimeOffset;
+    const newVisualTime = newAudioTime + INTRO_DURATION;
+    seekTo(newVisualTime);
   }, [zoom, currentTime, seekTo, isDragging, isTimelineScrubbing]);
 
   const handleProgressClick = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const percent = (e.clientX - rect.left) / rect.width;
-    seekTo(percent * duration);
+    // Progress bar covers full visual duration (intro + audio)
+    const totalVisualDuration = (duration || 0) + INTRO_DURATION;
+    seekTo(percent * totalVisualDuration);
   }, [duration, seekTo]);
 
   const zoomIn = () => setZoom(prev => Math.min(prev * 1.25, 300));
@@ -3629,10 +3645,13 @@ export default function PreviewEditPage() {
   const timeMarkers = useMemo(() => {
     if (!duration || !timelineContainerRef.current) return [];
 
+    // Use audio time for generating markers (markers are in audio time 0, 1, 2, 3...)
+    const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
+    
     const markers = [];
     const visibleRange = 20; // seconds visible on each side of center
-    const startTime = Math.max(0, currentTime - visibleRange);
-    const endTime = Math.min(duration, currentTime + visibleRange);
+    const startTime = Math.max(0, audioTimeNow - visibleRange);
+    const endTime = Math.min(duration, audioTimeNow + visibleRange);
 
     // Generate markers for every second in visible range
     for (let t = Math.floor(startTime); t <= Math.ceil(endTime); t++) {
@@ -4758,13 +4777,15 @@ export default function PreviewEditPage() {
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
                           const percent = (e.clientX - rect.left) / rect.width;
-                          const newTime = percent * duration;
+                          // Progress bar covers full visual duration (intro + audio)
+                          const totalVisualDuration = (duration || 0) + INTRO_DURATION;
+                          const newTime = percent * totalVisualDuration;
                           seekTo(newTime);
                         }}
                       >
                         <div 
                           className="h-full bg-cyan-400 rounded-full"
-                          style={{ width: `${(currentTime / duration) * 100}%` }}
+                          style={{ width: `${(currentTime / ((duration || 1) + INTRO_DURATION)) * 100}%` }}
                         />
                       </div>
                       
@@ -5326,15 +5347,17 @@ export default function PreviewEditPage() {
                     onClick={handleTimelineClick}
                     onTouchStart={handleTimelineTouchStart}
                     onMouseMove={(e) => {
-                      // Calculate time at mouse position for tooltip
+                      // Calculate audio time at mouse position for tooltip
                       const rect = e.currentTarget.getBoundingClientRect();
                       const mouseX = e.clientX - rect.left;
                       const centerX = rect.width / 2;
-                      const timeAtMouse = currentTime + (mouseX - centerX) / zoom;
+                      // Timeline is in audio time coordinates
+                      const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
+                      const audioTimeAtMouse = audioTimeNow + (mouseX - centerX) / zoom;
                       setTimelineHover({ 
                         show: true, 
                         x: mouseX, 
-                        time: Math.max(0, Math.min(duration, timeAtMouse))
+                        time: Math.max(0, Math.min(duration || 0, audioTimeAtMouse))
                       });
                     }}
                     onMouseLeave={() => setTimelineHover({ show: false, x: 0, time: 0 })}
@@ -5367,9 +5390,12 @@ export default function PreviewEditPage() {
                           const topPoints = [];
                           const bottomPoints = [];
                           
+                          // Use audio time for waveform positioning (samples are in audio time)
+                          const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
+                          
                           for (let sampleIndex = 0; sampleIndex < waveformData.amplitudes.length; sampleIndex++) {
                             const sampleTime = sampleIndex * secondsPerSample;
-                            const barX = centerX + (sampleTime - currentTime) * zoom;
+                            const barX = centerX + (sampleTime - audioTimeNow) * zoom;
                             
                             // Skip if way off-screen (with buffer for smooth edges)
                             if (barX < -50 || barX > containerWidth + 50) continue;
@@ -5485,8 +5511,10 @@ export default function PreviewEditPage() {
                       {(() => {
                         const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
                         const centerX = containerWidth / 2;
+                        // Time markers are in audio time, use audioTime for positioning
+                        const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
                         return timeMarkers.map(({ time, isMajor }) => {
-                          const markerX = centerX + (time - currentTime) * zoom;
+                          const markerX = centerX + (time - audioTimeNow) * zoom;
                           if (markerX < -50 || markerX > containerWidth + 50) return null;
                           return (
                             <div
@@ -5584,7 +5612,11 @@ export default function PreviewEditPage() {
                       };
 
                       return words.map((word, index) => {
-                        const wordX = centerX + (word.start - currentTime) * zoom;
+                        // word.start is in audio time (0 = start of song)
+                        // currentTime is visual time (0 = start of intro, 4 = start of song)
+                        // So we need to compare apples to apples: convert currentTime to audio time
+                        const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
+                        const wordX = centerX + (word.start - audioTimeNow) * zoom;
                         const wordWidth = Math.max(isDuetMode ? 35 : 40, (word.end - word.start) * zoom);
 
                         // Skip if off-screen
@@ -5726,7 +5758,7 @@ export default function PreviewEditPage() {
                           {formatTrackTimeDetailed(currentTime)}
                         </span>
                         <div onClick={handleProgressClick} className={`flex-1 h-2 rounded-full cursor-pointer overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
-                          <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all" style={{ width: `${(currentTime / duration) * 100}%` }} />
+                          <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all" style={{ width: `${(currentTime / ((duration || 1) + INTRO_DURATION)) * 100}%` }} />
                         </div>
                         <span className="text-xs text-gray-500 w-12">{formatTime(duration)}</span>
                       </div>
