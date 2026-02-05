@@ -2167,7 +2167,7 @@ export default function PreviewEditPage() {
   
   const INTRO_DURATION = 4; // 4 second intro before audio starts
   const lastVocalSyncRef = useRef(0); // Throttle vocal sync to prevent choppy playback
-  const lastFrameTimeRef = useRef(0); // For intro timing
+  const introStartTimeRef = useRef(null); // Track when intro playback started
 
   useEffect(() => {
     let rafId = null;
@@ -2177,20 +2177,13 @@ export default function PreviewEditPage() {
       
       const now = performance.now();
       
-      // During intro period (currentTime < INTRO_DURATION), manually increment time
-      if (currentTime < INTRO_DURATION) {
-        // Calculate delta time since last frame
-        if (lastFrameTimeRef.current === 0) {
-          lastFrameTimeRef.current = now;
-        }
-        const deltaMs = now - lastFrameTimeRef.current;
-        lastFrameTimeRef.current = now;
+      // During intro period, use introStartTimeRef to calculate elapsed time
+      if (introStartTimeRef.current !== null) {
+        const elapsedSec = (now - introStartTimeRef.current) / 1000;
         
-        // Increment visual time (convert ms to seconds)
-        const newTime = currentTime + (deltaMs / 1000);
-        
-        if (newTime >= INTRO_DURATION) {
+        if (elapsedSec >= INTRO_DURATION) {
           // Intro finished - start audio from beginning
+          introStartTimeRef.current = null;
           flushSync(() => {
             setCurrentTime(INTRO_DURATION);
           });
@@ -2204,29 +2197,27 @@ export default function PreviewEditPage() {
           }
         } else {
           flushSync(() => {
-            setCurrentTime(newTime);
+            setCurrentTime(elapsedSec);
           });
         }
         
         rafId = requestAnimationFrame(updateTime);
-      } else {
+      } else if (instrumentalRef.current) {
         // After intro - sync with actual audio time + offset
-        if (instrumentalRef.current) {
-          const audioTime = instrumentalRef.current.currentTime;
+        const audioTime = instrumentalRef.current.currentTime;
 
-          // flushSync forces React to update synchronously, bypassing batching
-          flushSync(() => {
-            setCurrentTime(audioTime + INTRO_DURATION); // Add intro offset
-          });
+        // flushSync forces React to update synchronously, bypassing batching
+        flushSync(() => {
+          setCurrentTime(audioTime + INTRO_DURATION); // Add intro offset
+        });
 
-          // Keep vocals in sync -- but throttled to avoid choppy playback on mobile
-          if (vocalsRef.current) {
-            if (now - lastVocalSyncRef.current > 2000) {
-              lastVocalSyncRef.current = now;
-              const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
-              if (diff > 0.3) {
-                vocalsRef.current.currentTime = audioTime;
-              }
+        // Keep vocals in sync -- but throttled to avoid choppy playback on mobile
+        if (vocalsRef.current) {
+          if (now - lastVocalSyncRef.current > 2000) {
+            lastVocalSyncRef.current = now;
+            const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
+            if (diff > 0.3) {
+              vocalsRef.current.currentTime = audioTime;
             }
           }
         }
@@ -2236,7 +2227,6 @@ export default function PreviewEditPage() {
     };
 
     if (isPlaying) {
-      lastFrameTimeRef.current = performance.now();
       rafId = requestAnimationFrame(updateTime);
     }
 
@@ -2244,9 +2234,8 @@ export default function PreviewEditPage() {
       if (rafId) {
         cancelAnimationFrame(rafId);
       }
-      lastFrameTimeRef.current = 0;
     };
-  }, [isPlaying, currentTime]);
+  }, [isPlaying]);
 
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) {
@@ -2266,6 +2255,7 @@ export default function PreviewEditPage() {
   const togglePlayback = useCallback(() => {
     if (isPlaying) {
       // Pause everything
+      introStartTimeRef.current = null;
       if (instrumentalRef.current) instrumentalRef.current.pause();
       if (vocalsRef.current) vocalsRef.current.pause();
       setIsPlaying(false);
@@ -2280,8 +2270,14 @@ export default function PreviewEditPage() {
         vocalsRef.current.volume = vocalsVolume / 100;
       }
       
-      // Only start audio if we're past the intro
-      if (currentTime >= INTRO_DURATION) {
+      // Check if we're in intro period or past it
+      if (currentTime < INTRO_DURATION) {
+        // Start intro countdown - calculate start time based on current position
+        // So if currentTime is 2, we've already counted 2 seconds of intro
+        introStartTimeRef.current = performance.now() - (currentTime * 1000);
+      } else {
+        // Past intro - start audio from correct position
+        introStartTimeRef.current = null;
         const audioTime = currentTime - INTRO_DURATION;
         if (instrumentalRef.current) {
           instrumentalRef.current.currentTime = audioTime;
@@ -2292,7 +2288,6 @@ export default function PreviewEditPage() {
           vocalsRef.current.play().catch(e => console.log('Vocals play error:', e));
         }
       }
-      // If in intro period, the RAF loop will handle starting audio when intro ends
       
       setIsPlaying(true);
     }
@@ -2307,11 +2302,12 @@ export default function PreviewEditPage() {
     const audioTime = clampedTime - INTRO_DURATION;
     
     if (audioTime >= 0) {
-      // Past intro - set audio position
+      // Past intro - clear intro timer and set audio position
+      introStartTimeRef.current = null;
       if (instrumentalRef.current) instrumentalRef.current.currentTime = audioTime;
       if (vocalsRef.current) vocalsRef.current.currentTime = audioTime;
     } else {
-      // During intro - reset audio to start
+      // During intro - reset audio to start and update intro timer if playing
       if (instrumentalRef.current) {
         instrumentalRef.current.pause();
         instrumentalRef.current.currentTime = 0;
@@ -2320,12 +2316,19 @@ export default function PreviewEditPage() {
         vocalsRef.current.pause();
         vocalsRef.current.currentTime = 0;
       }
+      // If currently playing, adjust intro start time to match new position
+      if (isPlaying) {
+        introStartTimeRef.current = performance.now() - (clampedTime * 1000);
+      }
     }
     
     setCurrentTime(clampedTime);
-  }, [duration]);
+  }, [duration, isPlaying]);
 
-  const restart = useCallback(() => seekTo(0), [seekTo]);
+  const restart = useCallback(() => {
+    introStartTimeRef.current = null;
+    seekTo(0);
+  }, [seekTo]);
 
   // Timeline wheel scroll - needs passive: false to prevent page scrolling
   useEffect(() => {
