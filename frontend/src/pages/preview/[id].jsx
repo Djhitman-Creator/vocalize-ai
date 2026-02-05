@@ -2163,55 +2163,26 @@ export default function PreviewEditPage() {
   // AUDIO PLAYBACK - SMOOTH ANIMATION WITH RAF
   // ============================================================
   // Use requestAnimationFrame for smooth visual updates
-  // 
-  // INTRO TIMING: currentTime 0-4 = intro period (title card, no audio)
-  //               currentTime 4+ = audio playing (audioTime = currentTime - 4)
-  // Display shows: -4, -3, -2, -1, 0, 1, 2, 3... (formatTrackTime subtracts 4)
+  // Read directly from audio.currentTime each frame
+  // Use flushSync to bypass React 18's automatic batching for smooth animations
 
-  const INTRO_DURATION = 4; // Must match the constant used elsewhere
   const lastVocalSyncRef = useRef(0); // Throttle vocal sync to prevent choppy playback
-  const introStartTimeRef = useRef(null); // Track when intro started for smooth countdown
 
   useEffect(() => {
     let rafId = null;
 
     const updateTime = () => {
-      if (!isPlaying) return;
-
-      // During intro period: manually count up from 0 to INTRO_DURATION
-      if (currentTime < INTRO_DURATION && introStartTimeRef.current !== null) {
-        const elapsed = (performance.now() - introStartTimeRef.current) / 1000;
-        const newTime = Math.min(INTRO_DURATION, elapsed);
-        
-        flushSync(() => {
-          setCurrentTime(newTime);
-        });
-
-        // When intro finishes, start audio
-        if (newTime >= INTRO_DURATION) {
-          introStartTimeRef.current = null; // Clear intro timer
-          if (instrumentalRef.current) {
-            instrumentalRef.current.currentTime = 0;
-            instrumentalRef.current.play().catch(e => console.log('Play failed:', e));
-          }
-          if (vocalsRef.current) {
-            vocalsRef.current.currentTime = 0;
-            vocalsRef.current.play().catch(e => console.log('Vocals play failed:', e));
-          }
-        }
-        
-        rafId = requestAnimationFrame(updateTime);
-      } 
-      // After intro: sync with audio time + offset
-      else if (instrumentalRef.current) {
+      if (instrumentalRef.current && isPlaying) {
         const audioTime = instrumentalRef.current.currentTime;
 
         // flushSync forces React to update synchronously, bypassing batching
+        // This ensures smooth animations during playback
         flushSync(() => {
-          setCurrentTime(audioTime + INTRO_DURATION);
+          setCurrentTime(audioTime);
         });
 
-        // Keep vocals in sync - but throttled to avoid choppy playback on mobile
+        // Keep vocals in sync â€” but throttled to avoid choppy playback on mobile
+        // Only check every 2 seconds and only correct if drift > 0.3s
         if (vocalsRef.current) {
           const now = performance.now();
           if (now - lastVocalSyncRef.current > 2000) {
@@ -2223,6 +2194,7 @@ export default function PreviewEditPage() {
           }
         }
 
+        // Continue the loop
         rafId = requestAnimationFrame(updateTime);
       }
     };
@@ -2236,7 +2208,7 @@ export default function PreviewEditPage() {
         cancelAnimationFrame(rafId);
       }
     };
-  }, [isPlaying, currentTime]);
+  }, [isPlaying]);
 
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) {
@@ -2254,76 +2226,32 @@ export default function PreviewEditPage() {
   }, [vocalsVolume, vocalsMuted]);
 
   const togglePlayback = useCallback(() => {
+    if (!instrumentalRef.current) return;
+
     if (isPlaying) {
-      // Pause everything
-      if (instrumentalRef.current) instrumentalRef.current.pause();
+      instrumentalRef.current.pause();
       if (vocalsRef.current) vocalsRef.current.pause();
-      introStartTimeRef.current = null;
-      setIsPlaying(false);
     } else {
-      // Apply volume/muted state
-      if (instrumentalRef.current) {
-        instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
-        instrumentalRef.current.volume = instrumentalVolume / 100;
-      }
+      // Apply muted state before playing (iOS only respects .muted, not .volume)
+      instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
+      instrumentalRef.current.volume = instrumentalVolume / 100;
       if (vocalsRef.current) {
         vocalsRef.current.muted = vocalsMuted || vocalsVolume === 0;
         vocalsRef.current.volume = vocalsVolume / 100;
+        vocalsRef.current.currentTime = instrumentalRef.current.currentTime;
       }
-
-      // Check if we're in intro period or past it
-      if (currentTime < INTRO_DURATION) {
-        // Start/resume intro countdown (don't play audio yet)
-        introStartTimeRef.current = performance.now() - (currentTime * 1000);
-        // Audio will start when RAF loop reaches INTRO_DURATION
-      } else {
-        // Past intro - start audio from correct position
-        const audioTime = currentTime - INTRO_DURATION;
-        if (instrumentalRef.current) {
-          instrumentalRef.current.currentTime = audioTime;
-          instrumentalRef.current.play().catch(e => console.log('Play failed:', e));
-        }
-        if (vocalsRef.current) {
-          vocalsRef.current.currentTime = audioTime;
-          vocalsRef.current.play().catch(e => console.log('Vocals play failed:', e));
-        }
-      }
-      
-      setIsPlaying(true);
+      instrumentalRef.current.play();
+      if (vocalsRef.current) vocalsRef.current.play();
     }
-  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted, currentTime]);
+    setIsPlaying(!isPlaying);
+  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted]);
 
   const seekTo = useCallback((time) => {
-    // time is visual time (0 = start of intro, INTRO_DURATION = start of audio)
-    const maxTime = (duration || 0) + INTRO_DURATION;
-    const clampedTime = Math.max(0, Math.min(time, maxTime));
-    
-    // Stop intro countdown if active
-    introStartTimeRef.current = null;
-    
-    // If seeking into intro period, pause audio
-    if (clampedTime < INTRO_DURATION) {
-      if (instrumentalRef.current) {
-        instrumentalRef.current.pause();
-        instrumentalRef.current.currentTime = 0;
-      }
-      if (vocalsRef.current) {
-        vocalsRef.current.pause();
-        vocalsRef.current.currentTime = 0;
-      }
-      if (isPlaying) {
-        // Restart intro countdown from new position
-        introStartTimeRef.current = performance.now() - (clampedTime * 1000);
-      }
-    } else {
-      // Seeking past intro - update audio position
-      const audioTime = clampedTime - INTRO_DURATION;
-      if (instrumentalRef.current) instrumentalRef.current.currentTime = audioTime;
-      if (vocalsRef.current) vocalsRef.current.currentTime = audioTime;
-    }
-    
+    const clampedTime = Math.max(0, Math.min(time, duration));
+    if (instrumentalRef.current) instrumentalRef.current.currentTime = clampedTime;
+    if (vocalsRef.current) vocalsRef.current.currentTime = clampedTime;
     setCurrentTime(clampedTime);
-  }, [duration, isPlaying]);
+  }, [duration]);
 
   const restart = useCallback(() => seekTo(0), [seekTo]);
 
@@ -2336,7 +2264,14 @@ export default function PreviewEditPage() {
       e.preventDefault();
       e.stopPropagation();
       const scrollAmount = e.deltaY > 0 ? 2 : -2;
-      seekTo(currentTime + scrollAmount);
+      const newTime = Math.max(0, Math.min(duration, currentTime + scrollAmount));
+      setCurrentTime(newTime);
+      if (instrumentalRef.current) {
+        instrumentalRef.current.currentTime = newTime;
+      }
+      if (vocalsRef.current) {
+        vocalsRef.current.currentTime = newTime;
+      }
     };
     
     timeline.addEventListener('wheel', handleWheel, { passive: false });
@@ -3168,7 +3103,8 @@ export default function PreviewEditPage() {
   // ============================================================
   // UTILITY FUNCTIONS
   // ============================================================
-  // Note: INTRO_DURATION is defined in the playback section above
+  // Intro duration constant (matches handler.py)
+  const INTRO_DURATION = 4;
 
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
@@ -3220,10 +3156,7 @@ export default function PreviewEditPage() {
     return isCurrent ? (styleSettings.sungColor || '#00d4ff') : (styleSettings.textColor || '#ffffff');
   }, [isDuetMode, duetColors, styleSettings]);
 
-  // Audio time for word comparisons (currentTime includes intro offset, word.start is in audio time)
-  const audioTime = Math.max(0, currentTime - INTRO_DURATION);
-  
-  const isWordCurrent = useCallback((word) => audioTime >= word.start && audioTime <= word.end, [audioTime]);
+  const isWordCurrent = useCallback((word) => currentTime >= word.start && currentTime <= word.end, [currentTime]);
 
   const getHighlightColor = useCallback((wordIndex) => {
     if (isDuetMode && words[wordIndex]?.singer !== undefined) {
@@ -3244,9 +3177,6 @@ export default function PreviewEditPage() {
   const LINES_PER_PAGE = layoutSettings.linesPerPage || 4; // Use setting from Layout tab
 
   const getCurrentLyricsData = () => {
-    // Use audioTime for lyrics calculations (word timings are in audio time, not visual time)
-    const lyricsTime = Math.max(0, currentTime - INTRO_DURATION);
-    
     if (!lyricsLines.length) return {
       prevLine: '',
       currentLine: null,
@@ -3262,12 +3192,12 @@ export default function PreviewEditPage() {
 
     let currentLineIdx = -1;
 
-    // Find current line (using audio time for word comparisons)
+    // Find current line
     for (let i = 0; i < lyricsLines.length; i++) {
       const line = lyricsLines[i];
       for (let j = 0; j < line.length; j++) {
         const word = line[j];
-        if (lyricsTime >= word.start && lyricsTime <= word.end) {
+        if (currentTime >= word.start && currentTime <= word.end) {
           currentLineIdx = i;
           break;
         }
@@ -3279,9 +3209,9 @@ export default function PreviewEditPage() {
     if (currentLineIdx === -1) {
       for (let i = 0; i < lyricsLines.length; i++) {
         const line = lyricsLines[i];
-        if (line.length > 0 && line[0].start > lyricsTime) {
+        if (line.length > 0 && line[0].start > currentTime) {
           const firstWordStart = line[0].start;
-          const timeUntilLine = firstWordStart - lyricsTime;
+          const timeUntilLine = firstWordStart - currentTime;
           const prevLineEnd = i === 0 ? 0 : lyricsLines[i - 1][lyricsLines[i - 1].length - 1].end;
           const gapDuration = firstWordStart - prevLineEnd;
 
@@ -3372,7 +3302,7 @@ export default function PreviewEditPage() {
           if (i > 0) {
             const prevLineData = lyricsLines[i - 1];
             const lastWordEnd = prevLineData[prevLineData.length - 1].end;
-            if (lyricsTime - lastWordEnd <= 2) {
+            if (currentTime - lastWordEnd <= 2) {
               const currentLineText = prevLineData.map(w => ({
                 word: w.word, index: w.globalIndex, start: w.start, end: w.end,
                 isActive: false, isPast: true, sweepPercent: 1
@@ -3448,7 +3378,7 @@ export default function PreviewEditPage() {
           };
         }
 
-        if (line.length > 0 && line[line.length - 1].end >= lyricsTime) {
+        if (line.length > 0 && line[line.length - 1].end >= currentTime) {
           currentLineIdx = i;
           break;
         }
@@ -3459,7 +3389,7 @@ export default function PreviewEditPage() {
         if (lyricsLines.length > 0) {
           const lastLine = lyricsLines[lyricsLines.length - 1];
           const lastWordEnd = lastLine[lastLine.length - 1].end;
-          if (lyricsTime - lastWordEnd <= 2) {
+          if (currentTime - lastWordEnd <= 2) {
             const lastLineIdx = lyricsLines.length - 1;
             const currentLineText = lastLine.map(w => ({
               word: w.word, index: w.globalIndex, start: w.start, end: w.end,
@@ -3513,8 +3443,8 @@ export default function PreviewEditPage() {
     const currentLineText = line.map(w => {
       let sweepPercent = 0;
       let fadeInProgress = 0; // 0-1, used for glow fade-in animation
-      const isActive = lyricsTime >= w.start && lyricsTime <= w.end;
-      const isPast = lyricsTime > w.end;
+      const isActive = currentTime >= w.start && currentTime <= w.end;
+      const isPast = currentTime > w.end;
 
       if (isPast) {
         sweepPercent = 1;
@@ -3522,7 +3452,7 @@ export default function PreviewEditPage() {
       } else if (isActive) {
         const wordDuration = w.end - w.start;
         if (wordDuration > 0) {
-          sweepPercent = (lyricsTime - w.start) / wordDuration;
+          sweepPercent = (currentTime - w.start) / wordDuration;
           // Fade in glow quickly at start of word (first 20% of duration)
           fadeInProgress = Math.min(1, sweepPercent * 5);
         }
@@ -3556,8 +3486,8 @@ export default function PreviewEditPage() {
       const lineWords = pageLine.map(w => {
         let sweepPct = 0;
         let fadeInPct = 0;
-        const isWordActive = lyricsTime >= w.start && lyricsTime <= w.end;
-        const isWordPast = lyricsTime > w.end;
+        const isWordActive = currentTime >= w.start && currentTime <= w.end;
+        const isWordPast = currentTime > w.end;
         
         if (isPastLine || isWordPast) {
           sweepPct = 1;
@@ -3565,7 +3495,7 @@ export default function PreviewEditPage() {
         } else if (isCurrentLine && isWordActive) {
           const dur = w.end - w.start;
           if (dur > 0) {
-            sweepPct = (lyricsTime - w.start) / dur;
+            sweepPct = (currentTime - w.start) / dur;
             fadeInPct = Math.min(1, sweepPct * 5);
           }
         }
@@ -3609,9 +3539,7 @@ export default function PreviewEditPage() {
   const handleProgressClick = useCallback((e) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const percent = (e.clientX - rect.left) / rect.width;
-    // Total visual duration includes intro
-    const totalVisualDuration = (duration || 0) + INTRO_DURATION;
-    seekTo(percent * totalVisualDuration);
+    seekTo(percent * duration);
   }, [duration, seekTo]);
 
   const zoomIn = () => setZoom(prev => Math.min(prev * 1.25, 300));
@@ -3620,17 +3548,13 @@ export default function PreviewEditPage() {
   // ============================================================
   // GENERATE TIME MARKERS FOR TIMELINE
   // ============================================================
-  // Time markers show AUDIO time (0, 1, 2, 3...) not visual time
-  // The playhead position represents currentTime (visual), but markers are audio time
   const timeMarkers = useMemo(() => {
     if (!duration || !timelineContainerRef.current) return [];
 
     const markers = [];
     const visibleRange = 20; // seconds visible on each side of center
-    // Use audioTime for marker generation since markers represent audio time
-    const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
-    const startTime = Math.max(0, audioTimeNow - visibleRange);
-    const endTime = Math.min(duration, audioTimeNow + visibleRange);
+    const startTime = Math.max(0, currentTime - visibleRange);
+    const endTime = Math.min(duration, currentTime + visibleRange);
 
     // Generate markers for every second in visible range
     for (let t = Math.floor(startTime); t <= Math.ceil(endTime); t++) {
@@ -4756,14 +4680,13 @@ export default function PreviewEditPage() {
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
                           const percent = (e.clientX - rect.left) / rect.width;
-                          const totalVisualDuration = (duration || 0) + INTRO_DURATION;
-                          const newTime = percent * totalVisualDuration;
+                          const newTime = percent * duration;
                           seekTo(newTime);
                         }}
                       >
                         <div 
                           className="h-full bg-cyan-400 rounded-full"
-                          style={{ width: `${(currentTime / ((duration || 0) + INTRO_DURATION)) * 100}%` }}
+                          style={{ width: `${(currentTime / duration) * 100}%` }}
                         />
                       </div>
                       
@@ -5325,16 +5248,15 @@ export default function PreviewEditPage() {
                     onClick={handleTimelineClick}
                     onTouchStart={handleTimelineTouchStart}
                     onMouseMove={(e) => {
-                      // Calculate time at mouse position for tooltip (shows audio time)
+                      // Calculate time at mouse position for tooltip
                       const rect = e.currentTarget.getBoundingClientRect();
                       const mouseX = e.clientX - rect.left;
                       const centerX = rect.width / 2;
-                      // Mouse offset from center represents audioTime offset
-                      const audioTimeAtMouse = audioTime + (mouseX - centerX) / zoom;
+                      const timeAtMouse = currentTime + (mouseX - centerX) / zoom;
                       setTimelineHover({ 
                         show: true, 
                         x: mouseX, 
-                        time: Math.max(0, Math.min(duration || 0, audioTimeAtMouse))
+                        time: Math.max(0, Math.min(duration, timeAtMouse))
                       });
                     }}
                     onMouseLeave={() => setTimelineHover({ show: false, x: 0, time: 0 })}
@@ -5369,8 +5291,7 @@ export default function PreviewEditPage() {
                           
                           for (let sampleIndex = 0; sampleIndex < waveformData.amplitudes.length; sampleIndex++) {
                             const sampleTime = sampleIndex * secondsPerSample;
-                            // Use audioTime for waveform positioning (waveform starts at audio time 0)
-                            const barX = centerX + (sampleTime - audioTime) * zoom;
+                            const barX = centerX + (sampleTime - currentTime) * zoom;
                             
                             // Skip if way off-screen (with buffer for smooth edges)
                             if (barX < -50 || barX > containerWidth + 50) continue;
@@ -5487,8 +5408,7 @@ export default function PreviewEditPage() {
                         const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
                         const centerX = containerWidth / 2;
                         return timeMarkers.map(({ time, isMajor }) => {
-                          // Position markers using audioTime (markers show audio time, not visual time)
-                          const markerX = centerX + (time - audioTime) * zoom;
+                          const markerX = centerX + (time - currentTime) * zoom;
                           if (markerX < -50 || markerX > containerWidth + 50) return null;
                           return (
                             <div
@@ -5586,8 +5506,7 @@ export default function PreviewEditPage() {
                       };
 
                       return words.map((word, index) => {
-                        // Use audioTime for positioning (word.start is in audio time, not visual time)
-                        const wordX = centerX + (word.start - audioTime) * zoom;
+                        const wordX = centerX + (word.start - currentTime) * zoom;
                         const wordWidth = Math.max(isDuetMode ? 35 : 40, (word.end - word.start) * zoom);
 
                         // Skip if off-screen
@@ -5729,7 +5648,7 @@ export default function PreviewEditPage() {
                           {formatTrackTimeDetailed(currentTime)}
                         </span>
                         <div onClick={handleProgressClick} className={`flex-1 h-2 rounded-full cursor-pointer overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
-                          <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all" style={{ width: `${(currentTime / ((duration || 0) + INTRO_DURATION)) * 100}%` }} />
+                          <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all" style={{ width: `${(currentTime / duration) * 100}%` }} />
                         </div>
                         <span className="text-xs text-gray-500 w-12">{formatTime(duration)}</span>
                       </div>
