@@ -2162,44 +2162,81 @@ export default function PreviewEditPage() {
   // ============================================================
   // AUDIO PLAYBACK - SMOOTH ANIMATION WITH RAF
   // ============================================================
-  // Use requestAnimationFrame for smooth visual updates
-  // Read directly from audio.currentTime each frame
-  // Use flushSync to bypass React 18's automatic batching for smooth animations
-
+  // INTRO HANDLING: First 4 seconds are visual-only countdown, audio starts after
+  // currentTime 0-4 = intro (displays as -4 to 0), currentTime 4+ = audio playing
+  
+  const INTRO_DURATION = 4; // 4 second intro before audio starts
   const lastVocalSyncRef = useRef(0); // Throttle vocal sync to prevent choppy playback
+  const lastFrameTimeRef = useRef(0); // For intro timing
 
   useEffect(() => {
     let rafId = null;
 
     const updateTime = () => {
-      if (instrumentalRef.current && isPlaying) {
-        const audioTime = instrumentalRef.current.currentTime;
+      if (!isPlaying) return;
+      
+      const now = performance.now();
+      
+      // During intro period (currentTime < INTRO_DURATION), manually increment time
+      if (currentTime < INTRO_DURATION) {
+        // Calculate delta time since last frame
+        if (lastFrameTimeRef.current === 0) {
+          lastFrameTimeRef.current = now;
+        }
+        const deltaMs = now - lastFrameTimeRef.current;
+        lastFrameTimeRef.current = now;
+        
+        // Increment visual time (convert ms to seconds)
+        const newTime = currentTime + (deltaMs / 1000);
+        
+        if (newTime >= INTRO_DURATION) {
+          // Intro finished - start audio from beginning
+          flushSync(() => {
+            setCurrentTime(INTRO_DURATION);
+          });
+          if (instrumentalRef.current) {
+            instrumentalRef.current.currentTime = 0;
+            instrumentalRef.current.play().catch(e => console.log('Play error:', e));
+          }
+          if (vocalsRef.current) {
+            vocalsRef.current.currentTime = 0;
+            vocalsRef.current.play().catch(e => console.log('Vocals play error:', e));
+          }
+        } else {
+          flushSync(() => {
+            setCurrentTime(newTime);
+          });
+        }
+        
+        rafId = requestAnimationFrame(updateTime);
+      } else {
+        // After intro - sync with actual audio time + offset
+        if (instrumentalRef.current) {
+          const audioTime = instrumentalRef.current.currentTime;
 
-        // flushSync forces React to update synchronously, bypassing batching
-        // This ensures smooth animations during playback
-        flushSync(() => {
-          setCurrentTime(audioTime);
-        });
+          // flushSync forces React to update synchronously, bypassing batching
+          flushSync(() => {
+            setCurrentTime(audioTime + INTRO_DURATION); // Add intro offset
+          });
 
-        // Keep vocals in sync â€” but throttled to avoid choppy playback on mobile
-        // Only check every 2 seconds and only correct if drift > 0.3s
-        if (vocalsRef.current) {
-          const now = performance.now();
-          if (now - lastVocalSyncRef.current > 2000) {
-            lastVocalSyncRef.current = now;
-            const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
-            if (diff > 0.3) {
-              vocalsRef.current.currentTime = audioTime;
+          // Keep vocals in sync -- but throttled to avoid choppy playback on mobile
+          if (vocalsRef.current) {
+            if (now - lastVocalSyncRef.current > 2000) {
+              lastVocalSyncRef.current = now;
+              const diff = Math.abs(vocalsRef.current.currentTime - audioTime);
+              if (diff > 0.3) {
+                vocalsRef.current.currentTime = audioTime;
+              }
             }
           }
         }
-
-        // Continue the loop
+        
         rafId = requestAnimationFrame(updateTime);
       }
     };
 
     if (isPlaying) {
+      lastFrameTimeRef.current = performance.now();
       rafId = requestAnimationFrame(updateTime);
     }
 
@@ -2207,8 +2244,9 @@ export default function PreviewEditPage() {
       if (rafId) {
         cancelAnimationFrame(rafId);
       }
+      lastFrameTimeRef.current = 0;
     };
-  }, [isPlaying]);
+  }, [isPlaying, currentTime]);
 
   const handleAudioLoaded = useCallback(() => {
     if (instrumentalRef.current) {
@@ -2226,30 +2264,64 @@ export default function PreviewEditPage() {
   }, [vocalsVolume, vocalsMuted]);
 
   const togglePlayback = useCallback(() => {
-    if (!instrumentalRef.current) return;
-
     if (isPlaying) {
-      instrumentalRef.current.pause();
+      // Pause everything
+      if (instrumentalRef.current) instrumentalRef.current.pause();
       if (vocalsRef.current) vocalsRef.current.pause();
+      setIsPlaying(false);
     } else {
       // Apply muted state before playing (iOS only respects .muted, not .volume)
-      instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
-      instrumentalRef.current.volume = instrumentalVolume / 100;
+      if (instrumentalRef.current) {
+        instrumentalRef.current.muted = instrumentalMuted || instrumentalVolume === 0;
+        instrumentalRef.current.volume = instrumentalVolume / 100;
+      }
       if (vocalsRef.current) {
         vocalsRef.current.muted = vocalsMuted || vocalsVolume === 0;
         vocalsRef.current.volume = vocalsVolume / 100;
-        vocalsRef.current.currentTime = instrumentalRef.current.currentTime;
       }
-      instrumentalRef.current.play();
-      if (vocalsRef.current) vocalsRef.current.play();
+      
+      // Only start audio if we're past the intro
+      if (currentTime >= INTRO_DURATION) {
+        const audioTime = currentTime - INTRO_DURATION;
+        if (instrumentalRef.current) {
+          instrumentalRef.current.currentTime = audioTime;
+          instrumentalRef.current.play().catch(e => console.log('Play error:', e));
+        }
+        if (vocalsRef.current) {
+          vocalsRef.current.currentTime = audioTime;
+          vocalsRef.current.play().catch(e => console.log('Vocals play error:', e));
+        }
+      }
+      // If in intro period, the RAF loop will handle starting audio when intro ends
+      
+      setIsPlaying(true);
     }
-    setIsPlaying(!isPlaying);
-  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted]);
+  }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted, currentTime]);
 
   const seekTo = useCallback((time) => {
-    const clampedTime = Math.max(0, Math.min(time, duration));
-    if (instrumentalRef.current) instrumentalRef.current.currentTime = clampedTime;
-    if (vocalsRef.current) vocalsRef.current.currentTime = clampedTime;
+    // time is visual time (0 = start of intro, INTRO_DURATION = start of audio)
+    const maxTime = (duration || 0) + INTRO_DURATION;
+    const clampedTime = Math.max(0, Math.min(time, maxTime));
+    
+    // Convert to audio time
+    const audioTime = clampedTime - INTRO_DURATION;
+    
+    if (audioTime >= 0) {
+      // Past intro - set audio position
+      if (instrumentalRef.current) instrumentalRef.current.currentTime = audioTime;
+      if (vocalsRef.current) vocalsRef.current.currentTime = audioTime;
+    } else {
+      // During intro - reset audio to start
+      if (instrumentalRef.current) {
+        instrumentalRef.current.pause();
+        instrumentalRef.current.currentTime = 0;
+      }
+      if (vocalsRef.current) {
+        vocalsRef.current.pause();
+        vocalsRef.current.currentTime = 0;
+      }
+    }
+    
     setCurrentTime(clampedTime);
   }, [duration]);
 
@@ -2264,19 +2336,12 @@ export default function PreviewEditPage() {
       e.preventDefault();
       e.stopPropagation();
       const scrollAmount = e.deltaY > 0 ? 2 : -2;
-      const newTime = Math.max(0, Math.min(duration, currentTime + scrollAmount));
-      setCurrentTime(newTime);
-      if (instrumentalRef.current) {
-        instrumentalRef.current.currentTime = newTime;
-      }
-      if (vocalsRef.current) {
-        vocalsRef.current.currentTime = newTime;
-      }
+      seekTo(currentTime + scrollAmount);
     };
     
     timeline.addEventListener('wheel', handleWheel, { passive: false });
     return () => timeline.removeEventListener('wheel', handleWheel);
-  }, [duration, currentTime]);
+  }, [currentTime, seekTo]);
 
   // ============================================================
   // TIMELINE TOUCH-DRAG TO SCRUB (mobile finger scrubbing)
@@ -3103,8 +3168,7 @@ export default function PreviewEditPage() {
   // ============================================================
   // UTILITY FUNCTIONS
   // ============================================================
-  // Intro duration constant (matches handler.py)
-  const INTRO_DURATION = 4;
+  // Note: INTRO_DURATION is declared above in the playback section
 
   const formatTime = (seconds) => {
     if (!seconds || isNaN(seconds)) return '0:00';
