@@ -2270,13 +2270,23 @@ export default function PreviewEditPage() {
         vocalsRef.current.volume = vocalsVolume / 100;
       }
       
-      // Check if we're in intro period or past it
+      // IMPORTANT: Set up the correct mode BEFORE setting isPlaying to true
+      // This prevents race conditions with the RAF loop
       if (currentTime < INTRO_DURATION) {
+        // INTRO MODE: Make sure audio is paused and at position 0
+        if (instrumentalRef.current) {
+          instrumentalRef.current.pause();
+          instrumentalRef.current.currentTime = 0;
+        }
+        if (vocalsRef.current) {
+          vocalsRef.current.pause();
+          vocalsRef.current.currentTime = 0;
+        }
         // Start intro countdown - calculate start time based on current position
-        // So if currentTime is 2, we've already counted 2 seconds of intro
         introStartTimeRef.current = performance.now() - (currentTime * 1000);
+        // RAF loop will handle starting audio when intro finishes
       } else {
-        // Past intro - start audio from correct position
+        // PLAYBACK MODE: Past intro - start audio from correct position
         introStartTimeRef.current = null;
         const audioTime = currentTime - INTRO_DURATION;
         if (instrumentalRef.current) {
@@ -2289,6 +2299,7 @@ export default function PreviewEditPage() {
         }
       }
       
+      // Now set isPlaying - RAF loop will start and see the correct introStartTimeRef value
       setIsPlaying(true);
     }
   }, [isPlaying, instrumentalVolume, instrumentalMuted, vocalsVolume, vocalsMuted, currentTime]);
