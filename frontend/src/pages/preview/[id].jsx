@@ -1368,6 +1368,12 @@ export default function PreviewEditPage() {
   const [aiCreditsRemaining, setAiCreditsRemaining] = useState(null);
   const AI_BG_CREDIT_COST = 1;
 
+  // V11: Update background settings helper
+  const updateBgSettings = useCallback((updates) => {
+    setBgSettings(prev => ({ ...prev, ...updates }));
+    setHasChanges(true);
+  }, []);
+
   // Fetch user credits on mount
   useEffect(() => {
     const fetchCredits = async () => {
@@ -1414,12 +1420,6 @@ export default function PreviewEditPage() {
       setAiGenerating(false);
     }
   }, [aiPrompt, id, router, updateBgSettings]);
-
-  // V11: Update background settings helper
-  const updateBgSettings = useCallback((updates) => {
-    setBgSettings(prev => ({ ...prev, ...updates }));
-    setHasChanges(true);
-  }, []);
 
   // V11: Filter video presets by category
   const filteredVideoPresets = useMemo(() => {
