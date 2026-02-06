@@ -4851,6 +4851,21 @@ export default function SharePage() {
                       <div className="flex items-center gap-2">
                         {/* Warning count for lines that are too long */}
                         <TooLongLinesWarning lyricsLines={lyricsLines} aspectRatio={layoutSettings.aspectRatio} fontSize={styleSettings.fontSize} emphasizeCurrentLine={layoutSettings.emphasizeCurrentLine} />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLineEditorExpanded(!lineEditorExpanded);
+                          }}
+                          className={`px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 ${
+                            lineEditorExpanded
+                              ? isDark ? 'bg-white/10 text-gray-300 hover:bg-white/15' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                              : isDark ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
+                          }`}
+                          title={lineEditorExpanded ? 'Minimize editor' : 'Maximize editor'}
+                        >
+                          {lineEditorExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+                          <span className="hidden sm:inline">{lineEditorExpanded ? 'Minimize' : 'Maximize'}</span>
+                        </button>
                         <span className="text-xs text-gray-500">{lyricsLines.length} lines | {words.length} words</span>
                       </div>
                     </div>
@@ -5118,7 +5133,7 @@ export default function SharePage() {
               onClick={() => setTimelineEditorExpanded(!timelineEditorExpanded)}
               className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
             >
-              <div className="flex items-center gap-2 min-w-0">
+              <div className="flex items-center gap-2">
                 {timelineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
                 <Music2 className="w-4 h-4 text-cyan-400 flex-shrink-0" />
                 <span className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -5126,7 +5141,23 @@ export default function SharePage() {
                   <span className="sm:hidden">Timeline</span>
                 </span>
               </div>
-              <button
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTimelineEditorExpanded(!timelineEditorExpanded);
+                  }}
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 ${
+                    timelineEditorExpanded
+                      ? isDark ? 'bg-white/10 text-gray-300 hover:bg-white/15' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                      : isDark ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
+                  }`}
+                  title={timelineEditorExpanded ? 'Minimize editor' : 'Maximize editor'}
+                >
+                  {timelineEditorExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+                  <span className="hidden sm:inline">{timelineEditorExpanded ? 'Minimize' : 'Maximize'}</span>
+                </button>
+                <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsDuetMode(!isDuetMode);
