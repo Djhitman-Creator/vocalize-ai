@@ -1468,12 +1468,7 @@ export default function PreviewEditPage() {
   const [timelineEditorExpanded, setTimelineEditorExpanded] = useState(false);
   const [originalLyricsExpanded, setOriginalLyricsExpanded] = useState(false); // collapsed on mobile by default
 
-  // On mount: expand Line Editor on desktop only (mobile stays collapsed)
-  useEffect(() => {
-    if (window.innerWidth >= 640) {
-      setLineEditorExpanded(true);
-    }
-  }, []);
+  // Both editors stay collapsed by default on all screen sizes
 
   // Preview resize state
   const [previewHeight, setPreviewHeight] = useState(DEFAULT_PREVIEW_HEIGHT);
