@@ -181,12 +181,12 @@ export default function BackgroundTab({
               onChange={(e) => updateSettings({ gradientDirection: e.target.value })}
               className={`w-full px-3 py-2 rounded-lg text-sm ${isDark ? 'bg-white/10 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'} border`}
             >
-              <option value="to bottom">↓ Top to Bottom</option>
-              <option value="to top">↑ Bottom to Top</option>
-              <option value="to right">→ Left to Right</option>
-              <option value="to left">← Right to Left</option>
-              <option value="to bottom right">↘ Diagonal</option>
-              <option value="to bottom left">↙ Diagonal</option>
+              <option value="to bottom">â†“ Top to Bottom</option>
+              <option value="to top">â†‘ Bottom to Top</option>
+              <option value="to right">â†’ Left to Right</option>
+              <option value="to left">â† Right to Left</option>
+              <option value="to bottom right">â†˜ Diagonal</option>
+              <option value="to bottom left">â†™ Diagonal</option>
             </select>
           </div>
 
@@ -253,7 +253,7 @@ export default function BackgroundTab({
           </div>
 
           {/* Video Grid */}
-          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto pr-1">
+          <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2 max-h-64 overflow-y-auto pr-1">
             {filteredPresets.map(preset => (
               <button
                 key={preset.id}
