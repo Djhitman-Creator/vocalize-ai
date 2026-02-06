@@ -3789,13 +3789,18 @@ export default function SharePage() {
                     className="relative overflow-hidden rounded-lg shadow-2xl"
                     style={{ width, height, ...getFullscreenBackground() }}
                   >
-                    {/* Background Image */}
-                    {bgSettings.bgImageUrl && (
-                      <img className="absolute inset-0 w-full h-full object-cover opacity-60" src={bgSettings.bgImageUrl} alt="" />
+                    {/* Background Image - only show when bgType is 'image' */}
+                    {bgSettings.bgType === 'image' && bgSettings.bgImageUrl && (
+                      <img className="absolute inset-0 w-full h-full object-cover opacity-60" src={bgSettings.bgImageUrl} alt="" 
+                        style={{
+                          objectFit: bgSettings.bgImageFit === 'stretch' ? 'fill' : bgSettings.bgImageFit === 'fit' ? 'contain' : 'cover',
+                          backgroundColor: bgSettings.bgImageFit === 'fit' ? bgSettings.bgColor1 : 'transparent'
+                        }}
+                      />
                     )}
                     
-                    {/* Background Video */}
-                    {(bgSettings.bgVideoPreset || bgSettings.bgCustomVideoUrl) && (
+                    {/* Background Video - only show when bgType is 'video' or 'custom-video' */}
+                    {(bgSettings.bgType === 'video' || bgSettings.bgType === 'custom-video') && (bgSettings.bgVideoPreset || bgSettings.bgCustomVideoUrl) && (
                       <video 
                         className="absolute inset-0 w-full h-full object-cover opacity-60" 
                         src={bgSettings.bgCustomVideoUrl || (bgSettings.bgVideoPreset ? `${PRESET_BASE_URL}/${bgSettings.bgVideoPreset.filename}` : '')}
@@ -6495,80 +6500,22 @@ export default function SharePage() {
                           </div>
                           <span className={`text-[11px] ${isDark ? 'text-purple-300/80' : 'text-purple-600'}`}>
                             per generated image
-                            {aiCreditsRemaining !== null && (
-                              <span className={`ml-1 ${aiCreditsRemaining >= AI_BG_CREDIT_COST ? 'text-green-400' : 'text-amber-400'}`}>
-                                ({aiCreditsRemaining} available)
-                              </span>
-                            )}
                           </span>
                         </div>
                         
                         {/* Tip */}
-                        <p className={`text-[11px] mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          Be as detailed as possible for best results. Include colors, mood, setting, and style.
+                        <p className={`text-[11px] mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          Describe your perfect background and our AI will create it for you. Sign up to get started!
                         </p>
 
-                        {/* Prompt input */}
-                        <textarea
-                          value={aiPrompt}
-                          onChange={(e) => setAiPrompt(e.target.value)}
-                          placeholder="e.g. A dreamy neon cityscape at night with soft pink and blue lights reflecting off wet streets, cinematic atmosphere with bokeh light effects..."
-                          maxLength={1000}
-                          rows={3}
-                          disabled={aiGenerating}
-                          className={`w-full px-3 py-2 rounded-lg text-sm border resize-none transition-colors ${
-                            isDark 
-                              ? 'bg-white/5 text-white border-white/10 placeholder-gray-500 focus:border-purple-500/50 focus:bg-white/10' 
-                              : 'bg-gray-50 text-gray-900 border-gray-200 placeholder-gray-400 focus:border-purple-500 focus:bg-white'
-                          } focus:outline-none`}
-                        />
-                        <div className="flex items-center justify-between mt-1 mb-2">
-                          <span className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{aiPrompt.length}/1000</span>
-                        </div>
-
-                        {/* Generate button */}
-                        <button
-                          onClick={handleAiBackgroundGenerate}
-                          disabled={aiGenerating || !aiPrompt.trim() || aiPrompt.trim().length < 10 || (aiCreditsRemaining !== null && aiCreditsRemaining < AI_BG_CREDIT_COST)}
-                          className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                            aiGenerating || !aiPrompt.trim() || aiPrompt.trim().length < 10 || (aiCreditsRemaining !== null && aiCreditsRemaining < AI_BG_CREDIT_COST)
-                              ? isDark ? 'bg-white/5 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : 'bg-gradient-to-r from-purple-500 to-cyan-500 text-white hover:from-purple-600 hover:to-cyan-600 shadow-lg shadow-purple-500/25'
-                          }`}
+                        {/* Sign Up CTA button */}
+                        <Link
+                          href="/signup"
+                          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all bg-gradient-to-r from-purple-500 to-cyan-500 text-white hover:from-purple-600 hover:to-cyan-600 shadow-lg shadow-purple-500/25"
                         >
-                          {aiGenerating ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Generating... (15-30s)
-                            </>
-                          ) : (aiCreditsRemaining !== null && aiCreditsRemaining < AI_BG_CREDIT_COST) ? (
-                            <>
-                              <Sparkles className="w-4 h-4" />
-                              Not Enough Credits
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="w-4 h-4" />
-                              Generate with AI ({AI_BG_CREDIT_COST} Credit)
-                            </>
-                          )}
-                        </button>
-
-                        {/* Get more credits link */}
-                        {aiCreditsRemaining !== null && aiCreditsRemaining < AI_BG_CREDIT_COST && (
-                          <Link href="/pricing" className={`flex items-center justify-center gap-1 mt-2 text-xs font-medium ${isDark ? 'text-amber-400 hover:text-amber-300' : 'text-amber-600 hover:text-amber-700'}`}>
-                            <Plus className="w-3 h-3" />
-                            Get More Credits
-                          </Link>
-                        )}
-
-                        {/* Error display */}
-                        {aiError && (
-                          <div className="flex items-start gap-2 mt-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                            <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                            <span className="text-xs text-red-400">{aiError}</span>
-                          </div>
-                        )}
+                          <Sparkles className="w-4 h-4" />
+                          Sign Up to Create Custom AI Backgrounds
+                        </Link>
                       </div>
                     </div>
                   )}
