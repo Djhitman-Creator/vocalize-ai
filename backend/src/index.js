@@ -1686,6 +1686,123 @@ app.post('/api/upload-font', authMiddleware, upload.single('font'), async (req, 
   }
 });
 
+// ============================================
+// AI BACKGROUND IMAGE GENERATION
+// ============================================
+
+const AI_BG_CREDIT_COST = 1; // 1 credit per AI-generated background
+
+app.post('/api/generate-ai-background', authMiddleware, async (req, res) => {
+  try {
+    const { projectId, prompt } = req.body;
+
+    if (!projectId || !prompt) {
+      return res.status(400).json({ error: 'Project ID and prompt are required' });
+    }
+
+    if (prompt.length < 10) {
+      return res.status(400).json({ error: 'Please provide a more detailed description (at least 10 characters)' });
+    }
+
+    if (prompt.length > 1000) {
+      return res.status(400).json({ error: 'Description is too long (max 1000 characters)' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Check user has enough credits
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('credits_remaining')
+      .eq('id', req.user.id)
+      .single();
+
+    if (!profile || (profile.credits_remaining || 0) < AI_BG_CREDIT_COST) {
+      return res.status(402).json({ 
+        error: 'Insufficient credits', 
+        required: AI_BG_CREDIT_COST,
+        available: profile?.credits_remaining || 0 
+      });
+    }
+
+    console.log(`AI Background generation requested for project ${projectId} by user ${req.user.id}`);
+    console.log(`Prompt: ${prompt.substring(0, 100)}...`);
+
+    // Generate image with OpenAI
+    const response = await openai.images.generate({
+      model: 'dall-e-3',
+      prompt: `Create a visually stunning background image for a karaoke music video. The image should be atmospheric, cinematic, and suitable as a background behind scrolling lyrics text. Style: ${prompt}. Important: Do NOT include any text, words, letters, or numbers in the image.`,
+      n: 1,
+      size: '1792x1024', // Wide format for 16:9 video
+      quality: 'standard',
+    });
+
+    const imageUrl = response.data[0]?.url;
+    if (!imageUrl) {
+      throw new Error('No image generated from AI');
+    }
+
+    // Download the image from OpenAI (temporary URL)
+    const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+    const imageBuffer = Buffer.from(imageResponse.data);
+
+    // Upload to R2 for permanent storage
+    const imageKey = `backgrounds/${req.user.id}/${projectId}-ai-bg-${Date.now()}.png`;
+    const permanentUrl = await uploadToR2(imageBuffer, imageKey, 'image/png');
+    console.log(`AI background uploaded to R2: ${permanentUrl}`);
+
+    // Deduct credits
+    await deductCredits(req.user.id, AI_BG_CREDIT_COST, projectId, 'AI Background Image Generation');
+
+    // Update project with the new background
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ bg_image_url: permanentUrl })
+      .eq('id', projectId);
+
+    if (updateError) {
+      console.error('Failed to update project bg_image_url:', updateError);
+    }
+
+    // Get updated credit balance
+    const { data: updatedProfile } = await supabase
+      .from('profiles')
+      .select('credits_remaining')
+      .eq('id', req.user.id)
+      .single();
+
+    res.json({
+      success: true,
+      imageUrl: permanentUrl,
+      creditsUsed: AI_BG_CREDIT_COST,
+      creditsRemaining: updatedProfile?.credits_remaining || 0,
+      message: 'AI background generated successfully'
+    });
+
+  } catch (error) {
+    console.error('AI background generation error:', error);
+    
+    // Handle specific OpenAI errors
+    if (error?.status === 400 || error?.code === 'content_policy_violation') {
+      return res.status(400).json({ 
+        error: 'Your description was flagged by our content policy. Please try a different description.' 
+      });
+    }
+    
+    res.status(500).json({ error: error.message || 'Failed to generate AI background' });
+  }
+});
+
 // Get render history for a project
 app.get('/api/projects/:id/renders', authMiddleware, async (req, res) => {
   try {
