@@ -232,6 +232,11 @@ const PRESET_VIDEO_BACKGROUNDS = [
   { id: 'elegant-goldendust', name: 'Golden Dust', filename: 'bg-elegant-goldendust.mp4', category: 'elegant' },
   { id: 'elegant-orbs', name: 'Floating Orbs', filename: 'bg-elegant-orbs.mp4', category: 'elegant' },
   { id: 'elegant-redsilkflowing', name: 'Red Silk Flowing', filename: 'bg-elegant-redsilkflowing.mp4', category: 'elegant' },
+  { id: 'elegant-champagne', name: 'Champagne', filename: 'bg-elegant-champagne.mp4', category: 'elegant' },
+  { id: 'elegant-chandelier', name: 'Chandelier', filename: 'bg-elegant-chandelier.mp4', category: 'elegant' },
+  { id: 'elegant-mirror', name: 'Mirror', filename: 'bg-elegant-mirror.mp4', category: 'elegant' },
+  { id: 'elegant-rosepetals', name: 'Rose Petals', filename: 'bg-elegant-rosepetals.mp4', category: 'elegant' },
+  { id: 'elegant-window', name: 'Window', filename: 'bg-elegant-window.mp4', category: 'elegant' },
   // Nature
   { id: 'nature-nightsnow', name: 'Night Snow', filename: 'bg-nature-nightsnow.mp4', category: 'nature' },
   { id: 'nature-watercolorclouds', name: 'Watercolor Clouds', filename: 'bg-nature-watercolorclouds.mp4', category: 'nature' },
@@ -243,6 +248,7 @@ const PRESET_VIDEO_BACKGROUNDS = [
   { id: 'nature-jellyfish', name: 'Jellyfish', filename: 'bg-nature-jellyfish.mp4', category: 'nature' },
   { id: 'nature-lightning', name: 'Lightning', filename: 'bg-nature-lightning.mp4', category: 'nature' },
   { id: 'nature-rainonwater', name: 'Rain on Water', filename: 'bg-nature-rainonwater.mp4', category: 'nature' },
+  { id: 'nature-hotsprings', name: 'Hot Springs', filename: 'bg-nature-hotsprings.mp4', category: 'nature' },
   // Space
   { id: 'space-milkyway', name: 'Milky Way', filename: 'bg-space-milkyway.mp4', category: 'space' },
   { id: 'space-nebula1', name: 'Nebula 1', filename: 'bg-space-nebula1.mp4', category: 'space' },
@@ -256,9 +262,27 @@ const PRESET_VIDEO_BACKGROUNDS = [
   { id: '80s-neongrid', name: 'Neon Grid', filename: 'bg-80s-neongrid.mp4', category: '80s' },
   { id: '80s-neonpalms', name: 'Neon Palms', filename: 'bg-80s-nonpalms.mp4', category: '80s' },
   { id: '80s-watersunset', name: 'Water Sunset', filename: 'bg-80s-watersunset.mp4', category: '80s' },
+  { id: '80s-arcade', name: 'Arcade', filename: 'bg-80s-arcade.mp4', category: '80s' },
+  { id: '80s-cassettetape', name: 'Cassette Tape', filename: 'bg-80s-cassettetape.mp4', category: '80s' },
+  { id: '80s-road', name: 'Road', filename: 'bg-80s-road.mp4', category: '80s' },
+  { id: '80s-TV', name: 'TV', filename: 'bg-80s-TV.mp4', category: '80s' },
+  { id: '80s-vinylrecord', name: 'Vinyl Record', filename: 'bg-80s-vinylrecord.mp4', category: '80s' },
   // Western
   { id: 'western-horse', name: 'Horse', filename: 'bg-western-horse.mp4', category: 'western' },
   { id: 'western-stampede', name: 'Stampede', filename: 'bg-western-stampede.mp4', category: 'western' },
+  { id: 'western-boot', name: 'Boot', filename: 'bg-western-boot.mp4', category: 'western' },
+  { id: 'western-cactus', name: 'Cactus', filename: 'bg-western-cactus.mp4', category: 'western' },
+  { id: 'western-campfire', name: 'Campfire', filename: 'bg-western-campfire.mp4', category: 'western' },
+  { id: 'western-canyon', name: 'Canyon', filename: 'bg-western-canyon.mp4', category: 'western' },
+  { id: 'western-dance', name: 'Dance', filename: 'bg-western-dance.mp4', category: 'western' },
+  { id: 'western-deer', name: 'Deer', filename: 'bg-western-deer.mp4', category: 'western' },
+  { id: 'western-doors', name: 'Doors', filename: 'bg-western-doors.mp4', category: 'western' },
+  { id: 'western-farmhouse', name: 'Farmhouse', filename: 'bg-western-farmhouse.mp4', category: 'western' },
+  { id: 'western-horsetown', name: 'Horse Town', filename: 'bg-western-horsetown.mp4', category: 'western' },
+  { id: 'western-oldinterior', name: 'Old Interior', filename: 'bg-western-oldinterior.mp4', category: 'western' },
+  { id: 'western-post', name: 'Post', filename: 'bg-western-post.mp4', category: 'western' },
+  { id: 'western-prarie', name: 'Prairie', filename: 'bg-western-prarie.mp4', category: 'western' },
+  { id: 'western-sandydesert', name: 'Sandy Desert', filename: 'bg-western-sandydesert.mp4', category: 'western' },
 ];
 
 // V11: Display mode options
@@ -6398,8 +6422,8 @@ export default function SharePage() {
                         ))}
                       </div>
 
-                      {/* Video Grid - 2 cols on mobile, 3 on sm, 4 on md+ */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-2 max-h-72 sm:max-h-56 overflow-y-auto pr-1 -mr-1">
+                      {/* Video Grid - 3 cols on mobile, 5 on sm, 6 on md, 8 on lg+ */}
+                      <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-1.5 max-h-72 sm:max-h-64 overflow-y-auto pr-1 -mr-1">
                         {filteredVideoPresets.map(preset => (
                           <button
                             key={preset.id}
@@ -6433,6 +6457,22 @@ export default function SharePage() {
                           </button>
                         ))}
                       </div>
+
+                      {/* Make Your Own Video Backgrounds - Kaiber AI */}
+                      <a
+                        href="https://kaiber.ai/?via=karatrack"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                          isDark 
+                            ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 text-purple-300 hover:from-purple-500/30 hover:to-cyan-500/30 hover:text-white' 
+                            : 'bg-gradient-to-r from-purple-50 to-cyan-50 border border-purple-200 text-purple-700 hover:from-purple-100 hover:to-cyan-100'
+                        }`}
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        Make Your Own Looping Video Backgrounds
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
                     </div>
                   )}
 
