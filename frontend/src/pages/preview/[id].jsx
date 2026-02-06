@@ -1690,7 +1690,7 @@ export default function PreviewEditPage() {
   // VOLUME HANDLERS
   // ============================================================
   // iOS ignores audio.volume (always 1.0, read-only).
-  // Use .muted as the actual control â€” it's the only thing iOS respects.
+  // Use .muted as the actual control Ã¢â‚¬â€ it's the only thing iOS respects.
   // .volume is set as a bonus for desktop/Android.
   // ============================================================
   useEffect(() => {
@@ -2789,7 +2789,7 @@ export default function PreviewEditPage() {
     wordTouchStartPos.current = { x: touch.clientX, y: touch.clientY };
     wordLongPressTriggered.current = false;
 
-    // Start a 500ms timer â€” if finger doesn't move much, open context menu
+    // Start a 500ms timer Ã¢â‚¬â€ if finger doesn't move much, open context menu
     wordLongPressTimer.current = setTimeout(() => {
       wordLongPressTriggered.current = true;
 
@@ -4980,6 +4980,21 @@ export default function PreviewEditPage() {
                       <div className="flex items-center gap-2">
                         {/* Warning count for lines that are too long */}
                         <TooLongLinesWarning lyricsLines={lyricsLines} aspectRatio={layoutSettings.aspectRatio} fontSize={styleSettings.fontSize} emphasizeCurrentLine={layoutSettings.emphasizeCurrentLine} />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLineEditorExpanded(!lineEditorExpanded);
+                          }}
+                          className={`px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 ${
+                            lineEditorExpanded
+                              ? isDark ? 'bg-white/10 text-gray-300 hover:bg-white/15' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                              : isDark ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
+                          }`}
+                          title={lineEditorExpanded ? 'Minimize editor' : 'Maximize editor'}
+                        >
+                          {lineEditorExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+                          <span className="hidden sm:inline">{lineEditorExpanded ? 'Minimize' : 'Maximize'}</span>
+                        </button>
                         <span className="text-xs text-gray-500">{lyricsLines.length} lines | {words.length} words</span>
                       </div>
                     </div>
@@ -5255,7 +5270,23 @@ export default function PreviewEditPage() {
                   <span className="sm:hidden">Timeline</span>
                 </span>
               </div>
-              <button
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTimelineEditorExpanded(!timelineEditorExpanded);
+                  }}
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 ${
+                    timelineEditorExpanded
+                      ? isDark ? 'bg-white/10 text-gray-300 hover:bg-white/15' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                      : isDark ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
+                  }`}
+                  title={timelineEditorExpanded ? 'Minimize editor' : 'Maximize editor'}
+                >
+                  {timelineEditorExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+                  <span className="hidden sm:inline">{timelineEditorExpanded ? 'Minimize' : 'Maximize'}</span>
+                </button>
+                <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsDuetMode(!isDuetMode);
@@ -5267,6 +5298,7 @@ export default function PreviewEditPage() {
                 <span className="hidden sm:inline">{isDuetMode ? 'Duet Mode On' : 'Duet Mode Off'}</span>
                 <span className="sm:hidden">{isDuetMode ? 'Duet On' : 'Duet Off'}</span>
               </button>
+              </div>
             </div>
 
             {timelineEditorExpanded && (
@@ -5780,7 +5812,7 @@ export default function PreviewEditPage() {
                               : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           }`}
                         >
-                          <span className="text-base">ðŸŽµ</span>
+                          <span className="text-base">Ã°Å¸Å½Âµ</span>
                           <span>Music {instrumentalMuted ? 'OFF' : 'ON'}</span>
                         </button>
 
@@ -5798,7 +5830,7 @@ export default function PreviewEditPage() {
                                 : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                             }`}
                           >
-                            <span className="text-base">ðŸŽ¤</span>
+                            <span className="text-base">Ã°Å¸Å½Â¤</span>
                             <span>Vocals {vocalsMuted ? 'OFF' : 'ON'}</span>
                           </button>
                         )}
