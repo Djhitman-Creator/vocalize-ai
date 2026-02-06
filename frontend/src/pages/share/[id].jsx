@@ -1492,13 +1492,6 @@ export default function SharePage() {
   const [timelineEditorExpanded, setTimelineEditorExpanded] = useState(false);
   const [originalLyricsExpanded, setOriginalLyricsExpanded] = useState(false); // collapsed on mobile by default
 
-  // On mount: expand Line Editor on desktop only (mobile stays collapsed)
-  useEffect(() => {
-    if (window.innerWidth >= 640) {
-      setLineEditorExpanded(true);
-    }
-  }, []);
-
   // Preview resize state
   const [previewHeight, setPreviewHeight] = useState(DEFAULT_PREVIEW_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
