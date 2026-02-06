@@ -1685,7 +1685,7 @@ export default function PreviewEditPage() {
   // VOLUME HANDLERS
   // ============================================================
   // iOS ignores audio.volume (always 1.0, read-only).
-  // Use .muted as the actual control Ã¢â‚¬â€ it's the only thing iOS respects.
+  // Use .muted as the actual control ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â it's the only thing iOS respects.
   // .volume is set as a bonus for desktop/Android.
   // ============================================================
   useEffect(() => {
@@ -2784,7 +2784,7 @@ export default function PreviewEditPage() {
     wordTouchStartPos.current = { x: touch.clientX, y: touch.clientY };
     wordLongPressTriggered.current = false;
 
-    // Start a 500ms timer Ã¢â‚¬â€ if finger doesn't move much, open context menu
+    // Start a 500ms timer ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â if finger doesn't move much, open context menu
     wordLongPressTimer.current = setTimeout(() => {
       wordLongPressTriggered.current = true;
 
@@ -5807,7 +5807,7 @@ export default function PreviewEditPage() {
                               : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                           }`}
                         >
-                          <span className="text-base">Ã°Å¸Å½Âµ</span>
+                          <span className="text-base">ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Âµ</span>
                           <span>Music {instrumentalMuted ? 'OFF' : 'ON'}</span>
                         </button>
 
@@ -5825,7 +5825,7 @@ export default function PreviewEditPage() {
                                 : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                             }`}
                           >
-                            <span className="text-base">Ã°Å¸Å½Â¤</span>
+                            <span className="text-base">ÃƒÂ°Ã…Â¸Ã…Â½Ã‚Â¤</span>
                             <span>Vocals {vocalsMuted ? 'OFF' : 'ON'}</span>
                           </button>
                         )}
@@ -6613,6 +6613,22 @@ export default function PreviewEditPage() {
                           </button>
                         ))}
                       </div>
+
+                      {/* Make Your Own Video Backgrounds - Kaiber AI */}
+                      <a
+                        href="https://kaiber.ai/?via=karatrack"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                          isDark 
+                            ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 text-purple-300 hover:from-purple-500/30 hover:to-cyan-500/30 hover:text-white' 
+                            : 'bg-gradient-to-r from-purple-50 to-cyan-50 border border-purple-200 text-purple-700 hover:from-purple-100 hover:to-cyan-100'
+                        }`}
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        Make Your Own Looping Video Backgrounds
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
                     </div>
                   )}
 
