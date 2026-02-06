@@ -5162,6 +5162,7 @@ export default function SharePage() {
                 <span className="hidden sm:inline">{isDuetMode ? 'Duet Mode On' : 'Duet Mode Off'}</span>
                 <span className="sm:hidden">{isDuetMode ? 'Duet On' : 'Duet Off'}</span>
               </button>
+              </div>
             </div>
 
             {timelineEditorExpanded && (
