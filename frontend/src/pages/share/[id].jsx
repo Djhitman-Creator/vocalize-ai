@@ -6892,86 +6892,26 @@ export default function SharePage() {
                     </div>
                   </div>
 
-                  {/* Credit Cost Calculator */}
-                  {(() => {
-                    const qualityOption = VIDEO_QUALITY_OPTIONS.find(q => q.value === exportSettings.videoQuality);
-                    const creditsPerMin = exportSettings.exportMode === 'instant' 
-                      ? qualityOption?.instantCreditsPerMin || 2 
-                      : qualityOption?.creditsPerMin || 1;
-                    const songMinutes = Math.ceil((duration || 180) / 60); // Default 3 min if no duration
-                    const totalCredits = creditsPerMin * songMinutes;
-                    const userCredits = project?.user_credits || 0; // You'd get this from user profile
-                    const hasEnoughCredits = userCredits >= totalCredits;
-                    
-                    return (
-                      <div className={`p-4 rounded-xl ${
-                        hasEnoughCredits
-                          ? isDark ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30' : 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200'
-                          : isDark ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30' : 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200'
-                      }`}>
-                        <div className="flex items-center gap-4">
-                          <div className={`p-3 rounded-xl ${hasEnoughCredits ? 'bg-green-500/20' : 'bg-amber-500/20'}`}>
-                            <Sparkles className={`w-6 h-6 ${hasEnoughCredits ? 'text-green-400' : 'text-amber-400'}`} />
-                          </div>
-                          <div className="flex-1">
-                            <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                              {exportSettings.videoQuality.toUpperCase()} {String.fromCharCode(8226)} {songMinutes} min {String.fromCharCode(8226)} {exportSettings.exportMode === 'instant' ? 'Instant' : 'Queue'}
-                            </p>
-                            <p className={`text-lg font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                              This will cost {totalCredits} credits
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Your balance</p>
-                            <p className={`text-2xl font-bold ${hasEnoughCredits ? 'text-green-400' : 'text-amber-400'}`}>
-                              {userCredits}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {!hasEnoughCredits && (
-                          <div className="mt-3 pt-3 border-t border-amber-500/30">
-                            <Link href="/pricing" className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-colors">
-                              <Plus className="w-4 h-4" />
-                              Get More Credits
-                            </Link>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {/* Render Button */}
-                  <button
-                    onClick={handleApproveAndRender}
-                    disabled={saving}
-                    className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-lg font-semibold bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90 transition-opacity disabled:opacity-50"
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="w-6 h-6 animate-spin" />
-                        Starting Render...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-6 h-6" />
-                        Export Video
-                      </>
-                    )}
-                  </button>
-
-                  {/* Render Info */}
-                  <div className={`space-y-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                    <p className="flex items-center gap-2">
-                      <Clock className="w-3 h-3" />
-                      {exportSettings.exportMode === 'instant' 
-                        ? 'Instant mode typically renders in under 2 minutes'
-                        : 'Queue mode typically takes 5-15 minutes during busy times'}
+                  {/* Share Page: Sign Up CTA */}
+                  <div className={`p-5 rounded-xl text-center ${
+                    isDark ? 'bg-gradient-to-r from-cyan-500/10 to-purple-500/10 border border-cyan-500/30' : 'bg-gradient-to-r from-cyan-50 to-purple-50 border border-cyan-200'
+                  }`}>
+                    <div className={`p-3 rounded-xl inline-block mb-3 ${isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'}`}>
+                      <Rocket className={`w-6 h-6 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+                    </div>
+                    <p className={`text-lg font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Like what you see?
                     </p>
-                    <p className="flex items-center gap-2">
-                      <CheckCircle className="w-3 h-3" />
-                      You'll receive an email when your video is ready
+                    <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Sign up to create your own karaoke videos with custom styles, backgrounds, and more.
                     </p>
+                    <Link
+                      href="/signup"
+                      className="flex items-center justify-center gap-3 w-full px-6 py-4 rounded-xl text-lg font-semibold bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:opacity-90 transition-opacity"
+                    >
+                      <LogIn className="w-6 h-6" />
+                      Sign Up &amp; Create Your Own
+                    </Link>
                   </div>
                 </div>
               )}
@@ -6985,14 +6925,14 @@ export default function SharePage() {
                 <button onClick={resetToOriginal} disabled={!hasChanges} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${hasChanges ? isDark ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-gray-500/20 text-gray-500 cursor-not-allowed'}`}>
                   <RotateCcw className="w-4 h-4" />Reset
                 </button>
-                <button onClick={saveChanges} disabled={saving || !hasChanges} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${hasChanges ? 'bg-cyan-500 hover:bg-cyan-600 text-white' : 'bg-gray-500/20 text-gray-500 cursor-not-allowed'}`}>
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}Save
-                </button>
+                <Link href="/signup" className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-cyan-500 hover:bg-cyan-600 text-white transition-colors">
+                  <LogIn className="w-4 h-4" />Sign Up to Save
+                </Link>
               </div>
-              <button onClick={handleApproveAndRender} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:opacity-90 transition-opacity">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                Render
-              </button>
+              <Link href="/signup" className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-cyan-500 to-purple-500 text-white hover:opacity-90 transition-opacity">
+                <Rocket className="w-4 h-4" />
+                Create Your Own
+              </Link>
             </div>
           </motion.div>
 
