@@ -6578,8 +6578,8 @@ export default function PreviewEditPage() {
                         ))}
                       </div>
 
-                      {/* Video Grid - 2 cols on mobile, 3 on sm, 4 on md+ */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-2 max-h-72 sm:max-h-56 overflow-y-auto pr-1 -mr-1">
+                      {/* Video Grid - 3 cols on mobile, 5 on sm, 6 on md, 8 on lg+ */}
+                      <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-2 sm:gap-1.5 max-h-72 sm:max-h-64 overflow-y-auto pr-1 -mr-1">
                         {filteredVideoPresets.map(preset => (
                           <button
                             key={preset.id}
