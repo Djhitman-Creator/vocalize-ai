@@ -3939,13 +3939,18 @@ export default function PreviewEditPage() {
                     className="relative overflow-hidden rounded-lg shadow-2xl"
                     style={{ width, height, ...getFullscreenBackground() }}
                   >
-                    {/* Background Image */}
-                    {bgSettings.bgImageUrl && (
-                      <img className="absolute inset-0 w-full h-full object-cover opacity-60" src={bgSettings.bgImageUrl} alt="" />
+                    {/* Background Image - only show when bgType is 'image' */}
+                    {bgSettings.bgType === 'image' && bgSettings.bgImageUrl && (
+                      <img className="absolute inset-0 w-full h-full object-cover opacity-60" src={bgSettings.bgImageUrl} alt="" 
+                        style={{
+                          objectFit: bgSettings.bgImageFit === 'stretch' ? 'fill' : bgSettings.bgImageFit === 'fit' ? 'contain' : 'cover',
+                          backgroundColor: bgSettings.bgImageFit === 'fit' ? bgSettings.bgColor1 : 'transparent'
+                        }}
+                      />
                     )}
                     
-                    {/* Background Video */}
-                    {(bgSettings.bgVideoPreset || bgSettings.bgCustomVideoUrl) && (
+                    {/* Background Video - only show when bgType is 'video' or 'custom-video' */}
+                    {(bgSettings.bgType === 'video' || bgSettings.bgType === 'custom-video') && (bgSettings.bgVideoPreset || bgSettings.bgCustomVideoUrl) && (
                       <video 
                         className="absolute inset-0 w-full h-full object-cover opacity-60" 
                         src={bgSettings.bgCustomVideoUrl || (bgSettings.bgVideoPreset ? `${PRESET_BASE_URL}/${bgSettings.bgVideoPreset.filename}` : '')}
