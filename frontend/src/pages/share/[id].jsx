@@ -3768,37 +3768,133 @@ export default function SharePage() {
                         </div>
                       )}
                       
-                      {/* Current lyrics - simplified display */}
-                      <div className="flex flex-col items-center justify-center w-full" style={{ gap: lineGap }}>
-                        {currentLyrics.currentLine && (
-                          <p 
-                            className="font-bold text-center"
-                            style={{ 
-                              fontFamily: previewFontFamily,
-                              fontSize: currentLineFontSize,
-                              color: sungColor,
-                              textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`
-                            }}
-                          >
-                            {currentLyrics.currentLine.map(w => w.word).join(' ')}
-                          </p>
-                        )}
-                        {currentLyrics.upcomingLines?.slice(0, 3).map((line, idx) => (
-                          <p 
-                            key={idx}
-                            className="font-bold text-center"
-                            style={{ 
-                              fontFamily: previewFontFamily,
-                              fontSize: baseFontSize,
-                              color: textColor,
-                              textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
-                              opacity: 0.6 - (idx * 0.15)
-                            }}
-                          >
-                            {line}
-                          </p>
-                        ))}
-                      </div>
+                      {/* Full lyrics rendering - matches small preview exactly */}
+                      {layoutSettings.displayMode === 'overwrite' ? (
+                        /* OVERWRITE MODE */
+                        (() => {
+                          const numLines = layoutSettings.linesPerOverwrite || 4;
+                          const currentIdx = currentLyrics.currentLineIdx ?? -1;
+                          
+                          if (currentIdx >= 0 && lyricsLines.length > 0) {
+                            const currentPosition = currentIdx % numLines;
+                            const lines = [];
+                            for (let i = 0; i < numLines; i++) {
+                              const lineIdx = currentIdx + i;
+                              if (lineIdx < lyricsLines.length) {
+                                lines.push({ lineIdx, isCurrentLine: i === 0, text: lyricsLines[lineIdx].map(w => w.word).join(' ') });
+                              }
+                            }
+                            const displaySlots = new Array(numLines).fill(null);
+                            for (let i = 0; i < lines.length; i++) { displaySlots[(currentPosition + i) % numLines] = lines[i]; }
+                            const finalSlots = displaySlots.filter(s => s !== null);
+                            
+                            return (
+                              <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
+                                {finalSlots.map((lineData) => (
+                                  <div key={`fs-ow-${lineData.lineIdx}`} className="text-center w-full">
+                                    {lineData.isCurrentLine && currentLyrics.currentLine ? (
+                                      <p className="font-bold relative inline-flex flex-wrap justify-center items-baseline" style={{ fontFamily: previewFontFamily, fontSize: layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`, gap: `${wordSpacing}px` }}>
+                                        {currentLyrics.currentLine.map((wordData, wordIdx) => {
+                                          const highlightColor = getHighlightColor(wordData.index);
+                                          if (wordIdx === 0 && currentLyrics.showSweepIn) {
+                                            return (<span key={wordIdx} style={{ position: 'relative' }}><SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} /><SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} /></span>);
+                                          }
+                                          return <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
+                                        })}
+                                      </p>
+                                    ) : (
+                                      <p className="font-bold" style={{ fontFamily: previewFontFamily, fontSize: `${baseFontSize}px`, color: textColor, textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`, opacity: 0.6 }}>{lineData.text}</p>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          } else if (currentLyrics.upcomingLines && currentLyrics.upcomingLines.length > 0) {
+                            return (
+                              <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
+                                {currentLyrics.upcomingLines.slice(0, numLines).map((text, idx) => (
+                                  <div key={`fs-ow-up-${idx}`} className="text-center w-full">
+                                    <p className="font-bold" style={{ fontFamily: previewFontFamily, fontSize: `${baseFontSize}px`, color: textColor, textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`, opacity: 0.6 }}>{text}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()
+                      ) : layoutSettings.displayMode === 'page' ? (
+                        /* PAGE MODE */
+                        <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
+                          {currentLyrics.pageLines && currentLyrics.pageLines.slice(0, layoutSettings.linesPerPage || 4).map((lineData, lineIdx) => (
+                            <div key={`fs-pg-${lineIdx}`} className="text-center w-full">
+                              <p className="font-bold relative inline-flex flex-wrap justify-center items-baseline" style={{ fontFamily: previewFontFamily, fontSize: lineData.isCurrentLine && layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`, gap: `${wordSpacing}px`, opacity: lineData.isCurrentLine ? 1 : lineData.isPastLine ? 0.8 : 0.6 }}>
+                                {lineData.words.map((wordData, wordIdx) => {
+                                  const highlightColor = getHighlightColor(wordData.index);
+                                  const shadowStyle = `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`;
+                                  if (lineData.isPastLine) { return <span key={wordIdx} style={{ color: sungColor, textShadow: shadowStyle }}>{wordData.word}</span>; }
+                                  if (lineData.isCurrentLine) {
+                                    if (wordIdx === 0 && currentLyrics.showSweepIn) {
+                                      return (<span key={wordIdx} style={{ position: 'relative' }}><SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} /><SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} /></span>);
+                                    }
+                                    return <SweepWord key={wordIdx} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
+                                  }
+                                  return <span key={wordIdx} style={{ color: textColor, textShadow: shadowStyle }}>{wordData.word}</span>;
+                                })}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        /* SCROLL MODE (default) */
+                        (() => {
+                          const numLines = layoutSettings.linesPerScroll || 4;
+                          const lineHeight = layoutSettings.emphasizeCurrentLine ? currentLineFontSize * 2.2 : baseFontSize * 2.2;
+                          const totalHeight = numLines * lineHeight;
+                          const currentIdx = currentLyrics.currentLineIdx ?? -1;
+                          const linesToShow = [];
+                          if (currentIdx >= 0 && lyricsLines[currentIdx]) {
+                            for (let i = 0; i < numLines; i++) {
+                              const lineIdx = currentIdx + i;
+                              if (lineIdx < lyricsLines.length) {
+                                const hasWordData = i === 0 && currentLyrics.currentLine && currentLyrics.currentLine.length > 0;
+                                linesToShow.push({ lineIdx, position: i, isCurrent: hasWordData, words: hasWordData ? currentLyrics.currentLine : null, text: lyricsLines[lineIdx].map(w => w.word).join(' ') });
+                              }
+                            }
+                          } else if (currentLyrics.upcomingLines && currentLyrics.upcomingLines.length > 0) {
+                            currentLyrics.upcomingLines.slice(0, numLines).forEach((text, i) => { linesToShow.push({ lineIdx: `upcoming-${i}`, position: i, isCurrent: false, words: null, text }); });
+                          }
+                          return (
+                            <div className="flex flex-col items-center w-full" style={{ gap: `${lineGap}px` }}>
+                              <div className="relative w-full overflow-hidden" style={{ height: `${totalHeight}px` }}>
+                                <AnimatePresence mode="popLayout">
+                                {linesToShow.map((lineData) => {
+                                  const isCurrent = lineData.isCurrent;
+                                  const yPosition = lineData.position * lineHeight;
+                                  const opacityValue = lineData.position === 0 ? 1 : Math.max(0.35, 0.7 - (lineData.position * 0.12));
+                                  return (
+                                    <motion.div key={`fs-line-${lineData.lineIdx}`} className="absolute left-0 right-0 text-center" initial={{ y: yPosition + lineHeight, opacity: 0 }} animate={{ y: yPosition, opacity: opacityValue }} exit={{ y: yPosition - lineHeight, opacity: 0 }} transition={{ type: "tween", duration: 0.35, ease: "easeOut" }}>
+                                      {isCurrent && lineData.words ? (
+                                        <p className="font-bold relative inline-flex flex-wrap justify-center items-baseline" style={{ fontFamily: previewFontFamily, fontSize: layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`, gap: `${wordSpacing}px` }}>
+                                          {lineData.words.map((wordData, i) => {
+                                            const highlightColor = getHighlightColor(wordData.index);
+                                            if (i === 0 && currentLyrics.showSweepIn) {
+                                              return (<span key={i} style={{ position: 'relative' }}><SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} /><SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} /></span>);
+                                            }
+                                            return <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
+                                          })}
+                                        </p>
+                                      ) : (
+                                        <p className="font-bold" style={{ fontFamily: previewFontFamily, fontSize: `${baseFontSize}px`, color: textColor, textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}` }}>{lineData.text}</p>
+                                      )}
+                                    </motion.div>
+                                  );
+                                })}
+                                </AnimatePresence>
+                              </div>
+                            </div>
+                          );
+                        })()
+                      )}
                     </div>
                     
                     {/* Intro Overlay */}
