@@ -1690,7 +1690,7 @@ app.post('/api/upload-font', authMiddleware, upload.single('font'), async (req, 
 // AI BACKGROUND IMAGE GENERATION
 // ============================================
 
-const AI_BG_CREDIT_COST = 1; // 1 credit per AI-generated background
+const AI_BG_CREDIT_COST = 3; // 3 credit per AI-generated background
 
 app.post('/api/generate-ai-background', authMiddleware, async (req, res) => {
   try {
