@@ -6748,7 +6748,7 @@ export default function PreviewEditPage() {
                                   No AI images generated yet. Create one above!
                                 </div>
                               ) : (
-                                <div className="grid grid-cols-3 gap-2 max-h-[200px] overflow-y-auto pr-1">
+                                <div className="grid grid-cols-4 gap-1.5 max-h-[160px] overflow-y-auto pr-1">
                                   {aiGallery.map((img) => (
                                     <button
                                       key={img.id}
