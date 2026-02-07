@@ -1366,7 +1366,7 @@ export default function PreviewEditPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState(null);
   const [aiCreditsRemaining, setAiCreditsRemaining] = useState(null);
-  const AI_BG_CREDIT_COST = 1;
+  const AI_BG_CREDIT_COST = 3;
 
   // V11: Update background settings helper
   const updateBgSettings = useCallback((updates) => {
