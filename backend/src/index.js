@@ -1781,6 +1781,18 @@ app.post('/api/generate-ai-background', authMiddleware, async (req, res) => {
       .eq('id', req.user.id)
       .single();
 
+      // Save AI image to gallery for reuse
+    try {
+      await supabase.from('ai_generated_images').insert({
+        user_id: req.user.id,
+        project_id: projectId,
+        image_url: permanentUrl,
+        prompt: prompt,
+      });
+    } catch (galleryErr) {
+      console.error('Failed to save AI image to gallery:', galleryErr);
+    }
+
     res.json({
       success: true,
       imageUrl: permanentUrl,
@@ -1800,6 +1812,24 @@ app.post('/api/generate-ai-background', authMiddleware, async (req, res) => {
     }
     
     res.status(500).json({ error: error.message || 'Failed to generate AI background' });
+  }
+});
+
+// GET /api/ai-images - Fetch user's AI generated image gallery
+app.get('/api/ai-images', authMiddleware, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('ai_generated_images')
+      .select('id, image_url, prompt, created_at, project_id')
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+    res.json({ images: data || [] });
+  } catch (err) {
+    console.error('Failed to fetch AI images:', err);
+    res.status(500).json({ error: 'Failed to fetch images' });
   }
 });
 
