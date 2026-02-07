@@ -130,7 +130,7 @@ const TABS = [
 const FONT_OPTIONS = [
   // Custom Font (Studio tier only) - AT THE TOP
   { value: 'custom', label: 'Custom Font', family: 'CustomKaraokeFont, sans-serif', requiresStudio: true, isCustom: true },
-  
+
   // Google Fonts - Alphabetical order
   { value: 'abril-fatface', label: 'Abril Fatface', family: '"Abril Fatface", serif' },
   { value: 'alegreya', label: 'Alegreya', family: '"Alegreya", serif' },
@@ -359,11 +359,11 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
   // Past words (already sung) - NO glow, just colored text
   if (isPast || sweepPercent >= 1) {
     return (
-      <span className="mx-1" style={{ 
-        color: color, 
-        textShadow: baseTextShadow, 
-        position: 'relative', 
-        zIndex: 1 
+      <span className="mx-1" style={{
+        color: color,
+        textShadow: baseTextShadow,
+        position: 'relative',
+        zIndex: 1
       }}>{word}</span>
     );
   }
@@ -371,11 +371,11 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
   // Unsung words (not active yet) - dimmed color, no glow
   if (sweepPercent <= 0 && !isActive) {
     return (
-      <span className="mx-1" style={{ 
-        color: unsungColor, 
-        textShadow: baseTextShadow, 
-        position: 'relative', 
-        zIndex: 1 
+      <span className="mx-1" style={{
+        color: unsungColor,
+        textShadow: baseTextShadow,
+        position: 'relative',
+        zIndex: 1
       }}>{word}</span>
     );
   }
@@ -386,7 +386,7 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
   return (
     <span className="mx-1" style={{ position: 'relative', display: 'inline-block' }}>
       {/* Outer glow layer - larger blur */}
-      <span 
+      <span
         aria-hidden="true"
         style={{
           position: 'absolute',
@@ -401,9 +401,9 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
           pointerEvents: 'none',
         }}
       >{word}</span>
-      
+
       {/* Inner glow layer - tighter blur */}
-      <span 
+      <span
         aria-hidden="true"
         style={{
           position: 'absolute',
@@ -418,19 +418,19 @@ const SweepWord = ({ word, sweepPercent, color, unsungColor, outlineColor, isAct
           pointerEvents: 'none',
         }}
       >{word}</span>
-      
+
       {/* Base unsung text layer */}
-      <span style={{ 
-        color: unsungColor, 
-        textShadow: baseTextShadow, 
-        position: 'relative', 
-        zIndex: 1 
+      <span style={{
+        color: unsungColor,
+        textShadow: baseTextShadow,
+        position: 'relative',
+        zIndex: 1
       }}>{word}</span>
-      
+
       {/* Sung overlay - clipped to sweep progress */}
       <span style={{
-        position: 'absolute', 
-        top: 0, 
+        position: 'absolute',
+        top: 0,
         left: 0,
         color: color,
         textShadow: baseTextShadow,
@@ -449,7 +449,7 @@ const SweepInBar = ({ progress, color }) => {
   // Progress: 0 = bar at full width, 1 = bar gone
   const maxWidth = 50;
   const width = Math.max(0, (1 - progress) * maxWidth);
-  
+
   if (width < 1) return null;
 
   // Absolutely positioned - doesn't affect layout
@@ -478,7 +478,7 @@ const SweepInBar = ({ progress, color }) => {
 const InstrumentalProgressBar = ({ progress, nextLyrics, color, textColor, outlineColor, isPortrait }) => {
   return (
     <div className="flex flex-col items-center gap-2">
-      <div 
+      <div
         className="h-2 bg-white/20 rounded-full overflow-hidden"
         style={{ width: isPortrait ? '80%' : '16rem' }}
       >
@@ -549,8 +549,8 @@ const VolumeSlider = ({ value, onChange, label, icon: Icon, color, muted, onMute
       <button
         onClick={onMuteToggle}
         className={`p-1.5 rounded transition-colors flex-shrink-0 ${muted
-            ? 'text-red-400 hover:text-red-300'
-            : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
+          ? 'text-red-400 hover:text-red-300'
+          : isDark ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'
           }`}
         title={muted ? `Unmute ${label}` : `Mute ${label}`}
       >
@@ -580,15 +580,14 @@ const VolumeSlider = ({ value, onChange, label, icon: Icon, color, muted, onMute
         </div>
         {/* Thumb */}
         <div
-          className={`absolute w-4 h-4 rounded-full shadow-md border-2 transition-all duration-75 -translate-x-1/2 ${
-            isTouching 
-              ? 'scale-125 shadow-lg' 
+          className={`absolute w-4 h-4 rounded-full shadow-md border-2 transition-all duration-75 -translate-x-1/2 ${isTouching
+              ? 'scale-125 shadow-lg'
               : ''
-          }`}
-          style={{ 
-            left: `${displayValue}%`, 
+            }`}
+          style={{
+            left: `${displayValue}%`,
             backgroundColor: isDark ? '#fff' : '#fff',
-            borderColor: color 
+            borderColor: color
           }}
         />
       </div>
@@ -601,8 +600,8 @@ const VolumeSlider = ({ value, onChange, label, icon: Icon, color, muted, onMute
 // LINE LENGTH WARNING COMPONENT
 // ============================================================
 const LineLengthWarning = ({ lineIndex, charCount, maxChars }) => (
-  <div 
-    className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded" 
+  <div
+    className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded"
     title={`Line ${lineIndex + 1} has ${charCount} characters (max ${maxChars}). Consider splitting it.`}
   >
     <AlertTriangle className="w-3 h-3" />
@@ -614,15 +613,15 @@ const LineLengthWarning = ({ lineIndex, charCount, maxChars }) => (
 const TooLongLinesWarning = ({ lyricsLines, aspectRatio, fontSize, emphasizeCurrentLine }) => {
   let maxChars = MAX_CHARS_PER_LINE[aspectRatio || '16:9']?.[fontSize || 'normal'] || 50;
   if (emphasizeCurrentLine) maxChars = Math.floor(maxChars * EMPHASIZE_CHAR_REDUCTION);
-  
+
   const tooLongCount = lyricsLines.filter(line => {
     if (!line || line.length === 0) return false;
     const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0) - 1;
     return charCount > maxChars;
   }).length;
-  
+
   if (tooLongCount === 0) return null;
-  
+
   return (
     <span className="flex items-center gap-1 px-2 py-0.5 bg-yellow-500/20 text-yellow-400 text-xs rounded">
       <AlertTriangle className="w-3 h-3" />
@@ -637,10 +636,10 @@ const TooLongLinesWarning = ({ lyricsLines, aspectRatio, fontSize, emphasizeCurr
 const FontDropdown = ({ value, onChange, isDark, isStudioUser }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
-  
+
   // Get current selected font
   const selectedFont = FONT_OPTIONS.find(f => f.value === value) || FONT_OPTIONS[1];
-  
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -648,31 +647,30 @@ const FontDropdown = ({ value, onChange, isDark, isStudioUser }) => {
         setIsOpen(false);
       }
     };
-    
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-  
+
   const handleSelect = (fontValue) => {
     // Don't allow selecting custom font if not Studio user
     const font = FONT_OPTIONS.find(f => f.value === fontValue);
     if (font?.isCustom && !isStudioUser) return;
-    
+
     onChange(fontValue);
     setIsOpen(false);
   };
-  
+
   return (
     <div ref={dropdownRef} className="relative">
       {/* Selected Value Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full px-3 py-2 rounded-lg text-sm text-left flex items-center justify-between ${
-          isDark 
-            ? 'bg-white/10 border-white/10 text-white hover:bg-white/15' 
+        className={`w-full px-3 py-2 rounded-lg text-sm text-left flex items-center justify-between ${isDark
+            ? 'bg-white/10 border-white/10 text-white hover:bg-white/15'
             : 'bg-gray-50 border-gray-200 text-gray-900 hover:bg-gray-100'
-        } border transition-colors`}
+          } border transition-colors`}
       >
         <span style={{ fontFamily: selectedFont.isCustom ? 'inherit' : selectedFont.family }}>
           {selectedFont.label}
@@ -680,35 +678,33 @@ const FontDropdown = ({ value, onChange, isDark, isStudioUser }) => {
         </span>
         <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
-      
+
       {/* Dropdown Menu */}
       {isOpen && (
-        <div 
-          className={`absolute z-50 w-full mt-1 rounded-lg shadow-xl max-h-64 overflow-y-auto ${
-            isDark 
-              ? 'bg-gray-800 border border-white/10' 
+        <div
+          className={`absolute z-50 w-full mt-1 rounded-lg shadow-xl max-h-64 overflow-y-auto ${isDark
+              ? 'bg-gray-800 border border-white/10'
               : 'bg-white border border-gray-200'
-          }`}
+            }`}
         >
           {FONT_OPTIONS.map((font, index) => {
             const isDisabled = font.isCustom && !isStudioUser;
             const isSelected = font.value === value;
-            
+
             return (
               <div key={font.value}>
                 {/* Add separator after Custom Font */}
                 {index === 1 && (
                   <div className={`border-t ${isDark ? 'border-white/10' : 'border-gray-200'} my-1`} />
                 )}
-                
+
                 <button
                   type="button"
                   onClick={() => handleSelect(font.value)}
                   disabled={isDisabled}
-                  className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between transition-colors ${
-                    isDisabled
-                      ? isDark 
-                        ? 'text-gray-500 cursor-not-allowed' 
+                  className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between transition-colors ${isDisabled
+                      ? isDark
+                        ? 'text-gray-500 cursor-not-allowed'
                         : 'text-gray-400 cursor-not-allowed'
                       : isSelected
                         ? isDark
@@ -717,15 +713,14 @@ const FontDropdown = ({ value, onChange, isDark, isStudioUser }) => {
                         : isDark
                           ? 'text-white hover:bg-white/10'
                           : 'text-gray-900 hover:bg-gray-50'
-                  }`}
+                    }`}
                   style={{ fontFamily: font.isCustom ? 'inherit' : font.family }}
                 >
                   <span className="flex items-center gap-2">
                     {font.label}
                     {font.isCustom && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        isDark ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-600'
-                      }`}>
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${isDark ? 'bg-purple-500/20 text-purple-400' : 'bg-purple-100 text-purple-600'
+                        }`}>
                         Studio
                       </span>
                     )}
@@ -744,17 +739,17 @@ const FontDropdown = ({ value, onChange, isDark, isStudioUser }) => {
 // ============================================================
 // WORD DURATION CONTEXT MENU COMPONENT - NEW in V10.10
 // ============================================================
-const WordContextMenu = ({ 
-  isOpen, 
-  position, 
-  word, 
-  wordIndex, 
-  onClose, 
+const WordContextMenu = ({
+  isOpen,
+  position,
+  word,
+  wordIndex,
+  onClose,
   onRename,
   onAddWordBefore,
   onAddWordAfter,
   onDeleteWord,
-  isDark 
+  isDark
 }) => {
   const menuRef = useRef(null);
 
@@ -796,12 +791,12 @@ const WordContextMenu = ({
       onTouchEnd={(e) => { e.preventDefault(); onClick(); onClose(); }}
       disabled={disabled}
       className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors rounded-lg
-        ${disabled 
-          ? 'opacity-50 cursor-not-allowed' 
-          : danger 
-            ? 'hover:bg-red-500/20 text-red-400 active:bg-red-500/30' 
-            : isDark 
-              ? 'hover:bg-white/10 text-white active:bg-white/20' 
+        ${disabled
+          ? 'opacity-50 cursor-not-allowed'
+          : danger
+            ? 'hover:bg-red-500/20 text-red-400 active:bg-red-500/30'
+            : isDark
+              ? 'hover:bg-white/10 text-white active:bg-white/20'
               : 'hover:bg-gray-100 text-gray-700 active:bg-gray-200'
         }`}
     >
@@ -819,12 +814,12 @@ const WordContextMenu = ({
         exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.1 }}
         className={`fixed z-50 min-w-[200px] rounded-xl shadow-xl border overflow-hidden
-          ${isDark 
-            ? 'bg-gray-900/95 border-white/10 backdrop-blur-xl' 
+          ${isDark
+            ? 'bg-gray-900/95 border-white/10 backdrop-blur-xl'
             : 'bg-white/95 border-gray-200 backdrop-blur-xl'
           }`}
-        style={{ 
-          left: position.x, 
+        style={{
+          left: position.x,
           top: position.y,
           maxHeight: '80vh'
         }}
@@ -846,13 +841,13 @@ const WordContextMenu = ({
         <div className="p-1">
           {/* Edit Section */}
           <MenuItem icon={Edit3} label="Rename Word" onClick={() => onRename(wordIndex)} />
-          
+
           <div className={`my-1 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`} />
 
           {/* Add Words Section */}
           <MenuItem icon={Plus} label="Add Word Before" onClick={() => onAddWordBefore(wordIndex)} />
           <MenuItem icon={Plus} label="Add Word After" onClick={() => onAddWordAfter(wordIndex)} />
-          
+
           <div className={`my-1 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`} />
 
           {/* Delete Section */}
@@ -889,7 +884,7 @@ export default function PreviewEditPage() {
     discId: 'KT-01'
   });
   const [editingTrackInfo, setEditingTrackInfo] = useState(false);
-  
+
   // Fullscreen preview state
   const [isFullscreenPreview, setIsFullscreenPreview] = useState(false);
 
@@ -1093,7 +1088,7 @@ export default function PreviewEditPage() {
       }
 
       const result = await response.json();
-      
+
       // Update project state with new font URL
       setProject(prev => ({
         ...prev,
@@ -1103,7 +1098,7 @@ export default function PreviewEditPage() {
 
       // Auto-select custom font
       updateStyleSettings({ selectedFont: 'custom' });
-      
+
     } catch (err) {
       console.error('Font upload error:', err);
       setCustomFontError(err.message || 'Failed to upload font');
@@ -1219,7 +1214,7 @@ export default function PreviewEditPage() {
         bg_color_2: bgSettings.bgColor2,
         gradient_direction: bgSettings.gradientDirection,
         bg_image_url: bgSettings.bgImageUrl,
-          bg_image_fit: bgSettings.bgImageFit || 'fill',
+        bg_image_fit: bgSettings.bgImageFit || 'fill',
         bg_image_fit: bgSettings.bgImageFit || 'fill',
         bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
         // Layout settings
@@ -1268,7 +1263,7 @@ export default function PreviewEditPage() {
   // V12: Load a preset and apply settings
   const loadPreset = useCallback((preset) => {
     setLoadingPresetId(preset.id);
-    
+
     // Apply style settings
     setStyleSettings({
       selectedFont: preset.font || 'arial',
@@ -1289,7 +1284,7 @@ export default function PreviewEditPage() {
       bgImagePreview: preset.bg_image_url || null,
       bgImageFit: preset.bg_image_fit || 'fill',
       bgVideoPresetFilename: preset.bg_video_preset_filename || null,
-      bgVideoPreset: preset.bg_video_preset_filename ? 
+      bgVideoPreset: preset.bg_video_preset_filename ?
         PRESET_VIDEO_BACKGROUNDS.find(v => v.filename === preset.bg_video_preset_filename)?.url || null : null,
     }));
 
@@ -1326,7 +1321,7 @@ export default function PreviewEditPage() {
     }));
 
     setHasChanges(true);
-    
+
     setTimeout(() => setLoadingPresetId(null), 500);
   }, []);
 
@@ -1367,7 +1362,9 @@ export default function PreviewEditPage() {
   const [aiError, setAiError] = useState(null);
   const [aiCreditsRemaining, setAiCreditsRemaining] = useState(null);
   const AI_BG_CREDIT_COST = 3;
-
+  const [aiGallery, setAiGallery] = useState([]);
+  const [aiGalleryLoading, setAiGalleryLoading] = useState(false);
+  const [showAiGallery, setShowAiGallery] = useState(false);
   // V11: Update background settings helper
   const updateBgSettings = useCallback((updates) => {
     setBgSettings(prev => ({ ...prev, ...updates }));
@@ -1413,6 +1410,8 @@ export default function PreviewEditPage() {
       setProject(prev => ({ ...prev, bg_image_url: result.imageUrl }));
       setAiCreditsRemaining(result.creditsRemaining);
       setAiPrompt('');
+      // Refresh gallery to include the new image
+      if (showAiGallery) fetchAiGallery();
     } catch (err) {
       console.error('AI background error:', err);
       setAiError(err.message || 'Failed to generate AI background');
@@ -1420,6 +1419,24 @@ export default function PreviewEditPage() {
       setAiGenerating(false);
     }
   }, [aiPrompt, id, router, updateBgSettings]);
+
+  // Fetch user's AI generated images gallery
+  const fetchAiGallery = useCallback(async () => {
+    setAiGalleryLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/ai-images`, {
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      });
+      const result = await response.json();
+      if (response.ok) setAiGallery(result.images || []);
+    } catch (err) {
+      console.error('Failed to fetch AI gallery:', err);
+    } finally {
+      setAiGalleryLoading(false);
+    }
+  }, []);
 
   // V11: Filter video presets by category
   const filteredVideoPresets = useMemo(() => {
@@ -1467,12 +1484,12 @@ export default function PreviewEditPage() {
       }
 
       const result = await response.json();
-      updateBgSettings({ 
+      updateBgSettings({
         bgType: 'image',
         bgImageUrl: result.imageUrl,
         bgImagePreview: result.imageUrl,
       });
-      
+
       // Update project state
       setProject(prev => ({ ...prev, bg_image_url: result.imageUrl }));
     } catch (err) {
@@ -1523,14 +1540,14 @@ export default function PreviewEditPage() {
       }
 
       const result = await response.json();
-      updateBgSettings({ 
+      updateBgSettings({
         bgType: 'custom-video',
         bgCustomVideoUrl: result.videoUrl,
         bgCustomVideoPreview: result.videoUrl,
         bgVideoPreset: null,
         bgVideoPresetFilename: null,
       });
-      
+
       // Update project state
       setProject(prev => ({ ...prev, bg_video_url: result.videoUrl }));
     } catch (err) {
@@ -1572,7 +1589,7 @@ export default function PreviewEditPage() {
   const [vocalsVolume, setVocalsVolume] = useState(0);  // Start at 0 - vocals are for reference only
   const [instrumentalMuted, setInstrumentalMuted] = useState(false);
   const [vocalsMuted, setVocalsMuted] = useState(true);  // Start muted
-  
+
   // Waveform state for timeline visualization
   const [waveformData, setWaveformData] = useState(null);
   const [waveformLoading, setWaveformLoading] = useState(false);
@@ -1587,7 +1604,7 @@ export default function PreviewEditPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartX, setDragStartX] = useState(0);
   const [dragStartTimes, setDragStartTimes] = useState({});
-  
+
   // Word resize state - drag handles on word edges
   const [hoveredWordIndex, setHoveredWordIndex] = useState(null);
   const [isWordResizing, setIsWordResizing] = useState(false);
@@ -1612,12 +1629,12 @@ export default function PreviewEditPage() {
   const [paintMode, setPaintMode] = useState(null);
   const [isPainting, setIsPainting] = useState(false);
   const [paintedIndices, setPaintedIndices] = useState(new Set());
-  
+
   // Undo/Redo state for words
   const [wordsHistory, setWordsHistory] = useState([]);
   const [wordsHistoryIndex, setWordsHistoryIndex] = useState(-1);
   const [isUndoRedo, setIsUndoRedo] = useState(false);
-  
+
   // V10.10: Context menu state for word duration adjustment
   const [contextMenu, setContextMenu] = useState({
     isOpen: false,
@@ -1629,7 +1646,7 @@ export default function PreviewEditPage() {
   const wordLongPressTimer = useRef(null);
   const wordLongPressTriggered = useRef(false);
   const wordTouchStartPos = useRef({ x: 0, y: 0 });
-  
+
   // For backwards compatibility - compute single selected index (must be after all useState)
   const selectedWordIndex = selectedWordIndices.size === 1 ? [...selectedWordIndices][0] : null;
 
@@ -1882,17 +1899,17 @@ export default function PreviewEditPage() {
   // ============================================================
   const isLineTooLong = useCallback((line) => {
     if (!line || line.length === 0) return false;
-    
+
     // Get dynamic character limit based on aspect ratio and font size
     const aspectRatio = layoutSettings.aspectRatio || '16:9';
     const fontSize = styleSettings.fontSize || 'normal';
     let maxChars = MAX_CHARS_PER_LINE[aspectRatio]?.[fontSize] || 50;
-    
+
     // Reduce limit when emphasize is on (current line renders 1.3x larger)
     if (layoutSettings.emphasizeCurrentLine) {
       maxChars = Math.floor(maxChars * EMPHASIZE_CHAR_REDUCTION);
     }
-    
+
     // Check character count
     const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0) - 1; // -1 to not count trailing space
     return charCount > maxChars;
@@ -2069,13 +2086,13 @@ export default function PreviewEditPage() {
     const loadProject = async () => {
       try {
         setLoading(true);
-        
+
         // V13: Check for edit token in URL (for accessing from another device via QR code)
         const urlParams = new URLSearchParams(window.location.search);
         const editToken = urlParams.get('token');
-        
+
         let projectData = null;
-        
+
         if (editToken) {
           // Token-based access (no login required, but must have valid token)
           const { data, error: tokenError } = await supabase
@@ -2084,33 +2101,33 @@ export default function PreviewEditPage() {
             .eq('id', id)
             .eq('edit_token', editToken)
             .single();
-          
+
           if (tokenError || !data) {
             setError('Invalid or expired edit link. Please request a new one from the project owner.');
             setLoading(false);
             return;
           }
-          
+
           projectData = data;
           setIsTokenAccess(true);
         } else {
           // Normal authenticated access
           const { data: { user } } = await supabase.auth.getUser();
           if (!user) { router.push('/login'); return; }
-          
+
           const { data, error: projectError } = await supabase
             .from('projects')
             .select('*')
             .eq('id', id)
             .eq('user_id', user.id)
             .single();
-          
-          if (projectError || !data) { 
-            setError('Project not found'); 
+
+          if (projectError || !data) {
+            setError('Project not found');
             setLoading(false);
-            return; 
+            return;
           }
-          
+
           projectData = data;
         }
 
@@ -2120,14 +2137,14 @@ export default function PreviewEditPage() {
         console.log('Font setting:', projectData.font);
 
         setProject(projectData);
-        
+
         // Initialize track info from project data
         setTrackInfo({
           artistName: projectData.artist_name || '',
           songTitle: projectData.song_title || '',
           discId: projectData.disc_id || 'KT-01'
         });
-        
+
         let lyricsData = projectData.lyrics_json || [];
 
         // Auto-add line breaks if none exist
@@ -2147,7 +2164,7 @@ export default function PreviewEditPage() {
             both: projectData.duet_both_color || DEFAULT_DUET_COLORS.both
           });
         }
-        
+
         // V11: Initialize style settings from project data
         setStyleSettings({
           selectedFont: projectData.font || 'arial',
@@ -2156,12 +2173,12 @@ export default function PreviewEditPage() {
           sungColor: projectData.sung_color || '#00d4ff',
           outlineColor: projectData.outline_color || '#000000',
         });
-        
+
         // V11: Initialize background settings from project data
-        const bgPreset = projectData.bg_video_preset_filename 
+        const bgPreset = projectData.bg_video_preset_filename
           ? PRESET_VIDEO_BACKGROUNDS.find(p => p.filename === projectData.bg_video_preset_filename)
           : null;
-        
+
         setBgSettings({
           bgType: projectData.bg_type || 'gradient',
           bgColor1: projectData.bg_color_1 || '#1a1a2e',
@@ -2175,7 +2192,7 @@ export default function PreviewEditPage() {
           bgCustomVideoUrl: projectData.bg_video_url || null,
           bgCustomVideoPreview: projectData.bg_video_url || null,
         });
-        
+
         // V11: Initialize layout settings from project data
         setLayoutSettings({
           displayMode: projectData.display_mode || 'scroll',
@@ -2188,13 +2205,13 @@ export default function PreviewEditPage() {
           showLeadInBars: projectData.show_lead_in_bars !== false, // default true
           cleanVersion: projectData.clean_version || false,
         });
-        
+
         // V11: Initialize export settings from project data
         setExportSettings({
           audioTrack: projectData.audio_track || 'instrumental',
           videoQuality: projectData.video_quality || '720p',
         });
-        
+
         // V11: Initialize branding settings from project data
         setBrandingSettings({
           logoUrl: projectData.logo_url || null,
@@ -2209,7 +2226,7 @@ export default function PreviewEditPage() {
           outroDuration: projectData.outro_duration || 3,
           outroFontSize: projectData.outro_font_size || 'medium',
         });
-        
+
         // Fetch waveform data if available
         if (projectData.waveform_url) {
           setWaveformLoading(true);
@@ -2237,7 +2254,7 @@ export default function PreviewEditPage() {
   // ============================================================
   // INTRO HANDLING: First 4 seconds are visual-only countdown, audio starts after
   // currentTime 0-4 = intro (displays as -4 to 0), currentTime 4+ = audio playing
-  
+
   const INTRO_DURATION = 4; // 4 second intro before audio starts
   const lastVocalSyncRef = useRef(0); // Throttle vocal sync to prevent choppy playback
   const introStartTimeRef = useRef(null); // Track when intro playback started
@@ -2247,13 +2264,13 @@ export default function PreviewEditPage() {
 
     const updateTime = () => {
       if (!isPlaying) return;
-      
+
       const now = performance.now();
-      
+
       // During intro period, use introStartTimeRef to calculate elapsed time
       if (introStartTimeRef.current !== null) {
         const elapsedSec = (now - introStartTimeRef.current) / 1000;
-        
+
         if (elapsedSec >= INTRO_DURATION) {
           // Intro finished - start audio from beginning
           introStartTimeRef.current = null;
@@ -2273,7 +2290,7 @@ export default function PreviewEditPage() {
             setCurrentTime(elapsedSec);
           });
         }
-        
+
         rafId = requestAnimationFrame(updateTime);
       } else if (instrumentalRef.current) {
         // After intro - sync with actual audio time + offset
@@ -2294,7 +2311,7 @@ export default function PreviewEditPage() {
             }
           }
         }
-        
+
         rafId = requestAnimationFrame(updateTime);
       }
     };
@@ -2342,7 +2359,7 @@ export default function PreviewEditPage() {
         vocalsRef.current.muted = vocalsMuted || vocalsVolume === 0;
         vocalsRef.current.volume = vocalsVolume / 100;
       }
-      
+
       // IMPORTANT: Set up the correct mode BEFORE setting isPlaying to true
       // This prevents race conditions with the RAF loop
       if (currentTime < INTRO_DURATION) {
@@ -2371,7 +2388,7 @@ export default function PreviewEditPage() {
           vocalsRef.current.play().catch(e => console.log('Vocals play error:', e));
         }
       }
-      
+
       // Now set isPlaying - RAF loop will start and see the correct introStartTimeRef value
       setIsPlaying(true);
     }
@@ -2381,10 +2398,10 @@ export default function PreviewEditPage() {
     // time is visual time (0 = start of intro, INTRO_DURATION = start of audio)
     const maxTime = (duration || 0) + INTRO_DURATION;
     const clampedTime = Math.max(0, Math.min(time, maxTime));
-    
+
     // Convert to audio time
     const audioTime = clampedTime - INTRO_DURATION;
-    
+
     if (audioTime >= 0) {
       // Past intro - clear intro timer and set audio position
       introStartTimeRef.current = null;
@@ -2405,7 +2422,7 @@ export default function PreviewEditPage() {
         introStartTimeRef.current = performance.now() - (clampedTime * 1000);
       }
     }
-    
+
     setCurrentTime(clampedTime);
   }, [duration, isPlaying]);
 
@@ -2418,14 +2435,14 @@ export default function PreviewEditPage() {
   useEffect(() => {
     const timeline = timelineContainerRef.current;
     if (!timeline) return;
-    
+
     const handleWheel = (e) => {
       e.preventDefault();
       e.stopPropagation();
       const scrollAmount = e.deltaY > 0 ? 2 : -2;
       seekTo(currentTime + scrollAmount);
     };
-    
+
     timeline.addEventListener('wheel', handleWheel, { passive: false });
     return () => timeline.removeEventListener('wheel', handleWheel);
   }, [currentTime, seekTo]);
@@ -2658,7 +2675,7 @@ export default function PreviewEditPage() {
   const assignLineToSinger = useCallback((lineIndex, singerValue) => {
     const line = lyricsLines[lineIndex];
     if (!line) return;
-    
+
     setWords(prev => {
       const updated = [...prev];
       line.forEach(wordData => {
@@ -2673,10 +2690,10 @@ export default function PreviewEditPage() {
   const getLineSingerAssignment = useCallback((lineIndex) => {
     const line = lyricsLines[lineIndex];
     if (!line || line.length === 0) return SINGER.BOTH;
-    
+
     const firstSinger = words[line[0].globalIndex]?.singer ?? SINGER.BOTH;
     const allSame = line.every(wordData => (words[wordData.globalIndex]?.singer ?? SINGER.BOTH) === firstSinger);
-    
+
     return allSame ? firstSinger : 'mixed';
   }, [lyricsLines, words]);
 
@@ -2738,19 +2755,19 @@ export default function PreviewEditPage() {
   // ============================================================
   // UNDO/REDO FUNCTIONALITY
   // ============================================================
-  
+
   // Save current state to history when words change (but not during undo/redo)
   useEffect(() => {
     if (isUndoRedo) {
       setIsUndoRedo(false);
       return;
     }
-    
+
     // Only save if we have words and they're different from the last history entry
     if (words.length > 0) {
       const currentState = JSON.stringify(words);
       const lastState = wordsHistory[wordsHistoryIndex] ? JSON.stringify(wordsHistory[wordsHistoryIndex]) : null;
-      
+
       if (currentState !== lastState) {
         // Remove any future history (if we made changes after undoing)
         const newHistory = wordsHistory.slice(0, wordsHistoryIndex + 1);
@@ -2765,7 +2782,7 @@ export default function PreviewEditPage() {
       }
     }
   }, [words]);
-  
+
   // Undo function
   const handleUndo = useCallback(() => {
     if (wordsHistoryIndex > 0) {
@@ -2776,7 +2793,7 @@ export default function PreviewEditPage() {
       setHasChanges(true);
     }
   }, [wordsHistoryIndex, wordsHistory]);
-  
+
   // Redo function
   const handleRedo = useCallback(() => {
     if (wordsHistoryIndex < wordsHistory.length - 1) {
@@ -2787,7 +2804,7 @@ export default function PreviewEditPage() {
       setHasChanges(true);
     }
   }, [wordsHistoryIndex, wordsHistory]);
-  
+
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -2795,20 +2812,20 @@ export default function PreviewEditPage() {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
         return;
       }
-      
+
       // Ctrl/Cmd + Z for undo
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         handleUndo();
       }
-      
+
       // Ctrl/Cmd + Shift + Z or Ctrl/Cmd + Y for redo
       if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
         e.preventDefault();
         handleRedo();
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
@@ -2819,24 +2836,24 @@ export default function PreviewEditPage() {
   const handleWordContextMenu = useCallback((index, e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Close any editing modes
     if (editingWordIndex !== null) {
       setEditingWordIndex(null);
       setEditingText('');
     }
-    
+
     // Select the word
     setSelectedWordIndices(new Set([index]));
-    
+
     // Calculate position - ensure menu stays on screen
     const menuWidth = 240;
     const menuHeight = 400;
     const padding = 10;
-    
+
     let x = e.clientX;
     let y = e.clientY;
-    
+
     // Adjust if menu would go off-screen
     if (x + menuWidth > window.innerWidth - padding) {
       x = window.innerWidth - menuWidth - padding;
@@ -2844,7 +2861,7 @@ export default function PreviewEditPage() {
     if (y + menuHeight > window.innerHeight - padding) {
       y = window.innerHeight - menuHeight - padding;
     }
-    
+
     setContextMenu({
       isOpen: true,
       position: { x, y },
@@ -2932,7 +2949,7 @@ export default function PreviewEditPage() {
   // ============================================================
   // CONTEXT MENU HANDLERS - Rename, Add Before/After, Delete
   // ============================================================
-  
+
   // State for rename modal
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [renameWordIndex, setRenameWordIndex] = useState(null);
@@ -3003,7 +3020,7 @@ export default function PreviewEditPage() {
   useEffect(() => {
     // Only add listeners when actively dragging
     if (!isDragging) return;
-    
+
     const handleMove = (clientX) => {
       if (paintMode !== null) return;
       const deltaX = clientX - dragStartX;
@@ -3042,7 +3059,7 @@ export default function PreviewEditPage() {
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
     window.addEventListener('touchend', handleEnd);
     window.addEventListener('touchcancel', handleEnd);
-    
+
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleEnd);
@@ -3071,11 +3088,11 @@ export default function PreviewEditPage() {
     const handleMove = (clientX) => {
       const deltaX = clientX - wordResizeStartX;
       const deltaTime = deltaX / zoom;
-      
+
       setWords(prev => {
         const updated = [...prev];
         const word = updated[wordResizeIndex];
-        
+
         if (wordResizeEdge === 'left') {
           // Moving start time - ensure it doesn't go past end or below 0
           const newStart = Math.max(0, Math.min(word.end - 0.05, wordResizeStartTime + deltaTime));
@@ -3085,7 +3102,7 @@ export default function PreviewEditPage() {
           const newEnd = Math.max(word.start + 0.05, wordResizeStartTime + deltaTime);
           updated[wordResizeIndex] = { ...word, end: newEnd };
         }
-        
+
         return updated;
       });
       setHasChanges(true);
@@ -3110,7 +3127,7 @@ export default function PreviewEditPage() {
     window.addEventListener('touchmove', handleWordResizeTouchMove, { passive: false });
     window.addEventListener('touchend', handleWordResizeEnd);
     window.addEventListener('touchcancel', handleWordResizeEnd);
-    
+
     return () => {
       window.removeEventListener('mousemove', handleWordResizeMove);
       window.removeEventListener('mouseup', handleWordResizeEnd);
@@ -3167,7 +3184,7 @@ export default function PreviewEditPage() {
           gradient_direction: bgSettings.gradientDirection,
           bg_image_url: bgSettings.bgImageUrl,
           bg_image_fit: bgSettings.bgImageFit || 'fill',
-        bg_image_fit: bgSettings.bgImageFit || 'fill',
+          bg_image_fit: bgSettings.bgImageFit || 'fill',
           bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
           bg_video_url: bgSettings.bgCustomVideoUrl,
           // V11: Layout settings
@@ -3199,7 +3216,7 @@ export default function PreviewEditPage() {
         .eq('id', id);
 
       if (error) throw error;
-      
+
       // Update local project state with new track info
       setProject(prev => ({
         ...prev,
@@ -3207,7 +3224,7 @@ export default function PreviewEditPage() {
         song_title: trackInfo.songTitle,
         disc_id: trackInfo.discId
       }));
-      
+
       setHasChanges(false);
       setOriginalWords(JSON.parse(JSON.stringify(words)));
       setSaveSuccess(true);
@@ -3337,7 +3354,7 @@ export default function PreviewEditPage() {
     // word.start/end are in audio time (0 = song start)
     // currentTime is visual time (0 = intro start, INTRO_DURATION = song start)
     const audioTime = Math.max(0, currentTime - INTRO_DURATION);
-    
+
     if (!lyricsLines.length) return {
       prevLine: '',
       currentLine: null,
@@ -3392,13 +3409,13 @@ export default function PreviewEditPage() {
               isActive: false, isPast: false, sweepPercent: 0
             }));
             const prevLineText = i > 0 ? lyricsLines[i - 1].map(w => w.word).join(' ') : '';
-            
+
             // Build upcomingLines
             const upcomingLines = [];
             for (let j = i + 1; j < Math.min(i + 7, lyricsLines.length); j++) {
               upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
             }
-            
+
             // Build pageLines for page/overwrite mode
             const currentPageIdx = Math.floor(i / LINES_PER_PAGE);
             const pageStartIdx = currentPageIdx * LINES_PER_PAGE;
@@ -3439,7 +3456,7 @@ export default function PreviewEditPage() {
             const timeIntoProgressBar = gapDuration - timeUntilLine;
             const progressPercent = Math.min(1, Math.max(0, timeIntoProgressBar / progressBarDuration));
             const prevLineText = i > 0 ? lyricsLines[i - 1].map(w => w.word).join(' ') : '';
-            
+
             // Build upcomingLines starting from current line
             const upcomingLines = [];
             for (let j = i; j < Math.min(i + 6, lyricsLines.length); j++) {
@@ -3469,13 +3486,13 @@ export default function PreviewEditPage() {
                 isActive: false, isPast: true, sweepPercent: 1
               }));
               const prevPrevLineText = i > 1 ? lyricsLines[i - 2].map(w => w.word).join(' ') : '';
-              
+
               // Build upcomingLines
               const upcomingLines = [];
               for (let j = i; j < Math.min(i + 6, lyricsLines.length); j++) {
                 upcomingLines.push(lyricsLines[j].map(w => w.word).join(' '));
               }
-              
+
               // Build pageLines - use previous line's page
               const prevLineIdx = i - 1;
               const currentPageIdx = Math.floor(prevLineIdx / LINES_PER_PAGE);
@@ -3494,7 +3511,7 @@ export default function PreviewEditPage() {
                   lineText: pageLine.map(w => w.word).join(' ')
                 });
               }
-              
+
               return {
                 prevLine: prevPrevLineText,
                 currentLine: currentLineText,
@@ -3521,7 +3538,7 @@ export default function PreviewEditPage() {
               showProgressBar: false, progressBarPercent: 0, nextLyricsForProgressBar: ''
             };
           }
-          
+
           // Build upcomingLines for gap before first visible lyrics
           const upcomingLines = [];
           for (let j = i; j < Math.min(i + 6, lyricsLines.length); j++) {
@@ -3557,7 +3574,7 @@ export default function PreviewEditPage() {
               isActive: false, isPast: true, sweepPercent: 1
             }));
             const prevLineText = lyricsLines.length > 1 ? lyricsLines[lyricsLines.length - 2].map(w => w.word).join(' ') : '';
-            
+
             // Build pageLines for last page
             const currentPageIdx = Math.floor(lastLineIdx / LINES_PER_PAGE);
             const pageStartIdx = currentPageIdx * LINES_PER_PAGE;
@@ -3575,7 +3592,7 @@ export default function PreviewEditPage() {
                 lineText: pageLine.map(w => w.word).join(' ')
               });
             }
-            
+
             return {
               prevLine: prevLineText,
               currentLine: currentLineText, next: '',
@@ -3637,19 +3654,19 @@ export default function PreviewEditPage() {
     const currentPageIdx = Math.floor(currentLineIdx / LINES_PER_PAGE);
     const pageStartIdx = currentPageIdx * LINES_PER_PAGE;
     const pageEndIdx = Math.min(pageStartIdx + LINES_PER_PAGE, lyricsLines.length);
-    
+
     const pageLines = [];
     for (let i = pageStartIdx; i < pageEndIdx; i++) {
       const pageLine = lyricsLines[i];
       const isCurrentLine = i === currentLineIdx;
       const isPastLine = i < currentLineIdx;
-      
+
       const lineWords = pageLine.map(w => {
         let sweepPct = 0;
         let fadeInPct = 0;
         const isWordActive = audioTime >= w.start && audioTime <= w.end;
         const isWordPast = audioTime > w.end;
-        
+
         if (isPastLine || isWordPast) {
           sweepPct = 1;
           fadeInPct = 1;
@@ -3660,10 +3677,10 @@ export default function PreviewEditPage() {
             fadeInPct = Math.min(1, sweepPct * 5);
           }
         }
-        
+
         return { word: w.word, index: w.globalIndex, start: w.start, end: w.end, isActive: isWordActive, isPast: isWordPast || isPastLine, sweepPercent: sweepPct, fadeInProgress: fadeInPct };
       });
-      
+
       pageLines.push({
         words: lineWords,
         isCurrentLine,
@@ -3674,7 +3691,7 @@ export default function PreviewEditPage() {
 
     return {
       prevLine: prevText,
-      currentLine: currentLineText, 
+      currentLine: currentLineText,
       next: nextText,
       upcomingLines,
       pageLines,
@@ -3720,7 +3737,7 @@ export default function PreviewEditPage() {
 
     // Use audio time for generating markers (markers are in audio time 0, 1, 2, 3...)
     const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
-    
+
     const markers = [];
     const visibleRange = 20; // seconds visible on each side of center
     const startTime = Math.max(0, audioTimeNow - visibleRange);
@@ -3759,12 +3776,12 @@ export default function PreviewEditPage() {
     const bgColor1 = bgSettings.bgColor1 || project.bg_color_1 || '#1a1a2e';
     const bgColor2 = bgSettings.bgColor2 || project.bg_color_2 || '#16213e';
     const direction = bgSettings.gradientDirection || project.gradient_direction || 'to bottom';
-    
+
     // For video and image backgrounds, use dark background (video/image will overlay)
     if (bgType === 'video' || bgType === 'custom-video' || bgType === 'image') {
       return { backgroundColor: '#000000' };
     }
-    
+
     if (bgType === 'gradient') {
       return { background: `linear-gradient(${direction}, ${bgColor1}, ${bgColor2})` };
     }
@@ -3774,12 +3791,12 @@ export default function PreviewEditPage() {
   // V11: Get video URL using bgSettings for live preview
   const getVideoBackgroundUrl = () => {
     const bgType = bgSettings.bgType || project.bg_type;
-    
+
     // Only show video for video-type backgrounds
     if (bgType !== 'video' && bgType !== 'custom-video') {
       return null;
     }
-    
+
     // Custom uploaded video
     if (bgSettings.bgCustomVideoUrl) {
       return bgSettings.bgCustomVideoUrl;
@@ -3787,7 +3804,7 @@ export default function PreviewEditPage() {
     if (bgType === 'custom-video' && project.bg_video_url) {
       return project.bg_video_url;
     }
-    
+
     // Preset video
     if (bgSettings.bgVideoPresetFilename) {
       return `${PRESET_BASE_URL}/${bgSettings.bgVideoPresetFilename}`;
@@ -3795,7 +3812,7 @@ export default function PreviewEditPage() {
     if (project.bg_video_preset_filename) {
       return `${PRESET_BASE_URL}/${project.bg_video_preset_filename}`;
     }
-    
+
     return null;
   };
 
@@ -3851,10 +3868,10 @@ export default function PreviewEditPage() {
       {/* FULLSCREEN PREVIEW MODAL */}
       <AnimatePresence>
         {isFullscreenPreview && (
-          <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-black flex items-center justify-center"
             onClick={() => setIsFullscreenPreview(false)}
           >
@@ -3866,9 +3883,9 @@ export default function PreviewEditPage() {
             >
               <Minimize2 className="w-6 h-6" />
             </button>
-            
+
             {/* Fullscreen video preview */}
-            <div 
+            <div
               className="relative w-full h-full flex items-center justify-center p-4"
               onClick={(e) => e.stopPropagation()}
             >
@@ -3876,17 +3893,17 @@ export default function PreviewEditPage() {
                 // Calculate dimensions to fit screen while maintaining aspect ratio
                 const getAspectRatio = () => {
                   switch (layoutSettings.aspectRatio) {
-                    case '4:3': return 4/3;
-                    case '9:16': return 9/16;
-                    default: return 16/9;
+                    case '4:3': return 4 / 3;
+                    case '9:16': return 9 / 16;
+                    default: return 16 / 9;
                   }
                 };
                 const ratio = getAspectRatio();
-                
+
                 // Get viewport dimensions (with padding)
                 const maxWidth = typeof window !== 'undefined' ? window.innerWidth - 32 : 1200;
                 const maxHeight = typeof window !== 'undefined' ? window.innerHeight - 32 : 800;
-                
+
                 // Calculate dimensions that fit within viewport
                 let width, height;
                 if (ratio >= 1) {
@@ -3898,30 +3915,30 @@ export default function PreviewEditPage() {
                   height = Math.min(maxHeight, maxWidth / ratio);
                   width = height * ratio;
                 }
-                
+
                 // Font scaling for fullscreen
                 const scaleFactor = height / 270;
                 const fontSizeMultiplier = FONT_SIZE_OPTIONS.find(opt => opt.value === styleSettings.fontSize)?.scale || 1.0;
                 const isPortrait = layoutSettings.aspectRatio === '9:16';
                 const portraitScale = isPortrait ? 0.7 : 1.0;
-                
+
                 const baseFontSize = Math.max(16, Math.min(48, 20 * scaleFactor * fontSizeMultiplier * portraitScale));
                 const currentLineFontSize = Math.max(20, Math.min(64, 26 * scaleFactor * fontSizeMultiplier * portraitScale));
                 const lineGap = Math.max(4, Math.min(20, 8 * scaleFactor * (isPortrait ? 0.8 : 1)));
                 const textShadowSize = Math.max(2, Math.min(5, 2.5 * scaleFactor * portraitScale));
                 const wordSpacing = Math.max(4, Math.min(12, 6 * scaleFactor * portraitScale));
                 const contentPadding = isPortrait ? Math.max(8, 16 * scaleFactor) : Math.max(16, 32 * scaleFactor);
-                
+
                 const previewFontFamily = project?.custom_font_url && styleSettings.selectedFont === 'custom'
-                  ? 'CustomKaraokeFont' 
+                  ? 'CustomKaraokeFont'
                   : FONT_OPTIONS.find(f => f.value === styleSettings.selectedFont)?.family || 'Arial, sans-serif';
-                
+
                 // Colors
                 const textColor = styleSettings.textColor || '#ffffff';
                 const sungColor = styleSettings.sungColor || '#00d4ff';
                 const outlineColor = styleSettings.outlineColor || '#000000';
                 const unsungColor = textColor;
-                
+
                 // Background
                 const getFullscreenBackground = () => {
                   switch (bgSettings.bgType) {
@@ -3933,34 +3950,34 @@ export default function PreviewEditPage() {
                       return { backgroundColor: '#1a1a2e' };
                   }
                 };
-                
+
                 return (
-                  <div 
+                  <div
                     className="relative overflow-hidden rounded-lg shadow-2xl"
                     style={{ width, height, ...getFullscreenBackground() }}
                   >
                     {/* Background Image - only show when bgType is 'image' */}
                     {bgSettings.bgType === 'image' && bgSettings.bgImageUrl && (
-                      <img className="absolute inset-0 w-full h-full object-cover opacity-60" src={bgSettings.bgImageUrl} alt="" 
+                      <img className="absolute inset-0 w-full h-full object-cover opacity-60" src={bgSettings.bgImageUrl} alt=""
                         style={{
                           objectFit: bgSettings.bgImageFit === 'stretch' ? 'fill' : bgSettings.bgImageFit === 'fit' ? 'contain' : 'cover',
                           backgroundColor: bgSettings.bgImageFit === 'fit' ? bgSettings.bgColor1 : 'transparent'
                         }}
                       />
                     )}
-                    
+
                     {/* Background Video - only show when bgType is 'video' or 'custom-video' */}
                     {(bgSettings.bgType === 'video' || bgSettings.bgType === 'custom-video') && (bgSettings.bgVideoPreset || bgSettings.bgCustomVideoUrl) && (
-                      <video 
-                        className="absolute inset-0 w-full h-full object-cover opacity-60" 
+                      <video
+                        className="absolute inset-0 w-full h-full object-cover opacity-60"
                         src={bgSettings.bgCustomVideoUrl || (bgSettings.bgVideoPreset ? `${PRESET_BASE_URL}/${bgSettings.bgVideoPreset.filename}` : '')}
-                        autoPlay loop muted playsInline 
+                        autoPlay loop muted playsInline
                       />
                     )}
-                    
+
                     {/* Lyrics Overlay */}
-                    <div 
-                      className="absolute inset-0 flex flex-col items-center justify-center" 
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center"
                       style={{ padding: contentPadding, opacity: currentTime < INTRO_DURATION ? 0 : 1 }}
                     >
                       {/* Progress bar during instrumental breaks */}
@@ -3976,13 +3993,13 @@ export default function PreviewEditPage() {
                           />
                         </div>
                       )}
-                      
+
                       {/* Current lyrics - simplified display */}
                       <div className="flex flex-col items-center justify-center w-full" style={{ gap: lineGap }}>
                         {currentLyrics.currentLine && (
-                          <p 
+                          <p
                             className="font-bold text-center"
-                            style={{ 
+                            style={{
                               fontFamily: previewFontFamily,
                               fontSize: currentLineFontSize,
                               color: sungColor,
@@ -3993,10 +4010,10 @@ export default function PreviewEditPage() {
                           </p>
                         )}
                         {currentLyrics.upcomingLines?.slice(0, 3).map((line, idx) => (
-                          <p 
+                          <p
                             key={idx}
                             className="font-bold text-center"
-                            style={{ 
+                            style={{
                               fontFamily: previewFontFamily,
                               fontSize: baseFontSize,
                               color: textColor,
@@ -4009,14 +4026,14 @@ export default function PreviewEditPage() {
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Intro Overlay */}
                     {currentTime < INTRO_DURATION && brandingSettings.startImageShowTitle !== false && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
                         {brandingSettings.startImageUrl && (
-                          <img 
-                            src={brandingSettings.startImageUrl} 
-                            alt="Intro" 
+                          <img
+                            src={brandingSettings.startImageUrl}
+                            alt="Intro"
                             className="absolute inset-0 w-full h-full"
                             style={{ objectFit: brandingSettings.startImageFit || 'contain', opacity: (brandingSettings.startImageOpacity || 100) / 100 }}
                           />
@@ -4031,7 +4048,7 @@ export default function PreviewEditPage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Logo Watermark */}
                     {brandingSettings.logoUrl && (() => {
                       // Scale logo to match handler.py proportions (1280px base)
@@ -4039,21 +4056,21 @@ export default function PreviewEditPage() {
                       const fsScaledLogoSize = (brandingSettings.logoSize || 50) * fsLogoScale;
                       const fsScaledPadding = Math.max(6, 40 * fsLogoScale);
                       return (
-                      <div 
-                        className="absolute z-30"
-                        style={{
-                          ...(brandingSettings.logoPosition?.includes('top') ? { top: fsScaledPadding } : { bottom: fsScaledPadding }),
-                          ...(brandingSettings.logoPosition?.includes('left') ? { left: fsScaledPadding } : brandingSettings.logoPosition?.includes('right') ? { right: fsScaledPadding } : { left: '50%', transform: 'translateX(-50%)' }),
-                          opacity: (brandingSettings.logoOpacity || 80) / 100,
-                          width: fsScaledLogoSize,
-                          height: fsScaledLogoSize,
-                        }}
-                      >
-                        <img src={brandingSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-                      </div>
+                        <div
+                          className="absolute z-30"
+                          style={{
+                            ...(brandingSettings.logoPosition?.includes('top') ? { top: fsScaledPadding } : { bottom: fsScaledPadding }),
+                            ...(brandingSettings.logoPosition?.includes('left') ? { left: fsScaledPadding } : brandingSettings.logoPosition?.includes('right') ? { right: fsScaledPadding } : { left: '50%', transform: 'translateX(-50%)' }),
+                            opacity: (brandingSettings.logoOpacity || 80) / 100,
+                            width: fsScaledLogoSize,
+                            height: fsScaledLogoSize,
+                          }}
+                        >
+                          <img src={brandingSettings.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                        </div>
                       );
                     })()}
-                    
+
                     {/* Time display */}
                     <div className={`absolute bottom-2 right-2 px-2 py-1 bg-black/60 rounded text-sm font-mono ${currentTime < INTRO_DURATION ? 'text-yellow-400' : 'text-white/80'}`}>
                       {formatTrackTime(currentTime)}
@@ -4062,7 +4079,7 @@ export default function PreviewEditPage() {
                 );
               })()}
             </div>
-            
+
             {/* Playback controls */}
             <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-3 px-4 py-2 bg-black/60 rounded-full backdrop-blur-sm">
               <button onClick={restart} className="p-2 rounded-full hover:bg-white/20 transition-colors">
@@ -4128,29 +4145,29 @@ export default function PreviewEditPage() {
               <div className="mb-4">
                 <label className="block text-sm text-gray-500 mb-2">New Text</label>
                 <input
-                  type="text" 
-                  value={renameText} 
+                  type="text"
+                  value={renameText}
                   onChange={(e) => setRenameText(e.target.value)}
-                  onKeyDown={(e) => { 
-                    if (e.key === 'Enter') submitRename(); 
-                    if (e.key === 'Escape') { setShowRenameModal(false); setRenameText(''); setRenameWordIndex(null); } 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') submitRename();
+                    if (e.key === 'Escape') { setShowRenameModal(false); setRenameText(''); setRenameWordIndex(null); }
                   }}
-                  placeholder="Enter new word text..." 
+                  placeholder="Enter new word text..."
                   autoFocus
                   className={`w-full px-4 py-2 rounded-lg text-sm ${isDark ? 'bg-white/5 border border-white/10 text-white' : 'bg-gray-50 border border-gray-200 text-gray-900'} focus:outline-none focus:ring-2 focus:ring-cyan-500`}
                 />
               </div>
 
               <div className="flex gap-2">
-                <button 
-                  onClick={() => { setShowRenameModal(false); setRenameText(''); setRenameWordIndex(null); }} 
+                <button
+                  onClick={() => { setShowRenameModal(false); setRenameText(''); setRenameWordIndex(null); }}
                   className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}
                 >
                   Cancel
                 </button>
-                <button 
-                  onClick={submitRename} 
-                  disabled={!renameText.trim()} 
+                <button
+                  onClick={submitRename}
+                  disabled={!renameText.trim()}
                   className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium ${renameText.trim() ? 'bg-cyan-500 text-white hover:bg-cyan-600' : 'bg-gray-500 text-gray-300 cursor-not-allowed'}`}
                 >
                   Rename
@@ -4182,7 +4199,7 @@ export default function PreviewEditPage() {
                   <ArrowLeft className="w-5 h-5" />
                 </a>
               )}
-              
+
               {/* Editable Track Info */}
               {editingTrackInfo ? (
                 <div className="flex flex-col gap-2">
@@ -4230,7 +4247,7 @@ export default function PreviewEditPage() {
                   </div>
                 </div>
               ) : (
-                <div 
+                <div
                   className="cursor-pointer group"
                   onClick={() => setEditingTrackInfo(true)}
                   title="Click to edit track info"
@@ -4251,11 +4268,10 @@ export default function PreviewEditPage() {
               {/* V13: Share Button */}
               <button
                 onClick={() => setShowShareModal(true)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  isDark 
-                    ? 'bg-white/10 hover:bg-white/20 text-white' 
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${isDark
+                    ? 'bg-white/10 hover:bg-white/20 text-white'
                     : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
+                  }`}
                 title="Share Project"
               >
                 <QrCode className="w-4 h-4" />
@@ -4328,9 +4344,9 @@ export default function PreviewEditPage() {
                 </button>
               </div>
             </div>
-            
+
             {/* Dynamic Aspect Ratio Container - Centered */}
-            <div 
+            <div
               className={`flex items-center justify-center p-4 ${isDark ? 'bg-black/30' : 'bg-gray-100'}`}
               style={{ minHeight: previewHeight }}
             >
@@ -4339,50 +4355,50 @@ export default function PreviewEditPage() {
                 // V11: Calculate aspect ratio dimensions
                 const getAspectRatioDimensions = () => {
                   switch (layoutSettings.aspectRatio) {
-                    case '4:3': return { ratio: 4/3, cssRatio: '4 / 3' };
-                    case '9:16': return { ratio: 9/16, cssRatio: '9 / 16' };
-                    default: return { ratio: 16/9, cssRatio: '16 / 9' }; // 16:9
+                    case '4:3': return { ratio: 4 / 3, cssRatio: '4 / 3' };
+                    case '9:16': return { ratio: 9 / 16, cssRatio: '9 / 16' };
+                    default: return { ratio: 16 / 9, cssRatio: '16 / 9' }; // 16:9
                   }
                 };
                 const { ratio, cssRatio } = getAspectRatioDimensions();
-                
+
                 // Calculate dynamic font sizes based on preview height
                 // Base reference: 1080p video height = 1080px, typical font size ~48px
                 // Scale proportionally to preview height
                 const boxHeight = previewHeight - 32;
-                const boxWidth = layoutSettings.aspectRatio === '9:16' 
+                const boxWidth = layoutSettings.aspectRatio === '9:16'
                   ? boxHeight * ratio  // Portrait: narrower
                   : boxHeight * ratio; // Landscape: wider
-                
+
                 const scaleFactor = boxHeight / 270; // 270px as baseline (small preview)
-                
+
                 // V11: Get font size multiplier from styleSettings
                 const fontSizeMultiplier = FONT_SIZE_OPTIONS.find(opt => opt.value === styleSettings.fontSize)?.scale || 1.0;
-                
+
                 // V11: Get font family from styleSettings
                 const previewFontFamily = project?.custom_font_url && styleSettings.selectedFont === 'custom'
-                  ? 'CustomKaraokeFont' 
+                  ? 'CustomKaraokeFont'
                   : FONT_OPTIONS.find(f => f.value === styleSettings.selectedFont)?.family || 'Arial, sans-serif';
-                
+
                 // 9:16 Portrait mode adjustments - narrower width needs smaller fonts
                 const isPortrait = layoutSettings.aspectRatio === '9:16';
                 const portraitScale = isPortrait ? 0.7 : 1.0; // 30% smaller for portrait
-                
+
                 const baseFontSize = Math.max(10, Math.min(32, 14 * scaleFactor * fontSizeMultiplier * portraitScale));
                 const currentLineFontSize = Math.max(12, Math.min(40, 18 * scaleFactor * fontSizeMultiplier * portraitScale));
                 const lineGap = Math.max(2, Math.min(12, 4 * scaleFactor * (isPortrait ? 0.8 : 1)));
                 const textShadowSize = Math.max(1, Math.min(3, 1.5 * scaleFactor * portraitScale));
                 const wordSpacing = Math.max(1, Math.min(6, 3 * scaleFactor * portraitScale));
-                
+
                 // Padding adjustments for portrait mode
-                const contentPadding = isPortrait 
+                const contentPadding = isPortrait
                   ? Math.max(4, 8 * scaleFactor)  // Smaller padding for portrait
                   : Math.max(8, 16 * scaleFactor); // Normal padding for landscape
-                
+
                 return (
-                  <div 
+                  <div
                     className="relative overflow-hidden rounded-lg shadow-2xl"
-                    style={{ 
+                    style={{
                       width: `${boxWidth}px`,
                       height: `${boxHeight}px`,
                       maxWidth: '100%',
@@ -4392,35 +4408,35 @@ export default function PreviewEditPage() {
                   >
                     {/* Background Image */}
                     {backgroundImageUrl && (
-                      <img 
-                        className="absolute inset-0 w-full h-full opacity-60" 
+                      <img
+                        className="absolute inset-0 w-full h-full opacity-60"
                         style={{
-                          objectFit: bgSettings.bgImageFit === 'stretch' ? 'fill' : 
-                                     bgSettings.bgImageFit === 'fit' ? 'contain' : 'cover',
+                          objectFit: bgSettings.bgImageFit === 'stretch' ? 'fill' :
+                            bgSettings.bgImageFit === 'fit' ? 'contain' : 'cover',
                           backgroundColor: bgSettings.bgImageFit === 'fit' ? bgSettings.bgColor1 : 'transparent'
                         }}
-                        src={backgroundImageUrl} 
-                        alt="" 
+                        src={backgroundImageUrl}
+                        alt=""
                       />
                     )}
-                    
+
                     {/* Background Video */}
                     {videoBackgroundUrl && (
-                      <video 
-                        className="absolute inset-0 w-full h-full object-cover opacity-60" 
-                        src={videoBackgroundUrl} 
-                        autoPlay 
-                        loop 
-                        muted 
-                        playsInline 
+                      <video
+                        className="absolute inset-0 w-full h-full object-cover opacity-60"
+                        src={videoBackgroundUrl}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
                       />
                     )}
-                    
+
                     {/* Lyrics Overlay - with dynamic font scaling */}
                     {/* Hide lyrics during intro period (first 4 seconds) */}
-                    <div 
-                      className="absolute inset-0 flex flex-col items-center justify-center" 
-                      style={{ 
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center"
+                      style={{
                         padding: `${contentPadding}px`,
                         opacity: currentTime < INTRO_DURATION ? 0 : 1,
                         pointerEvents: currentTime < INTRO_DURATION ? 'none' : 'auto'
@@ -4439,27 +4455,27 @@ export default function PreviewEditPage() {
                           />
                         </div>
                       )}
-                      
+
                       {layoutSettings.displayMode === 'overwrite' ? (
                         /* OVERWRITE MODE - Current line cycles through positions 1->2->3->4->1... */
                         (() => {
                           const numLines = layoutSettings.linesPerOverwrite || 4;
                           const currentIdx = currentLyrics.currentLineIdx ?? -1;
-                          
+
                           // Overwrite mode behavior:
                           // - Current line position cycles: 0 -> 1 -> 2 -> 3 -> 0 -> 1 -> ...
                           // - Each slot shows: current line at its cycling position, 
                           //   remaining slots show next unsung lines
                           // - When a line finishes, it's instantly replaced with the next unsung line
-                          
+
                           if (currentIdx >= 0 && lyricsLines.length > 0) {
                             // Calculate which position (0 to numLines-1) the current line is in
                             const currentPosition = currentIdx % numLines;
-                            
+
                             // Build slots array: current line + next unsung lines
                             // Then reorder so current appears at currentPosition
                             const lines = [];
-                            
+
                             for (let i = 0; i < numLines; i++) {
                               const lineIdx = currentIdx + i;
                               if (lineIdx < lyricsLines.length) {
@@ -4471,26 +4487,26 @@ export default function PreviewEditPage() {
                                 });
                               }
                             }
-                            
+
                             // Reorder: current line goes to currentPosition, others wrap around
                             const displaySlots = new Array(numLines).fill(null);
-                            
+
                             for (let i = 0; i < lines.length; i++) {
                               const targetPosition = (currentPosition + i) % numLines;
                               displaySlots[targetPosition] = lines[i];
                             }
-                            
+
                             // Filter nulls and render
                             const finalSlots = displaySlots.filter(s => s !== null);
-                            
+
                             return (
                               <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
                                 {finalSlots.map((lineData) => (
                                   <div key={`ow-${lineData.lineIdx}`} className="text-center w-full">
                                     {lineData.isCurrentLine && currentLyrics.currentLine ? (
-                                      <p 
+                                      <p
                                         className="font-bold relative inline-flex flex-wrap justify-center items-baseline"
-                                        style={{ 
+                                        style={{
                                           fontFamily: previewFontFamily,
                                           fontSize: layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
                                           gap: `${wordSpacing}px`
@@ -4510,9 +4526,9 @@ export default function PreviewEditPage() {
                                         })}
                                       </p>
                                     ) : (
-                                      <p 
+                                      <p
                                         className="font-bold"
-                                        style={{ 
+                                        style={{
                                           fontFamily: previewFontFamily,
                                           fontSize: `${baseFontSize}px`,
                                           color: textColor,
@@ -4533,9 +4549,9 @@ export default function PreviewEditPage() {
                               <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
                                 {currentLyrics.upcomingLines.slice(0, numLines).map((text, idx) => (
                                   <div key={`ow-upcoming-${idx}`} className="text-center w-full">
-                                    <p 
+                                    <p
                                       className="font-bold"
-                                      style={{ 
+                                      style={{
                                         fontFamily: previewFontFamily,
                                         fontSize: `${baseFontSize}px`,
                                         color: textColor,
@@ -4550,7 +4566,7 @@ export default function PreviewEditPage() {
                               </div>
                             );
                           }
-                          
+
                           return null;
                         })()
                       ) : layoutSettings.displayMode === 'page' ? (
@@ -4558,9 +4574,9 @@ export default function PreviewEditPage() {
                         <div className="flex flex-col items-center justify-center w-full" style={{ gap: `${lineGap}px` }}>
                           {currentLyrics.pageLines && currentLyrics.pageLines.slice(0, layoutSettings.linesPerPage || 4).map((lineData, lineIdx) => (
                             <div key={lineIdx} className="text-center w-full">
-                              <p 
+                              <p
                                 className="font-bold relative inline-flex flex-wrap justify-center items-baseline"
-                                style={{ 
+                                style={{
                                   fontFamily: previewFontFamily,
                                   fontSize: lineData.isCurrentLine && layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
                                   gap: `${wordSpacing}px`,
@@ -4570,7 +4586,7 @@ export default function PreviewEditPage() {
                                 {lineData.words.map((wordData, wordIdx) => {
                                   const highlightColor = getHighlightColor(wordData.index);
                                   const shadowStyle = `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`;
-                                  
+
                                   if (lineData.isPastLine) {
                                     return <span key={wordIdx} style={{ color: sungColor, textShadow: shadowStyle }}>{wordData.word}</span>;
                                   }
@@ -4598,10 +4614,10 @@ export default function PreviewEditPage() {
                           const lineHeight = layoutSettings.emphasizeCurrentLine ? currentLineFontSize * 2.2 : baseFontSize * 2.2;
                           const totalHeight = numLines * lineHeight;
                           const currentIdx = currentLyrics.currentLineIdx ?? -1;
-                          
+
                           // Build array of lines to show
                           const linesToShow = [];
-                          
+
                           // Use currentLineIdx to determine which lines to show
                           if (currentIdx >= 0 && lyricsLines[currentIdx]) {
                             // Show lines starting from currentIdx
@@ -4631,83 +4647,83 @@ export default function PreviewEditPage() {
                               });
                             });
                           }
-                          
+
                           return (
                             <div className="flex flex-col items-center w-full" style={{ gap: `${lineGap}px` }}>
                               {/* Scroll lines container */}
-                              <div 
+                              <div
                                 className="relative w-full overflow-hidden"
                                 style={{ height: `${totalHeight}px` }}
                               >
                                 <AnimatePresence mode="popLayout">
-                                {linesToShow.map((lineData) => {
-                                  const isCurrent = lineData.isCurrent;
-                                  const yPosition = lineData.position * lineHeight;
-                                  // First line (position 0) should be full opacity even during progress bar
-                                  const opacityValue = lineData.position === 0 ? 1 : Math.max(0.35, 0.7 - (lineData.position * 0.12));
-                                  
-                                  return (
-                                    <motion.div
-                                      key={`line-${lineData.lineIdx}`}
-                                      className="absolute left-0 right-0 text-center"
-                                      initial={{ y: yPosition + lineHeight, opacity: 0 }}
-                                      animate={{ 
-                                        y: yPosition, 
-                                        opacity: opacityValue,
-                                      }}
-                                      exit={{ y: yPosition - lineHeight, opacity: 0 }}
-                                      transition={{ 
-                                        type: "tween",
-                                        duration: 0.35,
-                                        ease: "easeOut"
-                                      }}
-                                    >
-                                      {isCurrent && lineData.words ? (
-                                        <p 
-                                          className="font-bold relative inline-flex flex-wrap justify-center items-baseline" 
-                                          style={{ 
-                                            fontFamily: previewFontFamily,
-                                            fontSize: layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
-                                            gap: `${wordSpacing}px`
-                                          }}
-                                        >
-                                          {lineData.words.map((wordData, i) => {
-                                            const highlightColor = getHighlightColor(wordData.index);
-                                            if (i === 0 && currentLyrics.showSweepIn) {
-                                              return (
-                                                <span key={i} style={{ position: 'relative' }}>
-                                                  <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
-                                                  <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
-                                                </span>
-                                              );
-                                            }
-                                            return <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
-                                          })}
-                                        </p>
-                                      ) : (
-                                        <p 
-                                          className="font-bold"
-                                          style={{ 
-                                            fontFamily: previewFontFamily,
-                                            fontSize: `${baseFontSize}px`,
-                                            color: textColor,
-                                            textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
-                                          }}
-                                        >
-                                          {lineData.text}
-                                        </p>
-                                      )}
-                                    </motion.div>
-                                  );
-                                })}
-                              </AnimatePresence>
+                                  {linesToShow.map((lineData) => {
+                                    const isCurrent = lineData.isCurrent;
+                                    const yPosition = lineData.position * lineHeight;
+                                    // First line (position 0) should be full opacity even during progress bar
+                                    const opacityValue = lineData.position === 0 ? 1 : Math.max(0.35, 0.7 - (lineData.position * 0.12));
+
+                                    return (
+                                      <motion.div
+                                        key={`line-${lineData.lineIdx}`}
+                                        className="absolute left-0 right-0 text-center"
+                                        initial={{ y: yPosition + lineHeight, opacity: 0 }}
+                                        animate={{
+                                          y: yPosition,
+                                          opacity: opacityValue,
+                                        }}
+                                        exit={{ y: yPosition - lineHeight, opacity: 0 }}
+                                        transition={{
+                                          type: "tween",
+                                          duration: 0.35,
+                                          ease: "easeOut"
+                                        }}
+                                      >
+                                        {isCurrent && lineData.words ? (
+                                          <p
+                                            className="font-bold relative inline-flex flex-wrap justify-center items-baseline"
+                                            style={{
+                                              fontFamily: previewFontFamily,
+                                              fontSize: layoutSettings.emphasizeCurrentLine ? `${currentLineFontSize}px` : `${baseFontSize}px`,
+                                              gap: `${wordSpacing}px`
+                                            }}
+                                          >
+                                            {lineData.words.map((wordData, i) => {
+                                              const highlightColor = getHighlightColor(wordData.index);
+                                              if (i === 0 && currentLyrics.showSweepIn) {
+                                                return (
+                                                  <span key={i} style={{ position: 'relative' }}>
+                                                    <SweepInBar progress={currentLyrics.sweepInProgress} color={sungColor} />
+                                                    <SweepWord word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />
+                                                  </span>
+                                                );
+                                              }
+                                              return <SweepWord key={i} word={wordData.word} sweepPercent={wordData.sweepPercent} color={highlightColor} unsungColor={unsungColor} outlineColor={outlineColor} isActive={wordData.isActive} isPast={wordData.isPast} showGlow={wordData.isActive} fadeInProgress={wordData.fadeInProgress || 1} />;
+                                            })}
+                                          </p>
+                                        ) : (
+                                          <p
+                                            className="font-bold"
+                                            style={{
+                                              fontFamily: previewFontFamily,
+                                              fontSize: `${baseFontSize}px`,
+                                              color: textColor,
+                                              textShadow: `${textShadowSize}px ${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}, -${textShadowSize}px -${textShadowSize}px ${textShadowSize * 1.5}px ${outlineColor}`,
+                                            }}
+                                          >
+                                            {lineData.text}
+                                          </p>
+                                        )}
+                                      </motion.div>
+                                    );
+                                  })}
+                                </AnimatePresence>
                               </div>
                             </div>
                           );
                         })()
                       )}
                     </div>
-                    
+
                     {/* INTRO OVERLAY - Shows for first 4 seconds (matches video render intro duration) */}
                     {(() => {
                       // Calculate fade: full opacity until 3.5s, then fade to 0 by 4s
@@ -4719,12 +4735,12 @@ export default function PreviewEditPage() {
                         // Linear fade from 1 to 0 over 0.5 seconds
                         introOpacity = (INTRO_DURATION - currentTime) / 0.5;
                       }
-                      
+
                       // Always render but use opacity and pointer-events to hide
                       return (
-                        <div 
+                        <div
                           className="absolute inset-0 z-20 flex flex-col items-center justify-center"
-                          style={{ 
+                          style={{
                             opacity: introOpacity,
                             pointerEvents: introOpacity === 0 ? 'none' : 'auto',
                             willChange: 'opacity' // Hint to browser for GPU acceleration
@@ -4732,9 +4748,9 @@ export default function PreviewEditPage() {
                         >
                           {/* Start Image Background (if uploaded) */}
                           {brandingSettings.startImageUrl && (
-                            <img 
-                              src={brandingSettings.startImageUrl} 
-                              alt="Intro" 
+                            <img
+                              src={brandingSettings.startImageUrl}
+                              alt="Intro"
                               className="absolute inset-0 w-full h-full"
                               style={{
                                 objectFit: brandingSettings.startImageFit || 'contain',
@@ -4742,11 +4758,11 @@ export default function PreviewEditPage() {
                               }}
                             />
                           )}
-                          
+
                           {/* Artist & Title Overlay (shown by default, or if checkbox enabled) */}
                           {(brandingSettings.startImageShowTitle ?? true) && (
                             <div className="relative z-10 text-center px-4">
-                              <h2 
+                              <h2
                                 style={{
                                   fontFamily: previewFontFamily,
                                   fontSize: `${currentLineFontSize * 1.5}px`,
@@ -4757,7 +4773,7 @@ export default function PreviewEditPage() {
                               >
                                 {trackInfo.songTitle || project?.song_title || 'Song Title'}
                               </h2>
-                              <p 
+                              <p
                                 style={{
                                   fontFamily: previewFontFamily,
                                   fontSize: `${currentLineFontSize}px`,
@@ -4773,17 +4789,17 @@ export default function PreviewEditPage() {
                         </div>
                       );
                     })()}
-                    
+
                     {/* OUTRO TEXT OVERLAY - Shows after lyrics end */}
                     {brandingSettings.outroText && duration > 0 && currentTime > (duration - (brandingSettings.outroDuration || 3)) && (
-                      <div 
+                      <div
                         className="absolute inset-0 flex items-center justify-center z-20 transition-opacity duration-500"
-                        style={{ 
+                        style={{
                           backgroundColor: 'rgba(0,0,0,0.7)',
                           opacity: Math.min(1, (currentTime - (duration - (brandingSettings.outroDuration || 3))) * 2)
                         }}
                       >
-                        <p 
+                        <p
                           className="text-center px-4"
                           style={{
                             color: textColor,
@@ -4796,7 +4812,7 @@ export default function PreviewEditPage() {
                         </p>
                       </div>
                     )}
-                    
+
                     {/* LOGO WATERMARK OVERLAY */}
                     {brandingSettings.logoUrl && (() => {
                       // Scale logo size to match handler.py proportions
@@ -4806,51 +4822,51 @@ export default function PreviewEditPage() {
                       const scaledLogoSize = (brandingSettings.logoSize || 50) * logoScale;
                       const scaledPadding = Math.max(3, 40 * logoScale); // Handler uses 40px padding at 720p
                       return (
-                      <div 
-                        className="absolute z-10 pointer-events-none"
-                        style={{
-                          // Position based on logoPosition setting - use scaled padding to match handler
-                          ...(brandingSettings.logoPosition === 'top-left' && { top: `${scaledPadding}px`, left: `${scaledPadding}px` }),
-                          ...(brandingSettings.logoPosition === 'top-right' && { top: `${scaledPadding}px`, right: `${scaledPadding}px` }),
-                          ...(brandingSettings.logoPosition === 'bottom-left' && { bottom: `${scaledPadding}px`, left: `${scaledPadding}px` }),
-                          ...(brandingSettings.logoPosition === 'bottom-right' && { bottom: `${scaledPadding}px`, right: `${scaledPadding}px` }),
-                          ...(brandingSettings.logoPosition === 'top-center' && { top: `${scaledPadding}px`, left: '50%', transform: 'translateX(-50%)' }),
-                          ...(brandingSettings.logoPosition === 'bottom-center' && { bottom: `${scaledPadding}px`, left: '50%', transform: 'translateX(-50%)' }),
-                          // Size scaled to match handler output proportions
-                          width: `${scaledLogoSize}px`,
-                          height: `${scaledLogoSize}px`,
-                          opacity: (brandingSettings.logoOpacity || 80) / 100,
-                        }}
-                      >
-                        <img 
-                          src={brandingSettings.logoUrl} 
-                          alt="" 
-                          className="w-full h-full object-contain"
+                        <div
+                          className="absolute z-10 pointer-events-none"
                           style={{
-                            filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))'
+                            // Position based on logoPosition setting - use scaled padding to match handler
+                            ...(brandingSettings.logoPosition === 'top-left' && { top: `${scaledPadding}px`, left: `${scaledPadding}px` }),
+                            ...(brandingSettings.logoPosition === 'top-right' && { top: `${scaledPadding}px`, right: `${scaledPadding}px` }),
+                            ...(brandingSettings.logoPosition === 'bottom-left' && { bottom: `${scaledPadding}px`, left: `${scaledPadding}px` }),
+                            ...(brandingSettings.logoPosition === 'bottom-right' && { bottom: `${scaledPadding}px`, right: `${scaledPadding}px` }),
+                            ...(brandingSettings.logoPosition === 'top-center' && { top: `${scaledPadding}px`, left: '50%', transform: 'translateX(-50%)' }),
+                            ...(brandingSettings.logoPosition === 'bottom-center' && { bottom: `${scaledPadding}px`, left: '50%', transform: 'translateX(-50%)' }),
+                            // Size scaled to match handler output proportions
+                            width: `${scaledLogoSize}px`,
+                            height: `${scaledLogoSize}px`,
+                            opacity: (brandingSettings.logoOpacity || 80) / 100,
                           }}
-                        />
-                      </div>
+                        >
+                          <img
+                            src={brandingSettings.logoUrl}
+                            alt=""
+                            className="w-full h-full object-contain"
+                            style={{
+                              filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))'
+                            }}
+                          />
+                        </div>
                       );
                     })()}
-                    
+
                     {/* Timestamp overlay - shows countdown during intro */}
                     <div className={`absolute bottom-1 right-1 sm:bottom-2 sm:right-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] sm:text-xs font-mono z-30 ${currentTime < INTRO_DURATION ? 'text-yellow-400' : 'text-white/80'}`}>
                       {formatTrackTime(currentTime)}
                     </div>
-                    
+
                     {/* Resolution indicator - shows current aspect ratio */}
                     <div className="absolute top-1 left-1 sm:top-2 sm:left-2 px-1.5 py-0.5 bg-black/60 rounded text-[10px] text-white/60 font-mono z-30">
                       {layoutSettings.aspectRatio}
                     </div>
-                    
+
                     {/* Playback Controls Overlay - appears on hover */}
                     <div className="absolute inset-x-0 bottom-0 opacity-0 hover:opacity-100 transition-opacity duration-200 z-40">
                       {/* Gradient fade for better visibility */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
-                      
+
                       {/* Mini progress bar */}
-                      <div 
+                      <div
                         className={`absolute ${isPortrait ? 'bottom-8 left-1 right-1' : 'bottom-10 left-2 right-2'} h-1 bg-white/20 rounded-full cursor-pointer`}
                         onClick={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
@@ -4861,12 +4877,12 @@ export default function PreviewEditPage() {
                           seekTo(newTime);
                         }}
                       >
-                        <div 
+                        <div
                           className="h-full bg-cyan-400 rounded-full"
                           style={{ width: `${(currentTime / ((duration || 1) + INTRO_DURATION)) * 100}%` }}
                         />
                       </div>
-                      
+
                       {/* Control buttons - smaller for portrait */}
                       <div className={`relative flex items-center justify-center ${isPortrait ? 'gap-1 py-1' : 'gap-2 py-2'}`}>
                         {/* Start Over */}
@@ -4877,7 +4893,7 @@ export default function PreviewEditPage() {
                         >
                           <RotateCcw className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
                         </button>
-                        
+
                         {/* Skip Back 10s */}
                         <button
                           onClick={() => seekTo(currentTime - 10)}
@@ -4886,7 +4902,7 @@ export default function PreviewEditPage() {
                         >
                           <SkipBack className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
                         </button>
-                        
+
                         {/* Play/Pause */}
                         <button
                           onClick={togglePlayback}
@@ -4899,7 +4915,7 @@ export default function PreviewEditPage() {
                             <Play className={`${isPortrait ? 'w-4 h-4' : 'w-5 h-5'} text-white ml-0.5`} />
                           )}
                         </button>
-                        
+
                         {/* Skip Forward 10s */}
                         <button
                           onClick={() => seekTo(currentTime + 10)}
@@ -4908,7 +4924,7 @@ export default function PreviewEditPage() {
                         >
                           <SkipForward className={`${isPortrait ? 'w-3 h-3' : 'w-4 h-4'} text-white`} />
                         </button>
-                        
+
                         {/* Mute Toggle */}
                         <button
                           onClick={() => {
@@ -4935,22 +4951,21 @@ export default function PreviewEditPage() {
                 );
               })()}
             </div>
-            
+
             {/* Resize Handle - Glow & Grow on touch */}
-            <div 
+            <div
               onMouseDown={handleResizeStart}
               onTouchStart={handleResizeTouchStart}
               onTouchEnd={handleResizeTouchEnd}
               onTouchCancel={handleResizeTouchEnd}
-              className={`cursor-ns-resize flex items-center justify-center select-none transition-all duration-200 ${
-                glowingHandle === 'preview'
+              className={`cursor-ns-resize flex items-center justify-center select-none transition-all duration-200 ${glowingHandle === 'preview'
                   ? isDark
                     ? 'h-8 bg-cyan-500/20 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,212,228,0.3)]'
                     : 'h-8 bg-cyan-100 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,180,200,0.25)]'
                   : isDark
                     ? 'h-3 bg-white/5 hover:bg-white/10 sm:hover:h-5'
                     : 'h-3 bg-gray-100 hover:bg-gray-200 sm:hover:h-5'
-              }`}
+                }`}
             >
               <div className={`flex items-center gap-1 transition-all duration-200 ${glowingHandle === 'preview' ? 'scale-125' : ''}`}>
                 <GripHorizontal className={`w-4 h-4 transition-colors duration-200 ${glowingHandle === 'preview' ? 'text-cyan-400' : 'text-gray-400'}`} />
@@ -4959,9 +4974,9 @@ export default function PreviewEditPage() {
           </motion.div>
 
           {/* V11: TAB BAR */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }} 
-            animate={{ opacity: 1, y: 0 }} 
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.03 }}
             className={`rounded-2xl overflow-hidden mb-4 ${isDark ? 'bg-white/5 border border-white/10' : 'bg-white border border-gray-200'}`}
           >
@@ -4974,10 +4989,10 @@ export default function PreviewEditPage() {
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center justify-center gap-1.5 px-3 sm:px-4 py-3 text-sm font-medium transition-all whitespace-nowrap min-w-0
-                      ${activeTab === tab.id 
-                        ? `border-b-2 border-cyan-500 ${isDark ? 'text-cyan-400 bg-white/5' : 'text-cyan-600 bg-cyan-50'}` 
-                        : isDark 
-                          ? 'text-gray-400 hover:text-white hover:bg-white/5' 
+                      ${activeTab === tab.id
+                        ? `border-b-2 border-cyan-500 ${isDark ? 'text-cyan-400 bg-white/5' : 'text-cyan-600 bg-cyan-50'}`
+                        : isDark
+                          ? 'text-gray-400 hover:text-white hover:bg-white/5'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                   >
@@ -4986,17 +5001,16 @@ export default function PreviewEditPage() {
                   </button>
                 ))}
               </div>
-              
+
               {/* Undo/Redo Buttons - more compact on mobile */}
               <div className={`flex items-center gap-0.5 sm:gap-1 px-1 sm:px-2 border-l ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
                 {/* V12: Presets Button */}
                 <button
                   onClick={() => setPresetModalOpen(true)}
-                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${
-                    isDark 
-                      ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10' 
+                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${isDark
+                      ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-500/10'
                       : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-                  }`}
+                    }`}
                   title="Save & Load Presets"
                 >
                   <Bookmark className="w-4 h-4" />
@@ -5005,13 +5019,12 @@ export default function PreviewEditPage() {
                 <button
                   onClick={handleUndo}
                   disabled={wordsHistoryIndex <= 0}
-                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${
-                    wordsHistoryIndex > 0
-                      ? isDark 
-                        ? 'text-gray-300 hover:text-white hover:bg-white/10' 
+                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${wordsHistoryIndex > 0
+                      ? isDark
+                        ? 'text-gray-300 hover:text-white hover:bg-white/10'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                       : 'text-gray-500 opacity-40 cursor-not-allowed'
-                  }`}
+                    }`}
                   title={`Undo (Ctrl+Z)${wordsHistoryIndex > 0 ? ` - ${wordsHistoryIndex} step${wordsHistoryIndex > 1 ? 's' : ''} available` : ''}`}
                 >
                   <Undo2 className="w-4 h-4" />
@@ -5019,13 +5032,12 @@ export default function PreviewEditPage() {
                 <button
                   onClick={handleRedo}
                   disabled={wordsHistoryIndex >= wordsHistory.length - 1}
-                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${
-                    wordsHistoryIndex < wordsHistory.length - 1
-                      ? isDark 
-                        ? 'text-gray-300 hover:text-white hover:bg-white/10' 
+                  className={`p-1.5 sm:p-2 rounded-lg transition-all ${wordsHistoryIndex < wordsHistory.length - 1
+                      ? isDark
+                        ? 'text-gray-300 hover:text-white hover:bg-white/10'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                       : 'text-gray-500 opacity-40 cursor-not-allowed'
-                  }`}
+                    }`}
                   title={`Redo (Ctrl+Shift+Z)${wordsHistoryIndex < wordsHistory.length - 1 ? ` - ${wordsHistory.length - 1 - wordsHistoryIndex} step${wordsHistory.length - 1 - wordsHistoryIndex > 1 ? 's' : ''} available` : ''}`}
                 >
                   <Redo2 className="w-4 h-4" />
@@ -5040,8 +5052,8 @@ export default function PreviewEditPage() {
                 <>
                   {/* LINE & WORD EDITOR - Collapsible */}
                   <div className={`${isDark ? 'border-b border-white/10' : 'border-b border-gray-200'}`}>
-                    <div 
-                      onClick={() => setLineEditorExpanded(!lineEditorExpanded)} 
+                    <div
+                      onClick={() => setLineEditorExpanded(!lineEditorExpanded)}
                       className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
@@ -5063,11 +5075,10 @@ export default function PreviewEditPage() {
                             e.stopPropagation();
                             setLineEditorExpanded(!lineEditorExpanded);
                           }}
-                          className={`px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 ${
-                            lineEditorExpanded
+                          className={`px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 ${lineEditorExpanded
                               ? isDark ? 'bg-white/10 text-gray-300 hover:bg-white/15' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                               : isDark ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
-                          }`}
+                            }`}
                           title={lineEditorExpanded ? 'Minimize editor' : 'Maximize editor'}
                         >
                           {lineEditorExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
@@ -5077,886 +5088,877 @@ export default function PreviewEditPage() {
                       </div>
                     </div>
 
-            {lineEditorExpanded && (
-                <div className="overflow-hidden">
-                  {/* Selected Word Actions */}
-                  {selectedWordIndex !== null && editingWordIndex === null && (
-                    <div className={`px-4 py-2 border-t ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs text-gray-500">Selected: "{words[selectedWordIndex]?.word}"</span>
-                        <div className="flex gap-1">
-                          <button onClick={() => setShowAddWordModal(true)} className="px-2 py-1 text-xs bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 flex items-center gap-1">
-                            <Plus className="w-3 h-3" />Add Word
-                          </button>
-                          <button onClick={deleteSelectedWords} className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 flex items-center gap-1">
-                            <Trash2 className="w-3 h-3" />Delete Word
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
-                    {/* Left: Line Editor */}
-                    <div className={`p-4 overflow-y-auto ${isDark ? 'border-r border-white/10' : 'border-r border-gray-200'}`} style={{ maxHeight: editorHeight }}>
-                      <div className={`text-sm font-medium mb-3 px-3 py-2 rounded-lg ${isDark ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30' : 'bg-cyan-50 text-cyan-700 border border-cyan-200'}`}>
-                        Double-click any word to edit its text. Click to select.
-                      </div>
-                      <div className="space-y-2">
-                        {lyricsLines.map((line, lineIndex) => {
-                          // Calculate if line is too long inline (not using useCallback)
-                          const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0);
-                          let maxCharsForLine = MAX_CHARS_PER_LINE[layoutSettings.aspectRatio || '16:9']?.[styleSettings.fontSize || 'normal'] || 50;
-                          if (layoutSettings.emphasizeCurrentLine) maxCharsForLine = Math.floor(maxCharsForLine * EMPHASIZE_CHAR_REDUCTION);
-                          const lineTooLong = (charCount - 1) > maxCharsForLine;
-                          
-                          // Check if any word in THIS line is selected
-                          const lineHasSelectedWord = line.some(w => selectedWordIndices.has(w.globalIndex));
-                          
-                          // Find position of selected word within this line (for smart button visibility)
-                          const selectedWordPositionInLine = line.findIndex(w => selectedWordIndices.has(w.globalIndex));
-                          const isFirstWordSelected = selectedWordPositionInLine === 0;
-                          const isLastWordSelected = selectedWordPositionInLine === line.length - 1;
-                          const hasMultipleWordsInLine = line.length > 1;
-
-                          return (
-                            <div key={lineIndex}>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs text-gray-500 w-6">{lineIndex + 1}</span>
-                                {/* Merge Up - show if line has selection AND not first line */}
-                                {lineHasSelectedWord && lineIndex > 0 && (
-                                  <button onClick={() => mergeLineUp(lineIndex)} className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 transition-all flex items-center gap-1" title="Merge this entire line with the line above">
-                                    <ArrowUp className="w-3 h-3" />Merge Up
-                                  </button>
-                                )}
-                                {/* Merge Down - show if line has selection AND multiple words AND not last line */}
-                                {lineHasSelectedWord && hasMultipleWordsInLine && lineIndex < lyricsLines.length - 1 && (
-                                  <button onClick={() => mergeLineDown(lineIndex)} className="px-2 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition-all flex items-center gap-1" title="Merge this entire line with the line below">
-                                    <ArrowDown className="w-3 h-3" />Merge Down
-                                  </button>
-                                )}
-                                {/* Split Down - show if selected word is NOT the last word (words after it will move down) */}
-                                {lineHasSelectedWord && hasMultipleWordsInLine && !isLastWordSelected && (
-                                  <button onClick={() => mergeDownToNewLine(lineIndex)} className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-all flex items-center gap-1" title="Split: selected word and all words AFTER it move to a new line below">
-                                    <ArrowDown className="w-3 h-3" />Split Down
-                                  </button>
-                                )}
-                                {/* Split Up - show if selected word is NOT the first word (words before it will move up) */}
-                                {lineHasSelectedWord && hasMultipleWordsInLine && !isFirstWordSelected && (
-                                  <button onClick={() => mergeUpToNewLine(lineIndex)} className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all flex items-center gap-1" title="Split: selected word and all words BEFORE it become a new line above">
-                                    <ArrowUp className="w-3 h-3" />Split Up
-                                  </button>
-                                )}
-                                {lineTooLong && (
-                                  <LineLengthWarning 
-                                    lineIndex={lineIndex} 
-                                    charCount={charCount - 1} 
-                                    maxChars={maxCharsForLine} 
-                                  />
-                                )}
-                                
-                                {/* Duet Mode Line Assignment - only show when duet mode is enabled */}
-                                {isDuetMode && (
-                                  <div className="flex items-center gap-1 ml-auto">
-                                    <span className="text-xs text-gray-500 mr-1">Singer:</span>
-                                    <button
-                                      onClick={() => assignLineToSinger(lineIndex, SINGER.SINGER_1)}
-                                      className={`px-2 py-0.5 text-xs rounded transition-all ${
-                                        getLineSingerAssignment(lineIndex) === SINGER.SINGER_1
-                                          ? 'ring-2 ring-offset-1 ring-offset-transparent'
-                                          : 'opacity-70 hover:opacity-100'
-                                      }`}
-                                      style={{ 
-                                        backgroundColor: `${duetColors.singer1}30`,
-                                        color: duetColors.singer1,
-                                        ringColor: duetColors.singer1
-                                      }}
-                                      title="Assign entire line to Singer 1"
-                                    >
-                                      S1
-                                    </button>
-                                    <button
-                                      onClick={() => assignLineToSinger(lineIndex, SINGER.SINGER_2)}
-                                      className={`px-2 py-0.5 text-xs rounded transition-all ${
-                                        getLineSingerAssignment(lineIndex) === SINGER.SINGER_2
-                                          ? 'ring-2 ring-offset-1 ring-offset-transparent'
-                                          : 'opacity-70 hover:opacity-100'
-                                      }`}
-                                      style={{ 
-                                        backgroundColor: `${duetColors.singer2}30`,
-                                        color: duetColors.singer2,
-                                        ringColor: duetColors.singer2
-                                      }}
-                                      title="Assign entire line to Singer 2"
-                                    >
-                                      S2
-                                    </button>
-                                    <button
-                                      onClick={() => assignLineToSinger(lineIndex, SINGER.BOTH)}
-                                      className={`px-2 py-0.5 text-xs rounded transition-all ${
-                                        getLineSingerAssignment(lineIndex) === SINGER.BOTH
-                                          ? 'ring-2 ring-offset-1 ring-offset-transparent'
-                                          : 'opacity-70 hover:opacity-100'
-                                      }`}
-                                      style={{ 
-                                        backgroundColor: `${duetColors.both}30`,
-                                        color: duetColors.both,
-                                        ringColor: duetColors.both
-                                      }}
-                                      title="Assign entire line to Both singers"
-                                    >
-                                      Both
-                                    </button>
-                                    {getLineSingerAssignment(lineIndex) === 'mixed' && (
-                                      <span className="text-xs text-gray-400 italic ml-1">(mixed)</span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                              <div 
-                                className={`flex flex-wrap items-center gap-1 p-2 rounded-lg ${lineTooLong ? 'bg-yellow-500/10 border border-yellow-500/30' : isDark ? 'bg-white/5' : 'bg-gray-100'}`}
-                                style={isDuetMode ? {
-                                  borderLeft: `4px solid ${
-                                    getLineSingerAssignment(lineIndex) === SINGER.SINGER_1 ? duetColors.singer1 :
-                                    getLineSingerAssignment(lineIndex) === SINGER.SINGER_2 ? duetColors.singer2 :
-                                    getLineSingerAssignment(lineIndex) === SINGER.BOTH ? duetColors.both :
-                                    'transparent'
-                                  }`
-                                } : {}}
-                              >
-                                {line.map((wordData, wordIndex) => {
-                                  const isSelected = selectedWordIndices.has(wordData.globalIndex);
-                                  const isEditing = editingWordIndex === wordData.globalIndex;
-                                  const isLastInLine = wordIndex === line.length - 1;
-                                  const isCurrent = isWordCurrent(wordData);
-
-                                  return (
-                                    <span key={wordData.globalIndex} className="inline-flex items-center">
-                                      {isEditing ? (
-                                        <input
-                                          ref={editInputRef}
-                                          type="text"
-                                          value={editingText}
-                                          onChange={(e) => setEditingText(e.target.value)}
-                                          onBlur={saveWordEdit}
-                                          onKeyDown={(e) => {
-                                            if (e.key === 'Enter') { e.preventDefault(); saveWordEdit(); }
-                                            if (e.key === 'Escape') { e.preventDefault(); cancelWordEdit(); }
-                                          }}
-                                          className="px-2 py-1 rounded text-sm bg-cyan-500/30 text-white border-2 border-cyan-500 focus:outline-none min-w-[60px]"
-                                          style={{ width: `${Math.max(60, editingText.length * 10)}px` }}
-                                        />
-                                      ) : (
-                                        <button
-                                          onClick={(e) => handleWordClick(wordData.globalIndex, e)}
-                                          onDoubleClick={(e) => handleWordDoubleClick(wordData.globalIndex, e)}
-                                          className={`px-2 py-1 rounded text-sm transition-all ${isSelected ? 'bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-500' :
-                                              isCurrent ? 'bg-green-500/30 text-green-300' :
-                                                wordData.confidence !== undefined && wordData.confidence < 0.5
-                                                  ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
-                                                  : isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-700'
-                                            }`}
-                                          title={`"${wordData.word}"\nStart: ${Math.floor(wordData.start / 60)}:${(wordData.start % 60).toFixed(3).padStart(6, '0')}\nEnd: ${Math.floor(wordData.end / 60)}:${(wordData.end % 60).toFixed(3).padStart(6, '0')}\nDuration: ${(wordData.end - wordData.start).toFixed(3)}s${wordData.confidence ? `\nConfidence: ${(wordData.confidence * 100).toFixed(0)}%` : ''}\n\nDouble-click to edit`}
-                                        >
-                                          {wordData.word}
-                                        </button>
-                                      )}
-                                      {isLastInLine && lineIndex < lyricsLines.length - 1 && (
-                                        <span className="ml-1 w-1 h-4 bg-cyan-500 rounded-full" title="Line break" />
-                                      )}
-                                    </span>
-                                  );
-                                })}
+                    {lineEditorExpanded && (
+                      <div className="overflow-hidden">
+                        {/* Selected Word Actions */}
+                        {selectedWordIndex !== null && editingWordIndex === null && (
+                          <div className={`px-4 py-2 border-t ${isDark ? 'border-white/10 bg-white/5' : 'border-gray-200 bg-gray-50'}`}>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs text-gray-500">Selected: "{words[selectedWordIndex]?.word}"</span>
+                              <div className="flex gap-1">
+                                <button onClick={() => setShowAddWordModal(true)} className="px-2 py-1 text-xs bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 flex items-center gap-1">
+                                  <Plus className="w-3 h-3" />Add Word
+                                </button>
+                                <button onClick={deleteSelectedWords} className="px-2 py-1 text-xs bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 flex items-center gap-1">
+                                  <Trash2 className="w-3 h-3" />Delete Word
+                                </button>
                               </div>
                             </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Right: Original Lyrics - collapsible on mobile */}
-                    <div className="p-4 overflow-y-auto" style={{ maxHeight: editorHeight }}>
-                      <div 
-                        className={`flex items-center gap-2 mb-2 sm:cursor-default cursor-pointer select-none ${
-                          !originalLyricsExpanded ? 'sm:mb-2 mb-0' : ''
-                        }`}
-                        onClick={() => {
-                          if (window.innerWidth < 640) setOriginalLyricsExpanded(prev => !prev);
-                        }}
-                      >
-                        {/* Chevron only on mobile */}
-                        <span className="sm:hidden">
-                          {originalLyricsExpanded 
-                            ? <ChevronDown className="w-3 h-3 text-gray-400" /> 
-                            : <ChevronRight className="w-3 h-3 text-gray-400" />
-                          }
-                        </span>
-                        <Type className="w-4 h-4 text-gray-400" />
-                        <span className="text-xs font-medium text-gray-400">Original Lyrics (Reference)</span>
-                        {!originalLyricsExpanded && (
-                          <span className="sm:hidden text-[10px] text-gray-500 ml-auto">tap to show</span>
+                          </div>
                         )}
-                      </div>
-                      {/* Always visible on desktop, collapsible on mobile */}
-                      <div className={`sm:block ${originalLyricsExpanded ? 'block' : 'hidden'}`}>
-                        <div className={`p-3 rounded-lg text-sm ${isDark ? 'bg-white/5 text-gray-300' : 'bg-gray-50 text-gray-700'}`}>
-                          {originalLyricsText ? (
-                            <pre className="whitespace-pre-wrap font-sans">{originalLyricsText}</pre>
-                          ) : (
-                            <p className="text-gray-500 italic">No original lyrics available</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Editor Resize Handle - Glow & Grow on touch */}
-                  <div
-                    onMouseDown={handleEditorResizeStart}
-                    onTouchStart={handleEditorResizeTouchStart}
-                    onTouchEnd={handleEditorResizeTouchEnd}
-                    onTouchCancel={handleEditorResizeTouchEnd}
-                    className={`cursor-ns-resize flex items-center justify-center select-none transition-all duration-200 ${
-                      glowingHandle === 'editor'
-                        ? isDark
-                          ? 'h-8 bg-cyan-500/20 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,212,228,0.3)]'
-                          : 'h-8 bg-cyan-100 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,180,200,0.25)]'
-                        : isDark
-                          ? 'h-3 bg-white/5 hover:bg-white/10 sm:hover:h-5'
-                          : 'h-3 bg-gray-100 hover:bg-gray-200 sm:hover:h-5'
-                    }`}
-                  >
-                    <div className={`flex items-center gap-1 transition-all duration-200 ${glowingHandle === 'editor' ? 'scale-125' : ''}`}>
-                      <GripHorizontal className={`w-4 h-4 transition-colors duration-200 ${glowingHandle === 'editor' ? 'text-cyan-400' : 'text-gray-400'}`} />
-                    </div>
-                  </div>
-                </div>
-              )}
-          </div>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+                          {/* Left: Line Editor */}
+                          <div className={`p-4 overflow-y-auto ${isDark ? 'border-r border-white/10' : 'border-r border-gray-200'}`} style={{ maxHeight: editorHeight }}>
+                            <div className={`text-sm font-medium mb-3 px-3 py-2 rounded-lg ${isDark ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/30' : 'bg-cyan-50 text-cyan-700 border border-cyan-200'}`}>
+                              Double-click any word to edit its text. Click to select.
+                            </div>
+                            <div className="space-y-2">
+                              {lyricsLines.map((line, lineIndex) => {
+                                // Calculate if line is too long inline (not using useCallback)
+                                const charCount = line.reduce((sum, w) => sum + w.word.length + 1, 0);
+                                let maxCharsForLine = MAX_CHARS_PER_LINE[layoutSettings.aspectRatio || '16:9']?.[styleSettings.fontSize || 'normal'] || 50;
+                                if (layoutSettings.emphasizeCurrentLine) maxCharsForLine = Math.floor(maxCharsForLine * EMPHASIZE_CHAR_REDUCTION);
+                                const lineTooLong = (charCount - 1) > maxCharsForLine;
 
-          {/* TIMELINE EDITOR - Collapsible with Duet Mode Toggle */}
-          <div className={`${isDark ? 'border-t border-white/10' : 'border-t border-gray-200'}`}>
-            <div
-              onClick={() => setTimelineEditorExpanded(!timelineEditorExpanded)}
-              className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                {timelineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
-                <Music2 className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                <span className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                  <span className="hidden sm:inline">Timeline Editor</span>
-                  <span className="sm:hidden">Timeline</span>
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setTimelineEditorExpanded(!timelineEditorExpanded);
-                  }}
-                  className={`px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 ${
-                    timelineEditorExpanded
-                      ? isDark ? 'bg-white/10 text-gray-300 hover:bg-white/15' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                      : isDark ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
-                  }`}
-                  title={timelineEditorExpanded ? 'Minimize editor' : 'Maximize editor'}
-                >
-                  {timelineEditorExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
-                  <span className="hidden sm:inline">{timelineEditorExpanded ? 'Minimize' : 'Maximize'}</span>
-                </button>
-                <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsDuetMode(!isDuetMode);
-                  setHasChanges(true);
-                  if (!isDuetMode && !timelineEditorExpanded) setTimelineEditorExpanded(true);
-                }}
-                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0 ${isDuetMode ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}
-              >
-                <span className="hidden sm:inline">{isDuetMode ? 'Duet Mode On' : 'Duet Mode Off'}</span>
-                <span className="sm:hidden">{isDuetMode ? 'Duet On' : 'Duet Off'}</span>
-              </button>
-              </div>
-            </div>
+                                // Check if any word in THIS line is selected
+                                const lineHasSelectedWord = line.some(w => selectedWordIndices.has(w.globalIndex));
 
-            {timelineEditorExpanded && (
-                <div className="overflow-hidden">
+                                // Find position of selected word within this line (for smart button visibility)
+                                const selectedWordPositionInLine = line.findIndex(w => selectedWordIndices.has(w.globalIndex));
+                                const isFirstWordSelected = selectedWordPositionInLine === 0;
+                                const isLastWordSelected = selectedWordPositionInLine === line.length - 1;
+                                const hasMultipleWordsInLine = line.length > 1;
 
-                  {/* Duet Color Settings */}
-                  {isDuetMode && (
-                    <div className={`px-4 py-3 border-t ${isDark ? 'border-white/10 bg-gradient-to-r from-cyan-500/10 to-pink-500/10' : 'border-gray-200 bg-gradient-to-r from-cyan-50 to-pink-50'}`}>
-                      <div className="flex flex-wrap items-center gap-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">Singer 1:</span>
-                          <input type="color" value={duetColors.singer1} onChange={(e) => { setDuetColors(prev => ({ ...prev, singer1: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer" />
-                          <button onClick={() => setPaintMode(paintMode === SINGER.SINGER_1 ? null : SINGER.SINGER_1)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.SINGER_1 ? 'bg-cyan-500 text-white' : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
-                            {paintMode === SINGER.SINGER_1 ? 'Painting...' : 'Paint'}
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">Singer 2:</span>
-                          <input type="color" value={duetColors.singer2} onChange={(e) => { setDuetColors(prev => ({ ...prev, singer2: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer" />
-                          <button onClick={() => setPaintMode(paintMode === SINGER.SINGER_2 ? null : SINGER.SINGER_2)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.SINGER_2 ? 'bg-pink-500 text-white' : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
-                            {paintMode === SINGER.SINGER_2 ? 'Painting...' : 'Paint'}
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">Both:</span>
-                          <input type="color" value={duetColors.both} onChange={(e) => { setDuetColors(prev => ({ ...prev, both: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer" />
-                          <button onClick={() => setPaintMode(paintMode === SINGER.BOTH ? null : SINGER.BOTH)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.BOTH ? 'bg-yellow-500 text-white' : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
-                            {paintMode === SINGER.BOTH ? 'Painting...' : 'Paint'}
-                          </button>
-                        </div>
-                        {paintMode !== null && (
-                          <button onClick={() => setPaintMode(null)} className="px-2 py-1 text-xs bg-gray-500 text-white rounded">Stop Painting</button>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                                return (
+                                  <div key={lineIndex}>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-xs text-gray-500 w-6">{lineIndex + 1}</span>
+                                      {/* Merge Up - show if line has selection AND not first line */}
+                                      {lineHasSelectedWord && lineIndex > 0 && (
+                                        <button onClick={() => mergeLineUp(lineIndex)} className="px-2 py-0.5 text-xs bg-purple-500/20 text-purple-400 rounded hover:bg-purple-500/30 transition-all flex items-center gap-1" title="Merge this entire line with the line above">
+                                          <ArrowUp className="w-3 h-3" />Merge Up
+                                        </button>
+                                      )}
+                                      {/* Merge Down - show if line has selection AND multiple words AND not last line */}
+                                      {lineHasSelectedWord && hasMultipleWordsInLine && lineIndex < lyricsLines.length - 1 && (
+                                        <button onClick={() => mergeLineDown(lineIndex)} className="px-2 py-0.5 text-xs bg-orange-500/20 text-orange-400 rounded hover:bg-orange-500/30 transition-all flex items-center gap-1" title="Merge this entire line with the line below">
+                                          <ArrowDown className="w-3 h-3" />Merge Down
+                                        </button>
+                                      )}
+                                      {/* Split Down - show if selected word is NOT the last word (words after it will move down) */}
+                                      {lineHasSelectedWord && hasMultipleWordsInLine && !isLastWordSelected && (
+                                        <button onClick={() => mergeDownToNewLine(lineIndex)} className="px-2 py-0.5 text-xs bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-all flex items-center gap-1" title="Split: selected word and all words AFTER it move to a new line below">
+                                          <ArrowDown className="w-3 h-3" />Split Down
+                                        </button>
+                                      )}
+                                      {/* Split Up - show if selected word is NOT the first word (words before it will move up) */}
+                                      {lineHasSelectedWord && hasMultipleWordsInLine && !isFirstWordSelected && (
+                                        <button onClick={() => mergeUpToNewLine(lineIndex)} className="px-2 py-0.5 text-xs bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 transition-all flex items-center gap-1" title="Split: selected word and all words BEFORE it become a new line above">
+                                          <ArrowUp className="w-3 h-3" />Split Up
+                                        </button>
+                                      )}
+                                      {lineTooLong && (
+                                        <LineLengthWarning
+                                          lineIndex={lineIndex}
+                                          charCount={charCount - 1}
+                                          maxChars={maxCharsForLine}
+                                        />
+                                      )}
 
-                  {/* Zoom Controls */}
-                  <div className={`px-4 py-2 border-t ${isDark ? 'border-white/10' : 'border-gray-200'} flex items-center justify-between`}>
-                    <div className="flex items-center gap-2">
-                      <button onClick={zoomOut} className={`p-2 rounded-lg ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'} transition-colors`}>
-                        <ZoomOut className="w-4 h-4" />
-                      </button>
-                      <span className={`text-sm font-medium w-20 text-center ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{zoom.toFixed(0)}px/s</span>
-                      <button onClick={zoomIn} className={`p-2 rounded-lg ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'} transition-colors`}>
-                        <ZoomIn className="w-4 h-4" />
-                      </button>
-                      
-                      {/* Waveform Threshold Slider */}
-                      {waveformData && (
-                        <div className="flex items-center gap-2 ml-4 pl-4 border-l border-white/10">
-                          <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Threshold:</span>
-                          <input
-                            type="range"
-                            min="0"
-                            max="50"
-                            value={waveformThreshold}
-                            onChange={(e) => setWaveformThreshold(parseInt(e.target.value))}
-                            className="w-20 h-1 accent-green-500 cursor-pointer"
-                            title={`Hide waveform below ${waveformThreshold}% amplitude`}
-                          />
-                          <span className={`text-xs w-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{waveformThreshold}%</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {selectedWordIndices.size > 1 && (
-                        <span className="text-xs text-cyan-400 font-medium">{selectedWordIndices.size} words selected</span>
-                      )}
-                      <span className="text-xs text-gray-500 hidden sm:inline">Scroll to navigate | Drag edges to resize | Shift+Click range</span>
-                      <span className="text-xs text-gray-500 sm:hidden">Swipe to scrub | Hold word for menu</span>
-                    </div>
-                  </div>
+                                      {/* Duet Mode Line Assignment - only show when duet mode is enabled */}
+                                      {isDuetMode && (
+                                        <div className="flex items-center gap-1 ml-auto">
+                                          <span className="text-xs text-gray-500 mr-1">Singer:</span>
+                                          <button
+                                            onClick={() => assignLineToSinger(lineIndex, SINGER.SINGER_1)}
+                                            className={`px-2 py-0.5 text-xs rounded transition-all ${getLineSingerAssignment(lineIndex) === SINGER.SINGER_1
+                                                ? 'ring-2 ring-offset-1 ring-offset-transparent'
+                                                : 'opacity-70 hover:opacity-100'
+                                              }`}
+                                            style={{
+                                              backgroundColor: `${duetColors.singer1}30`,
+                                              color: duetColors.singer1,
+                                              ringColor: duetColors.singer1
+                                            }}
+                                            title="Assign entire line to Singer 1"
+                                          >
+                                            S1
+                                          </button>
+                                          <button
+                                            onClick={() => assignLineToSinger(lineIndex, SINGER.SINGER_2)}
+                                            className={`px-2 py-0.5 text-xs rounded transition-all ${getLineSingerAssignment(lineIndex) === SINGER.SINGER_2
+                                                ? 'ring-2 ring-offset-1 ring-offset-transparent'
+                                                : 'opacity-70 hover:opacity-100'
+                                              }`}
+                                            style={{
+                                              backgroundColor: `${duetColors.singer2}30`,
+                                              color: duetColors.singer2,
+                                              ringColor: duetColors.singer2
+                                            }}
+                                            title="Assign entire line to Singer 2"
+                                          >
+                                            S2
+                                          </button>
+                                          <button
+                                            onClick={() => assignLineToSinger(lineIndex, SINGER.BOTH)}
+                                            className={`px-2 py-0.5 text-xs rounded transition-all ${getLineSingerAssignment(lineIndex) === SINGER.BOTH
+                                                ? 'ring-2 ring-offset-1 ring-offset-transparent'
+                                                : 'opacity-70 hover:opacity-100'
+                                              }`}
+                                            style={{
+                                              backgroundColor: `${duetColors.both}30`,
+                                              color: duetColors.both,
+                                              ringColor: duetColors.both
+                                            }}
+                                            title="Assign entire line to Both singers"
+                                          >
+                                            Both
+                                          </button>
+                                          {getLineSingerAssignment(lineIndex) === 'mixed' && (
+                                            <span className="text-xs text-gray-400 italic ml-1">(mixed)</span>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div
+                                      className={`flex flex-wrap items-center gap-1 p-2 rounded-lg ${lineTooLong ? 'bg-yellow-500/10 border border-yellow-500/30' : isDark ? 'bg-white/5' : 'bg-gray-100'}`}
+                                      style={isDuetMode ? {
+                                        borderLeft: `4px solid ${getLineSingerAssignment(lineIndex) === SINGER.SINGER_1 ? duetColors.singer1 :
+                                            getLineSingerAssignment(lineIndex) === SINGER.SINGER_2 ? duetColors.singer2 :
+                                              getLineSingerAssignment(lineIndex) === SINGER.BOTH ? duetColors.both :
+                                                'transparent'
+                                          }`
+                                      } : {}}
+                                    >
+                                      {line.map((wordData, wordIndex) => {
+                                        const isSelected = selectedWordIndices.has(wordData.globalIndex);
+                                        const isEditing = editingWordIndex === wordData.globalIndex;
+                                        const isLastInLine = wordIndex === line.length - 1;
+                                        const isCurrent = isWordCurrent(wordData);
 
-                  {/* Timeline with Time Markers - LCD Style Background */}
-                  <div 
-                    ref={timelineContainerRef} 
-                    onClick={handleTimelineClick}
-                    onTouchStart={handleTimelineTouchStart}
-                    onMouseMove={(e) => {
-                      // Calculate audio time at mouse position for tooltip
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const mouseX = e.clientX - rect.left;
-                      const centerX = rect.width / 2;
-                      // Timeline is in audio time coordinates
-                      const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
-                      const audioTimeAtMouse = audioTimeNow + (mouseX - centerX) / zoom;
-                      setTimelineHover({ 
-                        show: true, 
-                        x: mouseX, 
-                        time: Math.max(0, Math.min(duration || 0, audioTimeAtMouse))
-                      });
-                    }}
-                    onMouseLeave={() => setTimelineHover({ show: false, x: 0, time: 0 })}
-                    className="relative overflow-hidden cursor-crosshair"
-                    style={{ 
-                      height: isDuetMode ? TIMELINE_HEIGHT_DUET : TIMELINE_HEIGHT,
-                      background: isDark 
-                        ? 'linear-gradient(180deg, #0a0f14 0%, #0d1318 50%, #0a0f14 100%)' 
-                        : 'linear-gradient(180deg, #1a1f24 0%, #1d2228 50%, #1a1f24 100%)',
-                      borderTop: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.1)',
-                      boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.4)'
-                    }}
-                  >
-                    {/* Waveform Visualization - Solid Filled Wave */}
-                    <div className="absolute inset-0 bottom-6 overflow-hidden pointer-events-none" style={{ opacity: vocalsVolume > 0 ? 0.5 : 0.25 }}>
-                      {(() => {
-                        const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
-                        const centerX = containerWidth / 2;
-                        const currentTimelineHeight = isDuetMode ? TIMELINE_HEIGHT_DUET : TIMELINE_HEIGHT;
-                        const waveformHeight = currentTimelineHeight - 30;
-                        const centerY = waveformHeight / 2 + 4;
-                        const thresholdValue = waveformThreshold / 100; // Convert 0-100 to 0-1
-                        
-                        // Use real waveform data if available
-                        if (waveformData && waveformData.amplitudes) {
-                          const samplesPerSecond = waveformData.samples_per_second || 20;
-                          const secondsPerSample = 1 / samplesPerSecond;
-                          
-                          // Build SVG path points for top and bottom of waveform
-                          const topPoints = [];
-                          const bottomPoints = [];
-                          
-                          // Use audio time for waveform positioning (samples are in audio time)
-                          const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
-                          
-                          for (let sampleIndex = 0; sampleIndex < waveformData.amplitudes.length; sampleIndex++) {
-                            const sampleTime = sampleIndex * secondsPerSample;
-                            const barX = centerX + (sampleTime - audioTimeNow) * zoom;
-                            
-                            // Skip if way off-screen (with buffer for smooth edges)
-                            if (barX < -50 || barX > containerWidth + 50) continue;
-                            
-                            let amplitude = waveformData.amplitudes[sampleIndex];
-                            
-                            // Apply threshold - if amplitude is below threshold, set to 0
-                            if (amplitude < thresholdValue) {
-                              amplitude = 0;
-                            }
-                            
-                            // Scale amplitude for visual display
-                            const heightPercent = amplitude > 0 ? (0.05 + amplitude * 0.9) : 0;
-                            const halfHeight = (heightPercent * waveformHeight) / 2;
-                            
-                            topPoints.push({ x: barX, y: centerY - halfHeight });
-                            bottomPoints.push({ x: barX, y: centerY + halfHeight });
-                          }
-                          
-                          if (topPoints.length < 2) {
-                            return null;
-                          }
-                          
-                          // Create smooth path - top line going right, bottom line going left
-                          let pathD = `M ${topPoints[0].x} ${topPoints[0].y}`;
-                          
-                          // Draw top edge (left to right)
-                          for (let i = 1; i < topPoints.length; i++) {
-                            pathD += ` L ${topPoints[i].x} ${topPoints[i].y}`;
-                          }
-                          
-                          // Connect to bottom and draw bottom edge (right to left)
-                          const lastBottom = bottomPoints[bottomPoints.length - 1];
-                          pathD += ` L ${lastBottom.x} ${lastBottom.y}`;
-                          
-                          for (let i = bottomPoints.length - 2; i >= 0; i--) {
-                            pathD += ` L ${bottomPoints[i].x} ${bottomPoints[i].y}`;
-                          }
-                          
-                          pathD += ' Z'; // Close the path
-                          
-                          return (
-                            <svg 
-                              width={containerWidth} 
-                              height={waveformHeight + 8} 
-                              className="absolute top-0 left-0"
-                              style={{ overflow: 'visible' }}
-                            >
-                              <defs>
-                                <linearGradient id="waveformGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                  <stop offset="0%" stopColor={vocalsVolume > 0 ? '#22c55e' : '#2d5a2d'} stopOpacity="0.6" />
-                                  <stop offset="50%" stopColor={vocalsVolume > 0 ? '#16a34a' : '#1f4a1f'} stopOpacity="0.4" />
-                                  <stop offset="100%" stopColor={vocalsVolume > 0 ? '#22c55e' : '#2d5a2d'} stopOpacity="0.6" />
-                                </linearGradient>
-                              </defs>
-                              <path 
-                                d={pathD} 
-                                fill="url(#waveformGradient)"
-                                stroke={vocalsVolume > 0 ? '#22c55e' : '#2d5a2d'}
-                                strokeWidth="0.5"
-                                strokeOpacity="0.3"
-                              />
-                            </svg>
-                          );
-                        } else {
-                          // Fallback: Show flat line placeholder
-                          return (
-                            <div 
-                              className="absolute rounded-full"
-                              style={{
-                                left: 0,
-                                right: 0,
-                                height: waveformLoading ? 4 : 2,
-                                top: centerY - 1,
-                                backgroundColor: '#2d5a2d',
-                                opacity: 0.3,
+                                        return (
+                                          <span key={wordData.globalIndex} className="inline-flex items-center">
+                                            {isEditing ? (
+                                              <input
+                                                ref={editInputRef}
+                                                type="text"
+                                                value={editingText}
+                                                onChange={(e) => setEditingText(e.target.value)}
+                                                onBlur={saveWordEdit}
+                                                onKeyDown={(e) => {
+                                                  if (e.key === 'Enter') { e.preventDefault(); saveWordEdit(); }
+                                                  if (e.key === 'Escape') { e.preventDefault(); cancelWordEdit(); }
+                                                }}
+                                                className="px-2 py-1 rounded text-sm bg-cyan-500/30 text-white border-2 border-cyan-500 focus:outline-none min-w-[60px]"
+                                                style={{ width: `${Math.max(60, editingText.length * 10)}px` }}
+                                              />
+                                            ) : (
+                                              <button
+                                                onClick={(e) => handleWordClick(wordData.globalIndex, e)}
+                                                onDoubleClick={(e) => handleWordDoubleClick(wordData.globalIndex, e)}
+                                                className={`px-2 py-1 rounded text-sm transition-all ${isSelected ? 'bg-cyan-500/30 text-cyan-300 ring-2 ring-cyan-500' :
+                                                  isCurrent ? 'bg-green-500/30 text-green-300' :
+                                                    wordData.confidence !== undefined && wordData.confidence < 0.5
+                                                      ? 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
+                                                      : isDark ? 'hover:bg-white/10 text-gray-300' : 'hover:bg-gray-200 text-gray-700'
+                                                  }`}
+                                                title={`"${wordData.word}"\nStart: ${Math.floor(wordData.start / 60)}:${(wordData.start % 60).toFixed(3).padStart(6, '0')}\nEnd: ${Math.floor(wordData.end / 60)}:${(wordData.end % 60).toFixed(3).padStart(6, '0')}\nDuration: ${(wordData.end - wordData.start).toFixed(3)}s${wordData.confidence ? `\nConfidence: ${(wordData.confidence * 100).toFixed(0)}%` : ''}\n\nDouble-click to edit`}
+                                              >
+                                                {wordData.word}
+                                              </button>
+                                            )}
+                                            {isLastInLine && lineIndex < lyricsLines.length - 1 && (
+                                              <span className="ml-1 w-1 h-4 bg-cyan-500 rounded-full" title="Line break" />
+                                            )}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Right: Original Lyrics - collapsible on mobile */}
+                          <div className="p-4 overflow-y-auto" style={{ maxHeight: editorHeight }}>
+                            <div
+                              className={`flex items-center gap-2 mb-2 sm:cursor-default cursor-pointer select-none ${!originalLyricsExpanded ? 'sm:mb-2 mb-0' : ''
+                                }`}
+                              onClick={() => {
+                                if (window.innerWidth < 640) setOriginalLyricsExpanded(prev => !prev);
                               }}
-                            />
-                          );
-                        }
-                      })()}
+                            >
+                              {/* Chevron only on mobile */}
+                              <span className="sm:hidden">
+                                {originalLyricsExpanded
+                                  ? <ChevronDown className="w-3 h-3 text-gray-400" />
+                                  : <ChevronRight className="w-3 h-3 text-gray-400" />
+                                }
+                              </span>
+                              <Type className="w-4 h-4 text-gray-400" />
+                              <span className="text-xs font-medium text-gray-400">Original Lyrics (Reference)</span>
+                              {!originalLyricsExpanded && (
+                                <span className="sm:hidden text-[10px] text-gray-500 ml-auto">tap to show</span>
+                              )}
+                            </div>
+                            {/* Always visible on desktop, collapsible on mobile */}
+                            <div className={`sm:block ${originalLyricsExpanded ? 'block' : 'hidden'}`}>
+                              <div className={`p-3 rounded-lg text-sm ${isDark ? 'bg-white/5 text-gray-300' : 'bg-gray-50 text-gray-700'}`}>
+                                {originalLyricsText ? (
+                                  <pre className="whitespace-pre-wrap font-sans">{originalLyricsText}</pre>
+                                ) : (
+                                  <p className="text-gray-500 italic">No original lyrics available</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Editor Resize Handle - Glow & Grow on touch */}
+                        <div
+                          onMouseDown={handleEditorResizeStart}
+                          onTouchStart={handleEditorResizeTouchStart}
+                          onTouchEnd={handleEditorResizeTouchEnd}
+                          onTouchCancel={handleEditorResizeTouchEnd}
+                          className={`cursor-ns-resize flex items-center justify-center select-none transition-all duration-200 ${glowingHandle === 'editor'
+                              ? isDark
+                                ? 'h-8 bg-cyan-500/20 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,212,228,0.3)]'
+                                : 'h-8 bg-cyan-100 border-t border-b border-cyan-400/50 shadow-[0_0_15px_rgba(0,180,200,0.25)]'
+                              : isDark
+                                ? 'h-3 bg-white/5 hover:bg-white/10 sm:hover:h-5'
+                                : 'h-3 bg-gray-100 hover:bg-gray-200 sm:hover:h-5'
+                            }`}
+                        >
+                          <div className={`flex items-center gap-1 transition-all duration-200 ${glowingHandle === 'editor' ? 'scale-125' : ''}`}>
+                            <GripHorizontal className={`w-4 h-4 transition-colors duration-200 ${glowingHandle === 'editor' ? 'text-cyan-400' : 'text-gray-400'}`} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* TIMELINE EDITOR - Collapsible with Duet Mode Toggle */}
+                  <div className={`${isDark ? 'border-t border-white/10' : 'border-t border-gray-200'}`}>
+                    <div
+                      onClick={() => setTimelineEditorExpanded(!timelineEditorExpanded)}
+                      className={`flex items-center justify-between px-4 py-3 cursor-pointer select-none ${isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50'}`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {timelineEditorExpanded ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />}
+                        <Music2 className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                        <span className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          <span className="hidden sm:inline">Timeline Editor</span>
+                          <span className="sm:hidden">Timeline</span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTimelineEditorExpanded(!timelineEditorExpanded);
+                          }}
+                          className={`px-2 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 ${timelineEditorExpanded
+                              ? isDark ? 'bg-white/10 text-gray-300 hover:bg-white/15' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                              : isDark ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30' : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
+                            }`}
+                          title={timelineEditorExpanded ? 'Minimize editor' : 'Maximize editor'}
+                        >
+                          {timelineEditorExpanded ? <Minimize2 className="w-3 h-3" /> : <Maximize2 className="w-3 h-3" />}
+                          <span className="hidden sm:inline">{timelineEditorExpanded ? 'Minimize' : 'Maximize'}</span>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsDuetMode(!isDuetMode);
+                            setHasChanges(true);
+                            if (!isDuetMode && !timelineEditorExpanded) setTimelineEditorExpanded(true);
+                          }}
+                          className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-xs font-medium transition-all flex-shrink-0 ${isDuetMode ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-red-500/20 text-red-400 border border-red-500/50'}`}
+                        >
+                          <span className="hidden sm:inline">{isDuetMode ? 'Duet Mode On' : 'Duet Mode Off'}</span>
+                          <span className="sm:hidden">{isDuetMode ? 'Duet On' : 'Duet Off'}</span>
+                        </button>
+                      </div>
                     </div>
-                    
-                    {/* Waveform loading indicator */}
-                    {waveformLoading && (
-                      <div className="absolute top-2 right-2 text-xs text-green-500/60 flex items-center gap-1">
-                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                        Loading waveform...
-                      </div>
-                    )}
-                    
-                    {/* No waveform data indicator */}
-                    {!waveformData && !waveformLoading && (
-                      <div className="absolute top-2 right-2 text-xs text-gray-500/60">
-                        No waveform data
-                      </div>
-                    )}
-                    
-                    {/* Subtle grid lines for LCD effect */}
-                    <div 
-                      className="absolute inset-0 pointer-events-none opacity-10"
-                      style={{
-                        backgroundImage: `
+
+                    {timelineEditorExpanded && (
+                      <div className="overflow-hidden">
+
+                        {/* Duet Color Settings */}
+                        {isDuetMode && (
+                          <div className={`px-4 py-3 border-t ${isDark ? 'border-white/10 bg-gradient-to-r from-cyan-500/10 to-pink-500/10' : 'border-gray-200 bg-gradient-to-r from-cyan-50 to-pink-50'}`}>
+                            <div className="flex flex-wrap items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">Singer 1:</span>
+                                <input type="color" value={duetColors.singer1} onChange={(e) => { setDuetColors(prev => ({ ...prev, singer1: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer" />
+                                <button onClick={() => setPaintMode(paintMode === SINGER.SINGER_1 ? null : SINGER.SINGER_1)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.SINGER_1 ? 'bg-cyan-500 text-white' : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
+                                  {paintMode === SINGER.SINGER_1 ? 'Painting...' : 'Paint'}
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">Singer 2:</span>
+                                <input type="color" value={duetColors.singer2} onChange={(e) => { setDuetColors(prev => ({ ...prev, singer2: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer" />
+                                <button onClick={() => setPaintMode(paintMode === SINGER.SINGER_2 ? null : SINGER.SINGER_2)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.SINGER_2 ? 'bg-pink-500 text-white' : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
+                                  {paintMode === SINGER.SINGER_2 ? 'Painting...' : 'Paint'}
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-gray-500">Both:</span>
+                                <input type="color" value={duetColors.both} onChange={(e) => { setDuetColors(prev => ({ ...prev, both: e.target.value })); setHasChanges(true); }} className="w-8 h-8 rounded cursor-pointer" />
+                                <button onClick={() => setPaintMode(paintMode === SINGER.BOTH ? null : SINGER.BOTH)} className={`px-2 py-1 text-xs rounded ${paintMode === SINGER.BOTH ? 'bg-yellow-500 text-white' : isDark ? 'bg-white/10 text-gray-400' : 'bg-gray-200 text-gray-600'}`}>
+                                  {paintMode === SINGER.BOTH ? 'Painting...' : 'Paint'}
+                                </button>
+                              </div>
+                              {paintMode !== null && (
+                                <button onClick={() => setPaintMode(null)} className="px-2 py-1 text-xs bg-gray-500 text-white rounded">Stop Painting</button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Zoom Controls */}
+                        <div className={`px-4 py-2 border-t ${isDark ? 'border-white/10' : 'border-gray-200'} flex items-center justify-between`}>
+                          <div className="flex items-center gap-2">
+                            <button onClick={zoomOut} className={`p-2 rounded-lg ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'} transition-colors`}>
+                              <ZoomOut className="w-4 h-4" />
+                            </button>
+                            <span className={`text-sm font-medium w-20 text-center ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>{zoom.toFixed(0)}px/s</span>
+                            <button onClick={zoomIn} className={`p-2 rounded-lg ${isDark ? 'bg-white/10 hover:bg-white/20 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'} transition-colors`}>
+                              <ZoomIn className="w-4 h-4" />
+                            </button>
+
+                            {/* Waveform Threshold Slider */}
+                            {waveformData && (
+                              <div className="flex items-center gap-2 ml-4 pl-4 border-l border-white/10">
+                                <span className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Threshold:</span>
+                                <input
+                                  type="range"
+                                  min="0"
+                                  max="50"
+                                  value={waveformThreshold}
+                                  onChange={(e) => setWaveformThreshold(parseInt(e.target.value))}
+                                  className="w-20 h-1 accent-green-500 cursor-pointer"
+                                  title={`Hide waveform below ${waveformThreshold}% amplitude`}
+                                />
+                                <span className={`text-xs w-8 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{waveformThreshold}%</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {selectedWordIndices.size > 1 && (
+                              <span className="text-xs text-cyan-400 font-medium">{selectedWordIndices.size} words selected</span>
+                            )}
+                            <span className="text-xs text-gray-500 hidden sm:inline">Scroll to navigate | Drag edges to resize | Shift+Click range</span>
+                            <span className="text-xs text-gray-500 sm:hidden">Swipe to scrub | Hold word for menu</span>
+                          </div>
+                        </div>
+
+                        {/* Timeline with Time Markers - LCD Style Background */}
+                        <div
+                          ref={timelineContainerRef}
+                          onClick={handleTimelineClick}
+                          onTouchStart={handleTimelineTouchStart}
+                          onMouseMove={(e) => {
+                            // Calculate audio time at mouse position for tooltip
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const mouseX = e.clientX - rect.left;
+                            const centerX = rect.width / 2;
+                            // Timeline is in audio time coordinates
+                            const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
+                            const audioTimeAtMouse = audioTimeNow + (mouseX - centerX) / zoom;
+                            setTimelineHover({
+                              show: true,
+                              x: mouseX,
+                              time: Math.max(0, Math.min(duration || 0, audioTimeAtMouse))
+                            });
+                          }}
+                          onMouseLeave={() => setTimelineHover({ show: false, x: 0, time: 0 })}
+                          className="relative overflow-hidden cursor-crosshair"
+                          style={{
+                            height: isDuetMode ? TIMELINE_HEIGHT_DUET : TIMELINE_HEIGHT,
+                            background: isDark
+                              ? 'linear-gradient(180deg, #0a0f14 0%, #0d1318 50%, #0a0f14 100%)'
+                              : 'linear-gradient(180deg, #1a1f24 0%, #1d2228 50%, #1a1f24 100%)',
+                            borderTop: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.1)',
+                            boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.4)'
+                          }}
+                        >
+                          {/* Waveform Visualization - Solid Filled Wave */}
+                          <div className="absolute inset-0 bottom-6 overflow-hidden pointer-events-none" style={{ opacity: vocalsVolume > 0 ? 0.5 : 0.25 }}>
+                            {(() => {
+                              const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
+                              const centerX = containerWidth / 2;
+                              const currentTimelineHeight = isDuetMode ? TIMELINE_HEIGHT_DUET : TIMELINE_HEIGHT;
+                              const waveformHeight = currentTimelineHeight - 30;
+                              const centerY = waveformHeight / 2 + 4;
+                              const thresholdValue = waveformThreshold / 100; // Convert 0-100 to 0-1
+
+                              // Use real waveform data if available
+                              if (waveformData && waveformData.amplitudes) {
+                                const samplesPerSecond = waveformData.samples_per_second || 20;
+                                const secondsPerSample = 1 / samplesPerSecond;
+
+                                // Build SVG path points for top and bottom of waveform
+                                const topPoints = [];
+                                const bottomPoints = [];
+
+                                // Use audio time for waveform positioning (samples are in audio time)
+                                const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
+
+                                for (let sampleIndex = 0; sampleIndex < waveformData.amplitudes.length; sampleIndex++) {
+                                  const sampleTime = sampleIndex * secondsPerSample;
+                                  const barX = centerX + (sampleTime - audioTimeNow) * zoom;
+
+                                  // Skip if way off-screen (with buffer for smooth edges)
+                                  if (barX < -50 || barX > containerWidth + 50) continue;
+
+                                  let amplitude = waveformData.amplitudes[sampleIndex];
+
+                                  // Apply threshold - if amplitude is below threshold, set to 0
+                                  if (amplitude < thresholdValue) {
+                                    amplitude = 0;
+                                  }
+
+                                  // Scale amplitude for visual display
+                                  const heightPercent = amplitude > 0 ? (0.05 + amplitude * 0.9) : 0;
+                                  const halfHeight = (heightPercent * waveformHeight) / 2;
+
+                                  topPoints.push({ x: barX, y: centerY - halfHeight });
+                                  bottomPoints.push({ x: barX, y: centerY + halfHeight });
+                                }
+
+                                if (topPoints.length < 2) {
+                                  return null;
+                                }
+
+                                // Create smooth path - top line going right, bottom line going left
+                                let pathD = `M ${topPoints[0].x} ${topPoints[0].y}`;
+
+                                // Draw top edge (left to right)
+                                for (let i = 1; i < topPoints.length; i++) {
+                                  pathD += ` L ${topPoints[i].x} ${topPoints[i].y}`;
+                                }
+
+                                // Connect to bottom and draw bottom edge (right to left)
+                                const lastBottom = bottomPoints[bottomPoints.length - 1];
+                                pathD += ` L ${lastBottom.x} ${lastBottom.y}`;
+
+                                for (let i = bottomPoints.length - 2; i >= 0; i--) {
+                                  pathD += ` L ${bottomPoints[i].x} ${bottomPoints[i].y}`;
+                                }
+
+                                pathD += ' Z'; // Close the path
+
+                                return (
+                                  <svg
+                                    width={containerWidth}
+                                    height={waveformHeight + 8}
+                                    className="absolute top-0 left-0"
+                                    style={{ overflow: 'visible' }}
+                                  >
+                                    <defs>
+                                      <linearGradient id="waveformGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stopColor={vocalsVolume > 0 ? '#22c55e' : '#2d5a2d'} stopOpacity="0.6" />
+                                        <stop offset="50%" stopColor={vocalsVolume > 0 ? '#16a34a' : '#1f4a1f'} stopOpacity="0.4" />
+                                        <stop offset="100%" stopColor={vocalsVolume > 0 ? '#22c55e' : '#2d5a2d'} stopOpacity="0.6" />
+                                      </linearGradient>
+                                    </defs>
+                                    <path
+                                      d={pathD}
+                                      fill="url(#waveformGradient)"
+                                      stroke={vocalsVolume > 0 ? '#22c55e' : '#2d5a2d'}
+                                      strokeWidth="0.5"
+                                      strokeOpacity="0.3"
+                                    />
+                                  </svg>
+                                );
+                              } else {
+                                // Fallback: Show flat line placeholder
+                                return (
+                                  <div
+                                    className="absolute rounded-full"
+                                    style={{
+                                      left: 0,
+                                      right: 0,
+                                      height: waveformLoading ? 4 : 2,
+                                      top: centerY - 1,
+                                      backgroundColor: '#2d5a2d',
+                                      opacity: 0.3,
+                                    }}
+                                  />
+                                );
+                              }
+                            })()}
+                          </div>
+
+                          {/* Waveform loading indicator */}
+                          {waveformLoading && (
+                            <div className="absolute top-2 right-2 text-xs text-green-500/60 flex items-center gap-1">
+                              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                              Loading waveform...
+                            </div>
+                          )}
+
+                          {/* No waveform data indicator */}
+                          {!waveformData && !waveformLoading && (
+                            <div className="absolute top-2 right-2 text-xs text-gray-500/60">
+                              No waveform data
+                            </div>
+                          )}
+
+                          {/* Subtle grid lines for LCD effect */}
+                          <div
+                            className="absolute inset-0 pointer-events-none opacity-10"
+                            style={{
+                              backgroundImage: `
                           linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px),
                           linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)
                         `,
-                        backgroundSize: '20px 20px'
-                      }}
-                    />
-                    
-                    {/* Time Markers */}
-                    <div className={`absolute bottom-0 left-0 right-0 h-6 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                      {(() => {
-                        const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
-                        const centerX = containerWidth / 2;
-                        // Time markers are in audio time, use audioTime for positioning
-                        const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
-                        return timeMarkers.map(({ time, isMajor }) => {
-                          const markerX = centerX + (time - audioTimeNow) * zoom;
-                          if (markerX < -50 || markerX > containerWidth + 50) return null;
-                          return (
+                              backgroundSize: '20px 20px'
+                            }}
+                          />
+
+                          {/* Time Markers */}
+                          <div className={`absolute bottom-0 left-0 right-0 h-6 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                            {(() => {
+                              const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
+                              const centerX = containerWidth / 2;
+                              // Time markers are in audio time, use audioTime for positioning
+                              const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
+                              return timeMarkers.map(({ time, isMajor }) => {
+                                const markerX = centerX + (time - audioTimeNow) * zoom;
+                                if (markerX < -50 || markerX > containerWidth + 50) return null;
+                                return (
+                                  <div
+                                    key={time}
+                                    className="absolute bottom-0 flex flex-col items-center"
+                                    style={{ left: markerX, transform: 'translateX(-50%)' }}
+                                  >
+                                    <div className={`${isMajor ? 'h-4 w-0.5 bg-gray-400' : 'h-2 w-px bg-gray-600'}`} />
+                                    {isMajor && (
+                                      <span className="text-[10px] text-gray-500 mt-0.5">{formatTimeShort(time)}</span>
+                                    )}
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+
+                          {/* Hover Time Tooltip */}
+                          {timelineHover.show && (
                             <div
-                              key={time}
-                              className="absolute bottom-0 flex flex-col items-center"
-                              style={{ left: markerX, transform: 'translateX(-50%)' }}
+                              className="absolute bottom-7 z-40 pointer-events-none transform -translate-x-1/2"
+                              style={{ left: timelineHover.x }}
                             >
-                              <div className={`${isMajor ? 'h-4 w-0.5 bg-gray-400' : 'h-2 w-px bg-gray-600'}`} />
-                              {isMajor && (
-                                <span className="text-[10px] text-gray-500 mt-0.5">{formatTimeShort(time)}</span>
+                              <div className="bg-gray-900 text-cyan-400 text-xs font-mono px-2 py-1 rounded shadow-lg border border-cyan-500/30">
+                                {Math.floor(timelineHover.time / 60)}:{(timelineHover.time % 60).toFixed(2).padStart(5, '0')}
+                              </div>
+                              {/* Small arrow pointing down */}
+                              <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-gray-900 border-r border-b border-cyan-500/30 transform rotate-45" />
+                            </div>
+                          )}
+
+                          {/* Hover vertical line */}
+                          {timelineHover.show && (
+                            <div
+                              className="absolute top-0 bottom-6 w-px bg-cyan-400/30 pointer-events-none z-20"
+                              style={{ left: timelineHover.x }}
+                            />
+                          )}
+
+                          {/* Center Playhead */}
+                          <div className="absolute top-0 bottom-6 w-0.5 bg-cyan-400 z-30 pointer-events-none" style={{ left: '50%', transform: 'translateX(-50%)', boxShadow: '0 0 15px rgba(0, 212, 255, 0.7)' }}>
+                            <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-cyan-400" />
+                          </div>
+
+                          {/* Duet Mode Row Labels */}
+                          {isDuetMode && (
+                            <div className="absolute left-2 top-0 bottom-6 flex flex-col justify-around pointer-events-none z-10" style={{ width: '50px' }}>
+                              <div className="flex items-center gap-1" title="Singer 1">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: duetColors.singer1 }} />
+                                <span className="text-[10px] font-medium" style={{ color: duetColors.singer1 }}>S1</span>
+                              </div>
+                              <div className="flex items-center gap-1" title="Both Singers">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: duetColors.both }} />
+                                <span className="text-[10px] font-medium" style={{ color: duetColors.both }}>Both</span>
+                              </div>
+                              <div className="flex items-center gap-1" title="Singer 2">
+                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: duetColors.singer2 }} />
+                                <span className="text-[10px] font-medium" style={{ color: duetColors.singer2 }}>S2</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Duet Mode Row Dividers */}
+                          {isDuetMode && (
+                            <>
+                              <div className="absolute left-0 right-0 border-t border-dashed border-white/10 pointer-events-none" style={{ top: (TIMELINE_HEIGHT_DUET - 24) / 3 }} />
+                              <div className="absolute left-0 right-0 border-t border-dashed border-white/10 pointer-events-none" style={{ top: ((TIMELINE_HEIGHT_DUET - 24) / 3) * 2 }} />
+                            </>
+                          )}
+
+                          {/* Words on timeline - Direct pixel positioning */}
+                          {(() => {
+                            const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
+                            const centerX = containerWidth / 2;
+                            const currentTimelineHeight = isDuetMode ? TIMELINE_HEIGHT_DUET : TIMELINE_HEIGHT;
+                            const wordHeight = isDuetMode ? 36 : 44; // Smaller words in duet mode to fit 3 rows
+                            const timelineContentHeight = currentTimelineHeight - 24; // Exclude time markers area
+
+                            // Calculate row positions for duet mode
+                            const rowHeight = timelineContentHeight / 3;
+                            const getWordTop = (singer) => {
+                              if (!isDuetMode) {
+                                return (timelineContentHeight - wordHeight) / 2;
+                              }
+                              // Singer 1 = top row, Both = middle row, Singer 2 = bottom row
+                              switch (singer) {
+                                case SINGER.SINGER_1:
+                                  return (rowHeight - wordHeight) / 2; // Top row
+                                case SINGER.SINGER_2:
+                                  return rowHeight * 2 + (rowHeight - wordHeight) / 2; // Bottom row
+                                case SINGER.BOTH:
+                                default:
+                                  return rowHeight + (rowHeight - wordHeight) / 2; // Middle row
+                              }
+                            };
+
+                            return words.map((word, index) => {
+                              // word.start is in audio time (0 = start of song)
+                              // currentTime is visual time (0 = start of intro, 4 = start of song)
+                              // So we need to compare apples to apples: convert currentTime to audio time
+                              const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
+                              const wordX = centerX + (word.start - audioTimeNow) * zoom;
+                              const wordWidth = Math.max(isDuetMode ? 35 : 40, (word.end - word.start) * zoom);
+
+                              // Skip if off-screen
+                              if (wordX + wordWidth < -100 || wordX > containerWidth + 100) return null;
+
+                              const isSelected = selectedWordIndices.has(index);
+                              const isCurrent = isWordCurrent(word);
+                              const wordColor = getWordColor(word, isSelected, isCurrent);
+                              const wordSinger = word.singer ?? SINGER.BOTH;
+                              const wordTop = getWordTop(wordSinger);
+
+                              // Format timestamp for tooltip - shows exact AssemblyAI timing
+                              const formatTimestamp = (seconds) => {
+                                const mins = Math.floor(seconds / 60);
+                                const secs = (seconds % 60).toFixed(3);
+                                return `${mins}:${secs.padStart(6, '0')}`;
+                              };
+                              const singerLabel = wordSinger === SINGER.SINGER_1 ? 'Singer 1' : wordSinger === SINGER.SINGER_2 ? 'Singer 2' : 'Both';
+                              const tooltipText = `"${word.word}"\nStart: ${formatTimestamp(word.start)}\nEnd: ${formatTimestamp(word.end)}\nDuration: ${(word.end - word.start).toFixed(3)}s${isDuetMode ? `\nSinger: ${singerLabel}` : ''}${word.confidence ? `\nConfidence: ${(word.confidence * 100).toFixed(0)}%` : ''}`;
+
+                              const isHovered = hoveredWordIndex === index;
+                              const isBeingResized = isWordResizing && wordResizeIndex === index;
+
+                              return (
+                                <div
+                                  key={index}
+                                  className="timeline-word absolute cursor-pointer select-none group"
+                                  style={{
+                                    left: wordX,
+                                    width: wordWidth,
+                                    height: wordHeight,
+                                    top: wordTop
+                                  }}
+                                  onMouseDown={(e) => {
+                                    // Only start drag if not clicking on resize handles
+                                    if (!e.target.classList.contains('resize-handle')) {
+                                      handleTimelineWordMouseDown(index, e);
+                                    }
+                                  }}
+                                  onTouchStart={(e) => {
+                                    // Touch support: start both drag AND long-press timer
+                                    if (e.touches.length === 1 && !e.target.classList.contains('resize-handle')) {
+                                      handleTimelineWordMouseDown(index, e, e.touches[0].clientX);
+                                      handleWordTouchStart(index, e);
+                                    }
+                                  }}
+                                  onTouchMove={(e) => {
+                                    // Cancel long-press if finger moves (user is dragging)
+                                    handleWordTouchMove(e);
+                                  }}
+                                  onTouchEnd={() => {
+                                    // Clean up long-press timer
+                                    handleWordTouchEnd();
+                                  }}
+                                  onTouchCancel={() => {
+                                    handleWordTouchEnd();
+                                  }}
+                                  onMouseEnter={() => {
+                                    handleTimelineWordMouseEnter(index);
+                                    setHoveredWordIndex(index);
+                                  }}
+                                  onMouseLeave={() => {
+                                    if (!isWordResizing) setHoveredWordIndex(null);
+                                  }}
+                                  onClick={(e) => {
+                                    if (!e.target.classList.contains('resize-handle')) {
+                                      e.stopPropagation();
+                                      handleWordClick(index, e);
+                                    }
+                                  }}
+                                  onContextMenu={(e) => handleWordContextMenu(index, e)}
+                                  title={tooltipText + '\n\nDrag edges to resize'}
+                                >
+                                  {/* Left resize handle */}
+                                  <div
+                                    className={`resize-handle absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
+                                    onMouseDown={(e) => handleWordResizeStart(index, 'left', e)}
+                                    onTouchStart={(e) => {
+                                      if (e.touches.length === 1) {
+                                        e.stopPropagation();
+                                        handleWordResizeStart(index, 'left', e, e.touches[0].clientX);
+                                      }
+                                    }}
+                                    title="Drag to adjust start time"
+                                  >
+                                    <div className={`w-1 h-6 rounded-full ${isBeingResized && wordResizeEdge === 'left' ? 'bg-cyan-400' : 'bg-white/60'}`} />
+                                  </div>
+
+                                  {/* Word content */}
+                                  <div
+                                    className={`h-full rounded-lg border-2 flex items-center justify-center px-3 overflow-hidden ${isSelected
+                                      ? 'border-cyan-400 shadow-lg shadow-cyan-500/30 bg-cyan-500/20'
+                                      : isCurrent
+                                        ? isDark ? 'border-white/40 bg-white/15' : 'border-gray-400 bg-gray-200/50'
+                                        : isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-gray-200 bg-gray-100 hover:bg-gray-200'
+                                      }`}
+                                    style={{
+                                      borderColor: isDuetMode && !isSelected ? (wordSinger === SINGER.SINGER_1 ? duetColors.singer1 + '40' : wordSinger === SINGER.SINGER_2 ? duetColors.singer2 + '40' : duetColors.both + '40') : undefined
+                                    }}
+                                  >
+                                    <span className={`${isDuetMode ? 'text-[10px]' : 'text-xs'} font-medium truncate`} style={{ color: wordColor }}>{word.word}</span>
+                                  </div>
+
+                                  {/* Right resize handle */}
+                                  <div
+                                    className={`resize-handle absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
+                                    onMouseDown={(e) => handleWordResizeStart(index, 'right', e)}
+                                    onTouchStart={(e) => {
+                                      if (e.touches.length === 1) {
+                                        e.stopPropagation();
+                                        handleWordResizeStart(index, 'right', e, e.touches[0].clientX);
+                                      }
+                                    }}
+                                    title="Drag to adjust end time"
+                                  >
+                                    <div className={`w-1 h-6 rounded-full ${isBeingResized && wordResizeEdge === 'right' ? 'bg-cyan-400' : 'bg-white/60'}`} />
+                                  </div>
+
+                                  {word.lineBreak && <div className="absolute -right-0.5 top-0 bottom-0 w-1 bg-cyan-500 rounded-full" title="Line break" />}
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+
+                        {/* Playback Controls - V10.8 with Volume Sliders */}
+                        <div className={`px-4 py-3 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                          {/* Main Playback Row */}
+                          <div className="flex items-center gap-4 mb-3">
+                            <div className="flex items-center gap-2">
+                              <button onClick={restart} className={`p-2 rounded-lg ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}><SkipBack className="w-4 h-4" /></button>
+                              <button onClick={togglePlayback} className={`p-3 rounded-xl ${isPlaying ? 'bg-red-500 hover:bg-red-600' : 'bg-cyan-500 hover:bg-cyan-600'} text-white`}>
+                                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                              </button>
+                            </div>
+
+                            <div className="flex-1 flex items-center gap-2">
+                              <span className={`text-xs font-mono w-24 ${currentTime < INTRO_DURATION ? 'text-yellow-400' : 'text-cyan-400'}`} title="Current playback time (countdown during intro)">
+                                {formatTrackTimeDetailed(currentTime)}
+                              </span>
+                              <div onClick={handleProgressClick} className={`flex-1 h-2 rounded-full cursor-pointer overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
+                                <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all" style={{ width: `${(currentTime / ((duration || 1) + INTRO_DURATION)) * 100}%` }} />
+                              </div>
+                              <span className="text-xs text-gray-500 w-12">{formatTime(duration)}</span>
+                            </div>
+                          </div>
+
+                          {/* Volume Controls - simple toggles on mobile, sliders on desktop */}
+                          <div className={`pt-2 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
+                            {/* Mobile: Simple on/off toggle buttons */}
+                            <div className="flex sm:hidden items-center justify-center gap-3">
+                              <button
+                                onClick={() => {
+                                  const newMuted = !instrumentalMuted;
+                                  setInstrumentalMuted(newMuted);
+                                  if (instrumentalRef.current) instrumentalRef.current.muted = newMuted;
+                                }}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${instrumentalMuted
+                                    ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                    : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                  }`}
+                              >
+                                <span className="text-base">ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Âµ</span>
+                                <span>Music {instrumentalMuted ? 'OFF' : 'ON'}</span>
+                              </button>
+
+                              {project.vocals_audio_url && (
+                                <button
+                                  onClick={() => {
+                                    const newMuted = !vocalsMuted;
+                                    setVocalsMuted(newMuted);
+                                    if (!newMuted) setVocalsVolume(100);
+                                    if (vocalsRef.current) vocalsRef.current.muted = newMuted;
+                                  }}
+                                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${vocalsMuted
+                                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                      : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                    }`}
+                                >
+                                  <span className="text-base">ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¤</span>
+                                  <span>Vocals {vocalsMuted ? 'OFF' : 'ON'}</span>
+                                </button>
                               )}
                             </div>
-                          );
-                        });
-                      })()}
-                    </div>
-                    
-                    {/* Hover Time Tooltip */}
-                    {timelineHover.show && (
-                      <div 
-                        className="absolute bottom-7 z-40 pointer-events-none transform -translate-x-1/2"
-                        style={{ left: timelineHover.x }}
-                      >
-                        <div className="bg-gray-900 text-cyan-400 text-xs font-mono px-2 py-1 rounded shadow-lg border border-cyan-500/30">
-                          {Math.floor(timelineHover.time / 60)}:{(timelineHover.time % 60).toFixed(2).padStart(5, '0')}
-                        </div>
-                        {/* Small arrow pointing down */}
-                        <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 bg-gray-900 border-r border-b border-cyan-500/30 transform rotate-45" />
-                      </div>
-                    )}
-                    
-                    {/* Hover vertical line */}
-                    {timelineHover.show && (
-                      <div 
-                        className="absolute top-0 bottom-6 w-px bg-cyan-400/30 pointer-events-none z-20"
-                        style={{ left: timelineHover.x }}
-                      />
-                    )}
 
-                    {/* Center Playhead */}
-                    <div className="absolute top-0 bottom-6 w-0.5 bg-cyan-400 z-30 pointer-events-none" style={{ left: '50%', transform: 'translateX(-50%)', boxShadow: '0 0 15px rgba(0, 212, 255, 0.7)' }}>
-                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-cyan-400" />
-                    </div>
+                            {/* Desktop: Full volume sliders */}
+                            <div className="hidden sm:flex sm:items-center sm:justify-between gap-2">
+                              {/* Backing Track Volume */}
+                              <VolumeSlider
+                                value={instrumentalVolume}
+                                onChange={handleInstrumentalVolumeChange}
+                                label="Backing"
+                                icon={Music}
+                                color="#06b6d4"
+                                muted={instrumentalMuted}
+                                onMuteToggle={toggleInstrumentalMute}
+                                isDark={isDark}
+                              />
 
-                    {/* Duet Mode Row Labels */}
-                    {isDuetMode && (
-                      <div className="absolute left-2 top-0 bottom-6 flex flex-col justify-around pointer-events-none z-10" style={{ width: '50px' }}>
-                        <div className="flex items-center gap-1" title="Singer 1">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: duetColors.singer1 }} />
-                          <span className="text-[10px] font-medium" style={{ color: duetColors.singer1 }}>S1</span>
-                        </div>
-                        <div className="flex items-center gap-1" title="Both Singers">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: duetColors.both }} />
-                          <span className="text-[10px] font-medium" style={{ color: duetColors.both }}>Both</span>
-                        </div>
-                        <div className="flex items-center gap-1" title="Singer 2">
-                          <div className="w-2 h-2 rounded-full" style={{ backgroundColor: duetColors.singer2 }} />
-                          <span className="text-[10px] font-medium" style={{ color: duetColors.singer2 }}>S2</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Duet Mode Row Dividers */}
-                    {isDuetMode && (
-                      <>
-                        <div className="absolute left-0 right-0 border-t border-dashed border-white/10 pointer-events-none" style={{ top: (TIMELINE_HEIGHT_DUET - 24) / 3 }} />
-                        <div className="absolute left-0 right-0 border-t border-dashed border-white/10 pointer-events-none" style={{ top: ((TIMELINE_HEIGHT_DUET - 24) / 3) * 2 }} />
-                      </>
-                    )}
-
-                    {/* Words on timeline - Direct pixel positioning */}
-                    {(() => {
-                      const containerWidth = timelineContainerRef.current?.offsetWidth || 800;
-                      const centerX = containerWidth / 2;
-                      const currentTimelineHeight = isDuetMode ? TIMELINE_HEIGHT_DUET : TIMELINE_HEIGHT;
-                      const wordHeight = isDuetMode ? 36 : 44; // Smaller words in duet mode to fit 3 rows
-                      const timelineContentHeight = currentTimelineHeight - 24; // Exclude time markers area
-                      
-                      // Calculate row positions for duet mode
-                      const rowHeight = timelineContentHeight / 3;
-                      const getWordTop = (singer) => {
-                        if (!isDuetMode) {
-                          return (timelineContentHeight - wordHeight) / 2;
-                        }
-                        // Singer 1 = top row, Both = middle row, Singer 2 = bottom row
-                        switch (singer) {
-                          case SINGER.SINGER_1:
-                            return (rowHeight - wordHeight) / 2; // Top row
-                          case SINGER.SINGER_2:
-                            return rowHeight * 2 + (rowHeight - wordHeight) / 2; // Bottom row
-                          case SINGER.BOTH:
-                          default:
-                            return rowHeight + (rowHeight - wordHeight) / 2; // Middle row
-                        }
-                      };
-
-                      return words.map((word, index) => {
-                        // word.start is in audio time (0 = start of song)
-                        // currentTime is visual time (0 = start of intro, 4 = start of song)
-                        // So we need to compare apples to apples: convert currentTime to audio time
-                        const audioTimeNow = Math.max(0, currentTime - INTRO_DURATION);
-                        const wordX = centerX + (word.start - audioTimeNow) * zoom;
-                        const wordWidth = Math.max(isDuetMode ? 35 : 40, (word.end - word.start) * zoom);
-
-                        // Skip if off-screen
-                        if (wordX + wordWidth < -100 || wordX > containerWidth + 100) return null;
-
-                        const isSelected = selectedWordIndices.has(index);
-                        const isCurrent = isWordCurrent(word);
-                        const wordColor = getWordColor(word, isSelected, isCurrent);
-                        const wordSinger = word.singer ?? SINGER.BOTH;
-                        const wordTop = getWordTop(wordSinger);
-
-                        // Format timestamp for tooltip - shows exact AssemblyAI timing
-                        const formatTimestamp = (seconds) => {
-                          const mins = Math.floor(seconds / 60);
-                          const secs = (seconds % 60).toFixed(3);
-                          return `${mins}:${secs.padStart(6, '0')}`;
-                        };
-                        const singerLabel = wordSinger === SINGER.SINGER_1 ? 'Singer 1' : wordSinger === SINGER.SINGER_2 ? 'Singer 2' : 'Both';
-                        const tooltipText = `"${word.word}"\nStart: ${formatTimestamp(word.start)}\nEnd: ${formatTimestamp(word.end)}\nDuration: ${(word.end - word.start).toFixed(3)}s${isDuetMode ? `\nSinger: ${singerLabel}` : ''}${word.confidence ? `\nConfidence: ${(word.confidence * 100).toFixed(0)}%` : ''}`;
-
-                        const isHovered = hoveredWordIndex === index;
-                        const isBeingResized = isWordResizing && wordResizeIndex === index;
-
-                        return (
-                          <div
-                            key={index}
-                            className="timeline-word absolute cursor-pointer select-none group"
-                            style={{
-                              left: wordX,
-                              width: wordWidth,
-                              height: wordHeight,
-                              top: wordTop
-                            }}
-                            onMouseDown={(e) => {
-                              // Only start drag if not clicking on resize handles
-                              if (!e.target.classList.contains('resize-handle')) {
-                                handleTimelineWordMouseDown(index, e);
-                              }
-                            }}
-                            onTouchStart={(e) => {
-                              // Touch support: start both drag AND long-press timer
-                              if (e.touches.length === 1 && !e.target.classList.contains('resize-handle')) {
-                                handleTimelineWordMouseDown(index, e, e.touches[0].clientX);
-                                handleWordTouchStart(index, e);
-                              }
-                            }}
-                            onTouchMove={(e) => {
-                              // Cancel long-press if finger moves (user is dragging)
-                              handleWordTouchMove(e);
-                            }}
-                            onTouchEnd={() => {
-                              // Clean up long-press timer
-                              handleWordTouchEnd();
-                            }}
-                            onTouchCancel={() => {
-                              handleWordTouchEnd();
-                            }}
-                            onMouseEnter={() => {
-                              handleTimelineWordMouseEnter(index);
-                              setHoveredWordIndex(index);
-                            }}
-                            onMouseLeave={() => {
-                              if (!isWordResizing) setHoveredWordIndex(null);
-                            }}
-                            onClick={(e) => { 
-                              if (!e.target.classList.contains('resize-handle')) {
-                                e.stopPropagation(); 
-                                handleWordClick(index, e); 
-                              }
-                            }}
-                            onContextMenu={(e) => handleWordContextMenu(index, e)}
-                            title={tooltipText + '\n\nDrag edges to resize'}
-                          >
-                            {/* Left resize handle */}
-                            <div
-                              className={`resize-handle absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
-                              onMouseDown={(e) => handleWordResizeStart(index, 'left', e)}
-                              onTouchStart={(e) => {
-                                if (e.touches.length === 1) {
-                                  e.stopPropagation();
-                                  handleWordResizeStart(index, 'left', e, e.touches[0].clientX);
-                                }
-                              }}
-                              title="Drag to adjust start time"
-                            >
-                              <div className={`w-1 h-6 rounded-full ${isBeingResized && wordResizeEdge === 'left' ? 'bg-cyan-400' : 'bg-white/60'}`} />
+                              {/* Vocals Volume (Reference Only) */}
+                              {project.vocals_audio_url ? (
+                                <div className="flex items-center gap-2">
+                                  <VolumeSlider
+                                    value={vocalsVolume}
+                                    onChange={handleVocalsVolumeChange}
+                                    label="Vocals"
+                                    icon={Mic}
+                                    color="#f472b6"
+                                    muted={vocalsMuted}
+                                    onMuteToggle={toggleVocalsMute}
+                                    isDark={isDark}
+                                  />
+                                  <span className={`text-[10px] px-2 py-0.5 rounded flex-shrink-0 ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    Reference only
+                                  </span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <Mic className="w-4 h-4 text-gray-500" />
+                                  <span className="text-xs text-gray-500">No vocals track available</span>
+                                </div>
+                              )}
                             </div>
-                            
-                            {/* Word content */}
-                            <div
-                              className={`h-full rounded-lg border-2 flex items-center justify-center px-3 overflow-hidden ${isSelected
-                                  ? 'border-cyan-400 shadow-lg shadow-cyan-500/30 bg-cyan-500/20'
-                                  : isCurrent
-                                    ? isDark ? 'border-white/40 bg-white/15' : 'border-gray-400 bg-gray-200/50'
-                                    : isDark ? 'border-white/10 bg-white/5 hover:bg-white/10' : 'border-gray-200 bg-gray-100 hover:bg-gray-200'
-                                }`}
-                              style={{ 
-                                borderColor: isDuetMode && !isSelected ? (wordSinger === SINGER.SINGER_1 ? duetColors.singer1 + '40' : wordSinger === SINGER.SINGER_2 ? duetColors.singer2 + '40' : duetColors.both + '40') : undefined
-                              }}
-                            >
-                              <span className={`${isDuetMode ? 'text-[10px]' : 'text-xs'} font-medium truncate`} style={{ color: wordColor }}>{word.word}</span>
-                            </div>
-                            
-                            {/* Right resize handle */}
-                            <div
-                              className={`resize-handle absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize z-10 flex items-center justify-center transition-opacity ${isHovered || isBeingResized ? 'opacity-100' : 'opacity-0'}`}
-                              onMouseDown={(e) => handleWordResizeStart(index, 'right', e)}
-                              onTouchStart={(e) => {
-                                if (e.touches.length === 1) {
-                                  e.stopPropagation();
-                                  handleWordResizeStart(index, 'right', e, e.touches[0].clientX);
-                                }
-                              }}
-                              title="Drag to adjust end time"
-                            >
-                              <div className={`w-1 h-6 rounded-full ${isBeingResized && wordResizeEdge === 'right' ? 'bg-cyan-400' : 'bg-white/60'}`} />
-                            </div>
-                            
-                            {word.lineBreak && <div className="absolute -right-0.5 top-0 bottom-0 w-1 bg-cyan-500 rounded-full" title="Line break" />}
                           </div>
-                        );
-                      });
-                    })()}
+                        </div>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Playback Controls - V10.8 with Volume Sliders */}
-                  <div className={`px-4 py-3 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
-                    {/* Main Playback Row */}
-                    <div className="flex items-center gap-4 mb-3">
-                      <div className="flex items-center gap-2">
-                        <button onClick={restart} className={`p-2 rounded-lg ${isDark ? 'bg-white/5 hover:bg-white/10' : 'bg-gray-100 hover:bg-gray-200'}`}><SkipBack className="w-4 h-4" /></button>
-                        <button onClick={togglePlayback} className={`p-3 rounded-xl ${isPlaying ? 'bg-red-500 hover:bg-red-600' : 'bg-cyan-500 hover:bg-cyan-600'} text-white`}>
-                          {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                        </button>
-                      </div>
-
-                      <div className="flex-1 flex items-center gap-2">
-                        <span className={`text-xs font-mono w-24 ${currentTime < INTRO_DURATION ? 'text-yellow-400' : 'text-cyan-400'}`} title="Current playback time (countdown during intro)">
-                          {formatTrackTimeDetailed(currentTime)}
-                        </span>
-                        <div onClick={handleProgressClick} className={`flex-1 h-2 rounded-full cursor-pointer overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
-                          <div className="h-full bg-gradient-to-r from-cyan-500 to-purple-500 rounded-full transition-all" style={{ width: `${(currentTime / ((duration || 1) + INTRO_DURATION)) * 100}%` }} />
-                        </div>
-                        <span className="text-xs text-gray-500 w-12">{formatTime(duration)}</span>
-                      </div>
-                    </div>
-
-                    {/* Volume Controls - simple toggles on mobile, sliders on desktop */}
-                    <div className={`pt-2 border-t ${isDark ? 'border-white/5' : 'border-gray-100'}`}>
-                      {/* Mobile: Simple on/off toggle buttons */}
-                      <div className="flex sm:hidden items-center justify-center gap-3">
-                        <button
-                          onClick={() => {
-                            const newMuted = !instrumentalMuted;
-                            setInstrumentalMuted(newMuted);
-                            if (instrumentalRef.current) instrumentalRef.current.muted = newMuted;
-                          }}
-                          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                            instrumentalMuted
-                              ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                              : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          }`}
-                        >
-                          <span className="text-base">ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Âµ</span>
-                          <span>Music {instrumentalMuted ? 'OFF' : 'ON'}</span>
-                        </button>
-
-                        {project.vocals_audio_url && (
-                          <button
-                            onClick={() => {
-                              const newMuted = !vocalsMuted;
-                              setVocalsMuted(newMuted);
-                              if (!newMuted) setVocalsVolume(100);
-                              if (vocalsRef.current) vocalsRef.current.muted = newMuted;
-                            }}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                              vocalsMuted
-                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                            }`}
-                          >
-                            <span className="text-base">ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€¦Ã‚Â½Ãƒâ€šÃ‚Â¤</span>
-                            <span>Vocals {vocalsMuted ? 'OFF' : 'ON'}</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Desktop: Full volume sliders */}
-                      <div className="hidden sm:flex sm:items-center sm:justify-between gap-2">
-                        {/* Backing Track Volume */}
-                        <VolumeSlider
-                          value={instrumentalVolume}
-                          onChange={handleInstrumentalVolumeChange}
-                          label="Backing"
-                          icon={Music}
-                          color="#06b6d4"
-                          muted={instrumentalMuted}
-                          onMuteToggle={toggleInstrumentalMute}
-                          isDark={isDark}
-                        />
-
-                        {/* Vocals Volume (Reference Only) */}
-                        {project.vocals_audio_url ? (
-                          <div className="flex items-center gap-2">
-                            <VolumeSlider
-                              value={vocalsVolume}
-                              onChange={handleVocalsVolumeChange}
-                              label="Vocals"
-                              icon={Mic}
-                              color="#f472b6"
-                              muted={vocalsMuted}
-                              onMuteToggle={toggleVocalsMute}
-                              isDark={isDark}
-                            />
-                            <span className={`text-[10px] px-2 py-0.5 rounded flex-shrink-0 ${isDark ? 'bg-yellow-500/20 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
-                              Reference only
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Mic className="w-4 h-4 text-gray-500" />
-                            <span className="text-xs text-gray-500">No vocals track available</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-          </div>
                 </>
               )}
 
@@ -5974,7 +5976,7 @@ export default function PreviewEditPage() {
                       isDark={isDark}
                       isStudioUser={true}
                     />
-                    
+
                     {/* Custom Font Upload Section - Shows when Custom Font is selected */}
                     {styleSettings.selectedFont === 'custom' && (
                       <div className={`mt-3 p-4 rounded-lg ${isDark ? 'bg-white/5 border border-white/10' : 'bg-gray-50 border border-gray-200'}`}>
@@ -5983,9 +5985,9 @@ export default function PreviewEditPage() {
                           <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                             Need a font?
                           </span>
-                          <a 
-                            href="https://www.dafont.com/" 
-                            target="_blank" 
+                          <a
+                            href="https://www.dafont.com/"
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:opacity-90 transition-opacity"
                           >
@@ -6008,14 +6010,13 @@ export default function PreviewEditPage() {
                           <label className={`block text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                             Upload Custom Font (.ttf, .otf, .woff, .woff2)
                           </label>
-                          <label 
-                            className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                              customFontUploading 
-                                ? 'opacity-50 cursor-wait' 
-                                : isDark 
-                                  ? 'border-white/20 hover:border-cyan-500/50 hover:bg-white/5' 
+                          <label
+                            className={`flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${customFontUploading
+                                ? 'opacity-50 cursor-wait'
+                                : isDark
+                                  ? 'border-white/20 hover:border-cyan-500/50 hover:bg-white/5'
                                   : 'border-gray-300 hover:border-cyan-500 hover:bg-cyan-50'
-                            }`}
+                              }`}
                           >
                             {customFontUploading ? (
                               <>
@@ -6035,15 +6036,15 @@ export default function PreviewEditPage() {
                                 </span>
                               </>
                             )}
-                            <input 
-                              type="file" 
-                              accept=".ttf,.otf,.woff,.woff2" 
+                            <input
+                              type="file"
+                              accept=".ttf,.otf,.woff,.woff2"
                               onChange={handleCustomFontUpload}
                               disabled={customFontUploading}
-                              className="hidden" 
+                              className="hidden"
                             />
                           </label>
-                          
+
                           {/* Error Message */}
                           {customFontError && (
                             <p className="mt-2 text-sm text-red-400 flex items-center gap-1">
@@ -6071,11 +6072,10 @@ export default function PreviewEditPage() {
                         <button
                           key={size.value}
                           onClick={() => updateStyleSettings({ fontSize: size.value })}
-                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                            styleSettings.fontSize === size.value
+                          className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${styleSettings.fontSize === size.value
                               ? 'bg-cyan-500 text-white'
                               : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                            }`}
                         >
                           {size.label}
                         </button>
@@ -6228,7 +6228,7 @@ export default function PreviewEditPage() {
                               >
                                 Remove Logo
                               </button>
-                              
+
                               {/* Position Selector */}
                               <div>
                                 <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Position</label>
@@ -6237,11 +6237,10 @@ export default function PreviewEditPage() {
                                     <button
                                       key={pos.value}
                                       onClick={() => updateBrandingSettings({ logoPosition: pos.value })}
-                                      className={`w-7 h-7 rounded text-xs flex items-center justify-center transition-all ${
-                                        brandingSettings.logoPosition === pos.value
+                                      className={`w-7 h-7 rounded text-xs flex items-center justify-center transition-all ${brandingSettings.logoPosition === pos.value
                                           ? 'bg-cyan-500 text-white'
                                           : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                      }`}
+                                        }`}
                                     >
                                       {pos.label}
                                     </button>
@@ -6279,9 +6278,8 @@ export default function PreviewEditPage() {
                             </div>
                           </div>
                         ) : (
-                          <label className={`flex flex-col items-center justify-center h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                            logoUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-purple-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-purple-500 hover:bg-purple-50'
-                          }`}>
+                          <label className={`flex flex-col items-center justify-center h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${logoUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-purple-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-purple-500 hover:bg-purple-50'
+                            }`}>
                             {logoUploading ? (
                               <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
                             ) : (
@@ -6306,11 +6304,11 @@ export default function PreviewEditPage() {
                           <div className="space-y-3">
                             <div className="flex items-start gap-3">
                               <div className={`relative w-28 h-16 rounded-lg overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-100'}`} style={{ backgroundImage: 'linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)', backgroundSize: '10px 10px', backgroundPosition: '0 0, 0 5px, 5px -5px, -5px 0px' }}>
-                                <img 
-                                  src={brandingSettings.startImageUrl} 
-                                  alt="Start" 
+                                <img
+                                  src={brandingSettings.startImageUrl}
+                                  alt="Start"
                                   className="w-full h-full"
-                                  style={{ 
+                                  style={{
                                     objectFit: brandingSettings.startImageFit || 'contain',
                                     opacity: (brandingSettings.startImageOpacity || 100) / 100
                                   }}
@@ -6323,7 +6321,7 @@ export default function PreviewEditPage() {
                                 >
                                   Remove
                                 </button>
-                                
+
                                 {/* Fit Mode */}
                                 <div>
                                   <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Fit Mode</label>
@@ -6337,11 +6335,10 @@ export default function PreviewEditPage() {
                                         key={mode.value}
                                         onClick={() => updateBrandingSettings({ startImageFit: mode.value })}
                                         title={mode.title}
-                                        className={`px-2 h-6 rounded text-[10px] font-medium transition-all ${
-                                          brandingSettings.startImageFit === mode.value
+                                        className={`px-2 h-6 rounded text-[10px] font-medium transition-all ${brandingSettings.startImageFit === mode.value
                                             ? 'bg-cyan-500 text-white'
                                             : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
+                                          }`}
                                       >
                                         {mode.label}
                                       </button>
@@ -6350,7 +6347,7 @@ export default function PreviewEditPage() {
                                 </div>
                               </div>
                             </div>
-                            
+
                             {/* Opacity Slider */}
                             <div>
                               <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Opacity: {brandingSettings.startImageOpacity || 100}%</label>
@@ -6364,7 +6361,7 @@ export default function PreviewEditPage() {
                                 style={{ background: `linear-gradient(to right, #06b6d4 ${(brandingSettings.startImageOpacity || 100) - 20}%, ${isDark ? '#374151' : '#d1d5db'} ${(brandingSettings.startImageOpacity || 100) - 20}%)` }}
                               />
                             </div>
-                            
+
                             {/* Show Title Checkbox */}
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input
@@ -6379,9 +6376,8 @@ export default function PreviewEditPage() {
                             </label>
                           </div>
                         ) : (
-                          <label className={`flex flex-col items-center justify-center h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                            startImageUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-purple-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-purple-500 hover:bg-purple-50'
-                          }`}>
+                          <label className={`flex flex-col items-center justify-center h-24 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${startImageUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-purple-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-purple-500 hover:bg-purple-50'
+                            }`}>
                             {startImageUploading ? (
                               <Loader2 className="w-6 h-6 text-purple-400 animate-spin" />
                             ) : (
@@ -6389,10 +6385,10 @@ export default function PreviewEditPage() {
                                 <Image className="w-6 h-6 text-gray-400 mb-1" />
                                 <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Upload Start Image</span>
                                 <span className={`text-[10px] mt-0.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                                  {layoutSettings.aspectRatio === '16:9' ? 'Recommended: 1920x1080px' : 
-                                   layoutSettings.aspectRatio === '9:16' ? 'Recommended: 1080x1920px' : 
-                                   layoutSettings.aspectRatio === '4:3' ? 'Recommended: 1440x1080px' : 
-                                   'PNG for transparency'}
+                                  {layoutSettings.aspectRatio === '16:9' ? 'Recommended: 1920x1080px' :
+                                    layoutSettings.aspectRatio === '9:16' ? 'Recommended: 1080x1920px' :
+                                      layoutSettings.aspectRatio === '4:3' ? 'Recommended: 1440x1080px' :
+                                        'PNG for transparency'}
                                 </span>
                               </>
                             )}
@@ -6424,11 +6420,10 @@ export default function PreviewEditPage() {
                               <button
                                 key={sec}
                                 onClick={() => updateBrandingSettings({ outroDuration: sec })}
-                                className={`w-6 h-5 rounded text-[10px] font-medium transition-all ${
-                                  brandingSettings.outroDuration === sec
+                                className={`w-6 h-5 rounded text-[10px] font-medium transition-all ${brandingSettings.outroDuration === sec
                                     ? 'bg-cyan-500 text-white'
                                     : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
+                                  }`}
                               >
                                 {sec}s
                               </button>
@@ -6480,11 +6475,10 @@ export default function PreviewEditPage() {
                         <button
                           key={type.value}
                           onClick={() => updateBgSettings({ bgType: type.value })}
-                          className={`flex flex-col items-center gap-1 p-3 rounded-lg text-xs font-medium transition-all ${
-                            bgSettings.bgType === type.value
+                          className={`flex flex-col items-center gap-1 p-3 rounded-lg text-xs font-medium transition-all ${bgSettings.bgType === type.value
                               ? 'bg-cyan-500 text-white'
                               : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                          }`}
+                            }`}
                         >
                           <type.icon className="w-5 h-5" />
                           {type.label}
@@ -6539,7 +6533,7 @@ export default function PreviewEditPage() {
                           />
                         </div>
                       </div>
-                      
+
                       <div>
                         <label className={`block text-xs mb-1.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Direction</label>
                         <select
@@ -6558,9 +6552,9 @@ export default function PreviewEditPage() {
                       </div>
 
                       {/* Gradient Preview */}
-                      <div 
+                      <div
                         className="h-20 rounded-lg border"
-                        style={{ 
+                        style={{
                           background: `linear-gradient(${bgSettings.gradientDirection}, ${bgSettings.bgColor1}, ${bgSettings.bgColor2})`,
                           borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
                         }}
@@ -6576,10 +6570,10 @@ export default function PreviewEditPage() {
                       </label>
                       {bgSettings.bgImagePreview ? (
                         <div className="relative">
-                          <img 
-                            src={bgSettings.bgImagePreview} 
-                            alt="Background" 
-                            className="w-full h-32 object-cover rounded-lg" 
+                          <img
+                            src={bgSettings.bgImagePreview}
+                            alt="Background"
+                            className="w-full h-32 object-cover rounded-lg"
                           />
                           <button
                             onClick={() => updateBgSettings({ bgImageUrl: null, bgImagePreview: null })}
@@ -6589,9 +6583,8 @@ export default function PreviewEditPage() {
                           </button>
                         </div>
                       ) : (
-                        <label className={`flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                          bgImageUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-cyan-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-cyan-50'
-                        }`}>
+                        <label className={`flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${bgImageUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-cyan-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-cyan-50'
+                          }`}>
                           {bgImageUploading ? (
                             <>
                               <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
@@ -6607,7 +6600,7 @@ export default function PreviewEditPage() {
                           <input type="file" accept="image/*" onChange={handleBgImageUpload} disabled={bgImageUploading} className="hidden" />
                         </label>
                       )}
-                      
+
                       {/* Image Fit Mode - only show when image is uploaded */}
                       {bgSettings.bgImageUrl && (
                         <div className="mt-3">
@@ -6623,13 +6616,12 @@ export default function PreviewEditPage() {
                               <button
                                 key={mode.value}
                                 onClick={() => updateBgSettings({ bgImageFit: mode.value })}
-                                className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
-                                  bgSettings.bgImageFit === mode.value
+                                className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${bgSettings.bgImageFit === mode.value
                                     ? 'bg-cyan-500 text-white'
                                     : isDark
                                       ? 'bg-white/10 text-gray-300 hover:bg-white/20'
                                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                }`}
+                                  }`}
                                 title={mode.desc}
                               >
                                 {mode.label}
@@ -6647,7 +6639,7 @@ export default function PreviewEditPage() {
                             AI Background Generator
                           </label>
                         </div>
-                        
+
                         {/* Credit cost notice */}
                         <div className={`flex items-center gap-2 p-2 rounded-lg mb-3 ${isDark ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-purple-50 border border-purple-200'}`}>
                           <div className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${isDark ? 'bg-purple-500/30 text-purple-300' : 'bg-purple-200 text-purple-700'}`}>
@@ -6662,7 +6654,7 @@ export default function PreviewEditPage() {
                             )}
                           </span>
                         </div>
-                        
+
                         {/* Tip */}
                         <p className={`text-[11px] mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                           Be as detailed as possible for best results. Include colors, mood, setting, and style.
@@ -6676,11 +6668,10 @@ export default function PreviewEditPage() {
                           maxLength={1000}
                           rows={3}
                           disabled={aiGenerating}
-                          className={`w-full px-3 py-2 rounded-lg text-sm border resize-none transition-colors ${
-                            isDark 
-                              ? 'bg-white/5 text-white border-white/10 placeholder-gray-500 focus:border-purple-500/50 focus:bg-white/10' 
+                          className={`w-full px-3 py-2 rounded-lg text-sm border resize-none transition-colors ${isDark
+                              ? 'bg-white/5 text-white border-white/10 placeholder-gray-500 focus:border-purple-500/50 focus:bg-white/10'
                               : 'bg-gray-50 text-gray-900 border-gray-200 placeholder-gray-400 focus:border-purple-500 focus:bg-white'
-                          } focus:outline-none`}
+                            } focus:outline-none`}
                         />
                         <div className="flex items-center justify-between mt-1 mb-2">
                           <span className={`text-[10px] ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>{aiPrompt.length}/1000</span>
@@ -6690,11 +6681,10 @@ export default function PreviewEditPage() {
                         <button
                           onClick={handleAiBackgroundGenerate}
                           disabled={aiGenerating || !aiPrompt.trim() || aiPrompt.trim().length < 10 || (aiCreditsRemaining !== null && aiCreditsRemaining < AI_BG_CREDIT_COST)}
-                          className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                            aiGenerating || !aiPrompt.trim() || aiPrompt.trim().length < 10 || (aiCreditsRemaining !== null && aiCreditsRemaining < AI_BG_CREDIT_COST)
+                          className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${aiGenerating || !aiPrompt.trim() || aiPrompt.trim().length < 10 || (aiCreditsRemaining !== null && aiCreditsRemaining < AI_BG_CREDIT_COST)
                               ? isDark ? 'bg-white/5 text-gray-500 cursor-not-allowed' : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                               : 'bg-gradient-to-r from-purple-500 to-cyan-500 text-white hover:from-purple-600 hover:to-cyan-600 shadow-lg shadow-purple-500/25'
-                          }`}
+                            }`}
                         >
                           {aiGenerating ? (
                             <>
@@ -6729,7 +6719,65 @@ export default function PreviewEditPage() {
                             <span className="text-xs text-red-400">{aiError}</span>
                           </div>
                         )}
+
+                        {/* AI Image Gallery - Past Generations */}
+                        <div className="mt-3">
+                          <button
+                            onClick={() => {
+                              setShowAiGallery(!showAiGallery);
+                              if (!showAiGallery && aiGallery.length === 0) fetchAiGallery();
+                            }}
+                            className={`flex items-center gap-2 text-xs font-medium transition-colors ${isDark ? 'text-purple-400 hover:text-purple-300' : 'text-purple-600 hover:text-purple-700'
+                              }`}
+                          >
+                            <Image className="w-3.5 h-3.5" />
+                            {showAiGallery ? 'Hide' : 'Show'} My AI Images
+                            {aiGallery.length > 0 && ` (${aiGallery.length})`}
+                            <ChevronDown className={`w-3 h-3 transition-transform ${showAiGallery ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          {showAiGallery && (
+                            <div className="mt-2">
+                              {aiGalleryLoading ? (
+                                <div className={`text-xs text-center py-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                  <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                                  Loading your images...
+                                </div>
+                              ) : aiGallery.length === 0 ? (
+                                <div className={`text-xs text-center py-4 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                  No AI images generated yet. Create one above!
+                                </div>
+                              ) : (
+                                <div className="grid grid-cols-3 gap-2 max-h-[200px] overflow-y-auto pr-1">
+                                  {aiGallery.map((img) => (
+                                    <button
+                                      key={img.id}
+                                      onClick={() => {
+                                        updateBgSettings({ bgType: 'image', bgImageUrl: img.image_url, bgImagePreview: img.image_url });
+                                        setProject(prev => ({ ...prev, bg_image_url: img.image_url }));
+                                        setHasChanges(true);
+                                      }}
+                                      className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all hover:scale-105 ${bgSettings.bgImageUrl === img.image_url
+                                          ? 'border-cyan-400 ring-2 ring-cyan-400/50'
+                                          : isDark ? 'border-white/10 hover:border-white/30' : 'border-gray-200 hover:border-gray-400'
+                                        }`}
+                                      title={img.prompt}
+                                    >
+                                      <img src={img.image_url} alt={img.prompt} className="w-full h-full object-cover" loading="lazy" />
+                                      {bgSettings.bgImageUrl === img.image_url && (
+                                        <div className="absolute top-1 right-1 w-5 h-5 bg-cyan-500 rounded-full flex items-center justify-center">
+                                          <Check className="w-3 h-3 text-white" />
+                                        </div>
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
+
                     </div>
                   )}
 
@@ -6742,11 +6790,10 @@ export default function PreviewEditPage() {
                           <button
                             key={cat.id}
                             onClick={() => setSelectedVideoCategory(cat.id)}
-                            className={`px-3 py-2 sm:py-1.5 rounded-full text-xs font-medium transition-all ${
-                              selectedVideoCategory === cat.id
+                            className={`px-3 py-2 sm:py-1.5 rounded-full text-xs font-medium transition-all ${selectedVideoCategory === cat.id
                                 ? 'bg-cyan-500 text-white'
                                 : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                              }`}
                           >
                             {cat.label}
                           </button>
@@ -6758,17 +6805,16 @@ export default function PreviewEditPage() {
                         {filteredVideoPresets.map(preset => (
                           <button
                             key={preset.id}
-                            onClick={() => updateBgSettings({ 
-                              bgVideoPreset: preset, 
+                            onClick={() => updateBgSettings({
+                              bgVideoPreset: preset,
                               bgVideoPresetFilename: preset.filename,
                               bgCustomVideoUrl: null,
                               bgCustomVideoPreview: null,
                             })}
-                            className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all min-h-[60px] ${
-                              bgSettings.bgVideoPreset?.id === preset.id
+                            className={`relative aspect-video rounded-xl overflow-hidden border-2 transition-all min-h-[60px] ${bgSettings.bgVideoPreset?.id === preset.id
                                 ? 'border-cyan-400 ring-2 ring-cyan-400/50'
                                 : isDark ? 'border-white/10 hover:border-white/30' : 'border-gray-200 hover:border-gray-400'
-                            }`}
+                              }`}
                           >
                             <img
                               src={`${PRESET_BASE_URL}/${preset.filename.replace('.mp4', '-thumb.jpg')}`}
@@ -6794,11 +6840,10 @@ export default function PreviewEditPage() {
                         href="https://kaiber.ai/?via=karatrack"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                          isDark 
-                            ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 text-purple-300 hover:from-purple-500/30 hover:to-cyan-500/30 hover:text-white' 
+                        className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${isDark
+                            ? 'bg-gradient-to-r from-purple-500/20 to-cyan-500/20 border border-purple-500/30 text-purple-300 hover:from-purple-500/30 hover:to-cyan-500/30 hover:text-white'
                             : 'bg-gradient-to-r from-purple-50 to-cyan-50 border border-purple-200 text-purple-700 hover:from-purple-100 hover:to-cyan-100'
-                        }`}
+                          }`}
                       >
                         <Sparkles className="w-4 h-4" />
                         Make Your Own Looping Video Backgrounds
@@ -6815,8 +6860,8 @@ export default function PreviewEditPage() {
                       </label>
                       {bgSettings.bgCustomVideoPreview ? (
                         <div className="relative">
-                          <video 
-                            src={bgSettings.bgCustomVideoPreview} 
+                          <video
+                            src={bgSettings.bgCustomVideoPreview}
                             className="w-full h-32 object-cover rounded-lg"
                             autoPlay
                             loop
@@ -6831,9 +6876,8 @@ export default function PreviewEditPage() {
                           </button>
                         </div>
                       ) : (
-                        <label className={`flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                          bgVideoUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-cyan-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-cyan-50'
-                        }`}>
+                        <label className={`flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${bgVideoUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-cyan-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-cyan-50'
+                          }`}>
                           {bgVideoUploading ? (
                             <>
                               <Loader2 className="w-8 h-8 text-cyan-400 animate-spin mb-2" />
@@ -6849,7 +6893,7 @@ export default function PreviewEditPage() {
                           <input type="file" accept="video/*" onChange={handleBgVideoUpload} disabled={bgVideoUploading} className="hidden" />
                         </label>
                       )}
-                      
+
                       <p className={`mt-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                         Tip: For best results, use a looping video with 1920x1080 resolution
                       </p>
@@ -6888,11 +6932,10 @@ export default function PreviewEditPage() {
                         <button
                           key={mode.value}
                           onClick={() => updateLayoutSettings({ displayMode: mode.value })}
-                          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
-                            layoutSettings.displayMode === mode.value
+                          className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${layoutSettings.displayMode === mode.value
                               ? 'bg-cyan-500/20 border-2 border-cyan-500'
                               : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                          }`}
+                            }`}
                         >
                           <mode.Icon className={`w-6 h-6 ${layoutSettings.displayMode === mode.value ? 'text-cyan-400' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                           <div className="flex-1">
@@ -6919,11 +6962,10 @@ export default function PreviewEditPage() {
                           <button
                             key={num}
                             onClick={() => updateLayoutSettings({ linesPerScroll: num })}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                              layoutSettings.linesPerScroll === num
+                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${layoutSettings.linesPerScroll === num
                                 ? 'bg-cyan-500 text-white'
                                 : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                              }`}
                           >
                             {num}
                           </button>
@@ -6934,11 +6976,10 @@ export default function PreviewEditPage() {
                           <button
                             key={num}
                             onClick={() => updateLayoutSettings({ linesPerPage: num })}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                              layoutSettings.linesPerPage === num
+                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${layoutSettings.linesPerPage === num
                                 ? 'bg-cyan-500 text-white'
                                 : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                              }`}
                           >
                             {num}
                           </button>
@@ -6949,11 +6990,10 @@ export default function PreviewEditPage() {
                           <button
                             key={num}
                             onClick={() => updateLayoutSettings({ linesPerOverwrite: num })}
-                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-                              layoutSettings.linesPerOverwrite === num
+                            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${layoutSettings.linesPerOverwrite === num
                                 ? 'bg-cyan-500 text-white'
                                 : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                              }`}
                           >
                             {num}
                           </button>
@@ -6961,11 +7001,11 @@ export default function PreviewEditPage() {
                       )}
                     </div>
                     <p className={`text-xs mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                      {layoutSettings.displayMode === 'scroll' 
+                      {layoutSettings.displayMode === 'scroll'
                         ? 'Number of lyric lines visible while scrolling'
                         : layoutSettings.displayMode === 'page'
-                        ? 'Number of lyric lines per page'
-                        : 'Number of lyric lines visible at once'}
+                          ? 'Number of lyric lines per page'
+                          : 'Number of lyric lines visible at once'}
                     </p>
                   </div>
 
@@ -6979,11 +7019,10 @@ export default function PreviewEditPage() {
                         <button
                           key={ratio.value}
                           onClick={() => updateLayoutSettings({ aspectRatio: ratio.value })}
-                          className={`flex flex-col items-center gap-2 p-4 rounded-lg transition-all ${
-                            layoutSettings.aspectRatio === ratio.value
+                          className={`flex flex-col items-center gap-2 p-4 rounded-lg transition-all ${layoutSettings.aspectRatio === ratio.value
                               ? 'bg-cyan-500/20 border-2 border-cyan-500'
                               : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                          }`}
+                            }`}
                         >
                           <ratio.icon className={`w-8 h-8 ${layoutSettings.aspectRatio === ratio.value ? 'text-cyan-400' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
                           <span className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{ratio.label}</span>
@@ -7009,7 +7048,7 @@ export default function PreviewEditPage() {
                             Replace profanity with ### in rendered video
                           </p>
                         </div>
-                        <div 
+                        <div
                           onClick={() => updateLayoutSettings({ cleanVersion: !layoutSettings.cleanVersion })}
                           className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.cleanVersion ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
                         >
@@ -7035,7 +7074,7 @@ export default function PreviewEditPage() {
                             Make the currently singing line larger than others
                           </p>
                         </div>
-                        <div 
+                        <div
                           onClick={() => updateLayoutSettings({ emphasizeCurrentLine: !layoutSettings.emphasizeCurrentLine })}
                           className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.emphasizeCurrentLine ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
                         >
@@ -7052,8 +7091,8 @@ export default function PreviewEditPage() {
                             </p>
                             <p className={`text-xs mt-0.5 ${isDark ? 'text-yellow-400/70' : 'text-yellow-600'}`}>
                               The current line renders 30% larger. Check the{' '}
-                              <button 
-                                onClick={() => setActiveTab('timing')} 
+                              <button
+                                onClick={() => setActiveTab('timing')}
                                 className="underline font-medium hover:opacity-80"
                               >
                                 Line &amp; Word Editor
@@ -7074,7 +7113,7 @@ export default function PreviewEditPage() {
                             Display progress bar during instrumental breaks (5+ seconds)
                           </p>
                         </div>
-                        <div 
+                        <div
                           onClick={() => updateLayoutSettings({ showProgressBar: !layoutSettings.showProgressBar })}
                           className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.showProgressBar ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
                         >
@@ -7092,7 +7131,7 @@ export default function PreviewEditPage() {
                             Sweep animation 1-2 seconds before each line
                           </p>
                         </div>
-                        <div 
+                        <div
                           onClick={() => updateLayoutSettings({ showLeadInBars: !layoutSettings.showLeadInBars })}
                           className={`relative w-12 h-6 rounded-full transition-colors ${layoutSettings.showLeadInBars ? 'bg-cyan-500' : isDark ? 'bg-white/20' : 'bg-gray-300'}`}
                         >
@@ -7124,19 +7163,17 @@ export default function PreviewEditPage() {
                         <button
                           key={option.value}
                           onClick={() => updateExportSettings({ videoQuality: option.value })}
-                          className={`relative flex flex-col items-center gap-1 p-3 rounded-lg transition-all ${
-                            exportSettings.videoQuality === option.value
+                          className={`relative flex flex-col items-center gap-1 p-3 rounded-lg transition-all ${exportSettings.videoQuality === option.value
                               ? 'bg-cyan-500/20 border-2 border-cyan-500'
                               : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                          }`}
+                            }`}
                         >
                           <span className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</span>
                           <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>{option.resolution}</span>
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                            option.value === '4k' 
-                              ? 'bg-purple-500/20 text-purple-400' 
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full ${option.value === '4k'
+                              ? 'bg-purple-500/20 text-purple-400'
                               : 'bg-cyan-500/20 text-cyan-400'
-                          }`}>
+                            }`}>
                             {option.creditsPerMin} cr/min
                           </span>
                           {exportSettings.videoQuality === option.value && (
@@ -7158,34 +7195,31 @@ export default function PreviewEditPage() {
                       {EXPORT_MODE_OPTIONS.map(option => {
                         const qualityOption = VIDEO_QUALITY_OPTIONS.find(q => q.value === exportSettings.videoQuality);
                         const creditsPerMin = option.value === 'instant' ? qualityOption?.instantCreditsPerMin : qualityOption?.creditsPerMin;
-                        
+
                         return (
                           <button
                             key={option.value}
                             onClick={() => updateExportSettings({ exportMode: option.value })}
-                            className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
-                              exportSettings.exportMode === option.value
-                                ? option.value === 'instant' 
+                            className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${exportSettings.exportMode === option.value
+                                ? option.value === 'instant'
                                   ? 'bg-amber-500/20 border-2 border-amber-500'
                                   : 'bg-cyan-500/20 border-2 border-cyan-500'
                                 : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                            }`}
+                              }`}
                           >
-                            <div className={`p-2 rounded-lg ${
-                              option.value === 'instant'
+                            <div className={`p-2 rounded-lg ${option.value === 'instant'
                                 ? 'bg-amber-500/20'
                                 : isDark ? 'bg-cyan-500/20' : 'bg-cyan-100'
-                            }`}>
+                              }`}>
                               <option.icon className={`w-5 h-5 ${option.value === 'instant' ? 'text-amber-400' : 'text-cyan-400'}`} />
                             </div>
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
                                 <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</p>
-                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                                  option.value === 'instant'
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${option.value === 'instant'
                                     ? 'bg-amber-500/20 text-amber-400'
                                     : 'bg-cyan-500/20 text-cyan-400'
-                                }`}>
+                                  }`}>
                                   {creditsPerMin} CREDITS / MIN
                                 </span>
                               </div>
@@ -7210,11 +7244,10 @@ export default function PreviewEditPage() {
                         <button
                           key={option.value}
                           onClick={() => updateExportSettings({ audioTrack: option.value })}
-                          className={`flex flex-col items-center gap-1 p-3 rounded-lg text-left transition-all ${
-                            exportSettings.audioTrack === option.value
+                          className={`flex flex-col items-center gap-1 p-3 rounded-lg text-left transition-all ${exportSettings.audioTrack === option.value
                               ? 'bg-cyan-500/20 border-2 border-cyan-500'
                               : isDark ? 'bg-white/5 border-2 border-transparent hover:bg-white/10' : 'bg-gray-50 border-2 border-transparent hover:bg-gray-100'
-                          }`}
+                            }`}
                         >
                           <span className="text-xl">{option.icon}</span>
                           <span className={`text-xs font-medium text-center ${isDark ? 'text-white' : 'text-gray-900'}`}>{option.label}</span>
@@ -7226,20 +7259,19 @@ export default function PreviewEditPage() {
                   {/* Credit Cost Calculator */}
                   {(() => {
                     const qualityOption = VIDEO_QUALITY_OPTIONS.find(q => q.value === exportSettings.videoQuality);
-                    const creditsPerMin = exportSettings.exportMode === 'instant' 
-                      ? qualityOption?.instantCreditsPerMin || 2 
+                    const creditsPerMin = exportSettings.exportMode === 'instant'
+                      ? qualityOption?.instantCreditsPerMin || 2
                       : qualityOption?.creditsPerMin || 1;
                     const songMinutes = Math.ceil((duration || 180) / 60); // Default 3 min if no duration
                     const totalCredits = creditsPerMin * songMinutes;
                     const userCredits = project?.user_credits || 0; // You'd get this from user profile
                     const hasEnoughCredits = userCredits >= totalCredits;
-                    
+
                     return (
-                      <div className={`p-4 rounded-xl ${
-                        hasEnoughCredits
+                      <div className={`p-4 rounded-xl ${hasEnoughCredits
                           ? isDark ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30' : 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200'
                           : isDark ? 'bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30' : 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200'
-                      }`}>
+                        }`}>
                         <div className="flex items-center gap-4">
                           <div className={`p-3 rounded-xl ${hasEnoughCredits ? 'bg-green-500/20' : 'bg-amber-500/20'}`}>
                             <Sparkles className={`w-6 h-6 ${hasEnoughCredits ? 'text-green-400' : 'text-amber-400'}`} />
@@ -7259,7 +7291,7 @@ export default function PreviewEditPage() {
                             </p>
                           </div>
                         </div>
-                        
+
                         {!hasEnoughCredits && (
                           <div className="mt-3 pt-3 border-t border-amber-500/30">
                             <Link href="/pricing" className="flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 transition-colors">
@@ -7295,7 +7327,7 @@ export default function PreviewEditPage() {
                   <div className={`space-y-2 text-xs ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                     <p className="flex items-center gap-2">
                       <Clock className="w-3 h-3" />
-                      {exportSettings.exportMode === 'instant' 
+                      {exportSettings.exportMode === 'instant'
                         ? 'Instant mode typically renders in under 2 minutes'
                         : 'Queue mode typically takes 5-15 minutes during busy times'}
                     </p>
@@ -7362,9 +7394,8 @@ export default function PreviewEditPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className={`w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl ${
-                isDark ? 'bg-gray-900 border border-white/10' : 'bg-white border border-gray-200'
-              }`}
+              className={`w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl ${isDark ? 'bg-gray-900 border border-white/10' : 'bg-white border border-gray-200'
+                }`}
             >
               {/* Modal Header */}
               <div className={`flex items-center justify-between px-6 py-4 border-b ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
@@ -7396,21 +7427,19 @@ export default function PreviewEditPage() {
                     value={presetName}
                     onChange={(e) => setPresetName(e.target.value)}
                     placeholder="Enter preset name..."
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm outline-none transition-all ${
-                      isDark 
-                        ? 'bg-white/10 border border-white/20 text-white placeholder:text-gray-500 focus:border-amber-500' 
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm outline-none transition-all ${isDark
+                        ? 'bg-white/10 border border-white/20 text-white placeholder:text-gray-500 focus:border-amber-500'
                         : 'bg-white border border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-amber-500'
-                    }`}
+                      }`}
                     onKeyDown={(e) => e.key === 'Enter' && savePreset()}
                   />
                   <button
                     onClick={savePreset}
                     disabled={savingPreset || !presetName.trim()}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                      savingPreset || !presetName.trim()
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${savingPreset || !presetName.trim()
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         : 'bg-amber-500 text-white hover:bg-amber-600'
-                    }`}
+                      }`}
                   >
                     {savingPreset ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                     Save
@@ -7426,7 +7455,7 @@ export default function PreviewEditPage() {
                 <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                   Your Saved Presets ({presets.length})
                 </label>
-                
+
                 {presetsLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-amber-500" />
@@ -7442,11 +7471,10 @@ export default function PreviewEditPage() {
                     {presets.map(preset => (
                       <div
                         key={preset.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
-                          isDark 
-                            ? 'bg-white/5 hover:bg-white/10 border border-white/10' 
+                        className={`flex items-center gap-3 p-3 rounded-lg transition-all ${isDark
+                            ? 'bg-white/5 hover:bg-white/10 border border-white/10'
                             : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
-                        }`}
+                          }`}
                       >
                         <div className={`p-2 rounded-lg ${isDark ? 'bg-amber-500/20' : 'bg-amber-100'}`}>
                           <Star className="w-4 h-4 text-amber-500" />
@@ -7463,13 +7491,12 @@ export default function PreviewEditPage() {
                           <button
                             onClick={() => loadPreset(preset)}
                             disabled={loadingPresetId === preset.id}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                              loadingPresetId === preset.id
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${loadingPresetId === preset.id
                                 ? 'bg-green-500 text-white'
                                 : isDark
                                   ? 'bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30'
                                   : 'bg-cyan-100 text-cyan-700 hover:bg-cyan-200'
-                            }`}
+                              }`}
                           >
                             {loadingPresetId === preset.id ? (
                               <Check className="w-3 h-3" />
@@ -7479,11 +7506,10 @@ export default function PreviewEditPage() {
                           </button>
                           <button
                             onClick={() => deletePreset(preset.id)}
-                            className={`p-1.5 rounded-lg transition-all ${
-                              isDark
+                            className={`p-1.5 rounded-lg transition-all ${isDark
                                 ? 'text-gray-400 hover:text-red-400 hover:bg-red-500/10'
                                 : 'text-gray-400 hover:text-red-600 hover:bg-red-50'
-                            }`}
+                              }`}
                             title="Delete preset"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
