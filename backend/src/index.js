@@ -1741,7 +1741,7 @@ app.post('/api/generate-ai-background', authMiddleware, async (req, res) => {
     // Generate image with OpenAI
     const response = await openai.images.generate({
       model: 'dall-e-3',
-      prompt: `Create a visually stunning background image for a karaoke music video. The image should be atmospheric, cinematic, and suitable as a background behind scrolling lyrics text. Style: ${prompt}. Important: Do NOT include any text, words, letters, or numbers in the image.`,
+      prompt: `Create a visually stunning full-bleed background image for a karaoke music video. The image must fill the entire frame edge-to-edge with no borders, margins, bars, or empty space on any side. The image should be atmospheric, cinematic, and suitable as a background behind scrolling lyrics text. Style: ${prompt}. Important: Do NOT include any text, words, letters, or numbers in the image. The artwork must extend fully to all edges with no padding or framing.`,
       n: 1,
       size: '1792x1024', // Wide format for 16:9 video
       quality: 'standard',
