@@ -1120,6 +1120,10 @@ export default function PreviewEditPage() {
     bgVideoPresetFilename: null,
     bgCustomVideoUrl: null,
     bgCustomVideoPreview: null,
+    bgImageOpacity: 100,
+    bgImageOverlayColor: '#000000',
+    bgImageOverlayType: 'none',
+    bgVignetteStrength: 0,
   });
 
   // V11: Layout settings state
@@ -1215,7 +1219,10 @@ export default function PreviewEditPage() {
         gradient_direction: bgSettings.gradientDirection,
         bg_image_url: bgSettings.bgImageUrl,
         bg_image_fit: bgSettings.bgImageFit || 'fill',
-        bg_image_fit: bgSettings.bgImageFit || 'fill',
+        bg_image_opacity: bgSettings.bgImageOpacity ?? 100,
+        bg_image_overlay_color: bgSettings.bgImageOverlayColor || '#000000',
+        bg_image_overlay_type: bgSettings.bgImageOverlayType || 'none',
+        bg_vignette_strength: bgSettings.bgVignetteStrength ?? 0,
         bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
         // Layout settings
         display_mode: layoutSettings.displayMode,
@@ -1283,6 +1290,10 @@ export default function PreviewEditPage() {
       bgImageUrl: preset.bg_image_url || null,
       bgImagePreview: preset.bg_image_url || null,
       bgImageFit: preset.bg_image_fit || 'fill',
+      bgImageOpacity: preset.bg_image_opacity ?? 100,
+      bgImageOverlayColor: preset.bg_image_overlay_color || '#000000',
+      bgImageOverlayType: preset.bg_image_overlay_type || 'none',
+      bgVignetteStrength: preset.bg_vignette_strength ?? 0,
       bgVideoPresetFilename: preset.bg_video_preset_filename || null,
       bgVideoPreset: preset.bg_video_preset_filename ?
         PRESET_VIDEO_BACKGROUNDS.find(v => v.filename === preset.bg_video_preset_filename)?.url || null : null,
@@ -2191,6 +2202,10 @@ export default function PreviewEditPage() {
           bgVideoPresetFilename: projectData.bg_video_preset_filename || null,
           bgCustomVideoUrl: projectData.bg_video_url || null,
           bgCustomVideoPreview: projectData.bg_video_url || null,
+          bgImageOpacity: projectData.bg_image_opacity ?? 100,
+          bgImageOverlayColor: projectData.bg_image_overlay_color || '#000000',
+          bgImageOverlayType: projectData.bg_image_overlay_type || 'none',
+          bgVignetteStrength: projectData.bg_vignette_strength ?? 0,
         });
 
         // V11: Initialize layout settings from project data
@@ -3184,7 +3199,10 @@ export default function PreviewEditPage() {
           gradient_direction: bgSettings.gradientDirection,
           bg_image_url: bgSettings.bgImageUrl,
           bg_image_fit: bgSettings.bgImageFit || 'fill',
-          bg_image_fit: bgSettings.bgImageFit || 'fill',
+          bg_image_opacity: bgSettings.bgImageOpacity ?? 100,
+          bg_image_overlay_color: bgSettings.bgImageOverlayColor || '#000000',
+          bg_image_overlay_type: bgSettings.bgImageOverlayType || 'none',
+          bg_vignette_strength: bgSettings.bgVignetteStrength ?? 0,
           bg_video_preset_filename: bgSettings.bgVideoPresetFilename,
           bg_video_url: bgSettings.bgCustomVideoUrl,
           // V11: Layout settings
@@ -3958,12 +3976,28 @@ export default function PreviewEditPage() {
                   >
                     {/* Background Image - only show when bgType is 'image' */}
                     {bgSettings.bgType === 'image' && bgSettings.bgImageUrl && (
-                      <img className="absolute inset-0 w-full h-full object-cover opacity-60" src={bgSettings.bgImageUrl} alt=""
-                        style={{
-                          objectFit: bgSettings.bgImageFit === 'stretch' ? 'fill' : bgSettings.bgImageFit === 'fit' ? 'contain' : 'cover',
-                          backgroundColor: bgSettings.bgImageFit === 'fit' ? bgSettings.bgColor1 : 'transparent'
-                        }}
-                      />
+                      <>
+                        <img className="absolute inset-0 w-full h-full" src={bgSettings.bgImageUrl} alt=""
+                          style={{
+                            objectFit: bgSettings.bgImageFit === 'stretch' ? 'fill' : bgSettings.bgImageFit === 'fit' ? 'contain' : 'cover',
+                            backgroundColor: bgSettings.bgImageFit === 'fit' ? bgSettings.bgColor1 : 'transparent',
+                            opacity: (bgSettings.bgImageOpacity ?? 100) / 100,
+                          }}
+                        />
+                        {bgSettings.bgImageOverlayType && bgSettings.bgImageOverlayType !== 'none' && (
+                          <div className="absolute inset-0" style={{
+                            background: bgSettings.bgImageOverlayType === 'gradient'
+                              ? `linear-gradient(to bottom, transparent 0%, ${bgSettings.bgImageOverlayColor} 100%)`
+                              : bgSettings.bgImageOverlayColor,
+                            opacity: bgSettings.bgImageOverlayType === 'solid' ? 0.5 : 0.7,
+                          }} />
+                        )}
+                        {(bgSettings.bgVignetteStrength ?? 0) > 0 && (
+                          <div className="absolute inset-0" style={{
+                            background: `radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,${(bgSettings.bgVignetteStrength) / 100}) 100%)`,
+                          }} />
+                        )}
+                      </>
                     )}
 
                     {/* Background Video - only show when bgType is 'video' or 'custom-video' */}
@@ -4408,16 +4442,32 @@ export default function PreviewEditPage() {
                   >
                     {/* Background Image */}
                     {backgroundImageUrl && (
-                      <img
-                        className="absolute inset-0 w-full h-full opacity-60"
-                        style={{
-                          objectFit: bgSettings.bgImageFit === 'stretch' ? 'fill' :
-                            bgSettings.bgImageFit === 'fit' ? 'contain' : 'cover',
-                          backgroundColor: bgSettings.bgImageFit === 'fit' ? bgSettings.bgColor1 : 'transparent'
-                        }}
-                        src={backgroundImageUrl}
-                        alt=""
-                      />
+                      <>
+                        <img
+                          className="absolute inset-0 w-full h-full"
+                          style={{
+                            objectFit: bgSettings.bgImageFit === 'stretch' ? 'fill' :
+                              bgSettings.bgImageFit === 'fit' ? 'contain' : 'cover',
+                            backgroundColor: bgSettings.bgImageFit === 'fit' ? bgSettings.bgColor1 : 'transparent',
+                            opacity: (bgSettings.bgImageOpacity ?? 100) / 100,
+                          }}
+                          src={backgroundImageUrl}
+                          alt=""
+                        />
+                        {bgSettings.bgImageOverlayType && bgSettings.bgImageOverlayType !== 'none' && (
+                          <div className="absolute inset-0" style={{
+                            background: bgSettings.bgImageOverlayType === 'gradient'
+                              ? `linear-gradient(to bottom, transparent 0%, ${bgSettings.bgImageOverlayColor} 100%)`
+                              : bgSettings.bgImageOverlayColor,
+                            opacity: bgSettings.bgImageOverlayType === 'solid' ? 0.5 : 0.7,
+                          }} />
+                        )}
+                        {(bgSettings.bgVignetteStrength ?? 0) > 0 && (
+                          <div className="absolute inset-0" style={{
+                            background: `radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,${(bgSettings.bgVignetteStrength) / 100}) 100%)`,
+                          }} />
+                        )}
+                      </>
                     )}
 
                     {/* Background Video */}
@@ -6631,12 +6681,82 @@ export default function PreviewEditPage() {
                         </div>
                       )}
 
-                      {/* AI BACKGROUND GENERATOR */}
-                      <div className={`mt-4 pt-4 ${isDark ? 'border-t border-white/10' : 'border-t border-gray-200'}`}>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Sparkles className="w-4 h-4 text-purple-400" />
-                          <label className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                            AI Background Generator
+                      {/* IMAGE OPACITY & OVERLAY CONTROLS - only show when image is set */}
+                      {bgSettings.bgImageUrl && (
+                        <div className={`mt-4 pt-4 ${isDark ? 'border-t border-white/10' : 'border-t border-gray-200'}`}>
+                          {/* Image Opacity */}
+                          <div className="mb-4">
+                            <label className={`block text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              Image Opacity: {bgSettings.bgImageOpacity ?? 100}%
+                            </label>
+                            <input
+                              type="range"
+                              min="10"
+                              max="100"
+                              value={bgSettings.bgImageOpacity ?? 100}
+                              onChange={(e) => { updateBgSettings({ bgImageOpacity: parseInt(e.target.value) }); setHasChanges(true); }}
+                              className="w-full accent-cyan-500"
+                            />
+                          </div>
+
+                          {/* Color/Gradient Overlay */}
+                          <div className="mb-4">
+                            <label className={`block text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              Color Overlay
+                            </label>
+                            <div className="flex gap-2 mb-2">
+                              {[
+                                { value: 'none', label: 'None' },
+                                { value: 'solid', label: 'Solid' },
+                                { value: 'gradient', label: 'Gradient' },
+                              ].map(mode => (
+                                <button
+                                  key={mode.value}
+                                  onClick={() => { updateBgSettings({ bgImageOverlayType: mode.value }); setHasChanges(true); }}
+                                  className={`flex-1 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                                    (bgSettings.bgImageOverlayType || 'none') === mode.value
+                                      ? 'bg-cyan-500 text-white'
+                                      : isDark ? 'bg-white/10 text-gray-300 hover:bg-white/20' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {mode.label}
+                                </button>
+                              ))}
+                            </div>
+                            {bgSettings.bgImageOverlayType && bgSettings.bgImageOverlayType !== 'none' && (
+                              <div className="flex items-center gap-3">
+                                <input
+                                  type="color"
+                                  value={bgSettings.bgImageOverlayColor || '#000000'}
+                                  onChange={(e) => { updateBgSettings({ bgImageOverlayColor: e.target.value }); setHasChanges(true); }}
+                                  className="w-10 h-10 rounded-lg cursor-pointer border-0"
+                                />
+                                <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                  {bgSettings.bgImageOverlayType === 'solid' ? 'Tints the entire image' : 'Fades from clear to color (top to bottom)'}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Vignette */}
+                          <div>
+                            <label className={`block text-xs mb-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                              Vignette: {bgSettings.bgVignetteStrength ?? 0}%
+                            </label>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={bgSettings.bgVignetteStrength ?? 0}
+                              onChange={(e) => { updateBgSettings({ bgVignetteStrength: parseInt(e.target.value) }); setHasChanges(true); }}
+                              className="w-full accent-cyan-500"
+                            />
+                            <p className={`text-[10px] mt-1 ${isDark ? 'text-gray-600' : 'text-gray-400'}`}>
+                              Darkens the edges of the image for a cinematic look
+                            </p>
+                          </div>
+                        </div>
+                      )}
                           </label>
                         </div>
 
