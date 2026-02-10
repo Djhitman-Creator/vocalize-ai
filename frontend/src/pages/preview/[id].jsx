@@ -6757,6 +6757,13 @@ export default function PreviewEditPage() {
                           </div>
                         </div>
                       )}
+
+                      {/* AI BACKGROUND GENERATOR */}
+                      <div className={`mt-4 pt-4 ${isDark ? 'border-t border-white/10' : 'border-t border-gray-200'}`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Sparkles className="w-4 h-4 text-purple-400" />
+                          <label className={`text-xs font-medium ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                            AI Background Generator
                           </label>
                         </div>
 
