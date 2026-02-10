@@ -312,6 +312,10 @@ async function sendToRunPod(projectId, audioUrl, options) {
         bg_video_url: options.bg_video_url || null,
         bg_image_url: options.bg_image_url || null,
         bg_image_fit: options.bg_image_fit || 'fill',
+        bg_image_opacity: options.bg_image_opacity ?? 100,
+        bg_image_overlay_color: options.bg_image_overlay_color || '#000000',
+        bg_image_overlay_type: options.bg_image_overlay_type || 'none',
+        bg_vignette_strength: options.bg_vignette_strength ?? 0,
 
         // Processing mode for two-stage flow
         processing_mode: options.processing_mode || 'full',
@@ -1448,6 +1452,11 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       bg_video_preset: bg_video_preset_filename || null,
       bg_video_url: bgVideoUrl || null,
       bg_image_url: bgImageUrl || null,
+      bg_image_fit: req.body.bg_image_fit || 'fill',
+      bg_image_opacity: parseInt(req.body.bg_image_opacity) || 100,
+      bg_image_overlay_color: req.body.bg_image_overlay_color || '#000000',
+      bg_image_overlay_type: req.body.bg_image_overlay_type || 'none',
+      bg_vignette_strength: parseInt(req.body.bg_vignette_strength) || 0,
       // Processing mode
       processing_mode: processing_mode || 'full',
       // NEW: Subscription tier for watermark logic
@@ -1970,6 +1979,10 @@ app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
       bg_video_url: project.bg_video_url || null,
       bg_image_url: project.bg_image_url || null,
       bg_image_fit: project.bg_image_fit || 'fill',
+      bg_image_opacity: project.bg_image_opacity ?? 100,
+      bg_image_overlay_color: project.bg_image_overlay_color || '#000000',
+      bg_image_overlay_type: project.bg_image_overlay_type || 'none',
+      bg_vignette_strength: project.bg_vignette_strength ?? 0,
     });
 
     await supabase
@@ -1980,6 +1993,7 @@ app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
     res.json({
       success: true,
       message: 'Project resubmitted',
+
       runpod_job_id: runpodJobId
     });
 
@@ -2177,6 +2191,10 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       bg_video_url: project.bg_video_url || null,
       bg_image_url: project.bg_image_url || null,
       bg_image_fit: project.bg_image_fit || 'fill',
+      bg_image_opacity: project.bg_image_opacity ?? 100,
+      bg_image_overlay_color: project.bg_image_overlay_color || '#000000',
+      bg_image_overlay_type: project.bg_image_overlay_type || 'none',
+      bg_vignette_strength: project.bg_vignette_strength ?? 0,
     });
 
     await supabase
