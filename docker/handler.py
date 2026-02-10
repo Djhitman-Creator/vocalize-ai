@@ -397,6 +397,97 @@ def download_image_background(bg_type, bg_image_url, work_dir, target_width, tar
         print(f"    Failed to load image background: {e}")
         return None
 
+def apply_image_effects(bg_image, opacity=100, overlay_type='none', overlay_color='#000000', vignette_strength=0, bg_color_rgb=(10, 10, 20)):
+    """
+    Apply opacity, color overlay, and vignette effects to a background image.
+    
+    Args:
+        bg_image: PIL Image (already resized to target dimensions)
+        opacity: Image opacity 10-100
+        overlay_type: 'none', 'solid', or 'gradient'
+        overlay_color: Hex color string for overlay
+        vignette_strength: 0-100 strength of edge darkening
+        bg_color_rgb: RGB tuple for the base background behind the image
+    
+    Returns:
+        PIL Image with effects applied
+    """
+    width, height = bg_image.size
+    
+    # Parse overlay color
+    try:
+        ov_r = int(overlay_color.lstrip('#')[0:2], 16)
+        ov_g = int(overlay_color.lstrip('#')[2:4], 16)
+        ov_b = int(overlay_color.lstrip('#')[4:6], 16)
+    except:
+        ov_r, ov_g, ov_b = 0, 0, 0
+    
+    # Step 1: Apply opacity (blend image with base background color)
+    if opacity < 100:
+        base = Image.new('RGB', (width, height), bg_color_rgb)
+        alpha = opacity / 100.0
+        result = Image.blend(base, bg_image, alpha)
+        print(f"    Applied image opacity: {opacity}%")
+    else:
+        result = bg_image.copy()
+    
+    # Step 2: Apply color overlay
+    if overlay_type == 'solid':
+        overlay = Image.new('RGB', (width, height), (ov_r, ov_g, ov_b))
+        result = Image.blend(result, overlay, 0.5)
+        print(f"    Applied solid overlay: {overlay_color}")
+    elif overlay_type == 'gradient':
+        overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+        for y in range(height):
+            # Gradient from transparent at top to overlay color at bottom
+            ratio = y / height
+            alpha_val = int(ratio * 180)  # Max ~70% opacity at bottom
+            for x in range(width):
+                overlay.putpixel((x, y), (ov_r, ov_g, ov_b, alpha_val))
+        result = result.convert('RGBA')
+        result = Image.alpha_composite(result, overlay)
+        result = result.convert('RGB')
+        print(f"    Applied gradient overlay: {overlay_color}")
+    
+    # Step 3: Apply vignette
+    if vignette_strength > 0:
+        import math
+        vignette = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+        cx, cy = width / 2, height / 2
+        max_dist = math.sqrt(cx * cx + cy * cy)
+        
+        # Use numpy if available for speed, otherwise pixel-by-pixel
+        try:
+            import numpy as np
+            y_coords, x_coords = np.mgrid[0:height, 0:width]
+            distances = np.sqrt((x_coords - cx) ** 2 + (y_coords - cy) ** 2) / max_dist
+            # Start darkening from 30% of the way out
+            alphas = np.clip((distances - 0.3) / 0.7, 0, 1) * (vignette_strength / 100.0) * 255
+            alphas = alphas.astype(np.uint8)
+            
+            vignette_array = np.zeros((height, width, 4), dtype=np.uint8)
+            vignette_array[:, :, 3] = alphas  # Only alpha channel, RGB stays 0 (black)
+            vignette = Image.fromarray(vignette_array, 'RGBA')
+        except ImportError:
+            for y in range(0, height, 2):
+                for x in range(0, width, 2):
+                    dist = math.sqrt((x - cx) ** 2 + (y - cy) ** 2) / max_dist
+                    alpha_val = int(max(0, (dist - 0.3) / 0.7) * (vignette_strength / 100.0) * 255)
+                    alpha_val = min(255, alpha_val)
+                    vignette.putpixel((x, y), (0, 0, 0, alpha_val))
+                    if x + 1 < width:
+                        vignette.putpixel((x + 1, y), (0, 0, 0, alpha_val))
+                    if y + 1 < height:
+                        vignette.putpixel((x, y + 1), (0, 0, 0, alpha_val))
+                    if x + 1 < width and y + 1 < height:
+                        vignette.putpixel((x + 1, y + 1), (0, 0, 0, alpha_val))
+        
+        result = result.convert('RGBA')
+        result = Image.alpha_composite(result, vignette)
+        result = result.convert('RGB')
+        print(f"    Applied vignette: {vignette_strength}%")
+    
+    return result
 
 # ============================================
 # LYRICS NORMALIZATION FUNCTIONS (NEW in 4.1)
@@ -3283,6 +3374,10 @@ def handler(event):
         bg_video_url = input_data.get('bg_video_url')  # Custom video URL (user uploads)
         bg_image_url = input_data.get('bg_image_url')  # Custom image URL
         bg_image_fit = input_data.get('bg_image_fit', 'fill')  # 'fill', 'fit', 'stretch'
+        bg_image_opacity = int(input_data.get('bg_image_opacity', 100))
+        bg_image_overlay_color = input_data.get('bg_image_overlay_color', '#000000')
+        bg_image_overlay_type = input_data.get('bg_image_overlay_type', 'none')
+        bg_vignette_strength = int(input_data.get('bg_vignette_strength', 0))
         
         print(f" Processing project: {project_id}")
         print(f"   Type: {processing_type}")
@@ -3354,6 +3449,8 @@ def handler(event):
             if not bg_image:
                 print("    Image background not available, falling back to gradient")
                 bg_type = 'gradient'
+            else:
+                bg_image = apply_image_effects(bg_image, bg_image_opacity, bg_image_overlay_type, bg_image_overlay_color, bg_vignette_strength, bg_color_rgb)
         
         # RENDER_ONLY MODE: Skip vocal separation, use existing processed audio
         if processing_mode == 'render_only':
