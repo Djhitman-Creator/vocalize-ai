@@ -25,6 +25,7 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 
 const { createClient } = require('@supabase/supabase-js');
+const WebSocket = require('ws');
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const Stripe = require('stripe');
@@ -49,7 +50,12 @@ const PORT = process.env.PORT || 3001;
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
+  process.env.SUPABASE_SERVICE_KEY,
+  {
+    realtime: {
+      transport: WebSocket,
+    },
+  }
 );
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
