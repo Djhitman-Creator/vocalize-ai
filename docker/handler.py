@@ -1300,9 +1300,22 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
     
     # Step 2: Request transcription with word-level timestamps
     print("   Requesting transcription...")
+    # Boost recognition toward the user's actual lyrics. Since we already have
+    # the correct lyrics, biasing AssemblyAI toward that vocabulary improves both
+    # the raw transcription and how cleanly it aligns to the pasted lyrics.
+    boost_words = []
+    if user_lyrics_text and len(user_lyrics_text.strip()) > 50:
+        _seen = set()
+        for _w in re.findall(r"[A-Za-z']+", user_lyrics_text):
+            _wl = _w.lower()
+            if len(_wl) >= 4 and _wl not in _seen:
+                _seen.add(_wl)
+                boost_words.append(_wl)
+        boost_words = boost_words[:200]
+
     transcript_request = {
         "audio_url": audio_url,
-        "word_boost": [],  # Can add expected words for better accuracy
+        "word_boost": boost_words,  # user's own lyrics vocabulary
         "boost_param": "default"
     }
     
@@ -1364,7 +1377,7 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
         lyrics, correction_count = auto_correct_low_confidence_words(lyrics, user_lyrics_text)
         
         print(" Mapping user lyrics to AssemblyAI timestamps...")
-        lyrics = align_user_lyrics_to_timestamps(user_lyrics_text, lyrics)
+        lyrics = align_user_lyrics_sequence(user_lyrics_text, lyrics)
 
         # Debug: Show first 10 aligned words with gap analysis
         print("    First 10 aligned words timing:")
@@ -1403,6 +1416,117 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
             print(f"       Found {issues_found} potential timing issues")
     
     return lyrics
+
+
+def align_user_lyrics_sequence(user_lyrics_text, api_lyrics):
+    """
+    Align user-provided lyrics to AssemblyAI word timestamps using SEQUENCE
+    alignment (difflib) instead of positional (index-by-index) mapping.
+
+    Why: positional mapping drifts. If AssemblyAI drops or adds even one word,
+    every later word is off by one slot and the error accumulates for the rest
+    of the song. Sequence alignment pins each user word to the API word it
+    actually matches, and interpolates timing locally only for the few words
+    AssemblyAI missed - so a miss causes a small local nudge, not a whole-song
+    shift. The user's exact words and line breaks are always preserved.
+    """
+    import difflib
+
+    user_words, line_break_indices = parse_lyrics_text_with_breaks(user_lyrics_text)
+    print(f"   [align] user words: {len(user_words)}, API words: {len(api_lyrics)}")
+
+    if not api_lyrics:
+        return []
+    if not user_words:
+        return api_lyrics
+
+    user_norm = [normalize_word_for_comparison(w) for w in user_words]
+    api_norm = [normalize_word_for_comparison(a['word']) for a in api_lyrics]
+
+    sm = difflib.SequenceMatcher(a=user_norm, b=api_norm, autojunk=False)
+    n = len(user_words)
+    ts = [None] * n  # (start, end, confidence) per user word
+
+    matched = 0
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == 'equal':
+            for k in range(i2 - i1):
+                a = api_lyrics[j1 + k]
+                ts[i1 + k] = (a['start'], a['end'], a.get('confidence', 1.0))
+                matched += 1
+        elif tag == 'replace':
+            ulen = i2 - i1
+            alen = j2 - j1
+            if alen == 0:
+                continue
+            for k in range(ulen):
+                a = api_lyrics[j1 + min(int(k * alen / ulen), alen - 1)]
+                ts[i1 + k] = (a['start'], a['end'], a.get('confidence', 1.0) * 0.7)
+        # 'delete' -> user word AssemblyAI missed: leave None, interpolate below
+        # 'insert' -> extra API word the user did not write: ignore it
+
+    first = next((k for k in range(n) if ts[k] is not None), None)
+    last = next((k for k in range(n - 1, -1, -1) if ts[k] is not None), None)
+
+    if first is None:
+        # No word matches at all - the lyrics don't correspond to this audio.
+        # Fall back to the raw transcription (wrong words, but honest timing).
+        print("   [align] no word matches - falling back to API transcription")
+        return api_lyrics
+
+    # Leading words before the first matched word: pack them just before it.
+    if first > 0:
+        s0 = ts[first][0]
+        start_t = max(0.0, s0 - 0.35 * first)
+        sl = (s0 - start_t) / first if first else 0
+        for k in range(first):
+            ts[k] = (start_t + sl * k, start_t + sl * (k + 1), 0.4)
+
+    # Trailing words after the last matched word: lay them out after it.
+    if last < n - 1:
+        e0 = ts[last][1]
+        sl = 0.4
+        for i, k in enumerate(range(last + 1, n)):
+            ts[k] = (e0 + sl * i, e0 + sl * (i + 1), 0.4)
+
+    # Interior gaps: words AssemblyAI missed get distributed evenly between the
+    # known timestamps on either side of the gap.
+    k = 0
+    while k < n:
+        if ts[k] is not None:
+            k += 1
+            continue
+        L = k - 1
+        r = k
+        while r < n and ts[r] is None:
+            r += 1
+        l_end = ts[L][1]
+        r_start = ts[r][0]
+        cnt = r - k
+        if r_start <= l_end:
+            r_start = l_end + 0.15 * cnt
+        for m in range(cnt):
+            ws = l_end + (r_start - l_end) * m / cnt
+            we = l_end + (r_start - l_end) * (m + 1) / cnt
+            ts[k + m] = (ws, we, 0.4)
+        k = r
+
+    aligned = []
+    for idx in range(n):
+        s, e, c = ts[idx]
+        if e < s:
+            e = s + 0.1
+        aligned.append({
+            'word': user_words[idx],
+            'start': s,
+            'end': e,
+            'confidence': c,
+            'lineBreak': idx in line_break_indices,
+        })
+
+    match_pct = (matched / n * 100) if n else 0
+    print(f"   [align] pinned {matched}/{n} words to real timestamps ({match_pct:.0f}%), rest interpolated")
+    return aligned
 
 
 def align_user_lyrics_to_timestamps(user_lyrics_text, api_lyrics):
