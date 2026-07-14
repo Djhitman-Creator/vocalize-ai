@@ -30,11 +30,11 @@ export default function PrivacyPage() {
           className="glass-panel p-8 md:p-12"
         >
           <h1 className="text-3xl font-bold text-white mb-2">Privacy Policy</h1>
-          <p className="text-gray-400 mb-8">Last Updated: December 18, 2025</p>
+          <p className="text-gray-400 mb-8">Last Updated: July 14, 2026</p>
 
           <div className="prose prose-invert max-w-none space-y-6 text-gray-300">
             <p>
-              This Privacy Policy describes how Karatrack LLC ("Company," "we," "us," or "our") collects, uses, and discloses information about you when you access or use Karatrack Studio ("Service"). By accessing or using the Service, you agree to the collection, use, and disclosure of your information in accordance with this Privacy Policy.
+              This Privacy Policy describes how Rush Monkey LLC ("Company," "we," "us," or "our") collects, uses, and discloses information about you when you access or use Karatrack Studio ("Service"), a service of Rush Monkey LLC. By accessing or using the Service, you agree to the collection, use, and disclosure of your information in accordance with this Privacy Policy.
             </p>
 
             <h2 className="text-xl font-semibold text-white mt-8 mb-4">1. Information We Collect</h2>
@@ -115,7 +115,7 @@ export default function PrivacyPage() {
 
             <h2 className="text-xl font-semibold text-white mt-8 mb-4">11. Contact Us</h2>
             <p>
-              If you have any questions or concerns about this Privacy Policy or our data practices, please contact us at: <a href="mailto:privacy@karatrack.com" className="text-cyan-400 hover:text-cyan-300">privacy@karatrack.com</a>
+              If you have any questions or concerns about this Privacy Policy or our data practices, please contact Rush Monkey LLC (Houston, TX) at: <a href="mailto:privacy@karatrack.com" className="text-cyan-400 hover:text-cyan-300">privacy@karatrack.com</a>
             </p>
 
             <div className="mt-8 p-4 bg-white/5 rounded-xl">

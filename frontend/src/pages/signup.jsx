@@ -198,7 +198,7 @@ export default function SignupPage() {
   // ── Main signup form ──
   return (
     <>
-      <SEO title="Create Account" description="Sign up for Karatrack Studio and start creating professional karaoke videos with AI-powered vocal removal and synchronized lyrics. Start free with 15 credits." path="/signup" structuredData={getOrganizationSchema()} />
+      <SEO title="Create Account" description="Sign up for Karatrack Studio and start creating professional karaoke videos with AI-powered vocal removal and synchronized lyrics. Start free with 19 credits." path="/signup" structuredData={getOrganizationSchema()} />
 
       <div className={isDark ? 'dark' : ''}>
         <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', position: 'relative', overflow: 'hidden', background: isDark ? '#0A0A0F' : '#F0F4F8' }}>
@@ -223,7 +223,7 @@ export default function SignupPage() {
               </div>
 
               <h1 style={{ textAlign: 'center', fontSize: '24px', fontWeight: 700, color: isDark ? '#F8FAFC' : '#0F172A', marginBottom: '6px' }}>Create your account</h1>
-              <p style={{ textAlign: 'center', fontSize: '14px', color: isDark ? '#94A3B8' : '#64748B', marginBottom: '28px' }}>Start free with 15 credits &mdash; no card required</p>
+              <p style={{ textAlign: 'center', fontSize: '14px', color: isDark ? '#94A3B8' : '#64748B', marginBottom: '28px' }}>Start free with 19 credits &mdash; no card required</p>
 
               {/* Error */}
               {error && (

@@ -239,34 +239,21 @@ async function getSignedDownloadUrl(url, filename = null) {
 }
 
 function calculateCreditsNeeded(options) {
-  let credits = 0;
-
-  // Base processing cost
-  if (options.processing_type === 'both') {
-    credits += 2;  // Both vocal versions
-  } else {
-    credits += 1;  // Single version
-  }
-
-  // Lyrics always included now
-  credits += 1;
-
-  // Quality-based pricing. Normalize the quality string so alternate spellings
-  // (540p, 4K, upper/lowercase) map to the right tier instead of silently
-  // falling through to the cheapest default.
-  const q = String(options.video_quality || '').toLowerCase();
-  if (q === '480p' || q === '540p') {
-    credits += 1;   // SD  - Total: 1+1+1 = 3 credits
-  } else if (q === '720p') {
-    credits += 3;   // HD  - Total: 1+1+3 = 5 credits
+  // Flat per-track pricing by resolution, charged at render time.
+  // 540p/720p = 19, 1080p = 28, 4K = 46. Instant mode doubles the charge.
+  const q = String(options.video_quality || '720p').toLowerCase();
+  let credits;
+  if (q === '480p' || q === '540p' || q === '720p') {
+    credits = 19;
   } else if (q === '1080p') {
-    credits += 5;   // Full HD - Total: 1+1+5 = 7 credits
+    credits = 28;
   } else if (q === '4k') {
-    credits += 7;   // Ultra HD - Total: 1+1+7 = 9 credits
+    credits = 46;
   } else {
-    credits += 3;   // Unknown -> default to HD (720p) pricing
+    credits = 19; // default to SD/HD
   }
-
+  const mode = String(options.export_mode || 'queue').toLowerCase();
+  if (mode === 'instant') credits *= 2;
   return credits;
 }
 
@@ -837,7 +824,7 @@ Karatrack uses a universal credit system - all features are available to everyon
 
 Re-renders cost ~50% of original price.
 
-Free accounts get 15 credits to try everything. No credit card required.
+Free accounts get 19 credits to try everything (enough for one 720p track). No credit card required.
 Watermarks only appear on free account exports - any purchase removes them.
 
 ## CURRENT USER INFO
@@ -970,7 +957,7 @@ app.post('/api/chat/guest', async (req, res) => {
 
 ## PRICING
 Karatrack uses a simple credit system - all features available to everyone!
-- Free: 15 credits to try everything
+- Free: 19 credits to try everything
 - Subscriptions: 50-1000 credits/month from $2.99/mo
 - Credit packs: 50-1000 credits from $4.99 (one-time, valid 1 year)
 - Credits per minute: 1-5 depending on video quality (540p to 4K)
@@ -1306,20 +1293,9 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       });
     }
 
-    const creditsNeeded = calculateCreditsNeeded({
-      processing_type,
-      include_lyrics: include_lyrics === 'true',
-      video_quality,
-      hd_quality: false,
-    });
-
-    const hasCredits = await checkCredits(req.user.id, creditsNeeded);
-    if (!hasCredits) {
-      return res.status(402).json({
-        error: 'Insufficient credits',
-        credits_needed: creditsNeeded,
-      });
-    }
+    // Uploading and previewing are FREE. Credits are charged at render time
+    // (see /api/projects/:id/render), where the chosen resolution and
+    // Queue/Instant mode are known.
 
     const fileKey = `uploads/${req.user.id}/${uuidv4()}-${file.originalname}`;
     const fileUrl = await uploadToR2(file.buffer, fileKey, file.mimetype);
@@ -1396,7 +1372,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         processing_type,
         include_lyrics: include_lyrics === 'true',
         video_quality,
-        credits_used: creditsNeeded,
+        credits_used: 0,
         thumbnail_url: thumbnailUrl,
         // Lyrics and display
         lyrics_text: lyrics_text ? lyrics_text.trim() : null,
@@ -1433,7 +1409,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
 
     if (error) throw error;
 
-    await deductCredits(req.user.id, creditsNeeded, projectId, `Processing: ${title || file.originalname}`);
+    // No upload-time charge - credits are deducted at render.
 
     // NEW: Get user's subscription tier for watermark logic
     const userProfile = await getUserProfile(req.user.id);
@@ -1487,15 +1463,10 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
         outro_text: req.body.outro_text || null,
     });
     } catch (sendErr) {
-      // Enqueue failed after credits were deducted: refund and mark failed.
-      try {
-        await addCreditsWithExpiration(req.user.id, creditsNeeded, 'refund', `Refund: could not start processing for ${projectId}`);
-      } catch (refundErr) {
-        console.error('Failed to refund after enqueue failure:', refundErr.message);
-      }
+      // Upload is free (credits are charged at render), so nothing to refund here.
       await supabase
         .from('projects')
-        .update({ status: 'failed', error_message: 'Failed to start processing. Your credits were refunded.' })
+        .update({ status: 'failed', error_message: 'Failed to start processing.' })
         .eq('id', projectId);
       throw sendErr;
     }
@@ -1515,7 +1486,7 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
     res.status(201).json({
       ...project,
       runpod_job_id: runpodJobId,
-      credits_used: creditsNeeded,
+      credits_used: 0,
     });
 
   } catch (error) {
@@ -2232,21 +2203,22 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Processed audio not available. Please re-upload the track.' });
     }
 
-    // Re-render pricing: the first render (awaiting_review/transcribed) is already
-    // paid for at upload. A re-render of a completed project costs ~50% of the
-    // original price (rounded up, minimum 1 credit).
+    // Credits are charged here at render time (that's when we know the chosen
+    // resolution and Queue/Instant mode). First render pays the full per-track
+    // cost; re-rendering a completed project costs ~50%.
+    const exportMode = String(req.body.export_mode || 'queue').toLowerCase();
     const isReRender = project.status === 'completed';
-    const reRenderCost = isReRender
-      ? Math.max(1, Math.ceil((project.credits_used || 2) / 2))
-      : 0;
-    if (isReRender) {
-      const hasCredits = await checkCredits(req.user.id, reRenderCost);
-      if (!hasCredits) {
-        return res.status(402).json({
-          error: 'Insufficient credits for re-render',
-          credits_needed: reRenderCost,
-        });
-      }
+    const fullCost = calculateCreditsNeeded({
+      video_quality: project.video_quality,
+      export_mode: exportMode,
+    });
+    const renderCost = isReRender ? Math.max(1, Math.ceil(fullCost / 2)) : fullCost;
+    const hasCredits = await checkCredits(req.user.id, renderCost);
+    if (!hasCredits) {
+      return res.status(402).json({
+        error: isReRender ? 'Insufficient credits for re-render' : 'Insufficient credits to export',
+        credits_needed: renderCost,
+      });
     }
 
     // Update project with edited lyrics
@@ -2345,17 +2317,21 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       })
       .eq('id', project.id);
 
-    // Charge for re-renders now that the job is safely enqueued.
-    if (isReRender && reRenderCost > 0) {
+    // Charge for this render now that the job is safely enqueued, and record the
+    // amount on the project so a failed render can be refunded correctly.
+    if (renderCost > 0) {
       try {
         await deductCredits(
           req.user.id,
-          reRenderCost,
+          renderCost,
           project.id,
-          `Re-render (50% of original): ${project.song_title || project.title || 'project'}`
+          isReRender
+            ? `Re-render (50%): ${project.song_title || project.title || 'project'}`
+            : `Export ${project.video_quality || '720p'} ${exportMode}: ${project.song_title || project.title || 'project'}`
         );
+        await supabase.from('projects').update({ credits_used: renderCost }).eq('id', project.id);
       } catch (deductErr) {
-        console.error('Failed to deduct re-render credits:', deductErr.message);
+        console.error('Failed to deduct render credits:', deductErr.message);
       }
     }
 
@@ -2363,7 +2339,7 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       message: 'Rendering started',
       project_id: project.id,
       runpod_job_id: runpodJobId,
-      credits_used: reRenderCost,
+      credits_used: renderCost,
     });
 
   } catch (error) {
@@ -2479,7 +2455,7 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Missing credits_per_month or billing_cycle' });
     }
     
-    const validCredits = [50, 100, 250, 500, 1000];
+    const validCredits = [30, 60, 120, 240, 400];
     if (!validCredits.includes(credits_per_month)) {
       return res.status(400).json({ error: 'Invalid credits_per_month value' });
     }

@@ -47,21 +47,21 @@ const supabase = createClient(
 // PAY-AS-YOU-GO CREDIT PACKS
 // ============================================
 const creditPacks = [
-  { id: 'Starter Pack',  name: 'Starter',  credits: 50,   price: 4.99,  perCredit: 0.10,  savings: null,  description: 'Perfect to try it out',         popular: false },
-  { id: 'Standard Pack', name: 'Standard', credits: 150,  price: 11.99, perCredit: 0.08,  savings: '20%', description: 'Great for casual creators',      popular: false },
-  { id: 'Pro Pack',      name: 'Pro',      credits: 400,  price: 27.99, perCredit: 0.07,  savings: '30%', description: 'Best for regular use',           popular: true  },
-  { id: 'Studio Pack',   name: 'Studio',   credits: 1000, price: 54.99, perCredit: 0.055, savings: '45%', description: 'Maximum value for power users',  popular: false },
+  { id: 'Starter Pack',  name: 'Starter',  credits: 40,   price: 4.99,  perCredit: 0.125, savings: null,  description: 'Perfect to try it out',         popular: false },
+  { id: 'Standard Pack', name: 'Standard', credits: 110,  price: 11.99, perCredit: 0.109, savings: '13%', description: 'Great for casual creators',      popular: false },
+  { id: 'Pro Pack',      name: 'Pro',      credits: 280,  price: 27.99, perCredit: 0.10,  savings: '20%', description: 'Best for regular use',           popular: true  },
+  { id: 'Studio Pack',   name: 'Studio',   credits: 600,  price: 54.99, perCredit: 0.092, savings: '26%', description: 'Maximum value for power users',  popular: false },
 ];
 
 // ============================================
 // SUBSCRIPTION PLANS
 // ============================================
 const subscriptionPlans = [
-  { id: 'sub-50',   credits: 50,   monthlyPrice: 2.99,  annualMonthly: 2.49,  annualTotal: 29.88  },
-  { id: 'sub-100',  credits: 100,  monthlyPrice: 4.99,  annualMonthly: 3.99,  annualTotal: 47.88  },
-  { id: 'sub-250',  credits: 250,  monthlyPrice: 9.99,  annualMonthly: 7.99,  annualTotal: 95.88  },
-  { id: 'sub-500',  credits: 500,  monthlyPrice: 17.99, annualMonthly: 14.49, annualTotal: 173.88 },
-  { id: 'sub-1000', credits: 1000, monthlyPrice: 29.99, annualMonthly: 23.99, annualTotal: 287.88 },
+  { id: 'sub-30',  credits: 30,  monthlyPrice: 2.99,  annualMonthly: 2.49,  annualTotal: 29.88  },
+  { id: 'sub-60',  credits: 60,  monthlyPrice: 4.99,  annualMonthly: 3.99,  annualTotal: 47.88  },
+  { id: 'sub-120', credits: 120, monthlyPrice: 9.99,  annualMonthly: 7.99,  annualTotal: 95.88  },
+  { id: 'sub-240', credits: 240, monthlyPrice: 17.99, annualMonthly: 14.49, annualTotal: 173.88 },
+  { id: 'sub-400', credits: 400, monthlyPrice: 29.99, annualMonthly: 23.99, annualTotal: 287.88 },
 ];
 
 // ============================================
@@ -69,10 +69,10 @@ const subscriptionPlans = [
 // Re-render = ~50% of original cost
 // ============================================
 const qualityTiers = [
-  { quality: '540p',  resolution: '960\u00D7540',   queueCredits: 1, instantCredits: 2,  reRenderQueue: 1, reRenderInstant: 1, description: 'SD \u2014 Fast render' },
-  { quality: '720p',  resolution: '1280\u00D7720',  queueCredits: 2, instantCredits: 4,  reRenderQueue: 1, reRenderInstant: 2, description: 'HD \u2014 Great quality' },
-  { quality: '1080p', resolution: '1920\u00D71080', queueCredits: 3, instantCredits: 6,  reRenderQueue: 2, reRenderInstant: 3, description: 'Full HD \u2014 YouTube ready' },
-  { quality: '4K',    resolution: '3840\u00D72160', queueCredits: 5, instantCredits: 10, reRenderQueue: 3, reRenderInstant: 5, description: 'Ultra HD \u2014 Maximum quality' },
+  { quality: '540p',  resolution: '960\u00D7540',   queueCredits: 19, instantCredits: 38, reRenderQueue: 10, reRenderInstant: 19, description: 'SD \u2014 Fast render' },
+  { quality: '720p',  resolution: '1280\u00D7720',  queueCredits: 19, instantCredits: 38, reRenderQueue: 10, reRenderInstant: 19, description: 'HD \u2014 Great quality' },
+  { quality: '1080p', resolution: '1920\u00D71080', queueCredits: 28, instantCredits: 56, reRenderQueue: 14, reRenderInstant: 28, description: 'Full HD \u2014 YouTube ready' },
+  { quality: '4K',    resolution: '3840\u00D72160', queueCredits: 46, instantCredits: 92, reRenderQueue: 23, reRenderInstant: 46, description: 'Ultra HD \u2014 Maximum quality' },
 ];
 
 // ============================================
@@ -101,7 +101,7 @@ const includedFeatures = [
 const faqItems = [
   {
     question: 'How do credits work?',
-    answer: 'Credits are charged per minute of audio based on video quality. For example, a 4-minute song at 720p in Queue mode costs 2 cr/min \u00D7 4 min = 8 credits. You can preview and customize your video unlimited times before spending credits on export.'
+    answer: 'Credits are charged per track based on video quality and speed. A 720p export in Queue mode costs 19 credits (Instant costs double) \Any song length. You can preview and customize your video unlimited times before spending credits on export.'
   },
   {
     question: 'What\u2019s the difference between credit packs and a subscription?',
@@ -117,11 +117,11 @@ const faqItems = [
   },
   {
     question: 'How much does a re-render cost?',
-    answer: 'Re-renders cost roughly half the original export price per minute. So if your first 1080p Queue export was 3 cr/min, a re-render is about 2 cr/min. Great for tweaking timing, colors, or backgrounds without paying full price again.'
+    answer: 'Re-renders cost about half the original export price. So if your first 1080p export was 28 credits, a re-render is about 14. Great for tweaking timing, colors, or backgrounds without paying full price again.'
   },
   {
     question: 'What do I get with a free account?',
-    answer: 'Every new account gets 15 free credits \u2014 enough to create your first karaoke video and try every feature. No credit card required. Free exports include a small watermark, removed with any purchase.'
+    answer: 'Every new account gets 19 free credits \u2014 enough to create your first karaoke video and try every feature. No credit card required. Free exports include a small watermark, removed with any purchase.'
   },
   {
     question: 'Can I buy extra credits on top of my subscription?',
@@ -283,7 +283,7 @@ export default function Pricing() {
     <>
       <SEO
         title="Pricing - Credits & Subscriptions | Karatrack Studio"
-        description="Create professional karaoke videos with AI. Buy credits as you go or save with a subscription. All features included. Start free with 15 credits."
+        description="Create professional karaoke videos with AI. Buy credits as you go or save with a subscription. All features included. Start free with 19 credits."
         canonical="https://studio.karatrack.com/pricing"
         additionalSchema={[getOrganizationSchema()]}
       />
@@ -316,7 +316,7 @@ export default function Pricing() {
 
             <p className={`text-lg max-w-2xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
               All features included for everyone. Buy credits when you need them
-              or get a monthly reload at a discount. Start free with 15 credits.
+              or get a monthly reload at a discount. Start free with 19 credits.
             </p>
           </motion.div>
 
@@ -356,7 +356,7 @@ export default function Pricing() {
                 </div>
                 <div>
                   <h3 className={`text-xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                    Start Free &mdash; 15 Credits Included
+                    Start Free &mdash; 19 Credits Included
                   </h3>
                   <p className={isDark ? 'text-gray-400' : 'text-gray-500'}>
                     Create your first karaoke video and try every feature &mdash; no credit card required
@@ -432,7 +432,7 @@ export default function Pricing() {
                     Subscribe & Save
                   </h3>
                   <p className={`mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Credits reload every month â€” save up to 75% vs pay-as-you-go
+                    Credits reload every month â€” save versus buying credit packs
                   </p>
                 </div>
 
@@ -441,6 +441,9 @@ export default function Pricing() {
                   <div className="flex justify-between text-sm mb-2">
                     <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Credits per month</span>
                     <span className="text-[var(--accent-primary)] font-bold">{selectedSub.credits} credits</span>
+                  </div>
+                  <div className={`text-xs text-right mb-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    ~{Math.max(1, Math.floor(selectedSub.credits / 46))}&ndash;{Math.floor(selectedSub.credits / 19)} tracks per month
                   </div>
                   <input
                     type="range"
@@ -534,6 +537,10 @@ export default function Pricing() {
                       <div className={`text-3xl font-bold mb-1 ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         {pack.credits}
                         <span className={`text-sm font-normal ${isDark ? 'text-gray-400' : 'text-gray-500'}`}> credits</span>
+                      </div>
+
+                      <div className={`text-xs mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                        ~{Math.max(1, Math.floor(pack.credits / 46))}&ndash;{Math.floor(pack.credits / 19)} karaoke tracks
                       </div>
 
                       <div className={`text-2xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -630,21 +637,21 @@ export default function Pricing() {
                         <span className={`px-3 py-1 rounded-full font-medium ${
                           isDark ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)]' : 'bg-cyan-100 text-cyan-700'
                         }`}>
-                          {tier.queueCredits} cr/min
+                          {tier.queueCredits} credits
                         </span>
                       </td>
                       <td className="py-4 px-4 text-center">
                         <span className={`px-3 py-1 rounded-full font-medium ${
                           isDark ? 'bg-[var(--accent-secondary)]/20 text-[var(--accent-secondary)]' : 'bg-purple-100 text-purple-700'
                         }`}>
-                          {tier.instantCredits} cr/min
+                          {tier.instantCredits} credits
                         </span>
                       </td>
                       <td className="py-4 px-4 text-center">
                         <span className={`px-3 py-1 rounded-full font-medium ${
                           isDark ? 'bg-green-500/15 text-green-400' : 'bg-green-100 text-green-700'
                         }`}>
-                          {tier.reRenderQueue}&ndash;{tier.reRenderInstant} cr/min
+                          {tier.reRenderQueue}&ndash;{tier.reRenderInstant} credits
                         </span>
                       </td>
                     </tr>
@@ -655,10 +662,10 @@ export default function Pricing() {
 
             <div className={`mt-6 p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
               <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                <strong>Example:</strong> A 4-minute song at 1080p using Queue = 3 cr/min &times; 4 min ={' '}
-                <strong className="text-[var(--accent-primary)]">12 credits</strong>.
-                Re-rendering the same project? Only ~2 cr/min &times; 4 min ={' '}
-                <strong className="text-green-400">8 credits</strong>.
+                <strong>Example:</strong> A 1080p export in Queue mode ={' '}
+                <strong className="text-[var(--accent-primary)]">28 credits</strong>, any song length.
+                Re-rendering the same project? About{' '}
+                <strong className="text-green-400">14 credits</strong>.
               </p>
             </div>
           </motion.div>
@@ -746,7 +753,7 @@ export default function Pricing() {
               Ready to create your first karaoke video?
             </h2>
             <p className={`mb-6 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Start free with 15 credits. No credit card required.
+              Start free with 19 credits. No credit card required.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               {user ? (
@@ -771,7 +778,7 @@ export default function Pricing() {
         <footer className={`mt-16 py-8 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
           <div className="max-w-6xl mx-auto px-4 text-center">
             <p className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-              &copy; {new Date().getFullYear()} Karatrack. All rights reserved.
+              &copy; {new Date().getFullYear()} Rush Monkey LLC. All rights reserved. Karatrack Studio is a service of Rush Monkey LLC.
             </p>
           </div>
         </footer>

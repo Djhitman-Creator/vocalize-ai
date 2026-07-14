@@ -311,10 +311,10 @@ const AUDIO_TRACK_OPTIONS = [
 
 // V12: Video quality options with credit costs per minute
 const VIDEO_QUALITY_OPTIONS = [
-  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960' + String.fromCharCode(215) + '540', creditsPerMin: 1, instantCreditsPerMin: 2 },
-  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280' + String.fromCharCode(215) + '720', creditsPerMin: 2, instantCreditsPerMin: 4 },
-  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920' + String.fromCharCode(215) + '1080', creditsPerMin: 3, instantCreditsPerMin: 6 },
-  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840' + String.fromCharCode(215) + '2160', creditsPerMin: 5, instantCreditsPerMin: 10 },
+  { value: '540p', label: '540p', description: 'SD - Fast render', resolution: '960' + String.fromCharCode(215) + '540', credits: 19, instantCredits: 38 },
+  { value: '720p', label: '720p', description: 'HD - Great quality', resolution: '1280' + String.fromCharCode(215) + '720', credits: 19, instantCredits: 38 },
+  { value: '1080p', label: '1080p', description: 'Full HD - YouTube ready', resolution: '1920' + String.fromCharCode(215) + '1080', credits: 28, instantCredits: 56 },
+  { value: '4k', label: '4K', description: 'Ultra HD - Maximum quality', resolution: '3840' + String.fromCharCode(215) + '2160', credits: 46, instantCredits: 92 },
 ];
 
 // V12: Export mode options
@@ -6927,7 +6927,7 @@ export default function SharePage() {
                               ? 'bg-purple-500/20 text-purple-400' 
                               : 'bg-cyan-500/20 text-cyan-400'
                           }`}>
-                            {option.creditsPerMin} cr/min
+                            {option.credits} credits
                           </span>
                           {exportSettings.videoQuality === option.value && (
                             <div className="absolute top-1 right-1">
@@ -6947,7 +6947,7 @@ export default function SharePage() {
                     <div className="space-y-2">
                       {EXPORT_MODE_OPTIONS.map(option => {
                         const qualityOption = VIDEO_QUALITY_OPTIONS.find(q => q.value === exportSettings.videoQuality);
-                        const creditsPerMin = option.value === 'instant' ? qualityOption?.instantCreditsPerMin : qualityOption?.creditsPerMin;
+                        const modeCredits = option.value === 'instant' ? qualityOption?.instantCredits : qualityOption?.credits;
                         
                         return (
                           <button
@@ -6976,7 +6976,7 @@ export default function SharePage() {
                                     ? 'bg-amber-500/20 text-amber-400'
                                     : 'bg-cyan-500/20 text-cyan-400'
                                 }`}>
-                                  {creditsPerMin} CREDITS / MIN
+                                  {modeCredits} CREDITS
                                 </span>
                               </div>
                               <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{option.description}</p>

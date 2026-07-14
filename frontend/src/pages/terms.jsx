@@ -36,7 +36,7 @@ export default function TermsOfService() {
           <h1 className={`text-3xl font-bold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Terms of Service
           </h1>
-          <p className="text-gray-500 mb-8">Last updated: December 2024</p>
+          <p className="text-gray-500 mb-8">Last updated: July 14, 2026</p>
 
           <div className="space-y-8 leading-relaxed">
             
@@ -46,7 +46,7 @@ export default function TermsOfService() {
                 1. Introduction
               </h2>
               <p>
-                Welcome to Karatrack Studio ("Service," "we," "us," or "our"). By accessing or using our 
+                Welcome to Karatrack Studio ("Service"), operated by Rush Monkey LLC ("Company," "we," "us," or "our"). By accessing or using our 
                 service, you agree to be bound by these Terms of Service ("Terms"). If you do not agree 
                 to these Terms, please do not use our Service.
               </p>
@@ -277,9 +277,9 @@ export default function TermsOfService() {
               </h2>
               <p>
                 These Terms shall be governed by and construed in accordance with the laws of the 
-                United States, without regard to its conflict of law provisions. Any disputes 
-                arising from these Terms or your use of the Service shall be resolved in the 
-                courts located within the United States.
+                State of Texas, United States, without regard to its conflict of law provisions. Any 
+                disputes arising from these Terms or your use of the Service shall be resolved in the 
+                state or federal courts located in Houston, Texas.
               </p>
             </section>
 
@@ -292,7 +292,9 @@ export default function TermsOfService() {
                 If you have any questions about these Terms, please contact us at:
               </p>
               <div className={`mt-3 p-4 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
-                <p><strong>Karatrack Studio</strong></p>
+                <p><strong>Rush Monkey LLC</strong></p>
+                <p>Karatrack Studio (a service of Rush Monkey LLC)</p>
+                <p>Houston, TX</p>
                 <p>Email: support@karatrack.com</p>
               </div>
             </section>
@@ -317,7 +319,7 @@ export default function TermsOfService() {
       {/* Footer */}
       <footer className="border-t border-white/10 px-6 py-8 mt-12">
         <div className="max-w-4xl mx-auto text-center text-gray-500 text-sm">
-          <p>© 2025 Karatrack Studio. All rights reserved.</p>
+          <p>© 2026 Rush Monkey LLC. All rights reserved. Karatrack Studio is a service of Rush Monkey LLC.</p>
           <div className="flex justify-center gap-6 mt-4">
             <Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
             <Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>

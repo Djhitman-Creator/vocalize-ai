@@ -543,18 +543,18 @@ const PricingSection = ({ isDark }) => {
   const [subIndex, setSubIndex] = useState(2);         // default to 250 cr/mo
 
   const packs = [
-    { name: 'Starter',  credits: 50,   price: 4.99,  perCredit: '$0.10', savings: null,  popular: false },
-    { name: 'Standard', credits: 150,  price: 11.99, perCredit: '$0.08', savings: '20%', popular: false },
-    { name: 'Pro',      credits: 400,  price: 27.99, perCredit: '$0.07', savings: '30%', popular: true },
-    { name: 'Studio',   credits: 1000, price: 54.99, perCredit: '$0.055', savings: '45%', popular: false },
+    { name: 'Starter',  credits: 40,  price: 4.99,  perCredit: '$0.125', savings: null,  popular: false },
+    { name: 'Standard', credits: 110, price: 11.99, perCredit: '$0.11', savings: '13%', popular: false },
+    { name: 'Pro',      credits: 280, price: 27.99, perCredit: '$0.10', savings: '20%', popular: true },
+    { name: 'Studio',   credits: 600, price: 54.99, perCredit: '$0.09', savings: '26%', popular: false },
   ];
 
   const subs = [
-    { credits: 50,   monthly: 2.99,  annualMo: 2.49,  annualTotal: 29.88  },
-    { credits: 100,  monthly: 4.99,  annualMo: 3.99,  annualTotal: 47.88  },
-    { credits: 250,  monthly: 9.99,  annualMo: 7.99,  annualTotal: 95.88  },
-    { credits: 500,  monthly: 17.99, annualMo: 14.49, annualTotal: 173.88 },
-    { credits: 1000, monthly: 29.99, annualMo: 23.99, annualTotal: 287.88 },
+    { credits: 30,  monthly: 2.99,  annualMo: 2.49,  annualTotal: 29.88  },
+    { credits: 60,  monthly: 4.99,  annualMo: 3.99,  annualTotal: 47.88  },
+    { credits: 120, monthly: 9.99,  annualMo: 7.99,  annualTotal: 95.88  },
+    { credits: 240, monthly: 17.99, annualMo: 14.49, annualTotal: 173.88 },
+    { credits: 400, monthly: 29.99, annualMo: 23.99, annualTotal: 287.88 },
   ];
 
   const sel = subs[subIndex];
@@ -580,7 +580,7 @@ const PricingSection = ({ isDark }) => {
           <Link href="/signup" className={`inline-flex items-center gap-2 px-4 py-2 rounded-full cursor-pointer transition-all hover:scale-105 ${isDark ? 'bg-green-500/10 border border-green-500/30 hover:bg-green-500/20' : 'bg-green-50 border border-green-200 hover:bg-green-100'}`}>
             <Sparkles className="w-4 h-4 text-green-500" />
             <span className={`text-sm font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-              Start free with 15 credits &mdash; no credit card required
+              Start free with 19 credits &mdash; no credit card required
             </span>
           </Link>
         </motion.div>
@@ -829,7 +829,7 @@ const Footer = ({ isDark }) => (
           <a href="mailto:support@karatrack.com" className="hover:text-cyan-500 transition-colors">Contact</a>
         </div>
         <div className={`text-xs sm:text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-          &copy; {new Date().getFullYear()} Karatrack Studio. All rights reserved.
+          &copy; {new Date().getFullYear()} Rush Monkey LLC. All rights reserved. Karatrack Studio is a service of Rush Monkey LLC.
         </div>
       </div>
     </div>
@@ -845,7 +845,7 @@ const supabase = createClient(
 export default function HomePage() {
   const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
-  const [credits, setCredits] = useState(15);
+  const [credits, setCredits] = useState(19);
   
   // NEW: State for video modal
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
