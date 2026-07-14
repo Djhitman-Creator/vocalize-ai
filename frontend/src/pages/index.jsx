@@ -625,7 +625,7 @@ const PricingSection = ({ isDark }) => {
                   >
                     {cycle === 'monthly' ? 'Monthly' : 'Annual'}
                     {cycle === 'annual' && (
-                      <span className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-green-500/20 text-green-400">~20% off</span>
+                      <span className="px-1.5 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-green-500/20 text-green-400">Annual Discount</span>
                     )}
                   </button>
                 ))}
