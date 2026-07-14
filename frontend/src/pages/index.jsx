@@ -684,6 +684,9 @@ const PricingSection = ({ isDark }) => {
                     <span><span className="font-semibold text-cyan-400">{sel.credits} credits</span> delivered monthly</span>
                     <span>${(subPrice / sel.credits).toFixed(3)}/credit</span>
                   </div>
+                  <div className={`text-xs mt-2 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Enough for ~{Math.max(1, Math.floor(sel.credits / 46))}&ndash;{Math.floor(sel.credits / 19)} songs/mo (depending on resolution &amp; speed)
+                  </div>
                   {billing === 'annual' && (
                     <div className={`mt-2 pt-2 border-t text-[10px] sm:text-xs ${isDark ? 'border-white/10 text-gray-500' : 'border-gray-200 text-gray-400'}`}>
                       Billed as ${sel.annualTotal.toFixed(2)}/year
@@ -729,6 +732,9 @@ const PricingSection = ({ isDark }) => {
                     <span className={`text-2xl sm:text-4xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>{pack.credits}</span>
                     <span className={`text-xs sm:text-base ml-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>credits</span>
                   </div>
+                  <div className={`text-xs mb-3 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Enough for ~{Math.max(1, Math.floor(pack.credits / 46))}&ndash;{Math.floor(pack.credits / 19)} songs
+                  </div>
                   <div className="mb-3 sm:mb-6">
                     <span className={`text-lg sm:text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>${pack.price}</span>
                     <span className={`text-xs sm:text-sm ml-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>({pack.perCredit}/cr)</span>
@@ -769,7 +775,7 @@ const PricingSection = ({ isDark }) => {
           className="text-center mt-6 sm:mt-8"
         >
           <Link href="/pricing" className={`text-xs sm:text-sm ${isDark ? 'text-gray-400 hover:text-cyan-400' : 'text-gray-600 hover:text-cyan-600'} transition-colors`}>
-            View credit costs per minute, re-render pricing & full details &rarr;
+            View credit costs per track, re-render pricing & full details &rarr;
           </Link>
         </motion.div>
       </div>
