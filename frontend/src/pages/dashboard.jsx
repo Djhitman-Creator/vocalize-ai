@@ -829,20 +829,23 @@ export default function DashboardPage() {
           return;
         }
 
-        const { data: planData, error: planError } = await supabase
-          .from('subscription_plans')
-          .select('stripe_price_id')
-          .eq('tier', planToActivate)
-          .single();
-
-        if (planError || !planData?.stripe_price_id) {
-          addNotification(`Could not find plan "${planToActivate}". Please select from pricing page.`, 'error');
-          localStorage.removeItem('karatrack_pending_plan');
-          setCheckingPendingPlan(false);
-          return;
+        // V15 model: checkout is keyed by credits_per_month + billing_cycle.
+        // The pending plan value should be a credits amount (50/100/250/500/1000).
+        // Clear any stale metadata copy so this can't re-trigger in a loop.
+        localStorage.removeItem('karatrack_pending_plan');
+        if (user.user_metadata?.pending_plan) {
+          supabase.auth.updateUser({ data: { pending_plan: null } }).catch(() => {});
         }
 
-        localStorage.removeItem('karatrack_pending_plan');
+        const creditsPerMonth = parseInt(planToActivate, 10);
+        const validCredits = [50, 100, 250, 500, 1000];
+        if (!validCredits.includes(creditsPerMonth)) {
+          // Unknown/legacy plan format - can't map safely; send to pricing to choose.
+          addNotification('Please choose your plan on the pricing page.', 'info');
+          setCheckingPendingPlan(false);
+          router.push('/pricing');
+          return;
+        }
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/stripe/create-checkout`, {
           method: 'POST',
@@ -850,7 +853,7 @@ export default function DashboardPage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ price_id: planData.stripe_price_id }),
+          body: JSON.stringify({ credits_per_month: creditsPerMonth, billing_cycle: 'monthly' }),
         });
 
         const data = await response.json();

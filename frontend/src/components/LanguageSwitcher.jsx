@@ -3,15 +3,11 @@
 import { useRouter } from 'next/router';
 import { useTheme } from '../context/ThemeContext';
 
+// Only list languages that have translation files in public/locales and are
+// enabled in next-i18next.config.js. Add more here once their JSON files exist.
 const languages = [
   { code: 'en', name: 'English', flag: '🇺🇸' },
   { code: 'es', name: 'Español', flag: '🇪🇸' },
-  { code: 'fr', name: 'Français', flag: '🇫🇷' },
-  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
-  { code: 'pt', name: 'Português', flag: '🇧🇷' },
-  { code: 'ja', name: '日本語', flag: '🇯🇵' },
-  { code: 'ko', name: '한국어', flag: '🇰🇷' },
-  { code: 'zh', name: '中文', flag: '🇨🇳' },
 ];
 
 export default function LanguageSwitcher({ compact = false }) {

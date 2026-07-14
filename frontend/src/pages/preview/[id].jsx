@@ -1312,11 +1312,12 @@ export default function PreviewEditPage() {
       cleanVersion: preset.clean_version || false,
     });
 
-    // Apply export settings
-    setExportSettings({
+    // Apply export settings (preserve exportMode - don't drop it by replacing the object)
+    setExportSettings(prev => ({
+      ...prev,
       audioTrack: preset.audio_track || 'instrumental',
       videoQuality: preset.video_quality || '720p',
-    });
+    }));
 
     // Apply branding settings
     setBrandingSettings(prev => ({
@@ -2221,11 +2222,12 @@ export default function PreviewEditPage() {
           cleanVersion: projectData.clean_version || false,
         });
 
-        // V11: Initialize export settings from project data
-        setExportSettings({
+        // V11: Initialize export settings from project data (preserve exportMode)
+        setExportSettings(prev => ({
+          ...prev,
           audioTrack: projectData.audio_track || 'instrumental',
           videoQuality: projectData.video_quality || '720p',
-        });
+        }));
 
         // V11: Initialize branding settings from project data
         setBrandingSettings({
@@ -2489,10 +2491,11 @@ export default function PreviewEditPage() {
       // Dragging left = forward in time, dragging right = backward
       // (because the timeline moves left as time advances)
       const timeShift = -deltaX / zoom;
-      const newTime = Math.max(0, Math.min(duration, timelineScrubStartTime.current + timeShift));
-      setCurrentTime(newTime);
-      if (instrumentalRef.current) instrumentalRef.current.currentTime = newTime;
-      if (vocalsRef.current) vocalsRef.current.currentTime = newTime;
+      const newTime = timelineScrubStartTime.current + timeShift;
+      // seekTo() takes VISUAL time and correctly subtracts INTRO_DURATION before
+      // setting audio positions (and clamps to duration + INTRO_DURATION). Writing
+      // newTime straight to audio.currentTime here desynced audio from lyrics by 4s.
+      seekTo(newTime);
     };
 
     const handleScrubEnd = () => {
@@ -7391,7 +7394,7 @@ export default function PreviewEditPage() {
                       : qualityOption?.creditsPerMin || 1;
                     const songMinutes = Math.ceil((duration || 180) / 60); // Default 3 min if no duration
                     const totalCredits = creditsPerMin * songMinutes;
-                    const userCredits = project?.user_credits || 0; // You'd get this from user profile
+                    const userCredits = aiCreditsRemaining || 0; // From user profile (credits_remaining)
                     const hasEnoughCredits = userCredits >= totalCredits;
 
                     return (

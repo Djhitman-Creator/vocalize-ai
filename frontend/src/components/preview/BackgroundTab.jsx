@@ -83,9 +83,10 @@ export default function BackgroundTab({
   onVideoUpload 
 }) {
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const tier = profile?.subscription_tier?.toLowerCase() || 'free';
-  const isStudioUser = tier === 'studio';
-  const isPaidUser = tier !== 'free';
+  // V15/V16 universal-credit model: video backgrounds and custom uploads are
+  // available to everyone, not gated by tier.
+  const isStudioUser = true;
+  const isPaidUser = true;
   
   const filteredPresets = selectedCategory === 'all' 
     ? PRESET_VIDEO_BACKGROUNDS 
@@ -181,12 +182,12 @@ export default function BackgroundTab({
               onChange={(e) => updateSettings({ gradientDirection: e.target.value })}
               className={`w-full px-3 py-2 rounded-lg text-sm ${isDark ? 'bg-white/10 border-white/10 text-white' : 'bg-gray-50 border-gray-200 text-gray-900'} border`}
             >
-              <option value="to bottom">â†“ Top to Bottom</option>
-              <option value="to top">â†‘ Bottom to Top</option>
-              <option value="to right">â†’ Left to Right</option>
-              <option value="to left">â† Right to Left</option>
-              <option value="to bottom right">â†˜ Diagonal</option>
-              <option value="to bottom left">â†™ Diagonal</option>
+              <option value="to bottom">↓ Top to Bottom</option>
+              <option value="to top">↑ Bottom to Top</option>
+              <option value="to right">→ Left to Right</option>
+              <option value="to left">← Right to Left</option>
+              <option value="to bottom right">↘ Diagonal</option>
+              <option value="to bottom left">↙ Diagonal</option>
             </select>
           </div>
 

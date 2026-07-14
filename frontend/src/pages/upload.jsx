@@ -259,7 +259,7 @@ export default function UploadPage() {
       />
 
       <div className={`min-h-screen transition-colors ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
-        <AppNavigation />
+        <AppNavigation profile={profile} />
 
         <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Back Link */}

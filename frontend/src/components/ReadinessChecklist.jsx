@@ -190,13 +190,10 @@ const CHECKLIST_ITEMS = [
     label: 'Export Quality',
     tab: 'export',
     description: 'Set video resolution and audio track',
-    // Check: quality changed from default 720p
+    // Check: user has chosen an audio track and a video quality
     check: ({ exportSettings }) => {
       if (!exportSettings) return false;
-      return (
-        exportSettings.videoQuality !== '720p' ||
-        exportSettings.audioTrack !== 'instrumental'
-      );
+      return Boolean(exportSettings.videoQuality && exportSettings.processingType);
     },
   },
 ];

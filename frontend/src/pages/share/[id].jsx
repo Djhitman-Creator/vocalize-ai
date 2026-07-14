@@ -963,7 +963,7 @@ export default function SharePage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/login'); return; }
+      if (!session) { router.push('/signup'); return; }
 
       const formData = new FormData();
       formData.append('logo', file);
@@ -1011,7 +1011,7 @@ export default function SharePage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/login'); return; }
+      if (!session) { router.push('/signup'); return; }
 
       const formData = new FormData();
       formData.append('startImage', file);
@@ -1070,7 +1070,7 @@ export default function SharePage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        router.push('/login');
+        router.push('/signup');
         return;
       }
 
@@ -1202,7 +1202,7 @@ export default function SharePage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/login'); return; }
+      if (!session) { router.push('/signup'); return; }
 
       const presetData = {
         user_id: session.user.id,
@@ -1306,11 +1306,12 @@ export default function SharePage() {
       cleanVersion: preset.clean_version || false,
     });
 
-    // Apply export settings
-    setExportSettings({
+    // Apply export settings (preserve exportMode - don't drop it by replacing the object)
+    setExportSettings(prev => ({
+      ...prev,
       audioTrack: preset.audio_track || 'instrumental',
       videoQuality: preset.video_quality || '720p',
-    });
+    }));
 
     // Apply branding settings
     setBrandingSettings(prev => ({
@@ -1401,7 +1402,7 @@ export default function SharePage() {
     setAiError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/login'); return; }
+      if (!session) { router.push('/signup'); return; }
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/generate-ai-background`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
@@ -1449,7 +1450,7 @@ export default function SharePage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/login'); return; }
+      if (!session) { router.push('/signup'); return; }
 
       const formData = new FormData();
       formData.append('image', file);
@@ -1505,7 +1506,7 @@ export default function SharePage() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/login'); return; }
+      if (!session) { router.push('/signup'); return; }
 
       const formData = new FormData();
       formData.append('video', file);
@@ -2157,11 +2158,12 @@ export default function SharePage() {
           cleanVersion: projectData.clean_version || false,
         });
         
-        // V11: Initialize export settings from project data
-        setExportSettings({
+        // V11: Initialize export settings from project data (preserve exportMode)
+        setExportSettings(prev => ({
+          ...prev,
           audioTrack: projectData.audio_track || 'instrumental',
           videoQuality: projectData.video_quality || '720p',
-        });
+        }));
         
         // V11: Initialize branding settings from project data
         setBrandingSettings({
@@ -2424,10 +2426,11 @@ export default function SharePage() {
       // Dragging left = forward in time, dragging right = backward
       // (because the timeline moves left as time advances)
       const timeShift = -deltaX / zoom;
-      const newTime = Math.max(0, Math.min(duration, timelineScrubStartTime.current + timeShift));
-      setCurrentTime(newTime);
-      if (instrumentalRef.current) instrumentalRef.current.currentTime = newTime;
-      if (vocalsRef.current) vocalsRef.current.currentTime = newTime;
+      const newTime = timelineScrubStartTime.current + timeShift;
+      // seekTo() takes VISUAL time and correctly subtracts INTRO_DURATION before
+      // setting audio positions. Writing newTime straight to audio.currentTime
+      // here desynced audio from lyrics by 4s.
+      seekTo(newTime);
     };
 
     const handleScrubEnd = () => {
@@ -3607,7 +3610,7 @@ export default function SharePage() {
     <div className={`min-h-screen flex flex-col items-center justify-center gap-4 ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
       <AlertCircle className="w-12 h-12 text-red-400" />
       <p className="text-red-400">{error || 'Project not found'}</p>
-      <Link href="/dashboard" className="text-cyan-400 hover:underline">Return to Dashboard</Link>
+      <Link href="/" className="text-cyan-400 hover:underline">Return Home</Link>
     </div>
   );
 

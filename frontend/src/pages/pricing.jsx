@@ -149,12 +149,13 @@ export default function Pricing() {
   const router = useRouter();
   const { isDark } = useTheme();
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedFaq, setExpandedFaq] = useState(null);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   const [purchaseMode, setPurchaseMode] = useState('subscription');
-  const [selectedPack, setSelectedPack] = useState('pro');
+  const [selectedPack, setSelectedPack] = useState('Pro Pack');
   const [selectedSubIndex, setSelectedSubIndex] = useState(2);
   const [billingCycle, setBillingCycle] = useState('annual');
 
@@ -164,6 +165,14 @@ export default function Pricing() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user || null);
+      if (session?.user) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        setProfile(profileData || null);
+      }
     } catch (error) {
       console.error('Auth error:', error);
     } finally {
@@ -281,7 +290,7 @@ export default function Pricing() {
 
       {/* ===== bg-animated-dark / bg-animated-light to match all other pages ===== */}
       <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
-        <AppNavigation />
+        <AppNavigation profile={profile} />
 
         <main className="max-w-6xl mx-auto px-4 py-12">
 

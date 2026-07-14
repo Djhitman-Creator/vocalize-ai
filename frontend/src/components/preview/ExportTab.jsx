@@ -17,9 +17,9 @@ export default function ExportTab({
   onRender,
   saving 
 }) {
-  const tier = profile?.subscription_tier?.toLowerCase() || 'free';
-  const isStudioUser = tier === 'studio';
-  const isPro = tier === 'pro' || tier === 'studio';
+  // V15 universal-credit model: every feature is available to all users
+  const isStudioUser = true;
+  const isPro = true;
   
   const audioTracks = [
     { 
@@ -184,13 +184,13 @@ export default function ExportTab({
             Your Balance
           </span>
           <span className={`font-bold text-lg ${
-            (profile?.credits || 0) > 0 ? 'text-cyan-400' : 'text-red-400'
+            (profile?.credits_remaining || 0) > 0 ? 'text-cyan-400' : 'text-red-400'
           }`}>
-            {profile?.credits || 0} credits
+            {profile?.credits_remaining || 0} credits
           </span>
         </div>
         
-        {(profile?.credits || 0) === 0 && (
+        {(profile?.credits_remaining || 0) === 0 && (
           <div className={`mt-3 p-2 rounded text-center text-sm ${isDark ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'}`}>
             You need credits to render. <a href="/pricing" className="underline">Get more credits</a>
           </div>

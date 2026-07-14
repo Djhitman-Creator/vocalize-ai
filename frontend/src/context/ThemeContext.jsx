@@ -13,6 +13,18 @@ export function ThemeProvider({ children }) {
     }
   }, []);
 
+  // Apply the `dark` class to <html> so Tailwind's darkMode:'class' and the
+  // .dark CSS selectors in globals.css actually take effect. Without this the
+  // theme state changes but the page styling never switches.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [isDark]);
+
   const toggleTheme = () => {
     const newTheme = !isDark;
     setIsDark(newTheme);

@@ -2916,7 +2916,7 @@ def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, hei
     return lyrics_frame
 
 
-def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None, logo_url=None, logo_position='bottom-right', logo_size=50, logo_opacity=80, start_image_url=None, start_image_fit='fill', start_image_opacity=100, start_image_show_title=True):
+def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None, logo_url=None, logo_position='bottom-right', logo_size=50, logo_opacity=80, start_image_url=None, start_image_fit='fill', start_image_opacity=100, start_image_show_title=True, has_ever_paid=False):
     """Generate video with lyrics and countdown. Supports video/image backgrounds."""
     print(f"Generating video (mode: {display_mode}, background: {bg_type})...")
     print(f"   Subscription tier: {subscription_tier}")
@@ -2935,19 +2935,18 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     # Clear caches for fresh video generation
     clear_text_width_cache()
     
-    # Determine watermark behavior based on tier
-    # Free: Karatrack watermark
-    # Starter/Pro: No watermark
-    # Studio: Custom watermark (if provided)
-    apply_watermark_to_video = subscription_tier == 'free'
-    apply_custom_watermark = subscription_tier == 'studio' and custom_watermark_url
+    # V15 universal-credit model: the Karatrack watermark is only for users who
+    # have never paid. Any purchase (has_ever_paid) removes it. Custom watermarks
+    # and outro text are available to everyone who supplies them.
+    apply_watermark_to_video = not has_ever_paid
+    apply_custom_watermark = bool(custom_watermark_url)
     
+    if apply_custom_watermark:
+        print(f"    Custom watermark will be applied")
     if apply_watermark_to_video:
-        print("    Karatrack watermark will be applied (free tier)")
-    elif apply_custom_watermark:
-        print(f"    Custom watermark will be applied (Studio tier)")
+        print("    Karatrack watermark will be applied (free account - never purchased)")
     else:
-        print("    No watermark (paid tier)")
+        print("    No Karatrack watermark (user has purchased)")
     
     # Default style options if not provided
     if style_options is None:
@@ -3131,7 +3130,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
 
     # Outro text timing (starts after fadeout ends)
     outro_start = fadeout_end if offset_lyrics else INTRO_DURATION + 2
-    has_outro_text = outro_text and subscription_tier == 'studio'
+    has_outro_text = bool(outro_text)
     if has_outro_text:
         print(f"    Outro text enabled: '{outro_text[:50]}...' (starts at {outro_start:.2f}s)")
     
@@ -3314,8 +3313,9 @@ def handler(event):
         clean_version_raw = input_data.get('clean_version', False)
         clean_version = clean_version_raw in [True, 'true', 'True', '1', 1]
         
-        # Get subscription tier for watermark logic
+        # Get subscription tier (for logging) and purchase flag for watermark logic
         subscription_tier = input_data.get('subscription_tier', 'free')
+        has_ever_paid = input_data.get('has_ever_paid', False) in [True, 'true', 'True', '1', 1]
         
         # Get custom watermark URL for Studio users
         custom_watermark_url = input_data.get('custom_watermark_url', None)
@@ -3399,21 +3399,13 @@ def handler(event):
         work_dir = tempfile.mkdtemp()
         results = {}
         
-        # Download custom font if provided
+        # Download custom font if provided (once)
         custom_font_path = None
         if style_options.get('custom_font_url'):
             custom_font_path = download_custom_font(style_options['custom_font_url'], work_dir)
             if custom_font_path:
                 style_options['custom_font_path'] = custom_font_path
                 print(f"    Custom font: {style_options.get('custom_font_name', 'Custom')}")
-        
-        # Download custom font if provided
-        custom_font_path = None
-        if style_options.get('custom_font_url'):
-            custom_font_path = download_custom_font(style_options['custom_font_url'], work_dir)
-            if custom_font_path:
-                style_options['custom_font_path'] = custom_font_path
-                print(f"   Custom font: {style_options.get('custom_font_name', 'Custom')}")
         
         # Download video/image background if needed (NEW in 5.0)
         bg_video_path = None
@@ -3484,9 +3476,46 @@ def handler(event):
                 print(f"      Gap {i+1}: {gap['start']:.2f}s - {gap['end']:.2f}s ({gap['duration']:.2f}s) {'[INTRO]' if gap.get('is_intro') else ''}")
             results['lyrics'] = lyrics
             
+            # Build the audio track the user selected in the editor.
+            # Both stems (instrumental + vocals) were produced during the
+            # transcribe stage, so 'guide' and 'original' are reconstructed by
+            # mixing the instrumental with the isolated vocals at the right gain.
+            #   instrumental -> music only (remove all vocals)
+            #   guide        -> instrumental + 30% vocals
+            #   original     -> instrumental + 100% vocals (full mix)
+            audio_track = input_data.get('audio_track', 'instrumental')
+            render_audio_path = instrumental_path
+            vocals_url = input_data.get('vocals_audio_url')
+            if audio_track in ('guide', 'original') and vocals_url:
+                try:
+                    vocals_dl_path = os.path.join(work_dir, 'vocals_render.wav')
+                    download_file(vocals_url, vocals_dl_path)
+                    inst_wav, sr_mix = torchaudio.load(instrumental_path)
+                    voc_wav, _ = torchaudio.load(vocals_dl_path)
+                    max_len = max(inst_wav.shape[1], voc_wav.shape[1])
+                    if inst_wav.shape[1] < max_len:
+                        inst_wav = torch.cat([inst_wav, torch.zeros(inst_wav.shape[0], max_len - inst_wav.shape[1])], dim=1)
+                    if voc_wav.shape[1] < max_len:
+                        voc_wav = torch.cat([voc_wav, torch.zeros(voc_wav.shape[0], max_len - voc_wav.shape[1])], dim=1)
+                    vocal_gain = 0.3 if audio_track == 'guide' else 1.0
+                    mixed = inst_wav + (voc_wav * vocal_gain)
+                    peak = mixed.abs().max()
+                    if peak > 1.0:
+                        mixed = mixed / peak
+                    mixed_path = os.path.join(work_dir, f'render_audio_{audio_track}.wav')
+                    torchaudio.save(mixed_path, mixed, sr_mix)
+                    render_audio_path = mixed_path
+                    print(f" Render audio track '{audio_track}' created (vocal gain {vocal_gain})")
+                except Exception as mix_err:
+                    print(f" WARNING: failed to build '{audio_track}' track, using instrumental: {mix_err}")
+                    render_audio_path = instrumental_path
+            else:
+                print(" Render audio track: instrumental (remove all vocals)")
+
             # Skip to video generation (handled below)
             vocals_path = None
-            audio_path = instrumental_path
+            audio_path = render_audio_path
+            instrumental_path = render_audio_path
             
         else:
             # FULL or TRANSCRIBE_ONLY MODE: Do vocal separation and transcription
@@ -3634,7 +3663,8 @@ def handler(event):
               start_image_url,
               start_image_fit,
               start_image_opacity,
-              start_image_show_title
+              start_image_show_title,
+              has_ever_paid=has_ever_paid
           )
         
         # Use timestamped key so each render is preserved in R2 (for render history)

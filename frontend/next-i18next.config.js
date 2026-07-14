@@ -1,15 +1,11 @@
 module.exports = {
   i18n: {
     defaultLocale: 'en',
-    locales: ['en', 'es', 'fr', 'de', 'pt', 'ja', 'ko', 'zh'],
+    // Only ship locales that actually have translation files in public/locales.
+    // Add a locale here only after adding its common/pricing/upload JSON files.
+    locales: ['en', 'es'],
     // en = English
     // es = Spanish
-    // fr = French
-    // de = German
-    // pt = Portuguese
-    // ja = Japanese
-    // ko = Korean
-    // zh = Chinese
   },
   localePath: './public/locales',
 };

@@ -37,7 +37,12 @@ export default function LoginPage() {
 
       if (error) throw error;
 
-      router.push('/dashboard');
+      // Honor ?redirect= so flows like /login?redirect=/roadmap return the user
+      // where they came from. Only allow same-site paths to avoid open redirects.
+      const redirect = typeof router.query.redirect === 'string' && router.query.redirect.startsWith('/')
+        ? router.query.redirect
+        : '/dashboard';
+      router.push(redirect);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -52,7 +57,11 @@ export default function LoginPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: `${window.location.origin}${
+            typeof router.query.redirect === 'string' && router.query.redirect.startsWith('/')
+              ? router.query.redirect
+              : '/dashboard'
+          }`,
         },
       });
       if (error) throw error;

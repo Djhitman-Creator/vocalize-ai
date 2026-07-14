@@ -251,17 +251,20 @@ function calculateCreditsNeeded(options) {
   // Lyrics always included now
   credits += 1;
 
-  // Quality-based pricing (480p=3, 720p=5, 1080p=7 total for basic track)
-  if (options.video_quality === '480p') {
-    credits += 1;   // Total: 1+1+1 = 3 credits
-  } else if (options.video_quality === '720p') {
-    credits += 3;   // Total: 1+1+3 = 5 credits
-  } else if (options.video_quality === '1080p') {
-    credits += 5;   // Total: 1+1+5 = 7 credits
-  } else if (options.video_quality === '4k') {
-    credits += 7;   // Total: 1+1+7 = 9 credits
+  // Quality-based pricing. Normalize the quality string so alternate spellings
+  // (540p, 4K, upper/lowercase) map to the right tier instead of silently
+  // falling through to the cheapest default.
+  const q = String(options.video_quality || '').toLowerCase();
+  if (q === '480p' || q === '540p') {
+    credits += 1;   // SD  - Total: 1+1+1 = 3 credits
+  } else if (q === '720p') {
+    credits += 3;   // HD  - Total: 1+1+3 = 5 credits
+  } else if (q === '1080p') {
+    credits += 5;   // Full HD - Total: 1+1+5 = 7 credits
+  } else if (q === '4k') {
+    credits += 7;   // Ultra HD - Total: 1+1+7 = 9 credits
   } else {
-    credits += 1;   // Default to 480p pricing
+    credits += 3;   // Unknown -> default to HD (720p) pricing
   }
 
   return credits;
@@ -282,7 +285,7 @@ async function sendToRunPod(projectId, audioUrl, options) {
         artist_name: options.artist_name,
         song_title: options.song_title,
         track_number: options.track_number,
-        callback_url: `${process.env.API_URL}/api/webhooks/runpod`,
+        callback_url: `${process.env.API_URL}/api/webhooks/runpod${process.env.RUNPOD_WEBHOOK_SECRET ? `?secret=${encodeURIComponent(process.env.RUNPOD_WEBHOOK_SECRET)}` : ''}`,
 
         // Lyrics and display options
         lyrics_text: options.lyrics_text || null,
@@ -1190,8 +1193,15 @@ app.delete('/api/projects/:id', authMiddleware, async (req, res) => {
       const keysToDelete = [];
       
       if (project.original_file_url) {
-        const originalKey = `uploads/${projectId}/${project.original_file_url.split('/').pop()}`;
-        keysToDelete.push(originalKey);
+        // Derive the R2 key from the stored URL path (uploads are keyed by user id,
+        // e.g. uploads/{userId}/{uuid}-name, so do NOT rebuild from projectId).
+        try {
+          const urlPath = new URL(project.original_file_url).pathname;
+          const originalKey = urlPath.startsWith('/') ? urlPath.substring(1) : urlPath;
+          if (originalKey) keysToDelete.push(originalKey);
+        } catch (e) {
+          console.log(`Could not parse original file URL: ${project.original_file_url}`);
+        }
       }
       
       // Add processed files (legacy key + current project video_url)
@@ -1218,7 +1228,7 @@ app.delete('/api/projects/:id', authMiddleware, async (req, res) => {
       // Delete from R2 (fire and forget - don't wait)
       for (const key of keysToDelete) {
         r2Client.send(new DeleteObjectCommand({
-          Bucket: process.env.R2_BUCKET_NAME,
+          Bucket: process.env.CLOUDFLARE_R2_BUCKET,
           Key: key,
         })).catch(e => console.log(`Could not delete ${key}:`, e.message));
       }
@@ -1428,8 +1438,11 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
     // NEW: Get user's subscription tier for watermark logic
     const userProfile = await getUserProfile(req.user.id);
 
-    // Send to RunPod with all options including subscription_tier
-    const runpodJobId = await sendToRunPod(projectId, fileUrl, {
+    // Send to RunPod with all options including subscription_tier.
+    // If enqueue fails after we've deducted credits, refund and fail cleanly.
+    let runpodJobId;
+    try {
+    runpodJobId = await sendToRunPod(projectId, fileUrl, {
       processing_type,
       include_lyrics: include_lyrics === 'true',
       video_quality,
@@ -1465,13 +1478,27 @@ app.post('/api/projects', authMiddleware, projectUpload, async (req, res) => {
       bg_vignette_strength: parseInt(req.body.bg_vignette_strength) || 0,
       // Processing mode
       processing_mode: processing_mode || 'full',
-      // NEW: Subscription tier for watermark logic
+      // NEW: Subscription tier (logging) + purchase flag for watermark logic
       subscription_tier: userProfile.subscription_tier || 'free',
-      // Custom watermark URL for Studio users
+      has_ever_paid: userProfile.has_ever_paid || false,
+      // Custom watermark URL (available to all users)
       custom_watermark_url: customWatermarkUrl,
       // Outro text for Studio users
         outro_text: req.body.outro_text || null,
     });
+    } catch (sendErr) {
+      // Enqueue failed after credits were deducted: refund and mark failed.
+      try {
+        await addCreditsWithExpiration(req.user.id, creditsNeeded, 'refund', `Refund: could not start processing for ${projectId}`);
+      } catch (refundErr) {
+        console.error('Failed to refund after enqueue failure:', refundErr.message);
+      }
+      await supabase
+        .from('projects')
+        .update({ status: 'failed', error_message: 'Failed to start processing. Your credits were refunded.' })
+        .eq('id', projectId);
+      throw sendErr;
+    }
 
     // Set appropriate status based on processing mode
     const initialStatus = processing_mode === 'transcribe_only' ? 'transcribing' : 'processing';
@@ -1576,6 +1603,94 @@ app.post('/api/upload-logo', authMiddleware, upload.single('logo'), async (req, 
     });
   } catch (error) {
     console.error('Logo upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload custom background image for a specific project (available to all users)
+app.post('/api/upload-background-image', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    const projectId = req.body.projectId;
+
+    if (!projectId) {
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file provided' });
+    }
+
+    const ext = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
+    const imageKey = `backgrounds/${req.user.id}/${projectId}-bg-image${ext}`;
+    const imageUrl = await uploadToR2(req.file.buffer, imageKey, req.file.mimetype);
+    console.log(`Background image uploaded for project ${projectId}: ${imageUrl}`);
+
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ bg_image_url: imageUrl, bg_type: 'image' })
+      .eq('id', projectId);
+
+    if (updateError) throw updateError;
+
+    res.json({ success: true, imageUrl, message: 'Background image uploaded successfully' });
+  } catch (error) {
+    console.error('Background image upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload custom background video for a specific project (available to all users)
+app.post('/api/upload-background-video', authMiddleware, upload.single('video'), async (req, res) => {
+  try {
+    const projectId = req.body.projectId;
+
+    if (!projectId) {
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No video file provided' });
+    }
+
+    const ext = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
+    const videoKey = `backgrounds/${req.user.id}/${projectId}-bg-video${ext}`;
+    const videoUrl = await uploadToR2(req.file.buffer, videoKey, req.file.mimetype);
+    console.log(`Background video uploaded for project ${projectId}: ${videoUrl}`);
+
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ bg_video_url: videoUrl, bg_type: 'video' })
+      .eq('id', projectId);
+
+    if (updateError) throw updateError;
+
+    res.json({ success: true, videoUrl, message: 'Background video uploaded successfully' });
+  } catch (error) {
+    console.error('Background video upload error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2117,6 +2232,23 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Processed audio not available. Please re-upload the track.' });
     }
 
+    // Re-render pricing: the first render (awaiting_review/transcribed) is already
+    // paid for at upload. A re-render of a completed project costs ~50% of the
+    // original price (rounded up, minimum 1 credit).
+    const isReRender = project.status === 'completed';
+    const reRenderCost = isReRender
+      ? Math.max(1, Math.ceil((project.credits_used || 2) / 2))
+      : 0;
+    if (isReRender) {
+      const hasCredits = await checkCredits(req.user.id, reRenderCost);
+      if (!hasCredits) {
+        return res.status(402).json({
+          error: 'Insufficient credits for re-render',
+          credits_needed: reRenderCost,
+        });
+      }
+    }
+
     // Update project with edited lyrics
     await supabase
       .from('projects')
@@ -2170,9 +2302,12 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       processed_audio_url: project.processed_audio_url,
       vocals_audio_url: project.vocals_audio_url,
       edited_lyrics: edited_lyrics,
-      // Subscription tier for watermark logic
+      // Audio track the user chose in the editor: 'instrumental' | 'guide' | 'original'
+      audio_track: project.audio_track || 'instrumental',
+      // Subscription tier (logging) + purchase flag for watermark logic
       subscription_tier: userProfile.subscription_tier || 'free',
-      // Studio branding - Logo settings (with size, position, opacity)
+      has_ever_paid: userProfile.has_ever_paid || false,
+      // Branding - Logo settings (with size, position, opacity)
       logo_url: project.logo_url || null,
       logo_position: project.logo_position || 'bottom-right',
       logo_size: project.logo_size || 50,
@@ -2210,10 +2345,25 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       })
       .eq('id', project.id);
 
+    // Charge for re-renders now that the job is safely enqueued.
+    if (isReRender && reRenderCost > 0) {
+      try {
+        await deductCredits(
+          req.user.id,
+          reRenderCost,
+          project.id,
+          `Re-render (50% of original): ${project.song_title || project.title || 'project'}`
+        );
+      } catch (deductErr) {
+        console.error('Failed to deduct re-render credits:', deductErr.message);
+      }
+    }
+
     res.json({
       message: 'Rendering started',
       project_id: project.id,
       runpod_job_id: runpodJobId,
+      credits_used: reRenderCost,
     });
 
   } catch (error) {
@@ -2648,7 +2798,7 @@ app.get('/api/stripe/subscription-status', authMiddleware, async (req, res) => {
         const { data: nextPlan } = await supabase
           .from('subscription_plans')
           .select('tier')
-          .eq('stripe_price_id', nextPriceId)
+          .or(`stripe_monthly_price_id.eq.${nextPriceId},stripe_annual_price_id.eq.${nextPriceId}`)
           .single();
 
         if (nextPlan) {
@@ -2727,6 +2877,23 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
   }
 
   try {
+    // Idempotency guard: Stripe retries events on any non-2xx response, and this
+    // handler can add credits. Record each event id the first time we see it; if
+    // it's already recorded, skip re-processing so credits are never added twice.
+    const { error: idempotencyError } = await supabase
+      .from('processed_stripe_events')
+      .insert({ event_id: event.id, event_type: event.type });
+    if (idempotencyError) {
+      // 23505 = unique_violation -> we've already handled this event
+      if (idempotencyError.code === '23505') {
+        console.log(`Duplicate Stripe event ${event.id} ignored`);
+        return res.json({ received: true, duplicate: true });
+      }
+      // Any other error (e.g. table missing): log and continue processing rather
+      // than blocking legitimate events. Create the table to enable protection.
+      console.error('Stripe idempotency check failed (processing anyway):', idempotencyError.message);
+    }
+
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
@@ -2936,7 +3103,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
               const { data: plan } = await supabase
                 .from('subscription_plans')
                 .select('tier, credits_per_month')
-                .eq('stripe_price_id', priceId)
+                .or(`stripe_monthly_price_id.eq.${priceId},stripe_annual_price_id.eq.${priceId}`)
                 .single();
 
               if (plan) {
@@ -3027,6 +3194,18 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
 // RunPod webhook with email notifications
 app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
   try {
+    // Security: verify the shared secret when one is configured.
+    // The backend embeds this secret in callback_url, so the RunPod worker
+    // echoes it back automatically. Set RUNPOD_WEBHOOK_SECRET in Railway to enforce.
+    if (process.env.RUNPOD_WEBHOOK_SECRET) {
+      if (req.query.secret !== process.env.RUNPOD_WEBHOOK_SECRET) {
+        console.warn('Rejected RunPod webhook: invalid or missing secret');
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    } else {
+      console.warn('RUNPOD_WEBHOOK_SECRET is not set - webhook is UNAUTHENTICATED. Set it in Railway to secure this endpoint.');
+    }
+
     const { project_id, status, results, error: processingError } = req.body;
 
     // Fetch the project to get notify preference
@@ -3138,6 +3317,22 @@ app.post('/api/webhooks/runpod', express.json(), async (req, res) => {
       }
 
     } else if (status === 'failed') {
+      // Refund credits on failure (guarded against double-refund by the prior status).
+      // We only refund the first time we see a non-failed project transition to failed.
+      if (project && project.status !== 'failed' && (project.credits_used || 0) > 0) {
+        try {
+          await addCreditsWithExpiration(
+            project.user_id,
+            project.credits_used,
+            'refund',
+            `Refund for failed project ${project_id}`
+          );
+          console.log(`Refunded ${project.credits_used} credits to user ${project.user_id} for failed project ${project_id}`);
+        } catch (refundError) {
+          console.error('Failed to refund credits for failed project:', refundError.message);
+        }
+      }
+
       const { error: updateError } = await supabase
         .from('projects')
         .update({
@@ -3255,7 +3450,7 @@ app.post('/api/support/contact', authMiddleware, async (req, res) => {
         <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
           <div style="text-align: center; margin-bottom: 40px;">
             <h1 style="color: #00d4ff; font-size: 28px; margin: 0;">Karatrack Support Request</h1>
-            <p style="color: ${isStudio ? '#a855f7' : '#00d4ff'}; font-size: 14px; margin: 10px 0 0 0;">
+            <p style="color: ${isPriority ? '#a855f7' : '#00d4ff'}; font-size: 14px; margin: 10px 0 0 0;">
               ${supportLevel}
             </p>
           </div>
@@ -3270,7 +3465,7 @@ app.post('/api/support/contact', authMiddleware, async (req, res) => {
             <div style="margin-bottom: 30px;">
               <h3 style="color: #00d4ff; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px 0;">Account Details</h3>
               <p style="color: #a0a0a0; font-size: 14px; margin: 0;">
-                Tier: <span style="color: #ffffff; text-transform: capitalize;">${tier}</span><br>
+                Support Level: <span style="color: #ffffff; text-transform: capitalize;">${supportLevel}</span><br>
                 Credits: <span style="color: #ffffff;">${profile.credits_remaining || 0}</span><br>
                 User ID: <span style="color: #666; font-size: 12px;">${req.user.id}</span>
               </p>
@@ -3305,7 +3500,7 @@ ${supportLevel}
 ========================
 
 From: ${userName} (${userEmail})
-Tier: ${tier}
+Support Level: ${supportLevel}
 Credits: ${profile.credits_remaining || 0}
 User ID: ${req.user.id}
 
@@ -3320,7 +3515,7 @@ Reply directly to this email to respond to the user.
 
     await brevoEmailApi.sendTransacEmail(sendSmtpEmail);
     
-    console.log(`Support request sent from ${userEmail} (${tier}) - ${supportLevel}`);
+    console.log(`Support request sent from ${userEmail} - ${supportLevel}`);
 
     res.json({ 
       success: true, 
@@ -3509,9 +3704,11 @@ async function sendCreditsExpiredEmail(email, expiredAmount) {
 // URL: POST /api/cron/check-credit-expiration
 // Header: x-cron-secret: YOUR_CRON_SECRET
 app.post('/api/cron/check-credit-expiration', async (req, res) => {
-  // Verify cron secret to prevent unauthorized access
+  // Verify cron secret to prevent unauthorized access.
+  // Fail closed: if CRON_SECRET is not configured, reject all requests
+  // (otherwise `undefined !== undefined` would let unauthenticated calls through).
   const cronSecret = req.headers['x-cron-secret'];
-  if (cronSecret !== process.env.CRON_SECRET) {
+  if (!process.env.CRON_SECRET || cronSecret !== process.env.CRON_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
