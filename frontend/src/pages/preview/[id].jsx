@@ -1150,6 +1150,8 @@ export default function PreviewEditPage() {
     audioTrack: 'instrumental', // 'instrumental', 'guide', 'original'
     videoQuality: '720p', // '540p', '720p', '1080p', '4k'
     exportMode: 'queue', // 'queue', 'instant'
+    pitchSemitones: 0, // V20: key change, -6..+6 half steps (applied on export)
+    speedRate: 1.0, // V20: playback speed, 0.75..1.25 (previewed live)
   });
 
   // V11: Update export settings helper
@@ -1592,6 +1594,21 @@ export default function PreviewEditPage() {
   // Audio state
   const instrumentalRef = useRef(null);
   const vocalsRef = useRef(null);
+
+  // V20: Live speed preview. Browsers change tempo without changing pitch
+  // (preservesPitch). The key change is render-only because browser pitch
+  // shifting sounds far worse than the FFmpeg render.
+  useEffect(() => {
+    const rate = exportSettings.speedRate ?? 1.0;
+    [instrumentalRef.current, vocalsRef.current].forEach(el => {
+      if (el) {
+        try {
+          el.playbackRate = rate;
+          if ('preservesPitch' in el) el.preservesPitch = true;
+        } catch (e) { /* older browsers */ }
+      }
+    });
+  }, [exportSettings.speedRate]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -2227,6 +2244,8 @@ export default function PreviewEditPage() {
           ...prev,
           audioTrack: projectData.audio_track || 'instrumental',
           videoQuality: projectData.video_quality || '720p',
+          pitchSemitones: projectData.pitch_semitones ?? 0, // V20
+          speedRate: projectData.speed_rate ?? 1.0, // V20
         }));
 
         // V11: Initialize branding settings from project data
@@ -3273,7 +3292,12 @@ export default function PreviewEditPage() {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ edited_lyrics: words, export_mode: exportSettings.exportMode || 'queue' })
+        body: JSON.stringify({
+          edited_lyrics: words,
+          export_mode: exportSettings.exportMode || 'queue',
+          pitch_semitones: exportSettings.pitchSemitones ?? 0, // V20
+          speed_rate: exportSettings.speedRate ?? 1.0, // V20
+        })
       });
 
       if (!response.ok) {
@@ -3288,7 +3312,7 @@ export default function PreviewEditPage() {
     } finally {
       setSaving(false);
     }
-  }, [hasChanges, saveChanges, words, router, id]);
+  }, [hasChanges, saveChanges, words, router, id, exportSettings]);
 
   // ============================================================
   // UTILITY FUNCTIONS
@@ -7384,6 +7408,71 @@ export default function PreviewEditPage() {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* V20: Key Change */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Key Change
+                    </label>
+                    <div className={`flex items-center justify-between gap-3 p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                      <button
+                        onClick={() => updateExportSettings({ pitchSemitones: Math.max(-6, (exportSettings.pitchSemitones ?? 0) - 1) })}
+                        disabled={(exportSettings.pitchSemitones ?? 0) <= -6}
+                        className={`w-10 h-10 rounded-lg font-bold text-lg transition-all disabled:opacity-30 ${isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-200 text-gray-900 hover:bg-gray-300'}`}
+                      >
+                        -
+                      </button>
+                      <div className="text-center">
+                        <p className={`text-xl font-bold ${(exportSettings.pitchSemitones ?? 0) === 0 ? (isDark ? 'text-white' : 'text-gray-900') : 'text-cyan-400'}`}>
+                          {(exportSettings.pitchSemitones ?? 0) > 0 ? `+${exportSettings.pitchSemitones}` : (exportSettings.pitchSemitones ?? 0)}
+                        </p>
+                        <p className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          {(exportSettings.pitchSemitones ?? 0) === 0
+                            ? 'Original key'
+                            : `${Math.abs(exportSettings.pitchSemitones)} half step${Math.abs(exportSettings.pitchSemitones) === 1 ? '' : 's'} ${(exportSettings.pitchSemitones ?? 0) > 0 ? 'up' : 'down'}`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => updateExportSettings({ pitchSemitones: Math.min(6, (exportSettings.pitchSemitones ?? 0) + 1) })}
+                        disabled={(exportSettings.pitchSemitones ?? 0) >= 6}
+                        className={`w-10 h-10 rounded-lg font-bold text-lg transition-all disabled:opacity-30 ${isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-200 text-gray-900 hover:bg-gray-300'}`}
+                      >
+                        +
+                      </button>
+                    </div>
+                    <p className={`text-[10px] mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      Applied on export. The preview plays in the original key.
+                    </p>
+                  </div>
+
+                  {/* V20: Speed */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Speed: <span className={(exportSettings.speedRate ?? 1.0) === 1.0 ? '' : 'text-cyan-400'}>{Math.round((exportSettings.speedRate ?? 1.0) * 100)}%</span>
+                    </label>
+                    <input
+                      type="range"
+                      min="0.75"
+                      max="1.25"
+                      step="0.01"
+                      value={exportSettings.speedRate ?? 1.0}
+                      onChange={(e) => updateExportSettings({ speedRate: parseFloat(e.target.value) })}
+                      className="w-full accent-cyan-500"
+                    />
+                    <div className={`flex justify-between items-center text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      <span>75%</span>
+                      <button
+                        onClick={() => updateExportSettings({ speedRate: 1.0 })}
+                        className="underline hover:text-cyan-400 transition-colors"
+                      >
+                        Reset to 100%
+                      </button>
+                      <span>125%</span>
+                    </div>
+                    <p className={`text-[10px] mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      The preview plays at this speed. Lyric timing auto-adjusts on export.
+                    </p>
                   </div>
 
                   {/* Credit Cost Calculator */}

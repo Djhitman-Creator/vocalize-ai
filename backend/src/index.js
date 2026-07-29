@@ -120,6 +120,10 @@ app.use(cors({
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
+  // V20: Exempt machine-to-machine webhook/cron routes from the user rate limit.
+  // A burst of user traffic must never cause a RunPod or Stripe callback to be
+  // dropped (a dropped RunPod callback strands a finished project on "processing").
+  skip: (req) => req.originalUrl.startsWith('/api/webhooks/') || req.originalUrl.startsWith('/api/cron/'),
 });
 app.use(limiter);
 
@@ -343,6 +347,12 @@ async function sendToRunPod(projectId, audioUrl, options) {
         processed_audio_url: options.processed_audio_url || null,
         vocals_audio_url: options.vocals_audio_url || null,
         edited_lyrics: options.edited_lyrics || null,
+
+        // V20: Key change (half steps, -6..+6) and speed (0.75..1.25).
+        // Pitch preserves duration (lyric timing unaffected); speed scales
+        // all word timestamps in the worker by 1/speed_rate.
+        pitch_semitones: options.pitch_semitones ?? 0,
+        speed_rate: options.speed_rate ?? 1.0,
       },
     },
     {
@@ -2207,6 +2217,17 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
     // resolution and Queue/Instant mode). First render pays the full per-track
     // cost; re-rendering a completed project costs ~50%.
     const exportMode = String(req.body.export_mode || 'queue').toLowerCase();
+
+    // V20: Key / speed adjustments from the editor, clamped server-side.
+    // Falls back to the last values saved on the project, then to neutral.
+    let pitchSemitones = parseInt(req.body.pitch_semitones, 10);
+    if (isNaN(pitchSemitones)) pitchSemitones = project.pitch_semitones || 0;
+    pitchSemitones = Math.max(-6, Math.min(6, pitchSemitones));
+
+    let speedRate = parseFloat(req.body.speed_rate);
+    if (isNaN(speedRate)) speedRate = project.speed_rate || 1.0;
+    speedRate = Math.max(0.75, Math.min(1.25, Math.round(speedRate * 100) / 100));
+
     const isReRender = project.status === 'completed';
     const fullCost = calculateCreditsNeeded({
       video_quality: project.video_quality,
@@ -2230,6 +2251,16 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
         render_started_at: new Date().toISOString(),
       })
       .eq('id', project.id);
+
+    // V20: Persist chosen key/speed as a separate best-effort update so a
+    // missing column (migration not yet run) can never block the render itself.
+    const { error: pitchSaveError } = await supabase
+      .from('projects')
+      .update({ pitch_semitones: pitchSemitones, speed_rate: speedRate })
+      .eq('id', project.id);
+    if (pitchSaveError) {
+      console.error('Could not persist pitch/speed (run the V20 migration?):', pitchSaveError.message);
+    }
 
     // NEW: Get user's subscription tier for watermark logic
     const userProfile = await getUserProfile(req.user.id);
@@ -2274,6 +2305,9 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       processed_audio_url: project.processed_audio_url,
       vocals_audio_url: project.vocals_audio_url,
       edited_lyrics: edited_lyrics,
+      // V20: Key / speed adjustments
+      pitch_semitones: pitchSemitones,
+      speed_rate: speedRate,
       // Audio track the user chose in the editor: 'instrumental' | 'guide' | 'original'
       audio_track: project.audio_track || 'instrumental',
       // Subscription tier (logging) + purchase flag for watermark logic
