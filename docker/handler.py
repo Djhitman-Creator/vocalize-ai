@@ -878,6 +878,70 @@ def add_silence_to_audio(audio_path, silence_duration, output_path):
     return output_path
 
 
+def post_callback(callback_url, payload, max_attempts=3, timeout=20):
+    """Send a status callback to the backend with timeout + retries.
+
+    V20: A single dropped callback used to strand a finished project on
+    'processing' forever. Retry a few times with backoff before giving up.
+    """
+    for attempt in range(1, max_attempts + 1):
+        try:
+            resp = requests.post(callback_url, json=payload, timeout=timeout)
+            resp.raise_for_status()
+            print(f"    Callback delivered (attempt {attempt})")
+            return True
+        except Exception as cb_err:
+            print(f"    Callback attempt {attempt}/{max_attempts} failed: {cb_err}")
+            if attempt < max_attempts:
+                time.sleep(5 * attempt)
+    print("    WARNING: all callback attempts failed")
+    return False
+
+
+def apply_pitch_speed(input_path, output_path, semitones=0, speed=1.0):
+    """Apply a key change (half steps) and/or tempo change with FFmpeg.
+
+    V20: Pitch shift preserves duration, so lyric timing is unaffected.
+    Speed (atempo) preserves pitch; callers must rescale timestamps by 1/speed.
+    The combined atempo factor stays inside FFmpeg's 0.5-2.0 single-pass range
+    for the allowed inputs (semitones -6..6, speed 0.75..1.25).
+    """
+    semitones = max(-6, min(6, int(semitones)))
+    speed = max(0.75, min(1.25, float(speed)))
+
+    if semitones == 0 and abs(speed - 1.0) < 0.001:
+        return input_path
+
+    filters = []
+    tempo_factor = speed
+    if semitones != 0:
+        pitch_factor = 2.0 ** (semitones / 12.0)
+        new_rate = int(SAMPLE_RATE * pitch_factor)
+        filters.append(f"asetrate={new_rate}")
+        filters.append(f"aresample={SAMPLE_RATE}")
+        # asetrate also sped the audio up by pitch_factor; fold the correction
+        # into a single atempo together with the requested speed change.
+        tempo_factor = speed / pitch_factor
+
+    if abs(tempo_factor - 1.0) > 0.001:
+        filters.append(f"atempo={tempo_factor:.6f}")
+
+    filter_chain = ",".join(filters) if filters else "anull"
+
+    print(f"    Applying key/speed: {semitones:+d} semitones, {speed}x speed")
+    cmd = [
+        'ffmpeg', '-y', '-i', input_path,
+        '-filter:a', filter_chain,
+        '-ar', str(SAMPLE_RATE),
+        '-ac', '2',
+        '-c:a', 'pcm_s16le',
+        output_path
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
+    print(f"    Key/speed applied: {output_path}")
+    return output_path
+
+
 # Global variable to cache the watermark logo
 _watermark_logo_cache = None
 _custom_watermark_cache = {}  # Cache custom watermarks by URL
@@ -1332,7 +1396,14 @@ def transcribe_with_assemblyai(audio_path, user_lyrics_text=None):
     print("   Waiting for transcription to complete...")
     polling_url = f"{ASSEMBLYAI_TRANSCRIPT_URL}/{transcript_id}"
     
+    # V20: Cap polling at ~10 minutes so a stuck transcript cannot keep the
+    # GPU worker billing forever; a timeout raises and triggers the failure path.
+    max_polls = 200  # 200 polls x 3s sleep = ~10 minutes
+    polls = 0
     while True:
+        polls += 1
+        if polls > max_polls:
+            raise Exception("AssemblyAI transcription timed out after ~10 minutes")
         poll_response = requests.get(polling_url, headers=headers)
         poll_response.raise_for_status()
         result = poll_response.json()
@@ -3436,6 +3507,19 @@ def handler(event):
         
         clean_version_raw = input_data.get('clean_version', False)
         clean_version = clean_version_raw in [True, 'true', 'True', '1', 1]
+
+        # V20: Key change (half steps) and speed adjustment from the editor
+        try:
+            pitch_semitones = int(input_data.get('pitch_semitones', 0) or 0)
+        except (TypeError, ValueError):
+            pitch_semitones = 0
+        pitch_semitones = max(-6, min(6, pitch_semitones))
+        try:
+            speed_rate = float(input_data.get('speed_rate', 1.0) or 1.0)
+        except (TypeError, ValueError):
+            speed_rate = 1.0
+        speed_rate = max(0.75, min(1.25, speed_rate))
+        print(f"    Key/speed: {pitch_semitones:+d} semitones, {speed_rate}x speed")
         
         # Get subscription tier (for logging) and purchase flag for watermark logic
         subscription_tier = input_data.get('subscription_tier', 'free')
@@ -3738,7 +3822,7 @@ def handler(event):
                 
                 if callback_url:
                     print(f" Sending callback to {callback_url}")
-                    requests.post(callback_url, json={
+                    post_callback(callback_url, {
                         'project_id': project_id,
                         'status': 'transcribed',
                         'results': results
@@ -3755,6 +3839,31 @@ def handler(event):
                 }
         
         # VIDEO GENERATION (for 'full' or 'render_only' modes)
+
+        # V20: Apply key (pitch) and speed adjustments to the export audio.
+        # Applied after separation/transcription so timestamps stay accurate
+        # and re-renders with a new key never re-run Demucs.
+        if pitch_semitones != 0 or abs(speed_rate - 1.0) > 0.001:
+            source_audio = instrumental_path if instrumental_path else audio_path
+            shifted_audio = os.path.join(work_dir, 'render_audio_shifted.wav')
+            apply_pitch_speed(source_audio, shifted_audio, pitch_semitones, speed_rate)
+            instrumental_path = shifted_audio
+            audio_path = shifted_audio
+
+            # Speed changes the track duration, so rescale every word and gap
+            # timestamp by 1/speed to keep the lyrics perfectly in sync.
+            if abs(speed_rate - 1.0) > 0.001:
+                for w in lyrics:
+                    if 'start' in w:
+                        w['start'] = w['start'] / speed_rate
+                    if 'end' in w:
+                        w['end'] = w['end'] / speed_rate
+                for g in gaps:
+                    for k in ('start', 'end', 'duration'):
+                        if k in g:
+                            g[k] = g[k] / speed_rate
+                print(f"    Timestamps rescaled for {speed_rate}x speed")
+
         audio_duration = get_audio_duration(instrumental_path if instrumental_path else audio_path)
         
         selected_display_mode = select_display_mode(lyrics, audio_duration, display_mode)
@@ -3800,7 +3909,7 @@ def handler(event):
         
         if callback_url:
             print(f" Sending callback to {callback_url}")
-            requests.post(callback_url, json={
+            post_callback(callback_url, {
                 'project_id': project_id,
                 'status': 'completed',
                 'results': results
@@ -3822,7 +3931,7 @@ def handler(event):
         traceback.print_exc()
         
         if callback_url:
-            requests.post(callback_url, json={
+            post_callback(callback_url, {
                 'project_id': project_id,
                 'status': 'failed',
                 'error': str(e)
