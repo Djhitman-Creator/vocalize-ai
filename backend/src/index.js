@@ -810,6 +810,8 @@ app.post('/api/chat', authMiddleware, async (req, res) => {
 6. A karaoke video is generated with scrolling lyrics
 7. User downloads the finished MP4 video
 
+In the editor's Export tab, users can also change the song's KEY (up to 6 half steps up or down) and SPEED (75% to 125%) before rendering. Lyric timing adjusts automatically.
+
 ## PRICING MODEL
 Karatrack uses a universal credit system - all features are available to everyone!
 
@@ -856,6 +858,12 @@ Upgrade to Starter ($9.99/mo) or higher to remove the Karatrack watermark from y
 
 **"Can I edit the lyrics after uploading?"**
 Pro and Studio subscribers can review and edit lyrics timing before the final video is rendered.
+
+**"Can I change the key of the song?"**
+Yes! Open your project in the editor, then click the Export tab. Use the Key Change control to move the song up or down by up to 6 half steps - great for matching your vocal range. The key change is applied when the video is exported (the editor preview plays in the original key). Lyric timing is not affected.
+
+**"Can I change the speed / tempo of the song?"**
+Yes! In the editor's Export tab, drag the Speed slider anywhere from 75% to 125%. The editor preview plays at the new speed right away so you can hear it, and the pitch is NOT affected (no chipmunk effect). Lyric timing automatically adjusts to match the new speed when the video is exported. Key and speed can be combined, and you can re-render an existing track with a new key or speed (re-renders cost ~50%).
 
 **"What audio formats are supported?"**
 MP3, WAV, and FLAC files up to 500MB.
@@ -964,6 +972,8 @@ app.post('/api/chat/guest', async (req, res) => {
 3. Choose video quality and style options
 4. AI removes vocals and syncs lyrics automatically
 5. Download your finished karaoke video (MP4)
+
+Extras: in the editor's Export tab you can change the song's key (up to 6 half steps up or down) and speed (75% to 125%) before rendering - lyric timing adjusts automatically.
 
 ## PRICING
 Karatrack uses a simple credit system - all features available to everyone!
