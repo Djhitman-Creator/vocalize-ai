@@ -65,7 +65,7 @@ const subscriptionPlans = [
 ];
 
 // ============================================
-// QUALITY TIERS â€” credits per minute
+// QUALITY TIERS - credits per track by resolution
 // Re-render = ~50% of original cost
 // ============================================
 const qualityTiers = [
@@ -76,7 +76,7 @@ const qualityTiers = [
 ];
 
 // ============================================
-// FEATURES â€” everything included
+// FEATURES - everything included
 // ============================================
 const includedFeatures = [
   { icon: Music,           text: 'AI vocal removal' },
@@ -101,7 +101,7 @@ const includedFeatures = [
 const faqItems = [
   {
     question: 'How do credits work?',
-    answer: 'Credits are charged per track based on video quality and speed. A 720p export in Queue mode costs 19 credits (Instant costs double) \Any song length. You can preview and customize your video unlimited times before spending credits on export.'
+    answer: 'Credits are charged per track based on video quality and speed. A 720p export in Queue mode costs 19 credits (Instant costs double) \u2014 any song length. You can preview and customize your video unlimited times before spending credits on export.'
   },
   {
     question: 'What\u2019s the difference between credit packs and a subscription?',
@@ -432,7 +432,7 @@ export default function Pricing() {
                     Subscribe & Save
                   </h3>
                   <p className={`mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Credits reload every month â€” save versus buying credit packs
+                    Credits reload every month &mdash; save versus buying credit packs
                   </p>
                 </div>
 
