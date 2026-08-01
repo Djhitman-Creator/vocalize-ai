@@ -3156,10 +3156,16 @@ def wrap_dedication_lines(draw, text, font, max_width):
     return lines
 
 
-def draw_dedication_text(frame, outro_text, width, height, colors, outro_font_size, elapsed, time_remaining):
-    """V21: Draw the outro dedication overlay - multi-paragraph, auto-wrapped,
-    auto-shrunk to fit the frame - with fade-in at the start and fade-out at
-    the very end. Works over any background (gradient/image/video)."""
+def draw_dedication_text(frame, outro_text, width, height, colors, outro_font_size, elapsed, time_remaining, outro_duration=10):
+    """V21.1: Draw the outro dedication overlay - multi-paragraph, auto-wrapped,
+    plain text (no lyric highlighting).
+
+    Short dedications are centered and static. Long dedications scroll upward
+    credits-style at a steady rate, timed so the ENTIRE message passes through
+    within the outro duration: hold during the 1s fade-in, scroll through the
+    middle, then hold on the last lines while fading out. The font is never
+    shrunk below a readable size - overflow is handled by scrolling instead.
+    Works over any background (gradient/image/video)."""
     alpha = min(1.0, elapsed / OUTRO_TEXT_FADE_IN)
     if time_remaining < OUTRO_TEXT_FADE_OUT:
         alpha = min(alpha, max(0.0, time_remaining / OUTRO_TEXT_FADE_OUT))
@@ -3174,39 +3180,58 @@ def draw_dedication_text(frame, outro_text, width, height, colors, outro_font_si
     custom_font_path = colors.get('custom_font_path') if colors else None
     text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
 
-    max_text_width = int(width * 0.82)
-    max_text_height = int(height * 0.80)
     font_px = max(12, int(48 * scale * size_mult))
-    min_px = max(12, int(16 * scale))
+    line_height = int(font_px * 1.45)
+    max_text_width = int(width * 0.82)
 
     measure = ImageDraw.Draw(frame)
-    # Shrink the font until the wrapped block fits on screen
-    while True:
-        font = get_font(font_px, font_name, custom_font_path)
-        lines = wrap_dedication_lines(measure, outro_text, font, max_text_width)
-        line_height = int(font_px * 1.45)
-        block_height = len(lines) * line_height
-        if block_height <= max_text_height or font_px <= min_px:
-            break
-        font_px = max(min_px, int(font_px * 0.9))
+    font = get_font(font_px, font_name, custom_font_path)
+    lines = wrap_dedication_lines(measure, outro_text, font, max_text_width)
+    block_height = len(lines) * line_height
 
-    start_y = max(int(height * 0.10), (height - block_height) // 2)
+    # Visible band the text lives in (margins above and below)
+    band_top = int(height * 0.12)
+    band_height = int(height * 0.76)
 
-    # Draw on a transparent overlay so the fade works over any background
-    overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-    overlay_draw = ImageDraw.Draw(overlay)
+    if block_height <= band_height:
+        # STATIC: short dedication - center the block inside the band
+        scroll_offset = -((band_height - block_height) // 2)
+    else:
+        # SCROLL: credits-style upward scroll at a steady rate, timed to
+        # complete within the outro. progress 0 -> 1 maps to the full
+        # scroll distance so nothing is ever cut off.
+        scroll_distance = block_height - band_height
+        scroll_start = OUTRO_TEXT_FADE_IN
+        scroll_end = max(scroll_start + 0.5, outro_duration - OUTRO_TEXT_FADE_OUT - 0.5)
+        if elapsed <= scroll_start:
+            progress = 0.0
+        elif elapsed >= scroll_end:
+            progress = 1.0
+        else:
+            progress = (elapsed - scroll_start) / (scroll_end - scroll_start)
+        scroll_offset = int(progress * scroll_distance)
+
+    # Draw the visible slice of the text block into a band-sized layer.
+    # PIL clips anything outside the layer, so lines slide cleanly in and
+    # out at the band edges while scrolling.
     a = int(255 * alpha)
     shadow_offset = max(1, int(2 * scale))
+    band = Image.new('RGBA', (width, band_height), (0, 0, 0, 0))
+    band_draw = ImageDraw.Draw(band)
     for i, line in enumerate(lines):
         if not line:
             continue  # blank line = paragraph spacing
-        line_y = start_y + i * line_height
-        bbox = overlay_draw.textbbox((0, 0), line, font=font)
+        line_y = i * line_height - scroll_offset
+        if line_y < -line_height or line_y > band_height:
+            continue  # fully off-screen
+        bbox = band_draw.textbbox((0, 0), line, font=font)
         text_x = (width - (bbox[2] - bbox[0])) // 2
         # Soft shadow for readability on image/video backgrounds
-        overlay_draw.text((text_x + shadow_offset, line_y + shadow_offset), line, font=font, fill=(0, 0, 0, int(a * 0.6)))
-        overlay_draw.text((text_x, line_y), line, font=font, fill=(text_color[0], text_color[1], text_color[2], a))
+        band_draw.text((text_x + shadow_offset, line_y + shadow_offset), line, font=font, fill=(0, 0, 0, int(a * 0.6)))
+        band_draw.text((text_x, line_y), line, font=font, fill=(text_color[0], text_color[1], text_color[2], a))
 
+    overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    overlay.paste(band, (0, band_top))
     return Image.alpha_composite(frame.convert('RGBA'), overlay).convert('RGB')
 
 
@@ -3488,7 +3513,8 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
                 colors,
                 outro_font_size,
                 current_time - outro_start,
-                total_duration - current_time
+                total_duration - current_time,
+                outro_duration
             )
         else:
             # Check if we're in a countdown period

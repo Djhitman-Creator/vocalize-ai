@@ -4646,7 +4646,7 @@ export default function SharePage() {
                           {brandingSettings.outroText}
                         </p>
                         <p className="absolute bottom-2 left-0 right-0 text-center text-[10px] text-gray-400">
-                          Dedication {String.fromCharCode(8226)} plays for {brandingSettings.outroDuration || 10}s after the track ends in the exported video
+                          Dedication {String.fromCharCode(8226)} plays for {brandingSettings.outroDuration || 10}s after the track ends in the exported video{brandingSettings.outroText.length > 200 ? ` ${String.fromCharCode(8226)} long text scrolls credits-style` : ''}
                         </p>
                       </div>
                     )}
@@ -6294,11 +6294,24 @@ export default function SharePage() {
                             style={{ background: `linear-gradient(to right, #06b6d4 ${(((brandingSettings.outroDuration || 10) - 5) / 55) * 100}%, ${isDark ? '#374151' : '#d1d5db'} ${(((brandingSettings.outroDuration || 10) - 5) / 55) * 100}%)` }}
                           />
                         </div>
-                        {brandingSettings.outroText.trim() && (
-                          <p className={`text-[10px] mt-2 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
-                            +5 credits at export (adds up to 60s of extra footage after the track)
-                          </p>
-                        )}
+                        {brandingSettings.outroText.trim() && (() => {
+                          const dedicationWords = brandingSettings.outroText.trim().split(/\s+/).length;
+                          // ~180 words per minute reading pace = 3 words/second
+                          const readSeconds = Math.min(60, Math.max(5, Math.ceil(dedicationWords / 3)));
+                          const needsMoreTime = (brandingSettings.outroDuration || 10) < readSeconds;
+                          return (
+                            <>
+                              <p className={`text-[10px] mt-2 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                                +5 credits at export (adds up to 60s of extra footage after the track)
+                              </p>
+                              <p className={`text-[10px] mt-1 ${needsMoreTime ? 'text-red-400' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                {needsMoreTime
+                                  ? `Tip: this dedication needs ~${readSeconds}s to read at a comfortable pace - increase the duration or it will scroll quickly`
+                                  : `Long dedications scroll credits-style automatically (~${readSeconds}s comfortable read time)`}
+                              </p>
+                            </>
+                          );
+                        })()}
                       </div>
 
                       {/* Branding Error */}
