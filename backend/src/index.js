@@ -1052,7 +1052,9 @@ app.post('/api/profile/watermark', authMiddleware, upload.single('watermark'), a
     }
 
     // Upload watermark to R2
-    const watermarkKey = `watermarks/${req.user.id}/default-watermark${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached image
+    const watermarkExt = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
+    const watermarkKey = `watermarks/${req.user.id}/default-watermark-${Date.now()}${watermarkExt}`;
     const watermarkUrl = await uploadToR2(req.file.buffer, watermarkKey, req.file.mimetype);
     console.log(`Default watermark uploaded for user ${req.user.id}: ${watermarkUrl}`);
 
@@ -1529,7 +1531,9 @@ app.post('/api/projects/:id/thumbnail', authMiddleware, upload.single('thumbnail
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    const fileKey = `thumbnails/${req.user.id}/${req.params.id}-thumbnail${file.originalname.substring(file.originalname.lastIndexOf('.'))}`;
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached image
+    const thumbExt = file.originalname.substring(file.originalname.lastIndexOf('.'));
+    const fileKey = `thumbnails/${req.user.id}/${req.params.id}-thumbnail-${Date.now()}${thumbExt}`;
     const fileUrl = await uploadToR2(file.buffer, fileKey, file.mimetype);
 
     const { data: updated, updateError } = await supabase
@@ -1575,7 +1579,9 @@ app.post('/api/upload-logo', authMiddleware, upload.single('logo'), async (req, 
     // V15: All features available to everyone - no tier check needed
 
     // Upload logo to R2
-    const logoKey = `logos/${req.user.id}/${projectId}-logo${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached image
+    const logoExt = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
+    const logoKey = `logos/${req.user.id}/${projectId}-logo-${Date.now()}${logoExt}`;
     const logoUrl = await uploadToR2(req.file.buffer, logoKey, req.file.mimetype);
     console.log(`Logo uploaded for project ${projectId}: ${logoUrl}`);
 
@@ -1623,8 +1629,9 @@ app.post('/api/upload-background-image', authMiddleware, upload.single('image'),
       return res.status(400).json({ error: 'No image file provided' });
     }
 
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached image
     const ext = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
-    const imageKey = `backgrounds/${req.user.id}/${projectId}-bg-image${ext}`;
+    const imageKey = `backgrounds/${req.user.id}/${projectId}-bg-image-${Date.now()}${ext}`;
     const imageUrl = await uploadToR2(req.file.buffer, imageKey, req.file.mimetype);
     console.log(`Background image uploaded for project ${projectId}: ${imageUrl}`);
 
@@ -1667,8 +1674,9 @@ app.post('/api/upload-background-video', authMiddleware, upload.single('video'),
       return res.status(400).json({ error: 'No video file provided' });
     }
 
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached video
     const ext = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
-    const videoKey = `backgrounds/${req.user.id}/${projectId}-bg-video${ext}`;
+    const videoKey = `backgrounds/${req.user.id}/${projectId}-bg-video-${Date.now()}${ext}`;
     const videoUrl = await uploadToR2(req.file.buffer, videoKey, req.file.mimetype);
     console.log(`Background video uploaded for project ${projectId}: ${videoUrl}`);
 
@@ -1714,7 +1722,9 @@ app.post('/api/upload-start-image', authMiddleware, upload.single('startImage'),
     }
 
     // Upload start image to R2
-    const imageKey = `start-images/${req.user.id}/${projectId}-start${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached image
+    const startExt = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
+    const imageKey = `start-images/${req.user.id}/${projectId}-start-${Date.now()}${startExt}`;
     const imageUrl = await uploadToR2(req.file.buffer, imageKey, req.file.mimetype);
     console.log(`Start image uploaded for project ${projectId}: ${imageUrl}`);
 
@@ -1779,7 +1789,8 @@ app.post('/api/upload-font', authMiddleware, upload.single('font'), async (req, 
     const contentType = contentTypes[ext] || 'application/octet-stream';
 
     // Upload font to R2
-    const fontKey = `fonts/${req.user.id}/${projectId}-font${ext}`;
+    // Unique filename per upload (timestamp) so browsers/CDN never serve a stale cached font
+    const fontKey = `fonts/${req.user.id}/${projectId}-font-${Date.now()}${ext}`;
     const fontUrl = await uploadToR2(req.file.buffer, fontKey, contentType);
     console.log(`Font uploaded for project ${projectId}: ${fontUrl}`);
 
