@@ -1034,122 +1034,6 @@ export default function PreviewEditPage() {
     }
   }, [id, router, updateBrandingSettings]);
 
-  // V22: Custom instrumental (clean backing track swap) upload state
-  const [customInstrumentalUploading, setCustomInstrumentalUploading] = useState(false);
-  const [customInstrumentalError, setCustomInstrumentalError] = useState(null);
-  const [customInstrumentalWarning, setCustomInstrumentalWarning] = useState(null);
-
-  // V22: Probe an audio file's duration client-side (resolves null on failure)
-  const probeAudioDuration = useCallback((file) => {
-    return new Promise((resolve) => {
-      const objectUrl = URL.createObjectURL(file);
-      const audio = new Audio();
-      const finish = (value) => {
-        URL.revokeObjectURL(objectUrl);
-        resolve(value);
-      };
-      audio.addEventListener('loadedmetadata', () => {
-        finish(Number.isFinite(audio.duration) ? audio.duration : null);
-      });
-      audio.addEventListener('error', () => finish(null));
-      audio.src = objectUrl;
-    });
-  }, []);
-
-  // V22: Handle custom instrumental upload
-  const handleCustomInstrumentalUpload = useCallback(async (e) => {
-    const input = e.target;
-    const file = input.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('audio/')) {
-      setCustomInstrumentalError('Please upload an audio file (MP3, WAV, FLAC, etc.)');
-      input.value = '';
-      return;
-    }
-
-    setCustomInstrumentalUploading(true);
-    setCustomInstrumentalError(null);
-    setCustomInstrumentalWarning(null);
-
-    // Length check: warn (but never block) if this file's duration differs from the original track
-    try {
-      const probedDuration = await probeAudioDuration(file);
-      if (probedDuration && duration && Math.abs(probedDuration - duration) > 1) {
-        const diff = Math.abs(probedDuration - duration).toFixed(1);
-        const direction = probedDuration > duration ? 'longer' : 'shorter';
-        setCustomInstrumentalWarning(`This file is ${diff}s ${direction} than your original track - lyrics may drift out of sync. Make sure it's the identical arrangement.`);
-      }
-    } catch (probeErr) { /* non-fatal - never block the upload */ }
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/login'); return; }
-
-      const formData = new FormData();
-      formData.append('instrumental', file);
-      formData.append('projectId', id);
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-custom-instrumental`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${session.access_token}` },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to upload instrumental');
-      }
-
-      const result = await response.json();
-      setProject(prev => ({
-        ...prev,
-        custom_instrumental_url: result.customInstrumentalUrl,
-        custom_instrumental_name: result.customInstrumentalName,
-      }));
-    } catch (err) {
-      console.error('Custom instrumental upload error:', err);
-      setCustomInstrumentalError(err.message || 'Failed to upload instrumental');
-    } finally {
-      setCustomInstrumentalUploading(false);
-      input.value = '';
-    }
-  }, [id, router, duration, probeAudioDuration]);
-
-  // V22: Remove custom instrumental (revert to AI-separated backing track)
-  const handleRemoveCustomInstrumental = useCallback(async () => {
-    setCustomInstrumentalError(null);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.push('/login'); return; }
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/remove-custom-instrumental`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ projectId: id }),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to remove instrumental');
-      }
-
-      setProject(prev => ({
-        ...prev,
-        custom_instrumental_url: null,
-        custom_instrumental_name: null,
-      }));
-      setCustomInstrumentalWarning(null);
-      setCustomInstrumentalError(null);
-    } catch (err) {
-      console.error('Remove custom instrumental error:', err);
-      setCustomInstrumentalError(err.message || 'Failed to remove instrumental');
-    }
-  }, [id, router]);
-
   // V11: Update style settings helper
   const updateStyleSettings = useCallback((updates) => {
     setStyleSettings(prev => ({ ...prev, ...updates }));
@@ -1728,6 +1612,122 @@ export default function PreviewEditPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+
+  // V22: Custom instrumental (clean backing track swap) upload state
+  const [customInstrumentalUploading, setCustomInstrumentalUploading] = useState(false);
+  const [customInstrumentalError, setCustomInstrumentalError] = useState(null);
+  const [customInstrumentalWarning, setCustomInstrumentalWarning] = useState(null);
+
+  // V22: Probe an audio file's duration client-side (resolves null on failure)
+  const probeAudioDuration = useCallback((file) => {
+    return new Promise((resolve) => {
+      const objectUrl = URL.createObjectURL(file);
+      const audio = new Audio();
+      const finish = (value) => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(value);
+      };
+      audio.addEventListener('loadedmetadata', () => {
+        finish(Number.isFinite(audio.duration) ? audio.duration : null);
+      });
+      audio.addEventListener('error', () => finish(null));
+      audio.src = objectUrl;
+    });
+  }, []);
+
+  // V22: Handle custom instrumental upload
+  const handleCustomInstrumentalUpload = useCallback(async (e) => {
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('audio/')) {
+      setCustomInstrumentalError('Please upload an audio file (MP3, WAV, FLAC, etc.)');
+      input.value = '';
+      return;
+    }
+
+    setCustomInstrumentalUploading(true);
+    setCustomInstrumentalError(null);
+    setCustomInstrumentalWarning(null);
+
+    // Length check: warn (but never block) if this file's duration differs from the original track
+    try {
+      const probedDuration = await probeAudioDuration(file);
+      if (probedDuration && duration && Math.abs(probedDuration - duration) > 1) {
+        const diff = Math.abs(probedDuration - duration).toFixed(1);
+        const direction = probedDuration > duration ? 'longer' : 'shorter';
+        setCustomInstrumentalWarning(`This file is ${diff}s ${direction} than your original track - lyrics may drift out of sync. Make sure it's the identical arrangement.`);
+      }
+    } catch (probeErr) { /* non-fatal - never block the upload */ }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const formData = new FormData();
+      formData.append('instrumental', file);
+      formData.append('projectId', id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-custom-instrumental`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to upload instrumental');
+      }
+
+      const result = await response.json();
+      setProject(prev => ({
+        ...prev,
+        custom_instrumental_url: result.customInstrumentalUrl,
+        custom_instrumental_name: result.customInstrumentalName,
+      }));
+    } catch (err) {
+      console.error('Custom instrumental upload error:', err);
+      setCustomInstrumentalError(err.message || 'Failed to upload instrumental');
+    } finally {
+      setCustomInstrumentalUploading(false);
+      input.value = '';
+    }
+  }, [id, router, duration, probeAudioDuration]);
+
+  // V22: Remove custom instrumental (revert to AI-separated backing track)
+  const handleRemoveCustomInstrumental = useCallback(async () => {
+    setCustomInstrumentalError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/remove-custom-instrumental`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ projectId: id }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to remove instrumental');
+      }
+
+      setProject(prev => ({
+        ...prev,
+        custom_instrumental_url: null,
+        custom_instrumental_name: null,
+      }));
+      setCustomInstrumentalWarning(null);
+      setCustomInstrumentalError(null);
+    } catch (err) {
+      console.error('Remove custom instrumental error:', err);
+      setCustomInstrumentalError(err.message || 'Failed to remove instrumental');
+    }
+  }, [id, router]);
 
   // Volume state - NEW in V10.8
   const [instrumentalVolume, setInstrumentalVolume] = useState(100);
