@@ -336,6 +336,7 @@ async function sendToRunPod(projectId, audioUrl, options) {
 
         // Subscription tier for watermark logic
         subscription_tier: options.subscription_tier || 'free',
+        has_ever_paid: options.has_ever_paid || false,
 
         // Studio branding - Logo settings (V12)
         logo_url: options.logo_url || null,
@@ -2613,7 +2614,8 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
               .from('profiles')
               .update({
                 subscription_credits_per_month: credits_per_month,
-                subscription_billing_cycle: billing_cycle
+                subscription_billing_cycle: billing_cycle,
+                has_ever_paid: true
               })
               .eq('id', req.user.id);
             
@@ -3063,6 +3065,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
                 subscription_credits_per_month: plan.credits_per_month,
                 subscription_billing_cycle: plan.billing_cycle,
                 stripe_subscription_id: subscription.id,
+                has_ever_paid: true,
               })
               .eq('id', profile.id);
 
