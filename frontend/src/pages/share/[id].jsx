@@ -6282,7 +6282,7 @@ export default function SharePage() {
                           value={brandingSettings.outroText}
                           onChange={(e) => updateBrandingSettings({ outroText: e.target.value })}
                           placeholder={"Leave a dedication message...\n\nThis song goes out to someone special. Write as many paragraphs as you like - they'll appear on screen after the track finishes."}
-                          maxLength={1000}
+                          maxLength={2500}
                           rows={6}
                           className={`w-full px-3 py-2 rounded-lg text-sm border resize-y ${isDark ? 'bg-white/10 border-white/10 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'}`}
                         />
@@ -6291,7 +6291,7 @@ export default function SharePage() {
                             Shown after the track ends
                           </span>
                           <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            {brandingSettings.outroText.length}/1000
+                            {brandingSettings.outroText.length}/2500
                           </span>
                         </div>
                         <div className="mt-2">
@@ -6312,7 +6312,7 @@ export default function SharePage() {
                         {brandingSettings.outroText.trim() && (() => {
                           const dedicationWords = brandingSettings.outroText.trim().split(/\s+/).length;
                           // ~180 words per minute reading pace = 3 words/second
-                          const readSeconds = Math.min(60, Math.max(5, Math.ceil(dedicationWords / 3)));
+                          const readSeconds = Math.max(5, Math.ceil(dedicationWords / 3));
                           const needsMoreTime = (brandingSettings.outroDuration || 10) < readSeconds;
                           return (
                             <>
