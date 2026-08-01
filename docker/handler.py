@@ -80,6 +80,8 @@ COLOR_COUNTDOWN = (255, 200, 0)  # Gold for countdown dots
 INTRO_DURATION = 4  # Reduced from 5 to 4 seconds
 FADEOUT_DURATION = 3  # Seconds to fade out lyrics at end
 OUTRO_TEXT_FADE_IN = 1.0  # Seconds to fade in outro text
+OUTRO_TEXT_FADE_OUT = 1.5  # V21: Seconds to fade out dedication at very end
+OUTRO_MAX_DURATION = 60   # V21: Max dedication length in seconds
 
 # Sweep highlighting constants (NEW in 6.0)
 SWEEP_IN_LONG_DURATION = 2.0  # Long sweep-in (2 seconds) for gaps >= 2s
@@ -875,6 +877,26 @@ def add_silence_to_audio(audio_path, silence_duration, output_path):
     
     subprocess.run(cmd, check=True, capture_output=True)
     print(f"    Audio with silence created: {output_path}")
+    return output_path
+
+
+def append_silence_to_audio(audio_path, silence_duration, output_path):
+    """V21: Add silence to the END of an audio file (for the outro dedication,
+    so the video can keep playing after the track has finished)."""
+    print(f"   Adding {silence_duration}s silence to end of audio...")
+
+    cmd = [
+        'ffmpeg', '-y',
+        '-i', audio_path,
+        '-f', 'lavfi', '-i', f'anullsrc=r=44100:cl=stereo:d={silence_duration}',
+        '-filter_complex', '[0:a][1:a]concat=n=2:v=0:a=1[out]',
+        '-map', '[out]',
+        '-c:a', 'pcm_s16le',
+        output_path
+    ]
+
+    subprocess.run(cmd, check=True, capture_output=True)
+    print(f"    Audio with trailing silence created: {output_path}")
     return output_path
 
 
@@ -3111,7 +3133,84 @@ def create_lyrics_frame_with_fade(current_time, lyrics, display_mode, width, hei
     return lyrics_frame
 
 
-def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None, logo_url=None, logo_position='bottom-right', logo_size=50, logo_opacity=80, start_image_url=None, start_image_fit='fill', start_image_opacity=100, start_image_show_title=True, has_ever_paid=False):
+def wrap_dedication_lines(draw, text, font, max_width):
+    """V21: Word-wrap multi-paragraph dedication text so every line fits
+    max_width. Blank lines are preserved as paragraph breaks."""
+    lines = []
+    for raw_line in text.strip().split('\n'):
+        raw_line = raw_line.strip()
+        if not raw_line:
+            lines.append('')
+            continue
+        current = ''
+        for word in raw_line.split():
+            candidate = f"{current} {word}".strip()
+            bbox = draw.textbbox((0, 0), candidate, font=font)
+            if (bbox[2] - bbox[0]) <= max_width or not current:
+                current = candidate
+            else:
+                lines.append(current)
+                current = word
+        if current:
+            lines.append(current)
+    return lines
+
+
+def draw_dedication_text(frame, outro_text, width, height, colors, outro_font_size, elapsed, time_remaining):
+    """V21: Draw the outro dedication overlay - multi-paragraph, auto-wrapped,
+    auto-shrunk to fit the frame - with fade-in at the start and fade-out at
+    the very end. Works over any background (gradient/image/video)."""
+    alpha = min(1.0, elapsed / OUTRO_TEXT_FADE_IN)
+    if time_remaining < OUTRO_TEXT_FADE_OUT:
+        alpha = min(alpha, max(0.0, time_remaining / OUTRO_TEXT_FADE_OUT))
+    if alpha <= 0:
+        return frame
+
+    scale = width / 1920
+    size_multipliers = {'small': 0.75, 'normal': 1.0, 'medium': 1.0, 'large': 1.25}
+    size_mult = size_multipliers.get(str(outro_font_size or 'normal').lower(), 1.0)
+
+    font_name = colors.get('font', 'arial') if colors else 'arial'
+    custom_font_path = colors.get('custom_font_path') if colors else None
+    text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
+
+    max_text_width = int(width * 0.82)
+    max_text_height = int(height * 0.80)
+    font_px = max(12, int(48 * scale * size_mult))
+    min_px = max(12, int(16 * scale))
+
+    measure = ImageDraw.Draw(frame)
+    # Shrink the font until the wrapped block fits on screen
+    while True:
+        font = get_font(font_px, font_name, custom_font_path)
+        lines = wrap_dedication_lines(measure, outro_text, font, max_text_width)
+        line_height = int(font_px * 1.45)
+        block_height = len(lines) * line_height
+        if block_height <= max_text_height or font_px <= min_px:
+            break
+        font_px = max(min_px, int(font_px * 0.9))
+
+    start_y = max(int(height * 0.10), (height - block_height) // 2)
+
+    # Draw on a transparent overlay so the fade works over any background
+    overlay = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    overlay_draw = ImageDraw.Draw(overlay)
+    a = int(255 * alpha)
+    shadow_offset = max(1, int(2 * scale))
+    for i, line in enumerate(lines):
+        if not line:
+            continue  # blank line = paragraph spacing
+        line_y = start_y + i * line_height
+        bbox = overlay_draw.textbbox((0, 0), line, font=font)
+        text_x = (width - (bbox[2] - bbox[0])) // 2
+        # Soft shadow for readability on image/video backgrounds
+        overlay_draw.text((text_x + shadow_offset, line_y + shadow_offset), line, font=font, fill=(0, 0, 0, int(a * 0.6)))
+        overlay_draw.text((text_x, line_y), line, font=font, fill=(text_color[0], text_color[1], text_color[2], a))
+
+    return Image.alpha_composite(frame.convert('RGBA'), overlay).convert('RGB')
+
+
+def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_quality, display_mode, style_options=None, subscription_tier='free', custom_watermark_url=None, outro_text=None, bg_type='gradient', bg_video_path=None, bg_image=None, logo_url=None, logo_position='bottom-right', logo_size=50, logo_opacity=80, start_image_url=None, start_image_fit='fill', start_image_opacity=100, start_image_show_title=True, has_ever_paid=False, outro_duration=10, outro_font_size='normal'):
     """Generate video with lyrics and countdown. Supports video/image backgrounds."""
     print(f"Generating video (mode: {display_mode}, background: {bg_type})...")
     print(f"   Subscription tier: {subscription_tier}")
@@ -3280,6 +3379,23 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     print(f"    Lyrics offset by {INTRO_DURATION}s for intro")
     
     # Get duration of audio WITH intro silence
+    track_end_time = get_audio_duration(audio_with_intro)
+
+    # V21: Outro dedication - extend the video PAST the end of the track.
+    # Pad the audio with trailing silence so the extra frames survive
+    # ffmpeg's -shortest flag, and remember where the music actually ends.
+    has_outro_text = bool(outro_text and str(outro_text).strip())
+    try:
+        outro_duration = int(outro_duration or 10)
+    except (TypeError, ValueError):
+        outro_duration = 10
+    outro_duration = max(3, min(OUTRO_MAX_DURATION, outro_duration))
+    if has_outro_text:
+        audio_with_outro = os.path.join(work_dir, 'audio_with_intro_outro.wav')
+        append_silence_to_audio(audio_with_intro, outro_duration, audio_with_outro)
+        audio_with_intro = audio_with_outro
+        print(f"    Outro dedication: +{outro_duration}s of footage after the track ends")
+
     total_duration = get_audio_duration(audio_with_intro)
     total_frames = int(total_duration * FPS)
     
@@ -3323,11 +3439,11 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     fadeout_start = last_lyric_end
     fadeout_end = min(last_lyric_end + FADEOUT_DURATION, total_duration)
 
-    # Outro text timing (starts after fadeout ends)
-    outro_start = fadeout_end if offset_lyrics else INTRO_DURATION + 2
-    has_outro_text = bool(outro_text)
+    # V21: Outro dedication timing - starts when the music ends and runs
+    # for outro_duration seconds of extra footage.
+    outro_start = track_end_time
     if has_outro_text:
-        print(f"    Outro text enabled: '{outro_text[:50]}...' (starts at {outro_start:.2f}s)")
+        print(f"    Outro dedication enabled: '{outro_text[:50]}...' (starts at {outro_start:.2f}s for {outro_duration}s)")
     
     # Debug: Log timing info
     print(f"    Timing debug:")
@@ -3350,6 +3466,30 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
         if frame_num < intro_frames:
             # Show intro screen during the silence period
             frame = create_intro_frame(artist, title, frame_num, intro_frames, width, height, colors, bg_image, video_reader, current_time, loaded_start_image, start_image_fit, start_image_opacity, start_image_show_title)
+        elif has_outro_text and current_time >= outro_start:
+            # V21: Dedication segment after the track has finished.
+            # Clean background (lyrics fully faded), dedication text on top.
+            frame = create_lyrics_frame_with_fade(
+                current_time,
+                offset_lyrics,
+                display_mode,
+                width,
+                height,
+                colors,
+                0.0,
+                bg_image,
+                video_reader
+            )
+            frame = draw_dedication_text(
+                frame,
+                outro_text,
+                width,
+                height,
+                colors,
+                outro_font_size,
+                current_time - outro_start,
+                total_duration - current_time
+            )
         else:
             # Check if we're in a countdown period
             in_break = False
@@ -3406,33 +3546,6 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
                     # Normal lyrics display
                     frame = create_lyrics_frame(current_time, offset_lyrics, display_mode, width, height, colors, bg_image, video_reader)
         
-        # Render outro text after lyrics have faded out
-            if has_outro_text and current_time >= outro_start:
-                # Calculate fade-in alpha for outro text
-                outro_elapsed = current_time - outro_start
-                outro_alpha = min(1.0, outro_elapsed / OUTRO_TEXT_FADE_IN)
-                
-                draw = ImageDraw.Draw(frame)
-                scale = width / 1920
-                outro_font_size = int(48 * scale)
-                outro_font = get_font(outro_font_size, colors.get('font', 'arial') if colors else 'arial', colors.get('custom_font_path') if colors else None)
-                
-                # Split outro text into lines
-                outro_lines = outro_text.strip().split('\n')
-                line_height = int(outro_font_size * 1.5)
-                total_height = len(outro_lines) * line_height
-                start_y = (height - total_height) // 2
-                
-                text_color = colors.get('text', COLOR_TEXT) if colors else COLOR_TEXT
-                outro_color = tuple(int(c * outro_alpha) for c in text_color)
-                
-                for i, line in enumerate(outro_lines):
-                    line_y = start_y + i * line_height
-                    bbox = draw.textbbox((0, 0), line, font=outro_font)
-                    text_width = bbox[2] - bbox[0]
-                    text_x = (width - text_width) // 2
-                    draw.text((text_x, line_y), line, font=outro_font, fill=outro_color)
-
         # Apply watermark for free tier, or custom watermark for Studio
         if apply_watermark_to_video:
             frame = apply_watermark(frame, width, height)
@@ -3520,6 +3633,14 @@ def handler(event):
             speed_rate = 1.0
         speed_rate = max(0.75, min(1.25, speed_rate))
         print(f"    Key/speed: {pitch_semitones:+d} semitones, {speed_rate}x speed")
+
+        # V21: Outro dedication - duration (3-60s) and font size
+        try:
+            outro_duration = int(input_data.get('outro_duration', 10) or 10)
+        except (TypeError, ValueError):
+            outro_duration = 10
+        outro_duration = max(3, min(OUTRO_MAX_DURATION, outro_duration))
+        outro_font_size = input_data.get('outro_font_size', 'normal') or 'normal'
         
         # Get subscription tier (for logging) and purchase flag for watermark logic
         subscription_tier = input_data.get('subscription_tier', 'free')
@@ -3897,7 +4018,10 @@ def handler(event):
               start_image_fit,
               start_image_opacity,
               start_image_show_title,
-              has_ever_paid=has_ever_paid
+              has_ever_paid=has_ever_paid,
+              # V21: Outro dedication (shown after the track ends)
+              outro_duration=outro_duration,
+              outro_font_size=outro_font_size
           )
         
         # Use timestamped key so each render is preserved in R2 (for render history)

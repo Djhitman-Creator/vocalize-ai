@@ -242,6 +242,20 @@ async function getSignedDownloadUrl(url, filename = null) {
   return getSignedUrl(r2Client, command, { expiresIn: 3600 });
 }
 
+// V21: Outro dedication surcharge, charged at render time when the project
+// has outro text. Pricing math: the cheapest credit we ever sell is ~$0.06
+// (biggest annual plan). 5 credits = $0.30+ revenue, covering the extra GPU
+// render/encode time for up to 60s of additional footage (~$0.02-0.05) while
+// keeping at least $0.25 profit even at the floor credit price.
+const OUTRO_CREDIT_COST = 5;
+const OUTRO_MAX_DURATION = 60; // seconds
+
+function clampOutroDuration(value) {
+  const d = parseInt(value, 10);
+  if (isNaN(d)) return 10;
+  return Math.max(3, Math.min(OUTRO_MAX_DURATION, d));
+}
+
 function calculateCreditsNeeded(options) {
   // Flat per-track pricing by resolution, charged at render time.
   // 540p/720p = 19, 1080p = 28, 4K = 46. Instant mode doubles the charge.
@@ -338,9 +352,9 @@ async function sendToRunPod(projectId, audioUrl, options) {
         start_image_opacity: options.start_image_opacity || 100,
         start_image_show_title: options.start_image_show_title !== false,
 
-        // Outro settings
+        // Outro dedication settings (V21: shown after the track ends, 5-60s)
         outro_text: options.outro_text || null,
-        outro_duration: options.outro_duration || 3,
+        outro_duration: clampOutroDuration(options.outro_duration),
         outro_font_size: options.outro_font_size || 'normal',
 
         // For render_only mode
@@ -2096,6 +2110,8 @@ app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
       logo_opacity: project.logo_opacity || 80,
       custom_watermark_url: project.custom_watermark_url || project.logo_url || null,
       outro_text: project.outro_text || null,
+      outro_duration: project.outro_duration || 10,
+      outro_font_size: project.outro_font_size || 'normal',
       // Video background
       bg_type: project.bg_type || 'gradient',
       bg_video_preset: project.bg_video_preset_filename || null,
@@ -2254,7 +2270,12 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       video_quality: project.video_quality,
       export_mode: exportMode,
     });
-    const renderCost = isReRender ? Math.max(1, Math.ceil(fullCost / 2)) : fullCost;
+    // V21: Outro dedication surcharge - flat +5 credits whenever the project
+    // has dedication text (extra footage is rendered after the track ends).
+    // Charged in full on re-renders too, since the extra GPU time recurs.
+    const hasOutro = !!(project.outro_text && String(project.outro_text).trim());
+    const outroCost = hasOutro ? OUTRO_CREDIT_COST : 0;
+    const renderCost = (isReRender ? Math.max(1, Math.ceil(fullCost / 2)) : fullCost) + outroCost;
     const hasCredits = await checkCredits(req.user.id, renderCost);
     if (!hasCredits) {
       return res.status(402).json({
@@ -2380,9 +2401,10 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
           req.user.id,
           renderCost,
           project.id,
-          isReRender
+          (isReRender
             ? `Re-render (50%): ${project.song_title || project.title || 'project'}`
-            : `Export ${project.video_quality || '720p'} ${exportMode}: ${project.song_title || project.title || 'project'}`
+            : `Export ${project.video_quality || '720p'} ${exportMode}: ${project.song_title || project.title || 'project'}`)
+          + (outroCost > 0 ? ` (+${outroCost} outro dedication)` : '')
         );
         await supabase.from('projects').update({ credits_used: renderCost }).eq('id', project.id);
       } catch (deductErr) {

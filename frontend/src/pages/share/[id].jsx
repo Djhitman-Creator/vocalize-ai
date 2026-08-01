@@ -926,9 +926,9 @@ export default function SharePage() {
     startImageFit: 'contain', // 'contain', 'cover', 'fill'
     startImageOpacity: 100, // 0-100
     startImageShowTitle: true, // Show artist/title over the image
-    // Outro
+    // Outro dedication (V21: extra footage shown AFTER the track ends)
     outroText: '',
-    outroDuration: 3, // 2-5 seconds
+    outroDuration: 10, // 5-60 seconds
     outroFontSize: 'medium', // small, medium, large
   });
 
@@ -2176,7 +2176,7 @@ export default function SharePage() {
           startImageOpacity: projectData.start_image_opacity ?? 100,
           startImageShowTitle: projectData.start_image_show_title ?? true,
           outroText: projectData.outro_text || '',
-          outroDuration: projectData.outro_duration || 3,
+          outroDuration: projectData.outro_duration || 10,
           outroFontSize: projectData.outro_font_size || 'medium',
         });
         
@@ -4622,25 +4622,31 @@ export default function SharePage() {
                       );
                     })()}
                     
-                    {/* OUTRO TEXT OVERLAY - Shows after lyrics end */}
-                    {brandingSettings.outroText && duration > 0 && currentTime > (duration - (brandingSettings.outroDuration || 3)) && (
+                    {/* OUTRO DEDICATION OVERLAY - In the exported video this plays
+                        AFTER the track ends; the editor previews it over the last
+                        few seconds since the player stops when the audio does. */}
+                    {brandingSettings.outroText && duration > 0 && currentTime > (duration - 5) && (
                       <div 
-                        className="absolute inset-0 flex items-center justify-center z-20 transition-opacity duration-500"
+                        className="absolute inset-0 flex flex-col items-center justify-center z-20 transition-opacity duration-500"
                         style={{ 
                           backgroundColor: 'rgba(0,0,0,0.7)',
-                          opacity: Math.min(1, (currentTime - (duration - (brandingSettings.outroDuration || 3))) * 2)
+                          opacity: Math.min(1, (currentTime - (duration - 5)) * 2)
                         }}
                       >
                         <p 
-                          className="text-center px-4"
+                          className="text-center px-6 overflow-hidden"
                           style={{
                             color: textColor,
-                            fontSize: brandingSettings.outroFontSize === 'small' ? `${baseFontSize * 0.8}px` : brandingSettings.outroFontSize === 'large' ? `${baseFontSize * 1.5}px` : `${baseFontSize * 1.2}px`,
+                            fontSize: brandingSettings.outroFontSize === 'small' ? `${baseFontSize * 0.7}px` : brandingSettings.outroFontSize === 'large' ? `${baseFontSize * 1.2}px` : `${baseFontSize * 0.9}px`,
                             textShadow: `2px 2px 4px ${outlineColor}`,
-                            whiteSpace: 'pre-wrap'
+                            whiteSpace: 'pre-wrap',
+                            maxHeight: '80%'
                           }}
                         >
                           {brandingSettings.outroText}
+                        </p>
+                        <p className="absolute bottom-2 left-0 right-0 text-center text-[10px] text-gray-400">
+                          Dedication {String.fromCharCode(8226)} plays for {brandingSettings.outroDuration || 10}s after the track ends in the exported video
                         </p>
                       </div>
                     )}
@@ -6252,40 +6258,47 @@ export default function SharePage() {
                         </p>
                       </div>
 
-                      {/* Outro Message */}
+                      {/* Outro Dedication (V21: extra footage after the track ends) */}
                       <div>
                         <label className={`block text-xs font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Outro Message
+                          Outro Dedication
                         </label>
                         <textarea
                           value={brandingSettings.outroText}
                           onChange={(e) => updateBrandingSettings({ outroText: e.target.value })}
-                          placeholder="Thanks for watching! Subscribe for more..."
-                          maxLength={150}
-                          rows={2}
-                          className={`w-full px-3 py-2 rounded-lg text-sm border resize-none ${isDark ? 'bg-white/10 border-white/10 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'}`}
+                          placeholder={"Leave a dedication message...\n\nThis song goes out to someone special. Write as many paragraphs as you like - they'll appear on screen after the track finishes."}
+                          maxLength={1000}
+                          rows={6}
+                          className={`w-full px-3 py-2 rounded-lg text-sm border resize-y ${isDark ? 'bg-white/10 border-white/10 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'}`}
                         />
                         <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Duration:</span>
-                            {[2, 3, 4, 5].map(sec => (
-                              <button
-                                key={sec}
-                                onClick={() => updateBrandingSettings({ outroDuration: sec })}
-                                className={`w-6 h-5 rounded text-[10px] font-medium transition-all ${
-                                  brandingSettings.outroDuration === sec
-                                    ? 'bg-cyan-500 text-white'
-                                    : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                              >
-                                {sec}s
-                              </button>
-                            ))}
-                          </div>
                           <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            {brandingSettings.outroText.length}/150
+                            Shown after the track ends
+                          </span>
+                          <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {brandingSettings.outroText.length}/1000
                           </span>
                         </div>
+                        <div className="mt-2">
+                          <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            Duration: {brandingSettings.outroDuration || 10}s (max 60s)
+                          </label>
+                          <input
+                            type="range"
+                            min="5"
+                            max="60"
+                            step="5"
+                            value={brandingSettings.outroDuration || 10}
+                            onChange={(e) => updateBrandingSettings({ outroDuration: parseInt(e.target.value) })}
+                            className="w-full h-1 rounded-lg appearance-none cursor-pointer"
+                            style={{ background: `linear-gradient(to right, #06b6d4 ${(((brandingSettings.outroDuration || 10) - 5) / 55) * 100}%, ${isDark ? '#374151' : '#d1d5db'} ${(((brandingSettings.outroDuration || 10) - 5) / 55) * 100}%)` }}
+                          />
+                        </div>
+                        {brandingSettings.outroText.trim() && (
+                          <p className={`text-[10px] mt-2 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                            +5 credits at export (adds up to 60s of extra footage after the track)
+                          </p>
+                        )}
                       </div>
 
                       {/* Branding Error */}
