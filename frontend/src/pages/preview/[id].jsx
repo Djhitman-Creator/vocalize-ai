@@ -1034,6 +1034,122 @@ export default function PreviewEditPage() {
     }
   }, [id, router, updateBrandingSettings]);
 
+  // V22: Custom instrumental (clean backing track swap) upload state
+  const [customInstrumentalUploading, setCustomInstrumentalUploading] = useState(false);
+  const [customInstrumentalError, setCustomInstrumentalError] = useState(null);
+  const [customInstrumentalWarning, setCustomInstrumentalWarning] = useState(null);
+
+  // V22: Probe an audio file's duration client-side (resolves null on failure)
+  const probeAudioDuration = useCallback((file) => {
+    return new Promise((resolve) => {
+      const objectUrl = URL.createObjectURL(file);
+      const audio = new Audio();
+      const finish = (value) => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(value);
+      };
+      audio.addEventListener('loadedmetadata', () => {
+        finish(Number.isFinite(audio.duration) ? audio.duration : null);
+      });
+      audio.addEventListener('error', () => finish(null));
+      audio.src = objectUrl;
+    });
+  }, []);
+
+  // V22: Handle custom instrumental upload
+  const handleCustomInstrumentalUpload = useCallback(async (e) => {
+    const input = e.target;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('audio/')) {
+      setCustomInstrumentalError('Please upload an audio file (MP3, WAV, FLAC, etc.)');
+      input.value = '';
+      return;
+    }
+
+    setCustomInstrumentalUploading(true);
+    setCustomInstrumentalError(null);
+    setCustomInstrumentalWarning(null);
+
+    // Length check: warn (but never block) if this file's duration differs from the original track
+    try {
+      const probedDuration = await probeAudioDuration(file);
+      if (probedDuration && duration && Math.abs(probedDuration - duration) > 1) {
+        const diff = Math.abs(probedDuration - duration).toFixed(1);
+        const direction = probedDuration > duration ? 'longer' : 'shorter';
+        setCustomInstrumentalWarning(`This file is ${diff}s ${direction} than your original track - lyrics may drift out of sync. Make sure it's the identical arrangement.`);
+      }
+    } catch (probeErr) { /* non-fatal - never block the upload */ }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const formData = new FormData();
+      formData.append('instrumental', file);
+      formData.append('projectId', id);
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/upload-custom-instrumental`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to upload instrumental');
+      }
+
+      const result = await response.json();
+      setProject(prev => ({
+        ...prev,
+        custom_instrumental_url: result.customInstrumentalUrl,
+        custom_instrumental_name: result.customInstrumentalName,
+      }));
+    } catch (err) {
+      console.error('Custom instrumental upload error:', err);
+      setCustomInstrumentalError(err.message || 'Failed to upload instrumental');
+    } finally {
+      setCustomInstrumentalUploading(false);
+      input.value = '';
+    }
+  }, [id, router, duration, probeAudioDuration]);
+
+  // V22: Remove custom instrumental (revert to AI-separated backing track)
+  const handleRemoveCustomInstrumental = useCallback(async () => {
+    setCustomInstrumentalError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { router.push('/login'); return; }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/remove-custom-instrumental`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ projectId: id }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to remove instrumental');
+      }
+
+      setProject(prev => ({
+        ...prev,
+        custom_instrumental_url: null,
+        custom_instrumental_name: null,
+      }));
+      setCustomInstrumentalWarning(null);
+      setCustomInstrumentalError(null);
+    } catch (err) {
+      console.error('Remove custom instrumental error:', err);
+      setCustomInstrumentalError(err.message || 'Failed to remove instrumental');
+    }
+  }, [id, router]);
+
   // V11: Update style settings helper
   const updateStyleSettings = useCallback((updates) => {
     setStyleSettings(prev => ({ ...prev, ...updates }));
@@ -7450,6 +7566,66 @@ export default function PreviewEditPage() {
                         </button>
                       ))}
                     </div>
+                  </div>
+
+                  {/* V22: Custom Backing Track (clean instrumental swap) */}
+                  <div>
+                    <label className={`block text-sm font-medium mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                      Custom Backing Track <span className={`text-[10px] font-normal ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>(Optional)</span>
+                    </label>
+                    <div className={`p-3 rounded-lg ${isDark ? 'bg-white/5' : 'bg-gray-50'}`}>
+                      {project?.custom_instrumental_url ? (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                          <span className={`flex-1 text-xs font-medium truncate ${isDark ? 'text-green-400' : 'text-green-600'}`}>
+                            {project.custom_instrumental_name || 'Custom instrumental'}
+                          </span>
+                          <label className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${customInstrumentalUploading ? 'opacity-50 cursor-wait' : 'cursor-pointer'} ${isDark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-gray-200 text-gray-900 hover:bg-gray-300'}`}>
+                            {customInstrumentalUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Replace'}
+                            <input type="file" accept="audio/*" onChange={handleCustomInstrumentalUpload} disabled={customInstrumentalUploading} className="hidden" />
+                          </label>
+                          <button
+                            onClick={handleRemoveCustomInstrumental}
+                            disabled={customInstrumentalUploading}
+                            className="px-2.5 py-1.5 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <label className={`flex items-center justify-center gap-2 h-12 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${customInstrumentalUploading ? 'opacity-50 cursor-wait' : isDark ? 'border-white/20 hover:border-cyan-500/50 hover:bg-white/5' : 'border-gray-300 hover:border-cyan-500 hover:bg-cyan-50'
+                          }`}>
+                          {customInstrumentalUploading ? (
+                            <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+                          ) : (
+                            <>
+                              <Music className="w-4 h-4 text-gray-400" />
+                              <span className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Upload Instrumental</span>
+                            </>
+                          )}
+                          <input type="file" accept="audio/*" onChange={handleCustomInstrumentalUpload} disabled={customInstrumentalUploading} className="hidden" />
+                        </label>
+                      )}
+                      {customInstrumentalWarning && (
+                        <div className={`mt-2 p-2 rounded-lg ${isDark ? 'bg-amber-500/10 border border-amber-500/30' : 'bg-amber-50 border border-amber-200'}`}>
+                          <p className={`text-xs flex items-start gap-1 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                            <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                            {customInstrumentalWarning}
+                          </p>
+                        </div>
+                      )}
+                      {customInstrumentalError && (
+                        <div className={`mt-2 p-2 rounded-lg ${isDark ? 'bg-red-500/10 border border-red-500/30' : 'bg-red-50 border border-red-200'}`}>
+                          <p className="text-xs text-red-400 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            {customInstrumentalError}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    <p className={`text-[10px] mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                      Replace the AI-separated backing track with a clean instrumental of the same song - for example, the instrumental version Suno provides alongside your vocal track. It must be the identical track instrumentally: same arrangement, same tempo, same length. Your synced lyrics stay exactly as they are; only the audio bed is swapped, so there are no vocal-removal artifacts. Guide and Original vocal modes will mix the AI-extracted vocals over your instrumental.
+                    </p>
                   </div>
 
                   {/* V20: Key Change */}

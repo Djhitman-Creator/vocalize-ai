@@ -3820,6 +3820,33 @@ def handler(event):
             print(f" Downloading processed audio from {processed_audio_url}")
             download_file(processed_audio_url, instrumental_path)
             
+            # Customer-supplied clean instrumental (e.g. Suno's instrumental-only
+            # export of the same track). Replaces the AI-separated bed so there are
+            # no separation artifacts. Lyrics timing is untouched; the V18 vocal-mode
+            # mix and V20 pitch/speed chains below operate on whatever
+            # instrumental_path points at, so they work unchanged.
+            custom_instrumental_url = input_data.get('custom_instrumental_url')
+            if custom_instrumental_url:
+                try:
+                    print(f" Custom instrumental provided, downloading from {custom_instrumental_url}")
+                    custom_raw_path = os.path.join(work_dir, 'custom_instrumental_raw')
+                    download_file(custom_instrumental_url, custom_raw_path)
+                    # Normalize to WAV at the pipeline sample rate (source may be mp3/m4a/etc.)
+                    custom_wav_path = os.path.join(work_dir, 'custom_instrumental.wav')
+                    subprocess.run(
+                        ['ffmpeg', '-y', '-i', custom_raw_path, '-ar', str(SAMPLE_RATE), '-ac', '2', custom_wav_path],
+                        check=True, capture_output=True
+                    )
+                    ai_duration = get_audio_duration(instrumental_path)
+                    custom_duration = get_audio_duration(custom_wav_path)
+                    drift = abs(ai_duration - custom_duration)
+                    if drift > 1.0:
+                        print(f" WARNING: custom instrumental length differs from original by {drift:.2f}s — lyrics may drift")
+                    instrumental_path = custom_wav_path
+                    print(f" Using customer-supplied instrumental as audio bed ({custom_duration:.1f}s)")
+                except Exception as custom_err:
+                    print(f" WARNING: failed to use custom instrumental, falling back to AI separation: {custom_err}")
+            
             # Get edited lyrics from input
             lyrics = input_data.get('edited_lyrics', [])
             if not lyrics:

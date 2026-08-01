@@ -86,7 +86,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp3', 'audio/x-wav'];
+    const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp3', 'audio/x-wav', 'audio/mp4', 'audio/aac', 'audio/x-m4a', 'audio/ogg'];
     const imageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
     const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
     const fontTypes = ['font/ttf', 'font/otf', 'application/x-font-ttf', 'application/x-font-opentype', 'application/octet-stream'];
@@ -362,6 +362,11 @@ async function sendToRunPod(projectId, audioUrl, options) {
         processed_audio_url: options.processed_audio_url || null,
         vocals_audio_url: options.vocals_audio_url || null,
         edited_lyrics: options.edited_lyrics || null,
+
+        // Editor-chosen vocal mode ('instrumental' | 'guide' | 'original') — was missing, worker always defaulted
+        audio_track: options.audio_track || 'instrumental',
+        // Customer-supplied clean instrumental (e.g. from Suno) replaces the AI-separated bed at render
+        custom_instrumental_url: options.custom_instrumental_url || null,
 
         // V20: Key change (half steps, -6..+6) and speed (0.75..1.25).
         // Pitch preserves duration (lyric timing unaffected); speed scales
@@ -1762,6 +1767,128 @@ app.post('/api/upload-start-image', authMiddleware, upload.single('startImage'),
   }
 });
 
+// Upload a customer-supplied clean instrumental (e.g. exported from Suno).
+// At render time it replaces the AI-separated instrumental as the audio bed.
+app.post('/api/upload-custom-instrumental', authMiddleware, upload.single('instrumental'), async (req, res) => {
+  try {
+    const projectId = req.body.projectId;
+
+    if (!projectId) {
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No instrumental file provided' });
+    }
+
+    if (!req.file.mimetype || !req.file.mimetype.startsWith('audio/')) {
+      return res.status(400).json({ error: 'Instrumental must be an audio file' });
+    }
+
+    // If replacing an existing custom instrumental, delete the old R2 object (fire and forget)
+    if (project.custom_instrumental_url) {
+      const oldKey = extractR2Key(project.custom_instrumental_url);
+      if (oldKey) {
+        r2Client.send(new DeleteObjectCommand({
+          Bucket: process.env.CLOUDFLARE_R2_BUCKET,
+          Key: oldKey,
+        })).catch(e => console.log(`Could not delete old custom instrumental ${oldKey}:`, e.message));
+      }
+    }
+
+    // Upload to R2 (unique key per upload so caches never serve a stale file)
+    const ext = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
+    const key = `custom-instrumentals/${req.user.id}/${projectId}-instrumental-${Date.now()}${ext}`;
+    const url = await uploadToR2(req.file.buffer, key, req.file.mimetype);
+    console.log(`Custom instrumental uploaded for project ${projectId}: ${url}`);
+
+    // Save URL + original filename to project
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({
+        custom_instrumental_url: url,
+        custom_instrumental_name: req.file.originalname,
+      })
+      .eq('id', projectId);
+
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      customInstrumentalUrl: url,
+      customInstrumentalName: req.file.originalname,
+    });
+  } catch (error) {
+    console.error('Custom instrumental upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove a project's custom instrumental (revert to the AI-separated bed)
+app.post('/api/remove-custom-instrumental', authMiddleware, async (req, res) => {
+  try {
+    const projectId = req.body.projectId;
+
+    if (!projectId) {
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Best-effort delete of the R2 object - don't fail the request if it throws
+    if (project.custom_instrumental_url) {
+      try {
+        const oldKey = extractR2Key(project.custom_instrumental_url);
+        if (oldKey) {
+          r2Client.send(new DeleteObjectCommand({
+            Bucket: process.env.CLOUDFLARE_R2_BUCKET,
+            Key: oldKey,
+          })).catch(e => console.log(`Could not delete custom instrumental ${oldKey}:`, e.message));
+        }
+      } catch (e) {
+        console.log('Error deleting custom instrumental from R2:', e.message);
+      }
+    }
+
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({
+        custom_instrumental_url: null,
+        custom_instrumental_name: null,
+      })
+      .eq('id', projectId);
+
+    if (updateError) throw updateError;
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Remove custom instrumental error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Upload custom font for a specific project
 app.post('/api/upload-font', authMiddleware, upload.single('font'), async (req, res) => {
   try {
@@ -2353,6 +2480,8 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       speed_rate: speedRate,
       // Audio track the user chose in the editor: 'instrumental' | 'guide' | 'original'
       audio_track: project.audio_track || 'instrumental',
+      // Customer-supplied clean instrumental (optional)
+      custom_instrumental_url: project.custom_instrumental_url || null,
       // Subscription tier (logging) + purchase flag for watermark logic
       subscription_tier: userProfile.subscription_tier || 'free',
       has_ever_paid: userProfile.has_ever_paid || false,
