@@ -3464,11 +3464,18 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
     fadeout_start = last_lyric_end
     fadeout_end = min(last_lyric_end + FADEOUT_DURATION, total_duration)
 
-    # V21: Outro dedication timing - starts when the music ends and runs
-    # for outro_duration seconds of extra footage.
-    outro_start = track_end_time
+    # V21.2: Dedication timing. Start as soon as the lyrics have faded out -
+    # NOT when the audio ends - so a song with a long instrumental ending
+    # never shows a dead blank screen. The dedication then runs continuously
+    # through the instrumental tail AND the extra outro footage added after
+    # the track ends. The scroll is paced over that whole visible window.
+    if offset_lyrics:
+        outro_start = min(fadeout_end, track_end_time)
+    else:
+        outro_start = track_end_time
+    dedication_window = max(1.0, total_duration - outro_start)
     if has_outro_text:
-        print(f"    Outro dedication enabled: '{outro_text[:50]}...' (starts at {outro_start:.2f}s for {outro_duration}s)")
+        print(f"    Outro dedication enabled: '{outro_text[:50]}...' (starts at {outro_start:.2f}s, visible for {dedication_window:.1f}s)")
     
     # Debug: Log timing info
     print(f"    Timing debug:")
@@ -3514,7 +3521,7 @@ def generate_video(audio_path, lyrics, gaps, track_info, output_path, video_qual
                 outro_font_size,
                 current_time - outro_start,
                 total_duration - current_time,
-                outro_duration
+                dedication_window
             )
         else:
             # Check if we're in a countdown period

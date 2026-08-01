@@ -1580,6 +1580,8 @@ export default function SharePage() {
 
   // Timeline state
   const timelineContainerRef = useRef(null);
+  // V21.1: Measures the dedication text so the preview can scroll it like the export does
+  const dedicationPreviewRef = useRef(null);
   const [zoom, setZoom] = useState(PIXELS_PER_SECOND_DEFAULT);
   // V10.9: Multi-selection - Set of selected word indices
   const [selectedWordIndices, setSelectedWordIndices] = useState(new Set());
@@ -4623,33 +4625,46 @@ export default function SharePage() {
                     })()}
                     
                     {/* OUTRO DEDICATION OVERLAY - In the exported video this plays
-                        AFTER the track ends; the editor previews it over the last
-                        few seconds since the player stops when the audio does. */}
-                    {brandingSettings.outroText && duration > 0 && currentTime > (duration - 5) && (
-                      <div 
-                        className="absolute inset-0 flex flex-col items-center justify-center z-20 transition-opacity duration-500"
-                        style={{ 
-                          backgroundColor: 'rgba(0,0,0,0.7)',
-                          opacity: Math.min(1, (currentTime - (duration - 5)) * 2)
-                        }}
-                      >
-                        <p 
-                          className="text-center px-6 overflow-hidden"
+                        AFTER the track ends for the full chosen duration; the
+                        editor previews a sped-up version over the last 5 seconds
+                        since the player stops when the audio does. Long text
+                        scrolls here just like in the export. */}
+                    {brandingSettings.outroText && duration > 0 && currentTime > (duration - 5) && (() => {
+                      const t = currentTime - (duration - 5); // 0..5s preview window
+                      // Hold 1s, scroll for 3s, hold the last second
+                      const scrollProgress = Math.min(1, Math.max(0, (t - 1) / 3));
+                      const contentEl = dedicationPreviewRef.current;
+                      const overflowPx = contentEl ? Math.max(0, contentEl.scrollHeight - (contentEl.parentElement?.clientHeight || 0)) : 0;
+                      return (
+                        <div
+                          className="absolute inset-0 flex flex-col items-center justify-center z-20 transition-opacity duration-500"
                           style={{
-                            color: textColor,
-                            fontSize: brandingSettings.outroFontSize === 'small' ? `${baseFontSize * 0.7}px` : brandingSettings.outroFontSize === 'large' ? `${baseFontSize * 1.2}px` : `${baseFontSize * 0.9}px`,
-                            textShadow: `2px 2px 4px ${outlineColor}`,
-                            whiteSpace: 'pre-wrap',
-                            maxHeight: '80%'
+                            backgroundColor: 'rgba(0,0,0,0.7)',
+                            opacity: Math.min(1, t * 2)
                           }}
                         >
-                          {brandingSettings.outroText}
-                        </p>
-                        <p className="absolute bottom-2 left-0 right-0 text-center text-[10px] text-gray-400">
-                          Dedication {String.fromCharCode(8226)} plays for {brandingSettings.outroDuration || 10}s after the track ends in the exported video{brandingSettings.outroText.length > 200 ? ` ${String.fromCharCode(8226)} long text scrolls credits-style` : ''}
-                        </p>
-                      </div>
-                    )}
+                          <div className="w-full overflow-hidden" style={{ maxHeight: '78%' }}>
+                            <p
+                              ref={dedicationPreviewRef}
+                              className="text-center px-6"
+                              style={{
+                                color: textColor,
+                                fontSize: brandingSettings.outroFontSize === 'small' ? `${baseFontSize * 0.7}px` : brandingSettings.outroFontSize === 'large' ? `${baseFontSize * 1.2}px` : `${baseFontSize * 0.9}px`,
+                                textShadow: `2px 2px 4px ${outlineColor}`,
+                                whiteSpace: 'pre-wrap',
+                                transform: `translateY(-${Math.round(overflowPx * scrollProgress)}px)`,
+                                transition: 'transform 0.25s linear'
+                              }}
+                            >
+                              {brandingSettings.outroText}
+                            </p>
+                          </div>
+                          <p className="absolute bottom-2 left-0 right-0 text-center text-[10px] text-gray-400">
+                            Dedication {String.fromCharCode(8226)} plays for {brandingSettings.outroDuration || 10}s after the track ends in the exported video{overflowPx > 0 ? ` ${String.fromCharCode(8226)} scroll preview sped up here` : ''}
+                          </p>
+                        </div>
+                      );
+                    })()}
                     
                     {/* LOGO WATERMARK OVERLAY */}
                     {brandingSettings.logoUrl && (() => {
