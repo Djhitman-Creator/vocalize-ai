@@ -34,7 +34,7 @@ export default function MarketingLayout({ children }) {
                   Log In
                 </Link>
                 <Link href="/signup">
-                  <button className="glass-button-primary glass-button text-sm sm:text-base">Start Free</button>
+                  <button className="glass-button-primary glass-button text-sm sm:text-base">Try For Free</button>
                 </Link>
               </div>
             </div>

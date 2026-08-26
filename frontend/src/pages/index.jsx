@@ -178,7 +178,7 @@ const Navigation = ({ isDark, toggleTheme, credits }) => {
               Log In
             </Link>
             <Link href="#pricing">
-              <button className="glass-button-primary glass-button">Get Started</button>
+              <button className="glass-button-primary glass-button">Try For Free</button>
             </Link>
           </div>
 
@@ -240,7 +240,7 @@ const Navigation = ({ isDark, toggleTheme, credits }) => {
                 </Link>
                 <Link href="#pricing" onClick={closeMobileMenu} className="block">
                   <button className="w-full glass-button-primary glass-button py-3">
-                    Get Started
+                    Try For Free
                   </button>
                 </Link>
               </div>
@@ -357,7 +357,7 @@ const HeroSection = ({ isDark, onWatchDemo }) => {
           <Link href="#pricing">
             <button className="glass-button-primary glass-button flex items-center gap-2 text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4">
               <Sparkles className="w-5 h-5" />
-              Get Started
+              Try For Free
             </button>
           </Link>
           {/* UPDATED: Watch Demo button now triggers the modal */}
