@@ -33,8 +33,8 @@ import Head from 'next/head';
 // Site-wide defaults
 const SITE_NAME = 'Karatrack Studio';
 const SITE_URL = 'https://studio.karatrack.com';
-const DEFAULT_TITLE = 'Karatrack Studio - AI-Powered Karaoke Video Creator';
-const DEFAULT_DESCRIPTION = 'Transform any song into a professional karaoke video with AI. Remove vocals, add synchronized scrolling lyrics, and export stunning MP4 videos in minutes.';
+const DEFAULT_TITLE = 'Free AI Karaoke Maker - Turn Any MP3 Into a Karaoke Video | Karatrack Studio';
+const DEFAULT_DESCRIPTION = 'Free online karaoke maker: upload any MP3 and our AI removes the vocals, syncs scrolling lyrics word-by-word, and exports an HD karaoke video. Make your first karaoke track free - no credit card required.';
 const DEFAULT_IMAGE = `${SITE_URL}/og-image.png`;
 const TWITTER_HANDLE = '@karatrack';
 
@@ -155,23 +155,19 @@ export function getSoftwareAppSchema() {
     name: 'Karatrack Studio',
     applicationCategory: 'MultimediaApplication',
     operatingSystem: 'Web',
-    description: 'AI-powered karaoke video creator that removes vocals and adds synchronized scrolling lyrics.',
+    description: 'Free AI karaoke maker that turns any MP3, WAV, or FLAC into a karaoke video: automatic vocal removal, word-level synced scrolling lyrics, and HD/4K MP4 export.',
     offers: {
       '@type': 'AggregateOffer',
       lowPrice: '0',
-      highPrice: '49.99',
+      highPrice: '54.99',
       priceCurrency: 'USD',
       offerCount: 4,
     },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: '4.8',
-      ratingCount: '150',
-    },
     featureList: [
       'AI Vocal Removal',
-      'Automatic Lyrics Sync',
-      'Karaoke Video Export',
+      'Automatic Lyrics Sync in 50+ Languages',
+      'MP3 to Karaoke Video Conversion',
+      'Karaoke Video Export up to 4K',
       'Multiple Display Modes',
       'Custom Styling',
     ],
@@ -206,7 +202,7 @@ export function getPricingSchema() {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: 'Karatrack Studio Subscription',
-    description: 'Create professional karaoke videos with AI-powered vocal removal and lyrics sync.',
+    description: 'Make karaoke tracks from your own songs with AI vocal removal and synced lyrics. Start free, then buy credit packs or subscribe.',
     brand: {
       '@type': 'Brand',
       name: 'Karatrack Studio',
@@ -214,34 +210,31 @@ export function getPricingSchema() {
     offers: [
       {
         '@type': 'Offer',
-        name: 'Free Plan',
+        name: 'Free Signup Credits',
         price: '0',
         priceCurrency: 'USD',
-        description: '5 credits/month, 480p quality',
+        description: '19 free credits - enough to make your first karaoke video free',
       },
       {
         '@type': 'Offer',
-        name: 'Starter Plan',
-        price: '9.99',
+        name: 'Starter Pack',
+        price: '4.99',
         priceCurrency: 'USD',
-        priceValidUntil: '2026-12-31',
-        description: '25 credits/month, 1080p quality, no watermark',
+        description: '40 credits, one-time purchase',
       },
       {
         '@type': 'Offer',
-        name: 'Pro Plan',
-        price: '24.99',
+        name: 'Pro Pack',
+        price: '27.99',
         priceCurrency: 'USD',
-        priceValidUntil: '2026-12-31',
-        description: '75 credits/month, 1080p quality, edit lyrics',
+        description: '280 credits, one-time purchase',
       },
       {
         '@type': 'Offer',
-        name: 'Studio Plan',
-        price: '49.99',
+        name: 'Studio Pack',
+        price: '54.99',
         priceCurrency: 'USD',
-        priceValidUntil: '2026-12-31',
-        description: '200 credits/month, 4K quality, custom branding',
+        description: '600 credits, one-time purchase',
       },
     ],
   };

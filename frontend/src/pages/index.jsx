@@ -5,7 +5,7 @@ import { useRouter } from 'next/router';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useTheme } from '../context/ThemeContext';
-import SEO, { getOrganizationSchema, getSoftwareAppSchema } from '../components/SEO';
+import SEO, { getOrganizationSchema, getSoftwareAppSchema, getFAQSchema } from '../components/SEO';
 import { createClient } from '@supabase/supabase-js';
 import {
   Upload,
@@ -329,7 +329,7 @@ const HeroSection = ({ isDark, onWatchDemo }) => {
           className="inline-flex items-center gap-2 glass-panel px-4 py-2 mb-8"
         >
           <Sparkles className="w-4 h-4 text-cyan-500" />
-          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>AI-Powered Music Processing</span>
+          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Free AI Karaoke Maker & Creator</span>
         </motion.div>
         <motion.h1
           initial={{ y: 30, opacity: 0 }}
@@ -337,8 +337,8 @@ const HeroSection = ({ isDark, onWatchDemo }) => {
           transition={{ delay: 0.3 }}
           className={`font-display text-4xl sm:text-5xl md:text-7xl font-bold mb-6 leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}
         >
-          Transform Your Music<br />
-          <span className="text-gradient">With AI Magic</span>
+          The Free AI<br />
+          <span className="text-gradient">Karaoke Maker</span>
         </motion.h1>
         <motion.p
           initial={{ y: 30, opacity: 0 }}
@@ -346,7 +346,7 @@ const HeroSection = ({ isDark, onWatchDemo }) => {
           transition={{ delay: 0.4 }}
           className={`text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-12 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}
         >
-          Remove vocals, add scrolling lyrics, customize everything, and export stunning karaoke videos - all powered by cutting-edge AI.
+          Create a karaoke track from any MP3. Our AI removes the vocals, syncs scrolling lyrics word-by-word, and exports an HD karaoke video - perfect for hard-to-find songs that have no karaoke version.
         </motion.p>
         <motion.div
           initial={{ y: 30, opacity: 0 }}
@@ -444,7 +444,7 @@ const FeaturesSection = ({ isDark }) => {
             Powerful <span className="text-gradient">Features</span>
           </h2>
           <p className={`text-base sm:text-lg max-w-xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-            Everything you need to create professional karaoke videos. All features included for everyone.
+            Everything you need to make professional karaoke tracks from your own music. All features included for everyone.
           </p>
         </motion.div>
         <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
@@ -580,7 +580,7 @@ const PricingSection = ({ isDark }) => {
           <Link href="/signup" className={`inline-flex items-center gap-2 px-4 py-2 rounded-full cursor-pointer transition-all hover:scale-105 ${isDark ? 'bg-green-500/10 border border-green-500/30 hover:bg-green-500/20' : 'bg-green-50 border border-green-200 hover:bg-green-100'}`}>
             <Sparkles className="w-4 h-4 text-green-500" />
             <span className={`text-sm font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-              Start free with 19 credits &mdash; no credit card required
+              Make your first karaoke track free &mdash; 19 free credits, no credit card required
             </span>
           </Link>
         </motion.div>
@@ -821,6 +821,64 @@ const UploadSection = ({ isDark }) => (
   </section>
 );
 
+// ============================================
+// FAQ SECTION - visible Q&As + FAQPage schema
+// ============================================
+export const homeFaqs = [
+  {
+    question: 'What is an AI karaoke maker?',
+    answer: 'A karaoke maker (also called a karaoke creator) turns a normal song into a karaoke version. Karatrack Studio uses AI to remove the lead vocals from your audio file and add scrolling lyrics that are synced word-by-word, then exports the result as a karaoke video you can play anywhere.',
+  },
+  {
+    question: 'Is Karatrack Studio really a free karaoke maker?',
+    answer: 'Yes. Every new account gets 19 free credits - enough to create your first HD karaoke video completely free, with no credit card required. Free exports include a small watermark that is removed with any purchase, and your free credits never expire.',
+  },
+  {
+    question: 'How do I turn an MP3 into a karaoke track?',
+    answer: 'Three steps: upload your MP3 (WAV and FLAC work too), let the AI remove the vocals and sync the lyrics automatically, then customize the look and export your karaoke video as an MP4. Most tracks are ready in minutes.',
+  },
+  {
+    question: 'Can I make karaoke versions of hard-to-find songs?',
+    answer: 'That is exactly what Karatrack Studio is for. If a song has no official karaoke version - an indie release, a regional hit, an older track, or your own original music - you can create your own karaoke version from any audio file you have the rights to use, in any of 50+ languages.',
+  },
+  {
+    question: 'What languages does the karaoke creator support?',
+    answer: 'The AI transcribes and syncs lyrics in 50+ languages, so you can make karaoke tracks for songs in English, Spanish, Japanese, Korean, Tagalog, Vietnamese, Hindi, and many more.',
+  },
+  {
+    question: 'What quality can I export karaoke videos in?',
+    answer: 'You can export karaoke videos in 540p, 720p HD, 1080p Full HD, or 4K Ultra HD, with custom fonts, colors, backgrounds, intro screens, and logos. Lyrics stay synced at the word level at every resolution.',
+  },
+];
+
+const FAQSection = ({ isDark }) => (
+  <section id="faq" className="py-20 sm:py-32 px-6">
+    <div className="max-w-3xl mx-auto">
+      <motion.div initial={{ y: 30, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true }} className="text-center mb-10 sm:mb-14">
+        <h2 className={`font-display text-3xl sm:text-4xl md:text-5xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          Karaoke Maker <span className="text-gradient">FAQ</span>
+        </h2>
+        <p className={`text-base sm:text-lg max-w-xl mx-auto ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          Common questions about creating karaoke tracks with Karatrack Studio.
+        </p>
+      </motion.div>
+      <div className="space-y-3">
+        {homeFaqs.map((faq, i) => (
+          <details key={i} className={`group rounded-2xl border px-5 py-4 ${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-200'}`}>
+            <summary className={`flex items-center justify-between cursor-pointer list-none font-semibold text-sm sm:text-base ${isDark ? 'text-white' : 'text-gray-900'}`}>
+              {faq.question}
+              <ChevronDown className={`w-5 h-5 flex-shrink-0 ml-3 transition-transform group-open:rotate-180 ${isDark ? 'text-cyan-400' : 'text-cyan-600'}`} />
+            </summary>
+            <p className={`mt-3 text-sm sm:text-base leading-relaxed ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              {faq.answer}
+            </p>
+          </details>
+        ))}
+      </div>
+    </div>
+  </section>
+);
+
 const Footer = ({ isDark }) => (
   <footer className={`py-8 sm:py-12 px-6 border-t ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
     <div className="max-w-6xl mx-auto">
@@ -829,7 +887,10 @@ const Footer = ({ isDark }) => (
           <img src="/logo.png" alt="Karatrack Studio" className="h-8 w-auto" />
           <span className="font-display font-bold text-gradient">Karatrack Studio</span>
         </div>
-        <div className={`flex items-center gap-6 sm:gap-8 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+        <div className={`flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-sm ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+          <Link href="/karaoke-maker" className="hover:text-cyan-500 transition-colors">Karaoke Maker</Link>
+          <Link href="/mp3-to-karaoke" className="hover:text-cyan-500 transition-colors">MP3 to Karaoke</Link>
+          <Link href="/hard-to-find-karaoke-songs" className="hover:text-cyan-500 transition-colors">Hard-to-Find Songs</Link>
           <Link href="/privacy" className="hover:text-cyan-500 transition-colors">Privacy</Link>
           <Link href="/terms" className="hover:text-cyan-500 transition-colors">Terms</Link>
           <a href="mailto:support@karatrack.com" className="hover:text-cyan-500 transition-colors">Contact</a>
@@ -927,9 +988,9 @@ export default function HomePage() {
     <>
       <SEO
         title={null}
-        description="Transform any song into a professional karaoke video with AI. Remove vocals, add synchronized scrolling lyrics, and export stunning MP4 videos in minutes."
+        description="Free online karaoke maker: upload any MP3 and our AI removes the vocals, syncs scrolling lyrics word-by-word, and exports an HD karaoke video. Make your first karaoke track free - no credit card required."
         path="/"
-        structuredData={[getOrganizationSchema(), getSoftwareAppSchema()]}
+        structuredData={[getOrganizationSchema(), getSoftwareAppSchema(), getFAQSchema(homeFaqs)]}
       />
       <div className={isDark ? 'dark' : ''}>
         <div className={`min-h-screen ${isDark ? 'bg-animated-dark' : 'bg-animated-light'}`}>
@@ -945,6 +1006,7 @@ export default function HomePage() {
           
           <UploadSection isDark={isDark} />
           <PricingSection isDark={isDark} />
+          <FAQSection isDark={isDark} />
           <Footer isDark={isDark} />
           
           {/* Video Modal */}
