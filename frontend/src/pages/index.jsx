@@ -329,7 +329,7 @@ const HeroSection = ({ isDark, onWatchDemo }) => {
           className="inline-flex items-center gap-2 glass-panel px-4 py-2 mb-8"
         >
           <Sparkles className="w-4 h-4 text-cyan-500" />
-          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>Free AI Karaoke Maker & Creator</span>
+          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>AI Karaoke Maker & Creator</span>
         </motion.div>
         <motion.h1
           initial={{ y: 30, opacity: 0 }}
@@ -337,8 +337,8 @@ const HeroSection = ({ isDark, onWatchDemo }) => {
           transition={{ delay: 0.3 }}
           className={`font-display text-4xl sm:text-5xl md:text-7xl font-bold mb-6 leading-tight ${isDark ? 'text-white' : 'text-gray-900'}`}
         >
-          The Free AI<br />
-          <span className="text-gradient">Karaoke Maker</span>
+          The AI Karaoke Maker<br />
+          <span className="text-gradient">For Any Song</span>
         </motion.h1>
         <motion.p
           initial={{ y: 30, opacity: 0 }}
@@ -580,7 +580,7 @@ const PricingSection = ({ isDark }) => {
           <Link href="/signup" className={`inline-flex items-center gap-2 px-4 py-2 rounded-full cursor-pointer transition-all hover:scale-105 ${isDark ? 'bg-green-500/10 border border-green-500/30 hover:bg-green-500/20' : 'bg-green-50 border border-green-200 hover:bg-green-100'}`}>
             <Sparkles className="w-4 h-4 text-green-500" />
             <span className={`text-sm font-medium ${isDark ? 'text-green-400' : 'text-green-600'}`}>
-              Make your first karaoke track free &mdash; 19 free credits, no credit card required
+              Start free with 19 credits &mdash; no credit card required
             </span>
           </Link>
         </motion.div>
@@ -988,7 +988,7 @@ export default function HomePage() {
     <>
       <SEO
         title={null}
-        description="Free online karaoke maker: upload any MP3 and our AI removes the vocals, syncs scrolling lyrics word-by-word, and exports an HD karaoke video. Make your first karaoke track free - no credit card required."
+        description="Online AI karaoke maker: upload any MP3 and our AI removes the vocals, syncs scrolling lyrics word-by-word, and exports an HD karaoke video. Try it free - your first karaoke track is on us."
         path="/"
         structuredData={[getOrganizationSchema(), getSoftwareAppSchema(), getFAQSchema(homeFaqs)]}
       />

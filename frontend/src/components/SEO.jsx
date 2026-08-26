@@ -33,8 +33,8 @@ import Head from 'next/head';
 // Site-wide defaults
 const SITE_NAME = 'Karatrack Studio';
 const SITE_URL = 'https://studio.karatrack.com';
-const DEFAULT_TITLE = 'Free AI Karaoke Maker - Turn Any MP3 Into a Karaoke Video | Karatrack Studio';
-const DEFAULT_DESCRIPTION = 'Free online karaoke maker: upload any MP3 and our AI removes the vocals, syncs scrolling lyrics word-by-word, and exports an HD karaoke video. Make your first karaoke track free - no credit card required.';
+const DEFAULT_TITLE = 'AI Karaoke Maker - Turn Any MP3 Into a Karaoke Video | Karatrack Studio';
+const DEFAULT_DESCRIPTION = 'Online AI karaoke maker: upload any MP3 and our AI removes the vocals, syncs scrolling lyrics word-by-word, and exports an HD karaoke video. Try it free - your first karaoke track is on us.';
 const DEFAULT_IMAGE = `${SITE_URL}/og-image.png`;
 const TWITTER_HANDLE = '@karatrack';
 
