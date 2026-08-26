@@ -926,9 +926,9 @@ export default function SharePage() {
     startImageFit: 'contain', // 'contain', 'cover', 'fill'
     startImageOpacity: 100, // 0-100
     startImageShowTitle: true, // Show artist/title over the image
-    // Outro
+    // Outro dedication (V21: extra footage shown AFTER the track ends)
     outroText: '',
-    outroDuration: 3, // 2-5 seconds
+    outroDuration: 10, // 5-60 seconds
     outroFontSize: 'medium', // small, medium, large
   });
 
@@ -1580,6 +1580,8 @@ export default function SharePage() {
 
   // Timeline state
   const timelineContainerRef = useRef(null);
+  // V21.1: Measures the dedication text so the preview can scroll it like the export does
+  const dedicationPreviewRef = useRef(null);
   const [zoom, setZoom] = useState(PIXELS_PER_SECOND_DEFAULT);
   // V10.9: Multi-selection - Set of selected word indices
   const [selectedWordIndices, setSelectedWordIndices] = useState(new Set());
@@ -2176,7 +2178,7 @@ export default function SharePage() {
           startImageOpacity: projectData.start_image_opacity ?? 100,
           startImageShowTitle: projectData.start_image_show_title ?? true,
           outroText: projectData.outro_text || '',
-          outroDuration: projectData.outro_duration || 3,
+          outroDuration: projectData.outro_duration || 10,
           outroFontSize: projectData.outro_font_size || 'medium',
         });
         
@@ -4622,28 +4624,47 @@ export default function SharePage() {
                       );
                     })()}
                     
-                    {/* OUTRO TEXT OVERLAY - Shows after lyrics end */}
-                    {brandingSettings.outroText && duration > 0 && currentTime > (duration - (brandingSettings.outroDuration || 3)) && (
-                      <div 
-                        className="absolute inset-0 flex items-center justify-center z-20 transition-opacity duration-500"
-                        style={{ 
-                          backgroundColor: 'rgba(0,0,0,0.7)',
-                          opacity: Math.min(1, (currentTime - (duration - (brandingSettings.outroDuration || 3))) * 2)
-                        }}
-                      >
-                        <p 
-                          className="text-center px-4"
+                    {/* OUTRO DEDICATION OVERLAY - In the exported video this plays
+                        AFTER the track ends for the full chosen duration; the
+                        editor previews a sped-up version over the last 5 seconds
+                        since the player stops when the audio does. Long text
+                        scrolls here just like in the export. */}
+                    {brandingSettings.outroText && duration > 0 && currentTime > (duration - 5) && (() => {
+                      const t = currentTime - (duration - 5); // 0..5s preview window
+                      // Hold 1s, scroll for 3s, hold the last second
+                      const scrollProgress = Math.min(1, Math.max(0, (t - 1) / 3));
+                      const contentEl = dedicationPreviewRef.current;
+                      const overflowPx = contentEl ? Math.max(0, contentEl.scrollHeight - (contentEl.parentElement?.clientHeight || 0)) : 0;
+                      return (
+                        <div
+                          className="absolute inset-0 flex flex-col items-center justify-center z-20 transition-opacity duration-500"
                           style={{
-                            color: textColor,
-                            fontSize: brandingSettings.outroFontSize === 'small' ? `${baseFontSize * 0.8}px` : brandingSettings.outroFontSize === 'large' ? `${baseFontSize * 1.5}px` : `${baseFontSize * 1.2}px`,
-                            textShadow: `2px 2px 4px ${outlineColor}`,
-                            whiteSpace: 'pre-wrap'
+                            backgroundColor: 'rgba(0,0,0,0.7)',
+                            opacity: Math.min(1, t * 2)
                           }}
                         >
-                          {brandingSettings.outroText}
-                        </p>
-                      </div>
-                    )}
+                          <div className="w-full overflow-hidden" style={{ maxHeight: '78%' }}>
+                            <p
+                              ref={dedicationPreviewRef}
+                              className="text-center px-6"
+                              style={{
+                                color: textColor,
+                                fontSize: brandingSettings.outroFontSize === 'small' ? `${baseFontSize * 0.7}px` : brandingSettings.outroFontSize === 'large' ? `${baseFontSize * 1.2}px` : `${baseFontSize * 0.9}px`,
+                                textShadow: `2px 2px 4px ${outlineColor}`,
+                                whiteSpace: 'pre-wrap',
+                                transform: `translateY(-${Math.round(overflowPx * scrollProgress)}px)`,
+                                transition: 'transform 0.25s linear'
+                              }}
+                            >
+                              {brandingSettings.outroText}
+                            </p>
+                          </div>
+                          <p className="absolute bottom-2 left-0 right-0 text-center text-[10px] text-gray-400">
+                            Dedication {String.fromCharCode(8226)} plays for {brandingSettings.outroDuration || 10}s after the track ends in the exported video{overflowPx > 0 ? ` ${String.fromCharCode(8226)} scroll preview sped up here` : ''}
+                          </p>
+                        </div>
+                      );
+                    })()}
                     
                     {/* LOGO WATERMARK OVERLAY */}
                     {brandingSettings.logoUrl && (() => {
@@ -6252,40 +6273,60 @@ export default function SharePage() {
                         </p>
                       </div>
 
-                      {/* Outro Message */}
+                      {/* Outro Dedication (V21: extra footage after the track ends) */}
                       <div>
                         <label className={`block text-xs font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Outro Message
+                          Outro Dedication
                         </label>
                         <textarea
                           value={brandingSettings.outroText}
                           onChange={(e) => updateBrandingSettings({ outroText: e.target.value })}
-                          placeholder="Thanks for watching! Subscribe for more..."
-                          maxLength={150}
-                          rows={2}
-                          className={`w-full px-3 py-2 rounded-lg text-sm border resize-none ${isDark ? 'bg-white/10 border-white/10 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'}`}
+                          placeholder={"Leave a dedication message...\n\nThis song goes out to someone special. Write as many paragraphs as you like - they'll appear on screen after the track finishes."}
+                          maxLength={2500}
+                          rows={6}
+                          className={`w-full px-3 py-2 rounded-lg text-sm border resize-y ${isDark ? 'bg-white/10 border-white/10 text-white placeholder-gray-500' : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400'}`}
                         />
                         <div className="flex items-center justify-between mt-2">
-                          <div className="flex items-center gap-2">
-                            <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>Duration:</span>
-                            {[2, 3, 4, 5].map(sec => (
-                              <button
-                                key={sec}
-                                onClick={() => updateBrandingSettings({ outroDuration: sec })}
-                                className={`w-6 h-5 rounded text-[10px] font-medium transition-all ${
-                                  brandingSettings.outroDuration === sec
-                                    ? 'bg-cyan-500 text-white'
-                                    : isDark ? 'bg-white/10 text-gray-400 hover:bg-white/20' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                              >
-                                {sec}s
-                              </button>
-                            ))}
-                          </div>
                           <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            {brandingSettings.outroText.length}/150
+                            Shown after the track ends
+                          </span>
+                          <span className={`text-[10px] ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {brandingSettings.outroText.length}/2500
                           </span>
                         </div>
+                        <div className="mt-2">
+                          <label className={`block text-[10px] mb-1 ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                            Duration: {brandingSettings.outroDuration || 10}s (max 60s)
+                          </label>
+                          <input
+                            type="range"
+                            min="5"
+                            max="60"
+                            step="5"
+                            value={brandingSettings.outroDuration || 10}
+                            onChange={(e) => updateBrandingSettings({ outroDuration: parseInt(e.target.value) })}
+                            className="w-full h-1 rounded-lg appearance-none cursor-pointer"
+                            style={{ background: `linear-gradient(to right, #06b6d4 ${(((brandingSettings.outroDuration || 10) - 5) / 55) * 100}%, ${isDark ? '#374151' : '#d1d5db'} ${(((brandingSettings.outroDuration || 10) - 5) / 55) * 100}%)` }}
+                          />
+                        </div>
+                        {brandingSettings.outroText.trim() && (() => {
+                          const dedicationWords = brandingSettings.outroText.trim().split(/\s+/).length;
+                          // ~180 words per minute reading pace = 3 words/second
+                          const readSeconds = Math.max(5, Math.ceil(dedicationWords / 3));
+                          const needsMoreTime = (brandingSettings.outroDuration || 10) < readSeconds;
+                          return (
+                            <>
+                              <p className={`text-[10px] mt-2 ${isDark ? 'text-amber-400' : 'text-amber-600'}`}>
+                                +5 credits at export (adds up to 60s of extra footage after the track)
+                              </p>
+                              <p className={`text-[10px] mt-1 ${needsMoreTime ? 'text-red-400' : isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                                {needsMoreTime
+                                  ? `Tip: this dedication needs ~${readSeconds}s to read at a comfortable pace - increase the duration or it will scroll quickly`
+                                  : `Long dedications scroll credits-style automatically (~${readSeconds}s comfortable read time)`}
+                              </p>
+                            </>
+                          );
+                        })()}
                       </div>
 
                       {/* Branding Error */}

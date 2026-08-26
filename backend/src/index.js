@@ -86,7 +86,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp3', 'audio/x-wav'];
+    const audioTypes = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/mp3', 'audio/x-wav', 'audio/mp4', 'audio/aac', 'audio/x-m4a', 'audio/ogg'];
     const imageTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
     const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime'];
     const fontTypes = ['font/ttf', 'font/otf', 'application/x-font-ttf', 'application/x-font-opentype', 'application/octet-stream'];
@@ -242,6 +242,20 @@ async function getSignedDownloadUrl(url, filename = null) {
   return getSignedUrl(r2Client, command, { expiresIn: 3600 });
 }
 
+// V21: Outro dedication surcharge, charged at render time when the project
+// has outro text. Pricing math: the cheapest credit we ever sell is ~$0.06
+// (biggest annual plan). 5 credits = $0.30+ revenue, covering the extra GPU
+// render/encode time for up to 60s of additional footage (~$0.02-0.05) while
+// keeping at least $0.25 profit even at the floor credit price.
+const OUTRO_CREDIT_COST = 5;
+const OUTRO_MAX_DURATION = 60; // seconds
+
+function clampOutroDuration(value) {
+  const d = parseInt(value, 10);
+  if (isNaN(d)) return 10;
+  return Math.max(3, Math.min(OUTRO_MAX_DURATION, d));
+}
+
 function calculateCreditsNeeded(options) {
   // Flat per-track pricing by resolution, charged at render time.
   // 540p/720p = 19, 1080p = 28, 4K = 46. Instant mode doubles the charge.
@@ -322,6 +336,7 @@ async function sendToRunPod(projectId, audioUrl, options) {
 
         // Subscription tier for watermark logic
         subscription_tier: options.subscription_tier || 'free',
+        has_ever_paid: options.has_ever_paid || false,
 
         // Studio branding - Logo settings (V12)
         logo_url: options.logo_url || null,
@@ -338,15 +353,20 @@ async function sendToRunPod(projectId, audioUrl, options) {
         start_image_opacity: options.start_image_opacity || 100,
         start_image_show_title: options.start_image_show_title !== false,
 
-        // Outro settings
+        // Outro dedication settings (V21: shown after the track ends, 5-60s)
         outro_text: options.outro_text || null,
-        outro_duration: options.outro_duration || 3,
+        outro_duration: clampOutroDuration(options.outro_duration),
         outro_font_size: options.outro_font_size || 'normal',
 
         // For render_only mode
         processed_audio_url: options.processed_audio_url || null,
         vocals_audio_url: options.vocals_audio_url || null,
         edited_lyrics: options.edited_lyrics || null,
+
+        // Editor-chosen vocal mode ('instrumental' | 'guide' | 'original') — was missing, worker always defaulted
+        audio_track: options.audio_track || 'instrumental',
+        // Customer-supplied clean instrumental (e.g. from Suno) replaces the AI-separated bed at render
+        custom_instrumental_url: options.custom_instrumental_url || null,
 
         // V20: Key change (half steps, -6..+6) and speed (0.75..1.25).
         // Pitch preserves duration (lyric timing unaffected); speed scales
@@ -1052,7 +1072,9 @@ app.post('/api/profile/watermark', authMiddleware, upload.single('watermark'), a
     }
 
     // Upload watermark to R2
-    const watermarkKey = `watermarks/${req.user.id}/default-watermark${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached image
+    const watermarkExt = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
+    const watermarkKey = `watermarks/${req.user.id}/default-watermark-${Date.now()}${watermarkExt}`;
     const watermarkUrl = await uploadToR2(req.file.buffer, watermarkKey, req.file.mimetype);
     console.log(`Default watermark uploaded for user ${req.user.id}: ${watermarkUrl}`);
 
@@ -1529,7 +1551,9 @@ app.post('/api/projects/:id/thumbnail', authMiddleware, upload.single('thumbnail
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    const fileKey = `thumbnails/${req.user.id}/${req.params.id}-thumbnail${file.originalname.substring(file.originalname.lastIndexOf('.'))}`;
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached image
+    const thumbExt = file.originalname.substring(file.originalname.lastIndexOf('.'));
+    const fileKey = `thumbnails/${req.user.id}/${req.params.id}-thumbnail-${Date.now()}${thumbExt}`;
     const fileUrl = await uploadToR2(file.buffer, fileKey, file.mimetype);
 
     const { data: updated, updateError } = await supabase
@@ -1575,7 +1599,9 @@ app.post('/api/upload-logo', authMiddleware, upload.single('logo'), async (req, 
     // V15: All features available to everyone - no tier check needed
 
     // Upload logo to R2
-    const logoKey = `logos/${req.user.id}/${projectId}-logo${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached image
+    const logoExt = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
+    const logoKey = `logos/${req.user.id}/${projectId}-logo-${Date.now()}${logoExt}`;
     const logoUrl = await uploadToR2(req.file.buffer, logoKey, req.file.mimetype);
     console.log(`Logo uploaded for project ${projectId}: ${logoUrl}`);
 
@@ -1623,8 +1649,9 @@ app.post('/api/upload-background-image', authMiddleware, upload.single('image'),
       return res.status(400).json({ error: 'No image file provided' });
     }
 
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached image
     const ext = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
-    const imageKey = `backgrounds/${req.user.id}/${projectId}-bg-image${ext}`;
+    const imageKey = `backgrounds/${req.user.id}/${projectId}-bg-image-${Date.now()}${ext}`;
     const imageUrl = await uploadToR2(req.file.buffer, imageKey, req.file.mimetype);
     console.log(`Background image uploaded for project ${projectId}: ${imageUrl}`);
 
@@ -1667,8 +1694,9 @@ app.post('/api/upload-background-video', authMiddleware, upload.single('video'),
       return res.status(400).json({ error: 'No video file provided' });
     }
 
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached video
     const ext = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
-    const videoKey = `backgrounds/${req.user.id}/${projectId}-bg-video${ext}`;
+    const videoKey = `backgrounds/${req.user.id}/${projectId}-bg-video-${Date.now()}${ext}`;
     const videoUrl = await uploadToR2(req.file.buffer, videoKey, req.file.mimetype);
     console.log(`Background video uploaded for project ${projectId}: ${videoUrl}`);
 
@@ -1714,7 +1742,9 @@ app.post('/api/upload-start-image', authMiddleware, upload.single('startImage'),
     }
 
     // Upload start image to R2
-    const imageKey = `start-images/${req.user.id}/${projectId}-start${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
+    // Unique filename per upload (timestamp) so browsers/CDN never show a stale cached image
+    const startExt = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
+    const imageKey = `start-images/${req.user.id}/${projectId}-start-${Date.now()}${startExt}`;
     const imageUrl = await uploadToR2(req.file.buffer, imageKey, req.file.mimetype);
     console.log(`Start image uploaded for project ${projectId}: ${imageUrl}`);
 
@@ -1733,6 +1763,128 @@ app.post('/api/upload-start-image', authMiddleware, upload.single('startImage'),
     });
   } catch (error) {
     console.error('Start image upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload a customer-supplied clean instrumental (e.g. exported from Suno).
+// At render time it replaces the AI-separated instrumental as the audio bed.
+app.post('/api/upload-custom-instrumental', authMiddleware, upload.single('instrumental'), async (req, res) => {
+  try {
+    const projectId = req.body.projectId;
+
+    if (!projectId) {
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No instrumental file provided' });
+    }
+
+    if (!req.file.mimetype || !req.file.mimetype.startsWith('audio/')) {
+      return res.status(400).json({ error: 'Instrumental must be an audio file' });
+    }
+
+    // If replacing an existing custom instrumental, delete the old R2 object (fire and forget)
+    if (project.custom_instrumental_url) {
+      const oldKey = extractR2Key(project.custom_instrumental_url);
+      if (oldKey) {
+        r2Client.send(new DeleteObjectCommand({
+          Bucket: process.env.CLOUDFLARE_R2_BUCKET,
+          Key: oldKey,
+        })).catch(e => console.log(`Could not delete old custom instrumental ${oldKey}:`, e.message));
+      }
+    }
+
+    // Upload to R2 (unique key per upload so caches never serve a stale file)
+    const ext = req.file.originalname.substring(req.file.originalname.lastIndexOf('.'));
+    const key = `custom-instrumentals/${req.user.id}/${projectId}-instrumental-${Date.now()}${ext}`;
+    const url = await uploadToR2(req.file.buffer, key, req.file.mimetype);
+    console.log(`Custom instrumental uploaded for project ${projectId}: ${url}`);
+
+    // Save URL + original filename to project
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({
+        custom_instrumental_url: url,
+        custom_instrumental_name: req.file.originalname,
+      })
+      .eq('id', projectId);
+
+    if (updateError) throw updateError;
+
+    res.json({
+      success: true,
+      customInstrumentalUrl: url,
+      customInstrumentalName: req.file.originalname,
+    });
+  } catch (error) {
+    console.error('Custom instrumental upload error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove a project's custom instrumental (revert to the AI-separated bed)
+app.post('/api/remove-custom-instrumental', authMiddleware, async (req, res) => {
+  try {
+    const projectId = req.body.projectId;
+
+    if (!projectId) {
+      return res.status(400).json({ error: 'Project ID is required' });
+    }
+
+    // Check if user owns this project
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (projectError || !project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Best-effort delete of the R2 object - don't fail the request if it throws
+    if (project.custom_instrumental_url) {
+      try {
+        const oldKey = extractR2Key(project.custom_instrumental_url);
+        if (oldKey) {
+          r2Client.send(new DeleteObjectCommand({
+            Bucket: process.env.CLOUDFLARE_R2_BUCKET,
+            Key: oldKey,
+          })).catch(e => console.log(`Could not delete custom instrumental ${oldKey}:`, e.message));
+        }
+      } catch (e) {
+        console.log('Error deleting custom instrumental from R2:', e.message);
+      }
+    }
+
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({
+        custom_instrumental_url: null,
+        custom_instrumental_name: null,
+      })
+      .eq('id', projectId);
+
+    if (updateError) throw updateError;
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Remove custom instrumental error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1779,7 +1931,8 @@ app.post('/api/upload-font', authMiddleware, upload.single('font'), async (req, 
     const contentType = contentTypes[ext] || 'application/octet-stream';
 
     // Upload font to R2
-    const fontKey = `fonts/${req.user.id}/${projectId}-font${ext}`;
+    // Unique filename per upload (timestamp) so browsers/CDN never serve a stale cached font
+    const fontKey = `fonts/${req.user.id}/${projectId}-font-${Date.now()}${ext}`;
     const fontUrl = await uploadToR2(req.file.buffer, fontKey, contentType);
     console.log(`Font uploaded for project ${projectId}: ${fontUrl}`);
 
@@ -2085,6 +2238,8 @@ app.post('/api/projects/:id/retry', authMiddleware, async (req, res) => {
       logo_opacity: project.logo_opacity || 80,
       custom_watermark_url: project.custom_watermark_url || project.logo_url || null,
       outro_text: project.outro_text || null,
+      outro_duration: project.outro_duration || 10,
+      outro_font_size: project.outro_font_size || 'normal',
       // Video background
       bg_type: project.bg_type || 'gradient',
       bg_video_preset: project.bg_video_preset_filename || null,
@@ -2243,7 +2398,12 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       video_quality: project.video_quality,
       export_mode: exportMode,
     });
-    const renderCost = isReRender ? Math.max(1, Math.ceil(fullCost / 2)) : fullCost;
+    // V21: Outro dedication surcharge - flat +5 credits whenever the project
+    // has dedication text (extra footage is rendered after the track ends).
+    // Charged in full on re-renders too, since the extra GPU time recurs.
+    const hasOutro = !!(project.outro_text && String(project.outro_text).trim());
+    const outroCost = hasOutro ? OUTRO_CREDIT_COST : 0;
+    const renderCost = (isReRender ? Math.max(1, Math.ceil(fullCost / 2)) : fullCost) + outroCost;
     const hasCredits = await checkCredits(req.user.id, renderCost);
     if (!hasCredits) {
       return res.status(402).json({
@@ -2320,6 +2480,8 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
       speed_rate: speedRate,
       // Audio track the user chose in the editor: 'instrumental' | 'guide' | 'original'
       audio_track: project.audio_track || 'instrumental',
+      // Customer-supplied clean instrumental (optional)
+      custom_instrumental_url: project.custom_instrumental_url || null,
       // Subscription tier (logging) + purchase flag for watermark logic
       subscription_tier: userProfile.subscription_tier || 'free',
       has_ever_paid: userProfile.has_ever_paid || false,
@@ -2369,9 +2531,10 @@ app.post('/api/projects/:id/render', authMiddleware, async (req, res) => {
           req.user.id,
           renderCost,
           project.id,
-          isReRender
+          (isReRender
             ? `Re-render (50%): ${project.song_title || project.title || 'project'}`
-            : `Export ${project.video_quality || '720p'} ${exportMode}: ${project.song_title || project.title || 'project'}`
+            : `Export ${project.video_quality || '720p'} ${exportMode}: ${project.song_title || project.title || 'project'}`)
+          + (outroCost > 0 ? ` (+${outroCost} outro dedication)` : '')
         );
         await supabase.from('projects').update({ credits_used: renderCost }).eq('id', project.id);
       } catch (deductErr) {
@@ -2580,7 +2743,8 @@ app.post('/api/stripe/create-checkout', authMiddleware, async (req, res) => {
               .from('profiles')
               .update({
                 subscription_credits_per_month: credits_per_month,
-                subscription_billing_cycle: billing_cycle
+                subscription_billing_cycle: billing_cycle,
+                has_ever_paid: true
               })
               .eq('id', req.user.id);
             
@@ -3030,6 +3194,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), asyn
                 subscription_credits_per_month: plan.credits_per_month,
                 subscription_billing_cycle: plan.billing_cycle,
                 stripe_subscription_id: subscription.id,
+                has_ever_paid: true,
               })
               .eq('id', profile.id);
 
