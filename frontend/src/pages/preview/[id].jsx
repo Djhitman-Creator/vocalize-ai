@@ -5189,6 +5189,7 @@ export default function PreviewEditPage() {
 
           {/* V11: TAB BAR */}
           <motion.div
+            id="checklist-target-tabs"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.03 }}

@@ -273,11 +273,15 @@ export default function ReadinessChecklist({
       setActiveTab(item.tab);
       setChecklistHighlight(item.id);
       
-      // Scroll to the tab content area after a brief delay
+      // Scroll to the tab panel after a brief delay (gives React time to switch tabs).
+      // Look for a per-tab anchor first; otherwise fall back to the shared tab panel
+      // (id="checklist-target-tabs" on the preview page) so the click always lands somewhere.
       setTimeout(() => {
-        const tabContent = document.getElementById(`checklist-target-${item.tab}`);
+        const tabContent =
+          document.getElementById(`checklist-target-${item.tab}`) ||
+          document.getElementById('checklist-target-tabs');
         if (tabContent) {
-          tabContent.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          tabContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       }, 150);
 
