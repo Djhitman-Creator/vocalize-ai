@@ -706,9 +706,128 @@ FONT_URLS = {
 # Default fallback font
 DEFAULT_FONT = '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'
 
+# Google Fonts family names, keyed by the dropdown value the editor sends.
+# Every entry in the editor's FONT_OPTIONS list must appear here (or in FONT_PATHS),
+# otherwise the render silently falls back to DejaVu Sans, which is much wider
+# than most fonts and makes lines overflow the frame.
+# Fonts that are not on Google Fonts (Arial, Impact) map to the closest free look-alike.
+GOOGLE_FONT_FAMILIES = {
+    'abril-fatface': 'Abril Fatface',
+    'alegreya': 'Alegreya',
+    'anton': 'Anton',
+    'archivo-black': 'Archivo Black',
+    'arial': 'Arimo',                 # Arimo is metric-compatible with Arial
+    'bangers': 'Bangers',
+    'bebas': 'Bebas Neue',
+    'bitter': 'Bitter',
+    'black-ops-one': 'Black Ops One',
+    'cabin': 'Cabin',
+    'cinzel': 'Cinzel',
+    'comfortaa': 'Comfortaa',
+    'concert-one': 'Concert One',
+    'dancing-script': 'Dancing Script',
+    'dosis': 'Dosis',
+    'exo-2': 'Exo 2',
+    'fjalla-one': 'Fjalla One',
+    'fredoka-one': 'Fredoka',          # Google renamed Fredoka One -> Fredoka
+    'graduate': 'Graduate',
+    'impact': 'Anton',                 # Impact is not a free font; Anton is the standard stand-in
+    'inter': 'Inter',
+    'josefin-sans': 'Josefin Sans',
+    'kanit': 'Kanit',
+    'lato': 'Lato',
+    'lexend': 'Lexend',
+    'libre-baskerville': 'Libre Baskerville',
+    'lobster': 'Lobster',
+    'merriweather': 'Merriweather',
+    'montserrat': 'Montserrat',
+    'nunito': 'Nunito',
+    'open-sans': 'Open Sans',
+    'orbitron': 'Orbitron',
+    'oswald': 'Oswald',
+    'pacifico': 'Pacifico',
+    'permanent-marker': 'Permanent Marker',
+    'playfair': 'Playfair Display',
+    'poppins': 'Poppins',
+    'press-start': 'Press Start 2P',
+    'quicksand': 'Quicksand',
+    'rajdhani': 'Rajdhani',
+    'raleway': 'Raleway',
+    'righteous': 'Righteous',
+    'roboto': 'Roboto',
+    'roboto-condensed': 'Roboto Condensed',
+    'roboto-mono': 'Roboto Mono',
+    'roboto-slab': 'Roboto Slab',
+    'rubik': 'Rubik',
+    'russo-one': 'Russo One',
+    'satisfy': 'Satisfy',
+    'shadows-into-light': 'Shadows Into Light',
+    'source-sans-pro': 'Source Sans 3', # Google renamed Source Sans Pro -> Source Sans 3
+    'special-elite': 'Special Elite',
+    'teko': 'Teko',
+    'titillium-web': 'Titillium Web',
+    'ubuntu': 'Ubuntu',
+    'vollkorn': 'Vollkorn',
+    'work-sans': 'Work Sans',
+}
+
 # Cache for loaded fonts
 _font_cache = {}
 _fonts_initialized = False
+# Font names we already tried (and failed) to fetch from Google, so we only try once per worker
+_google_font_failed = set()
+
+
+def download_google_font(font_name):
+    """
+    Download any Google Font by its editor dropdown value, e.g. 'anton' or 'fjalla-one'.
+
+    How it works (beginner notes):
+      1. Google Fonts has a CSS endpoint: fonts.googleapis.com/css2?family=Anton:wght@700
+      2. When the request does NOT look like a browser, that endpoint answers with
+         plain CSS containing a direct link to a .ttf file.
+      3. We pull that .ttf link out with a regex and download the actual font file.
+    We ask for weight 700 (bold) first because karaoke text reads best bold; if the
+    family has no bold, we fall back to its regular weight.
+    Returns the local .ttf path, or None if anything fails.
+    """
+    family = GOOGLE_FONT_FAMILIES.get(font_name)
+    if not family:
+        return None
+
+    ensure_fonts_directory()
+    safe_name = re.sub(r'[^a-z0-9-]', '', font_name.lower())
+    font_path = f'/usr/share/fonts/custom/gf-{safe_name}.ttf'
+    if os.path.exists(font_path) and os.path.getsize(font_path) > 1000:
+        return font_path
+
+    if font_name in _google_font_failed:
+        return None
+
+    family_param = family.replace(' ', '+')
+    # Python's requests default User-Agent is not a browser, so Google returns .ttf links.
+    headers = {'User-Agent': 'python-requests'}
+
+    for weight in ('700', '400'):
+        try:
+            css_url = f'https://fonts.googleapis.com/css2?family={family_param}:wght@{weight}'
+            resp = requests.get(css_url, headers=headers, timeout=20)
+            if resp.status_code != 200:
+                continue
+            match = re.search(r'url\((https://fonts\.gstatic\.com/[^)]+\.ttf)\)', resp.text)
+            if not match:
+                continue
+            ttf = requests.get(match.group(1), timeout=30)
+            ttf.raise_for_status()
+            with open(font_path, 'wb') as f:
+                f.write(ttf.content)
+            print(f"    Google font downloaded: {family} (weight {weight})")
+            return font_path
+        except Exception as e:
+            print(f"    Google font fetch failed for {family} @ {weight}: {e}")
+
+    _google_font_failed.add(font_name)
+    return None
 
 def ensure_fonts_directory():
     """Create custom fonts directory if it doesn't exist."""
@@ -783,13 +902,24 @@ def get_font(size, font_name='arial', custom_font_path=None):
         return _font_cache[cache_key]
     
     # Try the requested font
-    font_path = FONT_PATHS.get(font_name, DEFAULT_FONT)
+    font_path = FONT_PATHS.get(font_name)
     
     # If font doesn't exist, try to download it
-    if not os.path.exists(font_path) and font_name in FONT_URLS:
+    if font_path and not os.path.exists(font_path) and font_name in FONT_URLS:
         downloaded_path = download_font(font_name)
         if downloaded_path:
             font_path = downloaded_path
+    
+    # Not one of the hand-mapped fonts (or the hand-mapped file is missing / is just
+    # the DejaVu stand-in): fetch the real font from Google so the render matches the editor.
+    if not font_path or not os.path.exists(font_path) or font_path == DEFAULT_FONT:
+        google_path = download_google_font(font_name)
+        if google_path:
+            font_path = google_path
+    
+    if not font_path:
+        print(f"   Font '{font_name}' unknown, using fallback...")
+        font_path = DEFAULT_FONT
     
     try:
         font = ImageFont.truetype(font_path, size)
@@ -805,6 +935,37 @@ def get_font(size, font_name='arial', custom_font_path=None):
         return font
     except:
         return ImageFont.load_default()
+
+
+def measure_line_width(draw, line, font):
+    """Total pixel width of a lyric line (list of word dicts) in the given font."""
+    return sum(draw.textbbox((0, 0), w['word'] + ' ', font=font)[2] for w in line)
+
+
+def fit_line_to_width(draw, line, font, base_size, max_width, font_name, custom_font_path, min_ratio=0.45):
+    """
+    Return (font, total_width) for a line, shrinking the font if the line is too wide.
+
+    Before this helper existed, words that ran past the right edge were simply not
+    drawn, which is why the output video was missing the end of long lines.
+    Now the font steps down a few pixels at a time until the whole line fits, down to
+    min_ratio of the original size (so text never becomes unreadably small).
+    get_font() caches by size, so the extra sizes cost nothing on later frames.
+    """
+    total_width = measure_line_width(draw, line, font)
+    if total_width <= max_width:
+        return font, total_width
+
+    size = int(base_size)
+    min_size = max(12, int(base_size * min_ratio))
+    fitted = font
+    while size > min_size:
+        size -= max(1, int(base_size * 0.04))  # ~4% smaller each step
+        fitted = get_font(size, font_name, custom_font_path)
+        total_width = measure_line_width(draw, line, fitted)
+        if total_width <= max_width:
+            break
+    return fitted, total_width
 
 
 def download_custom_font(custom_font_url, work_dir):
@@ -2715,7 +2876,9 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
     font_name = colors.get('font', 'arial') if colors else 'arial'
     
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name, colors.get('custom_font_path') if colors else None)
+    base_font_size = int(FONT_SIZE_LYRICS * scale * font_size_scale)
+    custom_font_path = colors.get('custom_font_path') if colors else None
+    font = get_font(base_font_size, font_name, custom_font_path)
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
@@ -2726,8 +2889,8 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
     
     # V12: Emphasize current line - create a larger font (1.3x) for the active line
     emphasize = colors.get('emphasize_current_line', False) if colors else False
+    emphasis_scale = 1.3
     if emphasize:
-        emphasis_scale = 1.3
         font_emphasized = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale * emphasis_scale), font_name, colors.get('custom_font_path') if colors else None)
     else:
         font_emphasized = font
@@ -2779,8 +2942,9 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
             if y < -line_height or y > height + line_height:
                 continue
             
-            # Calculate total width for centering (using the appropriate font)
-            total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=line_font)[2] for w in line)
+            # Shrink the font for this line if it would run past the frame edge
+            line_base = base_font_size * (emphasis_scale if (emphasize and is_current) else 1.0)
+            line_font, total_width = fit_line_to_width(draw, line, line_font, line_base, width - 2 * padding, font_name, custom_font_path)
             x_start = (width - total_width) // 2
             x_start = max(padding, x_start)
             x = x_start
@@ -2815,16 +2979,15 @@ def create_scroll_frame(current_time, lyrics, width, height, colors=None, bg_ima
                 
                 if line_idx < current_line_idx:
                     # Past line - fully highlighted
-                    draw_text_with_outline(draw, word, x, y, font, sung_color, outline_color, scale=scale)
+                    draw_text_with_outline(draw, word, x, y, line_font, sung_color, outline_color, scale=scale)
                 elif is_current:
                     # Current line - use sweep highlighting with emphasized font
                     sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
                     
-                    if x + word_width <= width - padding:
-                        draw_word_with_sweep(draw, word, x, y, line_font, sweep_percent, highlight_color, unsung_color, outline_color, img, scale=scale)
+                    draw_word_with_sweep(draw, word, x, y, line_font, sweep_percent, highlight_color, unsung_color, outline_color, img, scale=scale)
                 else:
                     # Upcoming line
-                    draw_text_with_outline(draw, word, x, y, font, upcoming_color, outline_color, scale=scale)
+                    draw_text_with_outline(draw, word, x, y, line_font, upcoming_color, outline_color, scale=scale)
                 
                 x += word_width
     
@@ -2854,7 +3017,9 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
     font_name = colors.get('font', 'arial') if colors else 'arial'
     
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name, colors.get('custom_font_path') if colors else None)
+    base_font_size = int(FONT_SIZE_LYRICS * scale * font_size_scale)
+    custom_font_path = colors.get('custom_font_path') if colors else None
+    font = get_font(base_font_size, font_name, custom_font_path)
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
@@ -2865,8 +3030,8 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
     
     # V12: Emphasize current line - create a larger font (1.3x) for the active line
     emphasize = colors.get('emphasize_current_line', False) if colors else False
+    emphasis_scale = 1.3
     if emphasize:
-        emphasis_scale = 1.3
         font_emphasized = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale * emphasis_scale), font_name, colors.get('custom_font_path') if colors else None)
     else:
         font_emphasized = font
@@ -2904,7 +3069,9 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
             is_current = (line_idx_global == current_line_idx)
             line_font = font_emphasized if (emphasize and is_current) else font
             
-            total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=line_font)[2] for w in line)
+            # Shrink the font for this line if it would run past the frame edge
+            line_base = base_font_size * (emphasis_scale if (emphasize and is_current) else 1.0)
+            line_font, total_width = fit_line_to_width(draw, line, line_font, line_base, width - 2 * padding, font_name, custom_font_path)
             x_start = (width - total_width) // 2
             x_start = max(padding, x_start)
             x = x_start
@@ -2936,14 +3103,14 @@ def create_page_frame(current_time, lyrics, width, height, colors=None, bg_image
                 
                 if line_idx_global < current_line_idx:
                     # Past line - fully sung
-                    draw_text_with_outline(draw, word, x, y, font, sung_color, outline_color, scale=scale)
+                    draw_text_with_outline(draw, word, x, y, line_font, sung_color, outline_color, scale=scale)
                 elif is_current:
                     # Current line - use sweep highlighting with emphasized font
                     sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
                     draw_word_with_sweep(draw, word, x, y, line_font, sweep_percent, highlight_color, unsung_color, outline_color, img, scale=scale)
                 else:
                     # Upcoming line
-                    draw_text_with_outline(draw, word, x, y, font, text_color, outline_color, scale=scale)
+                    draw_text_with_outline(draw, word, x, y, line_font, text_color, outline_color, scale=scale)
                 
                 x += word_width
     
@@ -2983,7 +3150,9 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
     font_name = colors.get('font', 'arial') if colors else 'arial'
     
     scale = width / 1920
-    font = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale), font_name, colors.get('custom_font_path') if colors else None)
+    base_font_size = int(FONT_SIZE_LYRICS * scale * font_size_scale)
+    custom_font_path = colors.get('custom_font_path') if colors else None
+    font = get_font(base_font_size, font_name, custom_font_path)
     line_height = int(FONT_SIZE_LYRICS * LINE_HEIGHT_MULTIPLIER * scale * font_size_scale)
     padding = int(PADDING_LEFT_RIGHT * scale)
     
@@ -2994,8 +3163,8 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
     
     # V12: Emphasize current line - create a larger font (1.3x) for the active line
     emphasize = colors.get('emphasize_current_line', False) if colors else False
+    emphasis_scale = 1.3
     if emphasize:
-        emphasis_scale = 1.3
         font_emphasized = get_font(int(FONT_SIZE_LYRICS * scale * font_size_scale * emphasis_scale), font_name, colors.get('custom_font_path') if colors else None)
     else:
         font_emphasized = font
@@ -3039,8 +3208,9 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
         position = line_idx % NUM_POSITIONS
         y = start_y + (position * line_height)
         
-        # Calculate total width for centering (using the appropriate font)
-        total_width = sum(draw.textbbox((0, 0), w['word'] + ' ', font=line_font)[2] for w in line)
+        # Shrink the font for this line if it would run past the frame edge
+        line_base = base_font_size * (emphasis_scale if (emphasize and is_current) else 1.0)
+        line_font, total_width = fit_line_to_width(draw, line, line_font, line_base, width - 2 * padding, font_name, custom_font_path)
         x_start = (width - total_width) // 2
         x_start = max(padding, x_start)
         x = x_start
@@ -3073,14 +3243,14 @@ def create_overwrite_frame(current_time, lyrics, width, height, colors=None, bg_
             
             if line_idx < current_line_idx:
                 # Already sung
-                draw_text_with_outline(draw, word, x, y, font, sung_color, outline_color, scale=scale)
+                draw_text_with_outline(draw, word, x, y, line_font, sung_color, outline_color, scale=scale)
             elif is_current:
                 # Current line - use sweep highlighting with emphasized font
                 sweep_percent = calculate_word_sweep_percent(current_time, word_data['start'], word_data['end'])
                 draw_word_with_sweep(draw, word, x, y, line_font, sweep_percent, highlight_color, unsung_color, outline_color, img, scale=scale)
             else:
                 # Upcoming lines
-                draw_text_with_outline(draw, word, x, y, font, upcoming_color, outline_color, scale=scale)
+                draw_text_with_outline(draw, word, x, y, line_font, upcoming_color, outline_color, scale=scale)
             
             x += word_width
     

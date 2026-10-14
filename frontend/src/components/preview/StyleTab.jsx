@@ -27,7 +27,7 @@ export const FONT_OPTIONS = [
   { value: 'alegreya', label: 'Alegreya', family: '"Alegreya", serif' },
   { value: 'anton', label: 'Anton', family: '"Anton", sans-serif' },
   { value: 'archivo-black', label: 'Archivo Black', family: '"Archivo Black", sans-serif' },
-  { value: 'arial', label: 'Arial', family: 'Arial, sans-serif' },
+  { value: 'arial', label: 'Arial', family: '"Arimo", Arial, sans-serif' },  // Arimo = Arial look-alike the renderer uses
   { value: 'bangers', label: 'Bangers', family: '"Bangers", cursive' },
   { value: 'bebas', label: 'Bebas Neue', family: '"Bebas Neue", sans-serif' },
   { value: 'bitter', label: 'Bitter', family: '"Bitter", serif' },
@@ -42,7 +42,7 @@ export const FONT_OPTIONS = [
   { value: 'fjalla-one', label: 'Fjalla One', family: '"Fjalla One", sans-serif' },
   { value: 'fredoka-one', label: 'Fredoka One', family: '"Fredoka One", cursive' },
   { value: 'graduate', label: 'Graduate', family: '"Graduate", serif' },
-  { value: 'impact', label: 'Impact', family: 'Impact, sans-serif' },
+  { value: 'impact', label: 'Impact', family: '"Anton", Impact, sans-serif' },  // Anton = Impact look-alike the renderer uses
   { value: 'inter', label: 'Inter', family: '"Inter", sans-serif' },
   { value: 'josefin-sans', label: 'Josefin Sans', family: '"Josefin Sans", sans-serif' },
   { value: 'kanit', label: 'Kanit', family: '"Kanit", sans-serif' },
