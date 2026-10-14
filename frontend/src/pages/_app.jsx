@@ -21,6 +21,7 @@ const GOOGLE_FONTS_URL = 'https://fonts.googleapis.com/css2?family=' + [
   'Alegreya:wght@400;700',
   'Anton',
   'Archivo+Black',
+  'Arimo:wght@400;700',
   'Bangers',
   'Bebas+Neue',
   'Bitter:wght@400;700',
